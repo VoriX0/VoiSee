@@ -8,7 +8,7 @@ internal sealed class CommandLineOptions
     public string? SoundFile { get; private init; }
     public float SoundVirtualVolume { get; private init; } = 1.0f;
     public float SoundMonitorVolume { get; private init; } = 1.0f;
-    public int SoundMonitorDelayMs { get; private init; }
+    public int SoundVirtualDelayMs { get; private init; }
     public int DurationSeconds { get; private init; }
     public float InputGainDb { get; private init; }
     public float VoiceGainDb { get; private init; }
@@ -54,9 +54,12 @@ internal sealed class CommandLineOptions
                 case "--sound-monitor-volume":
                     options.SoundMonitorVolume = ParseFloat(ReadValue(args, ref i, arg), arg);
                     break;
+                case "--sound-virtual-delay-ms":
+                case "--virtual-delay-ms":
+                // Backward-compatible alias from Gate 1.2. In Gate 1.3 it delays the soundboard output to the virtual microphone, not headphones.
                 case "--sound-monitor-delay-ms":
                 case "--monitor-delay-ms":
-                    options.SoundMonitorDelayMs = ParseInt(ReadValue(args, ref i, arg), arg);
+                    options.SoundVirtualDelayMs = ParseInt(ReadValue(args, ref i, arg), arg);
                     break;
                 case "--duration":
                     options.DurationSeconds = ParseInt(ReadValue(args, ref i, arg), arg);
@@ -137,7 +140,7 @@ internal sealed class CommandLineOptions
         public string? SoundFile { get; set; }
         public float SoundVirtualVolume { get; set; } = 1.0f;
         public float SoundMonitorVolume { get; set; } = 1.0f;
-        public int SoundMonitorDelayMs { get; set; }
+        public int SoundVirtualDelayMs { get; set; }
         public int DurationSeconds { get; set; }
         public float InputGainDb { get; set; }
         public float VoiceGainDb { get; set; }
@@ -159,7 +162,7 @@ internal sealed class CommandLineOptions
             SoundFile = SoundFile,
             SoundVirtualVolume = SoundVirtualVolume,
             SoundMonitorVolume = SoundMonitorVolume,
-            SoundMonitorDelayMs = SoundMonitorDelayMs,
+            SoundVirtualDelayMs = SoundVirtualDelayMs,
             DurationSeconds = DurationSeconds,
             InputGainDb = InputGainDb,
             VoiceGainDb = VoiceGainDb,

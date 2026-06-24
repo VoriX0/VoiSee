@@ -73,9 +73,10 @@ if (!string.IsNullOrWhiteSpace(options.SoundFile))
 {
     Console.WriteLine($"Sound file:     {options.SoundFile}");
     Console.WriteLine("Runtime keys:   S = play sound, X = stop sound");
-    if (options.SoundMonitorDelayMs > 0)
+    if (options.SoundVirtualDelayMs > 0)
     {
-        Console.WriteLine($"Monitor delay:  {options.SoundMonitorDelayMs} ms for soundboard playback");
+        Console.WriteLine($"Virtual mic delay: {options.SoundVirtualDelayMs} ms for soundboard playback");
+        Console.WriteLine("Monitor starts first; virtual microphone receives the same sound after the delay.");
     }
 }
 
@@ -87,7 +88,7 @@ using var soundPlayer = string.IsNullOrWhiteSpace(options.SoundFile)
         monitor,
         options.SoundVirtualVolume,
         options.SoundMonitorVolume,
-        options.SoundMonitorDelayMs);
+        options.SoundVirtualDelayMs);
 using var done = new ManualResetEventSlim(false);
 
 Console.CancelKeyPress += (_, eventArgs) =>
@@ -160,7 +161,9 @@ static void PrintHelp()
     Console.WriteLine("  --sound-file <path>                 optional WAV/MP3/OGG one-shot file");
     Console.WriteLine("  --sound-virtual-volume <value>      default: 1.0");
     Console.WriteLine("  --sound-monitor-volume <value>      default: 1.0");
-    Console.WriteLine("  --sound-monitor-delay-ms <ms>       default: 0, delay soundboard in headphones only");
+    Console.WriteLine("  --sound-virtual-delay-ms <ms>       default: 0, delay soundboard before it reaches CABLE Input");
+    Console.WriteLine("  --virtual-delay-ms <ms>             short alias for --sound-virtual-delay-ms");
+    Console.WriteLine("  --sound-monitor-delay-ms <ms>       legacy alias; same as --sound-virtual-delay-ms in Gate 1.3");
     Console.WriteLine("  --input-gain-db <value>             default: 0");
     Console.WriteLine("  --voice-gain-db <value>             default: 0");
     Console.WriteLine("  --gate-threshold-db <value>         default: -45");

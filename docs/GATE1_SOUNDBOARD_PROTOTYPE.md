@@ -44,3 +44,12 @@ dotnet run --project src/VoiSe.Gate0.Cli -- --input "Микрофон (Fifine Mi
 Suggested values to try: 40, 80, 120, 160 ms.
 
 This is a temporary Gate 1 sync control. The final app should expose it as a SoundBoard monitoring delay slider.
+
+
+## Gate 1.3: virtual microphone delay
+
+`--sound-virtual-delay-ms` delays only the soundboard stream that goes to the virtual microphone. The monitor output starts immediately.
+
+This is different from Gate 1.2, where the prototype delayed the monitor path. Gate 1.3 matches the intended MVP behaviour: headphones are a timing cue, virtual microphone output is delayed.
+
+Recommended values to test: 40, 80, 120, 160, 200 ms.
