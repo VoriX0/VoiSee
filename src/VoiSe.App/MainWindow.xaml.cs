@@ -15,16 +15,20 @@ public sealed partial class MainWindow : Window
 {
     private readonly AudioDeviceCatalog _catalog = new();
     private readonly DispatcherTimer _routeRestartTimer;
+    private readonly SettingsStore _settingsStore = new();
+    private readonly VoiSeUserSettings _settings;
     private Gate2UnifiedAudioEngine? _engine;
     private string? _soundFilePath;
     private bool _refreshingDevices;
     private bool _manualStopRequested;
     private string _pendingRestartReason = "settings changed";
     private bool _voiceMonitorEnabled;
+    private bool _loadingSettings;
 
     public MainWindow()
     {
         StartupLog.Write("MainWindow constructor started.");
+        _settings = _settingsStore.Load();
         InitializeComponent();
         Closed += OnClosed;
 
@@ -34,8 +38,10 @@ public sealed partial class MainWindow : Window
         };
         _routeRestartTimer.Tick += OnRouteRestartTimerTick;
 
+        ApplyStoredSettingsToControls();
         UpdateAllLabels();
-        AppendLog("Gate 3.6 UI started.");
+        AppendLog("Gate 4 UI started.");
+        AppendLog($"Settings path: {_settingsStore.SettingsPath}");
         StartupLog.Write("MainWindow initialized; loading devices next.");
 
         DispatcherQueue.TryEnqueue(() =>
@@ -52,9 +58,43 @@ public sealed partial class MainWindow : Window
         });
     }
 
+    private void ApplyStoredSettingsToControls()
+    {
+        _loadingSettings = true;
+        try
+        {
+            _soundFilePath = string.IsNullOrWhiteSpace(_settings.LastSoundFilePath) ? null : _settings.LastSoundFilePath;
+            SoundFileTextBox.Text = _soundFilePath ?? string.Empty;
+
+            VirtualOutputVolumeSlider.Value = Clamp(_settings.VirtualMicMasterVolume, 0, 1.5);
+            SoundVirtualVolumeSlider.Value = Clamp(_settings.SoundBoardVirtualMicVolume, 0, 1.5);
+            SoundMonitorVolumeSlider.Value = Clamp(_settings.SoundBoardHeadphonesVolume, 0, 1.5);
+            SoundVirtualDelaySlider.Value = Clamp(_settings.SoundBoardVirtualMicDelayMs, 0, 300);
+            VoiceGainSlider.Value = Clamp(_settings.VoiceGainDb, -24, 12);
+            GateThresholdSlider.Value = Clamp(_settings.GateThresholdDb, -70, -20);
+            CompressorThresholdSlider.Value = Clamp(_settings.CompressorThresholdDb, -40, 0);
+            _voiceMonitorEnabled = _settings.VoiceMonitorEnabled;
+        }
+        finally
+        {
+            _loadingSettings = false;
+        }
+    }
+
+    private static double Clamp(double value, double min, double max)
+    {
+        if (double.IsNaN(value))
+        {
+            return min;
+        }
+
+        return Math.Min(max, Math.Max(min, value));
+    }
+
     private void OnClosed(object sender, WindowEventArgs args)
     {
         _manualStopRequested = true;
+        SaveCurrentSettings();
         StopEngine(log: false);
         _catalog.Dispose();
     }
@@ -80,19 +120,31 @@ public sealed partial class MainWindow : Window
             var captureDevices = _catalog.ListCaptureDevices();
             var renderDevices = _catalog.ListRenderDevices();
 
-            var oldInputId = (InputDeviceComboBox.SelectedItem as AudioDeviceInfo)?.Id;
-            var oldVirtualId = (VirtualOutputComboBox.SelectedItem as AudioDeviceInfo)?.Id;
-            var oldMonitorId = (MonitorOutputComboBox.SelectedItem as AudioDeviceInfo)?.Id;
+            var oldInputId = (InputDeviceComboBox.SelectedItem as AudioDeviceInfo)?.Id ?? _settings.InputDeviceId;
+            var oldVirtualId = (VirtualOutputComboBox.SelectedItem as AudioDeviceInfo)?.Id ?? _settings.VirtualOutputDeviceId;
+            var oldMonitorId = (MonitorOutputComboBox.SelectedItem as AudioDeviceInfo)?.Id ?? _settings.MonitorOutputDeviceId;
 
             InputDeviceComboBox.ItemsSource = captureDevices;
             VirtualOutputComboBox.ItemsSource = renderDevices;
             MonitorOutputComboBox.ItemsSource = renderDevices;
 
-            InputDeviceComboBox.SelectedItem = PickById(captureDevices, oldInputId) ?? PickByName(captureDevices, "Fifine") ?? captureDevices.FirstOrDefault();
-            VirtualOutputComboBox.SelectedItem = PickById(renderDevices, oldVirtualId) ?? PickByName(renderDevices, "CABLE Input") ?? renderDevices.FirstOrDefault();
-            MonitorOutputComboBox.SelectedItem = PickById(renderDevices, oldMonitorId) ?? PickByName(renderDevices, "Realtek") ?? renderDevices.FirstOrDefault();
+            InputDeviceComboBox.SelectedItem = PickById(captureDevices, oldInputId)
+                ?? PickByName(captureDevices, _settings.InputDeviceName)
+                ?? PickByName(captureDevices, "Fifine")
+                ?? captureDevices.FirstOrDefault();
+
+            VirtualOutputComboBox.SelectedItem = PickById(renderDevices, oldVirtualId)
+                ?? PickByName(renderDevices, _settings.VirtualOutputDeviceName)
+                ?? PickByName(renderDevices, "CABLE Input")
+                ?? renderDevices.FirstOrDefault();
+
+            MonitorOutputComboBox.SelectedItem = PickById(renderDevices, oldMonitorId)
+                ?? PickByName(renderDevices, _settings.MonitorOutputDeviceName)
+                ?? PickByName(renderDevices, "Realtek")
+                ?? renderDevices.FirstOrDefault();
 
             AppendLog($"Devices refreshed: {captureDevices.Count} capture, {renderDevices.Count} render.");
+            SaveCurrentSettings();
         }
         finally
         {
@@ -100,8 +152,13 @@ public sealed partial class MainWindow : Window
         }
     }
 
-    private static AudioDeviceInfo? PickByName(IReadOnlyList<AudioDeviceInfo> devices, string text)
+    private static AudioDeviceInfo? PickByName(IReadOnlyList<AudioDeviceInfo> devices, string? text)
     {
+        if (string.IsNullOrWhiteSpace(text))
+        {
+            return null;
+        }
+
         return devices.FirstOrDefault(d => d.FriendlyName.Contains(text, StringComparison.OrdinalIgnoreCase));
     }
 
@@ -126,6 +183,7 @@ public sealed partial class MainWindow : Window
 
         _soundFilePath = file.Path;
         SoundFileTextBox.Text = _soundFilePath;
+        SaveCurrentSettings();
         AppendLog($"Sound selected: {_soundFilePath}");
     }
 
@@ -174,6 +232,7 @@ public sealed partial class MainWindow : Window
 
         try
         {
+            SaveCurrentSettings();
             _engine = new Gate2UnifiedAudioEngine(input, virtualOutput, monitor, CreateEffectSettings());
             _engine.Start();
             EngineStatusTextBlock.Text = "Running";
@@ -252,6 +311,7 @@ public sealed partial class MainWindow : Window
     private void ApplyLiveSettings(string reason)
     {
         UpdateAllLabels();
+        SaveCurrentSettings();
 
         if (_engine is null)
         {
@@ -294,6 +354,7 @@ public sealed partial class MainWindow : Window
 
         try
         {
+            SaveCurrentSettings();
             var delayMs = (int)Math.Round(SoundVirtualDelaySlider.Value);
             var virtualVolume = (float)SoundVirtualVolumeSlider.Value;
             var monitorVolume = (float)SoundMonitorVolumeSlider.Value;
@@ -324,17 +385,20 @@ public sealed partial class MainWindow : Window
             return;
         }
 
+        SaveCurrentSettings();
         ScheduleEngineRestart("audio route changed");
     }
 
     private void OnDelayChanged(object sender, Microsoft.UI.Xaml.Controls.Primitives.RangeBaseValueChangedEventArgs e)
     {
         UpdateDelayLabel();
+        SaveCurrentSettings();
     }
 
     private void OnSoundVolumeChanged(object sender, Microsoft.UI.Xaml.Controls.Primitives.RangeBaseValueChangedEventArgs e)
     {
         UpdateSoundVolumeLabels();
+        SaveCurrentSettings();
         if (_engine is not null)
         {
             _engine.UpdateSoundVolumes((float)SoundVirtualVolumeSlider.Value, (float)SoundMonitorVolumeSlider.Value);
@@ -353,7 +417,6 @@ public sealed partial class MainWindow : Window
         UpdateVoiceSettingLabels();
         ApplyLiveSettings("voice setting changed");
     }
-
 
     private void OnToggleVoiceMonitorClick(object sender, RoutedEventArgs e)
     {
@@ -399,7 +462,7 @@ public sealed partial class MainWindow : Window
         }
 
         SoundVirtualVolumeLabel.Text = $"SoundBoard → Virtual Mic: {(int)Math.Round(SoundVirtualVolumeSlider.Value * 100)}%";
-        SoundMonitorVolumeLabel.Text = $"SoundBoard → Monitor: {(int)Math.Round(SoundMonitorVolumeSlider.Value * 100)}%";
+        SoundMonitorVolumeLabel.Text = $"SoundBoard → Headphones: {(int)Math.Round(SoundMonitorVolumeSlider.Value * 100)}%";
     }
 
     private void UpdateOutputVolumeLabels()
@@ -422,6 +485,37 @@ public sealed partial class MainWindow : Window
         VoiceGainLabel.Text = $"Voice Gain: {(int)Math.Round(VoiceGainSlider.Value)} dB";
         GateThresholdLabel.Text = $"Gate Threshold: {(int)Math.Round(GateThresholdSlider.Value)} dB";
         CompressorThresholdLabel.Text = $"Compressor Threshold: {(int)Math.Round(CompressorThresholdSlider.Value)} dB";
+    }
+
+    private void SaveCurrentSettings()
+    {
+        if (_loadingSettings)
+        {
+            return;
+        }
+
+        var input = InputDeviceComboBox?.SelectedItem as AudioDeviceInfo;
+        var virtualOutput = VirtualOutputComboBox?.SelectedItem as AudioDeviceInfo;
+        var monitor = MonitorOutputComboBox?.SelectedItem as AudioDeviceInfo;
+
+        _settings.InputDeviceId = input?.Id;
+        _settings.InputDeviceName = input?.FriendlyName;
+        _settings.VirtualOutputDeviceId = virtualOutput?.Id;
+        _settings.VirtualOutputDeviceName = virtualOutput?.FriendlyName;
+        _settings.MonitorOutputDeviceId = monitor?.Id;
+        _settings.MonitorOutputDeviceName = monitor?.FriendlyName;
+        _settings.LastSoundFilePath = _soundFilePath;
+
+        _settings.VirtualMicMasterVolume = VirtualOutputVolumeSlider?.Value ?? 1.0;
+        _settings.VoiceMonitorEnabled = _voiceMonitorEnabled;
+        _settings.SoundBoardVirtualMicVolume = SoundVirtualVolumeSlider?.Value ?? 1.0;
+        _settings.SoundBoardHeadphonesVolume = SoundMonitorVolumeSlider?.Value ?? 1.0;
+        _settings.SoundBoardVirtualMicDelayMs = SoundVirtualDelaySlider?.Value ?? 85.0;
+        _settings.VoiceGainDb = VoiceGainSlider?.Value ?? 0.0;
+        _settings.GateThresholdDb = GateThresholdSlider?.Value ?? -45.0;
+        _settings.CompressorThresholdDb = CompressorThresholdSlider?.Value ?? -18.0;
+
+        _settingsStore.Save(_settings);
     }
 
     private void AppendLog(string message)

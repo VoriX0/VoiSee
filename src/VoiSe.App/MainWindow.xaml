@@ -5,7 +5,7 @@
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     mc:Ignorable="d"
-    Title="VoiSe Gate 3.6">
+    Title="VoiSe Gate 4">
 
     <Grid Padding="20" RowSpacing="14">
         <Grid.RowDefinitions>
@@ -15,8 +15,8 @@
         </Grid.RowDefinitions>
 
         <StackPanel Grid.Row="0" Spacing="4">
-            <TextBlock Text="VoiSe Gate 3.6" FontSize="28" FontWeight="SemiBold" />
-            <TextBlock Text="WinUI 3 control panel with separated voice monitor and SoundBoard route volumes" Opacity="0.75" />
+            <TextBlock Text="VoiSe Gate 4" FontSize="28" FontWeight="SemiBold" />
+            <TextBlock Text="WinUI 3 control panel with persistent user settings" Opacity="0.75" />
         </StackPanel>
 
         <TabView Grid.Row="1" IsAddTabButtonVisible="False" TabWidthMode="Equal">
@@ -95,7 +95,7 @@
 
             <TabViewItem Header="Scenes" IsClosable="False">
                 <StackPanel Spacing="12" Padding="0,16,0,0">
-                    <InfoBar IsOpen="True" Severity="Informational" Title="Coming next" Message="Scenes are not implemented in Gate 3. This tab reserves the final navigation structure from the start." />
+                    <InfoBar IsOpen="True" Severity="Informational" Title="Coming next" Message="Scenes are not implemented in Gate 4. This tab reserves the final navigation structure from the start." />
                     <TextBlock Text="Planned scene content:" FontSize="18" FontWeight="SemiBold" />
                     <TextBlock Text="• voice preset&#x0a;• one background loop sound&#x0a;• several one-shot sounds&#x0a;• scene mixer settings" />
                 </StackPanel>

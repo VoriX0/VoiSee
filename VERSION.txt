@@ -1,1 +1,1 @@
-VoiSe Gate 3.6 - separated voice monitor and SoundBoard route volumes
+VoiSe Gate 4 - Persistent Settings Prototype
