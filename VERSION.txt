@@ -1,1 +1,1 @@
-VoiSe Gate 4 - Persistent Settings Prototype
+Gate 4.2 - Persistent Settings Restore Fix

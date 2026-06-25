@@ -5,6 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Threading.Tasks;
 using VoiSe.Audio;
 using Windows.Storage.Pickers;
 using WinRT.Interop;
@@ -38,28 +39,53 @@ public sealed partial class MainWindow : Window
         };
         _routeRestartTimer.Tick += OnRouteRestartTimerTick;
 
-        AppendLog("Gate 4.1 UI started.");
+        AppendLog("Gate 4.2 UI started.");
         AppendLog($"Settings path: {_settingsStore.SettingsPath}");
         StartupLog.Write("MainWindow initialized; restoring settings next.");
 
-        DispatcherQueue.TryEnqueue(RestoreSettingsAndDevices);
+        DispatcherQueue.TryEnqueue(async () => await RestoreSettingsAndDevicesAsync());
     }
 
-    private void RestoreSettingsAndDevices()
+    private async Task RestoreSettingsAndDevicesAsync()
     {
         _loadingSettings = true;
         try
         {
             AppendLog("Restoring saved settings...");
+            StartupLog.Write("Restore: started.");
+
             ApplyStoredScalarSettingsToControls();
-            RefreshDevices(saveAfterRefresh: false);
+            UpdateAllLabels();
+            AppendLog("Saved scalar settings applied.");
+            StartupLog.Write("Restore: scalar settings applied.");
+
+            AppendLog("Loading audio devices...");
+            StartupLog.Write("Restore: loading capture devices.");
+            var captureDevices = await Task.Run(() =>
+            {
+                using var catalog = new AudioDeviceCatalog();
+                return catalog.ListCaptureDevices();
+            });
+
+            StartupLog.Write($"Restore: capture devices loaded: {captureDevices.Count}.");
+            StartupLog.Write("Restore: loading render devices.");
+            var renderDevices = await Task.Run(() =>
+            {
+                using var catalog = new AudioDeviceCatalog();
+                return catalog.ListRenderDevices();
+            });
+
+            StartupLog.Write($"Restore: render devices loaded: {renderDevices.Count}.");
+            ApplyDeviceLists(captureDevices, renderDevices, saveAfterRefresh: false);
+
             UpdateAllLabels();
             AppendLog("Settings restored.");
+            StartupLog.Write("Restore: completed.");
         }
         catch (Exception ex)
         {
             StartupLog.Write("Settings restore error: " + ex);
-            AppendLog($"Settings restore error: {ex.Message}");
+            AppendLog($"Settings restore error: {ex.GetType().Name}: {ex.Message}");
         }
         finally
         {
@@ -118,52 +144,64 @@ public sealed partial class MainWindow : Window
         _refreshingDevices = true;
         try
         {
+            AppendLog("Refreshing audio devices...");
+            StartupLog.Write("RefreshDevices: loading capture devices.");
             var captureDevices = _catalog.ListCaptureDevices();
+            StartupLog.Write($"RefreshDevices: capture devices loaded: {captureDevices.Count}.");
+
+            StartupLog.Write("RefreshDevices: loading render devices.");
             var renderDevices = _catalog.ListRenderDevices();
+            StartupLog.Write($"RefreshDevices: render devices loaded: {renderDevices.Count}.");
 
-            var oldInputId = (InputDeviceComboBox.SelectedItem as AudioDeviceInfo)?.Id ?? _settings.InputDeviceId;
-            var oldVirtualId = (VirtualOutputComboBox.SelectedItem as AudioDeviceInfo)?.Id ?? _settings.VirtualOutputDeviceId;
-            var oldMonitorId = (MonitorOutputComboBox.SelectedItem as AudioDeviceInfo)?.Id ?? _settings.MonitorOutputDeviceId;
-
-            InputDeviceComboBox.ItemsSource = captureDevices;
-            VirtualOutputComboBox.ItemsSource = renderDevices;
-            MonitorOutputComboBox.ItemsSource = renderDevices;
-
-            var selectedInput = PickById(captureDevices, oldInputId)
-                ?? PickByExactName(captureDevices, _settings.InputDeviceName)
-                ?? PickByName(captureDevices, _settings.InputDeviceName)
-                ?? PickByName(captureDevices, "Fifine")
-                ?? captureDevices.FirstOrDefault();
-
-            var selectedVirtual = PickById(renderDevices, oldVirtualId)
-                ?? PickByExactName(renderDevices, _settings.VirtualOutputDeviceName)
-                ?? PickByName(renderDevices, _settings.VirtualOutputDeviceName)
-                ?? PickByName(renderDevices, "CABLE Input")
-                ?? renderDevices.FirstOrDefault();
-
-            var selectedMonitor = PickById(renderDevices, oldMonitorId)
-                ?? PickByExactName(renderDevices, _settings.MonitorOutputDeviceName)
-                ?? PickByName(renderDevices, _settings.MonitorOutputDeviceName)
-                ?? PickByName(renderDevices, "Realtek")
-                ?? renderDevices.FirstOrDefault();
-
-            InputDeviceComboBox.SelectedItem = selectedInput;
-            VirtualOutputComboBox.SelectedItem = selectedVirtual;
-            MonitorOutputComboBox.SelectedItem = selectedMonitor;
-
-            AppendLog($"Devices refreshed: {captureDevices.Count} capture, {renderDevices.Count} render.");
-            AppendLog($"Selected input: {selectedInput?.FriendlyName ?? "none"}");
-            AppendLog($"Selected virtual output: {selectedVirtual?.FriendlyName ?? "none"}");
-            AppendLog($"Selected monitor: {selectedMonitor?.FriendlyName ?? "none"}");
-
-            if (saveAfterRefresh && !_loadingSettings)
-            {
-                SaveCurrentSettings();
-            }
+            ApplyDeviceLists(captureDevices, renderDevices, saveAfterRefresh);
         }
         finally
         {
             _refreshingDevices = false;
+        }
+    }
+
+    private void ApplyDeviceLists(IReadOnlyList<AudioDeviceInfo> captureDevices, IReadOnlyList<AudioDeviceInfo> renderDevices, bool saveAfterRefresh)
+    {
+        var oldInputId = (InputDeviceComboBox.SelectedItem as AudioDeviceInfo)?.Id ?? _settings.InputDeviceId;
+        var oldVirtualId = (VirtualOutputComboBox.SelectedItem as AudioDeviceInfo)?.Id ?? _settings.VirtualOutputDeviceId;
+        var oldMonitorId = (MonitorOutputComboBox.SelectedItem as AudioDeviceInfo)?.Id ?? _settings.MonitorOutputDeviceId;
+
+        InputDeviceComboBox.ItemsSource = captureDevices;
+        VirtualOutputComboBox.ItemsSource = renderDevices;
+        MonitorOutputComboBox.ItemsSource = renderDevices;
+
+        var selectedInput = PickById(captureDevices, oldInputId)
+            ?? PickByExactName(captureDevices, _settings.InputDeviceName)
+            ?? PickByName(captureDevices, _settings.InputDeviceName)
+            ?? PickByName(captureDevices, "Fifine")
+            ?? captureDevices.FirstOrDefault();
+
+        var selectedVirtual = PickById(renderDevices, oldVirtualId)
+            ?? PickByExactName(renderDevices, _settings.VirtualOutputDeviceName)
+            ?? PickByName(renderDevices, _settings.VirtualOutputDeviceName)
+            ?? PickByName(renderDevices, "CABLE Input")
+            ?? renderDevices.FirstOrDefault();
+
+        var selectedMonitor = PickById(renderDevices, oldMonitorId)
+            ?? PickByExactName(renderDevices, _settings.MonitorOutputDeviceName)
+            ?? PickByName(renderDevices, _settings.MonitorOutputDeviceName)
+            ?? PickByName(renderDevices, "Realtek")
+            ?? renderDevices.FirstOrDefault();
+
+        InputDeviceComboBox.SelectedItem = selectedInput;
+        VirtualOutputComboBox.SelectedItem = selectedVirtual;
+        MonitorOutputComboBox.SelectedItem = selectedMonitor;
+
+        AppendLog($"Devices refreshed: {captureDevices.Count} capture, {renderDevices.Count} render.");
+        AppendLog($"Selected input: {selectedInput?.FriendlyName ?? "none"}");
+        AppendLog($"Selected virtual output: {selectedVirtual?.FriendlyName ?? "none"}");
+        AppendLog($"Selected monitor: {selectedMonitor?.FriendlyName ?? "none"}");
+        StartupLog.Write($"ApplyDeviceLists: input={selectedInput?.FriendlyName ?? "none"}; virtual={selectedVirtual?.FriendlyName ?? "none"}; monitor={selectedMonitor?.FriendlyName ?? "none"}.");
+
+        if (saveAfterRefresh && !_loadingSettings)
+        {
+            SaveCurrentSettings();
         }
     }
 

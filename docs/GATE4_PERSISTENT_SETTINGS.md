@@ -1,3 +1,5 @@
+# VoiSe Gate 4.2
+
 # Gate 4 — Persistent Settings
 
 Gate 4 turns the WinUI 3 control panel into a reusable daily test application by saving and restoring the most important user settings.
@@ -42,3 +44,7 @@ This allows the app to survive common device reconnect scenarios without crashin
 5. SoundBoard route volumes are restored.
 6. Voice Monitor On/Off is restored.
 7. Voice Changer slider values are restored.
+
+
+## Gate 4.2 note
+Settings restore is now traced step-by-step. Device enumeration during startup is done on a background task and saved values are applied only after device lists are loaded.
