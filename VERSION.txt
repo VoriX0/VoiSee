@@ -1,1 +1,1 @@
-VoiSe Gate 4.3 - settings restore after window activation
+VoiSe Gate 5 - SoundBoard Library

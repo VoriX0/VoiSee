@@ -5,7 +5,7 @@
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     mc:Ignorable="d"
-    Title="VoiSe Gate 3.6">
+    Title="VoiSe Gate 5 - SoundBoard Library">
 
     <Grid Padding="20" RowSpacing="14">
         <Grid.RowDefinitions>
@@ -15,30 +15,61 @@
         </Grid.RowDefinitions>
 
         <StackPanel Grid.Row="0" Spacing="4">
-            <TextBlock Text="VoiSe Gate 3.6" FontSize="28" FontWeight="SemiBold" />
-            <TextBlock Text="WinUI 3 control panel with separated voice monitor and SoundBoard route volumes" Opacity="0.75" />
+            <TextBlock Text="VoiSe Gate 5" FontSize="28" FontWeight="SemiBold" />
+            <TextBlock Text="SoundBoard Library: categories, copied sound files, metadata persistence, and unified mixer playback" Opacity="0.75" />
         </StackPanel>
 
         <TabView Grid.Row="1" IsAddTabButtonVisible="False" TabWidthMode="Equal">
             <TabViewItem Header="SoundBoard" IsClosable="False">
-                <ScrollViewer>
-                    <StackPanel Spacing="16" Padding="0,16,0,0">
-                        <TextBlock Text="Sound file" FontSize="18" FontWeight="SemiBold" />
-                        <Grid ColumnSpacing="10">
+                <Grid Padding="0,16,0,0" ColumnSpacing="18" RowSpacing="12">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="280" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
+
+                    <StackPanel Grid.Row="0" Grid.Column="0" Spacing="8">
+                        <TextBlock Text="Categories" FontSize="18" FontWeight="SemiBold" />
+                        <ComboBox x:Name="CategoryComboBox" DisplayMemberPath="Name" PlaceholderText="Choose category" SelectionChanged="OnCategorySelectionChanged" Width="260" />
+                        <Grid ColumnSpacing="8">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="*" />
                                 <ColumnDefinition Width="Auto" />
                             </Grid.ColumnDefinitions>
-                            <TextBox x:Name="SoundFileTextBox" PlaceholderText="Choose WAV / MP3 / OGG file" IsReadOnly="True" />
-                            <Button Grid.Column="1" Content="Browse" Click="OnBrowseSoundClick" />
+                            <TextBox x:Name="NewCategoryTextBox" PlaceholderText="New category" />
+                            <Button Grid.Column="1" Content="Add" Click="OnAddCategoryClick" />
                         </Grid>
+                    </StackPanel>
 
+                    <StackPanel Grid.Row="0" Grid.Column="1" Spacing="8">
+                        <TextBlock Text="Sounds" FontSize="18" FontWeight="SemiBold" />
+                        <Grid ColumnSpacing="8">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <TextBox x:Name="SoundSearchTextBox" PlaceholderText="Search sounds" TextChanged="OnSoundSearchChanged" />
+                            <Button Grid.Column="1" Content="Add Sound" Click="OnAddSoundClick" />
+                            <Button Grid.Column="2" Content="Delete" Click="OnDeleteSoundClick" />
+                        </Grid>
+                    </StackPanel>
+
+                    <ListView Grid.Row="1" Grid.Column="0" x:Name="CategoryListView" DisplayMemberPath="Name" SelectionChanged="OnCategoryListSelectionChanged" />
+                    <ListView Grid.Row="1" Grid.Column="1" x:Name="SoundListView" DisplayMemberPath="DisplayName" SelectionChanged="OnSoundSelectionChanged" />
+
+                    <StackPanel Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="2" Spacing="10">
+                        <TextBlock x:Name="SelectedSoundLabel" Text="Selected sound: none" FontWeight="SemiBold" />
                         <Grid ColumnSpacing="12">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="Auto" />
                                 <ColumnDefinition Width="Auto" />
                             </Grid.ColumnDefinitions>
-                            <Button Content="Play Sound" Click="OnPlaySoundClick" />
+                            <Button Content="Play Selected" Click="OnPlaySoundClick" />
                             <Button Grid.Column="1" Content="Stop Sound" Click="OnStopSoundClick" />
                         </Grid>
 
@@ -63,10 +94,8 @@
                                 <Slider x:Name="SoundMonitorVolumeSlider" Minimum="0" Maximum="1.5" Value="1" StepFrequency="0.01" ValueChanged="OnSoundVolumeChanged" />
                             </StackPanel>
                         </Grid>
-
-                        <InfoBar IsOpen="True" Severity="Informational" Title="Independent SoundBoard volume" Message="Voice monitoring does not affect SoundBoard. Use these sliders for sound volume in CABLE Input and headphones." />
                     </StackPanel>
-                </ScrollViewer>
+                </Grid>
             </TabViewItem>
 
             <TabViewItem Header="Voice Changer" IsClosable="False">
@@ -95,7 +124,7 @@
 
             <TabViewItem Header="Scenes" IsClosable="False">
                 <StackPanel Spacing="12" Padding="0,16,0,0">
-                    <InfoBar IsOpen="True" Severity="Informational" Title="Coming next" Message="Scenes are not implemented in Gate 3. This tab reserves the final navigation structure from the start." />
+                    <InfoBar IsOpen="True" Severity="Informational" Title="Coming next" Message="Scenes are not implemented in Gate 5. This tab reserves the final navigation structure from the start." />
                     <TextBlock Text="Planned scene content:" FontSize="18" FontWeight="SemiBold" />
                     <TextBlock Text="• voice preset&#x0a;• one background loop sound&#x0a;• several one-shot sounds&#x0a;• scene mixer settings" />
                 </StackPanel>
