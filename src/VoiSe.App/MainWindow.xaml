@@ -6,11 +6,8 @@
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     mc:Ignorable="d"
-    Title="VoiSe Gate 5.5 - SoundBoard Scroll & Timeline Fixes">
+    Title="VoiSe Gate 5.6 - SoundBoard Build & Scroll Fixes">
 
-    <Window.Resources>
-        <local:TimeSliderValueConverter x:Key="TimeSliderValueConverter" />
-    </Window.Resources>
 
     <Grid Padding="20" RowSpacing="14">
         <Grid.RowDefinitions>
@@ -24,8 +21,8 @@
                 <ColumnDefinition Width="Auto" />
             </Grid.ColumnDefinitions>
             <StackPanel Grid.Column="0" Spacing="4" VerticalAlignment="Center">
-                <TextBlock Text="VoiSe Gate 5.5" FontSize="28" FontWeight="SemiBold" />
-                <TextBlock Text="SoundBoard polish: fixed scrolling, timeline tooltip, header engine controls" Opacity="0.75" />
+                <TextBlock Text="VoiSe Gate 5.6" FontSize="28" FontWeight="SemiBold" />
+                <TextBlock Text="SoundBoard polish: fixed build, scrolling, timeline and settings log" Opacity="0.75" />
             </StackPanel>
             <StackPanel Grid.Column="1" Spacing="4" VerticalAlignment="Center" HorizontalAlignment="Right">
                 <StackPanel Orientation="Horizontal" Spacing="8">
@@ -38,14 +35,14 @@
 
         <TabView x:Name="MainTabView" Grid.Row="1" IsAddTabButtonVisible="False" TabWidthMode="Equal">
             <TabViewItem Header="SoundBoard" IsClosable="False">
-                <Grid Padding="0,16,0,0" RowSpacing="16">
+                <Grid Padding="0,16,0,0" RowSpacing="16" HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto" />
                         <RowDefinition Height="*" />
                     </Grid.RowDefinitions>
 
                     <!-- HEAD -->
-                    <Grid Grid.Row="0" ColumnSpacing="12" MinHeight="128">
+                    <Grid Grid.Row="0" ColumnSpacing="8" MinHeight="128">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="Auto" />
                             <ColumnDefinition Width="Auto" />
@@ -74,7 +71,7 @@
 
                         <TextBlock Grid.Row="0" Grid.Column="1" Grid.ColumnSpan="2" x:Name="TransportStatusTextBlock" Text="No sound" HorizontalAlignment="Center" Opacity="0.75" />
                         <Button Grid.Row="1" Grid.Column="1" x:Name="PlayPauseButton" Content="&#xE768;" FontFamily="Segoe MDL2 Assets" FontSize="22" MinWidth="0" Width="56" Height="48" HorizontalAlignment="Left" VerticalAlignment="Center" Click="OnPlayPauseSoundClick" ToolTipService.ToolTip="Play / Pause" />
-                        <Slider Grid.Row="1" Grid.Column="2" x:Name="TimelineSlider" Minimum="0" Maximum="1" Value="0" IsEnabled="False" ThumbToolTipValueConverter="{StaticResource TimeSliderValueConverter}" PointerPressed="OnTimelinePointerPressed" PointerReleased="OnTimelinePointerReleased" ValueChanged="OnTimelineValueChanged" />
+                        <Slider Grid.Row="1" Grid.Column="2" x:Name="TimelineSlider" Minimum="0" Maximum="1" Value="0" IsEnabled="False" IsThumbToolTipEnabled="False" PointerPressed="OnTimelinePointerPressed" PointerReleased="OnTimelinePointerReleased" ValueChanged="OnTimelineValueChanged" />
                         <Grid Grid.Row="2" Grid.Column="2">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="Auto" />
@@ -121,7 +118,7 @@
                             <Button Content="Delete Track" Click="OnDeleteSoundClick" />
                         </StackPanel>
 
-                        <ListView Grid.Row="3" x:Name="SoundListView" Background="Transparent" MinHeight="260" DisplayMemberPath="ListText" SelectionChanged="OnSoundSelectionChanged" RightTapped="OnSoundListRightTapped" VerticalAlignment="Stretch" HorizontalAlignment="Stretch" ScrollViewer.VerticalScrollBarVisibility="Auto" ScrollViewer.HorizontalScrollBarVisibility="Disabled" ScrollViewer.VerticalScrollMode="Enabled" ScrollViewer.IsVerticalRailEnabled="True">
+                        <ListView Grid.Row="3" x:Name="SoundListView" Background="#01000000" MinHeight="260" DisplayMemberPath="ListText" SelectionChanged="OnSoundSelectionChanged" RightTapped="OnSoundListRightTapped" VerticalAlignment="Stretch" HorizontalAlignment="Stretch" ScrollViewer.VerticalScrollBarVisibility="Auto" ScrollViewer.HorizontalScrollBarVisibility="Disabled" ScrollViewer.VerticalScrollMode="Enabled" ScrollViewer.IsVerticalRailEnabled="True">
                             <ListView.ContextFlyout>
                                 <MenuFlyout>
                                     <MenuFlyoutItem Text="Play" Click="OnSoundContextPlayClick" />
@@ -164,47 +161,54 @@
 
             <TabViewItem Header="Scenes" IsClosable="False">
                 <StackPanel Spacing="12" Padding="0,16,0,0">
-                    <InfoBar IsOpen="True" Severity="Informational" Title="Coming next" Message="Scenes are not implemented in Gate 5.5. This tab reserves the final navigation structure from the start." />
+                    <InfoBar IsOpen="True" Severity="Informational" Title="Coming next" Message="Scenes are not implemented in Gate 5.6. This tab reserves the final navigation structure from the start." />
                     <TextBlock Text="Planned scene content:" FontSize="18" FontWeight="SemiBold" />
                     <TextBlock Text="• voice preset&#x0a;• one background loop sound&#x0a;• several one-shot sounds&#x0a;• scene mixer settings" />
                 </StackPanel>
             </TabViewItem>
 
             <TabViewItem Header="Settings" IsClosable="False">
-                <ScrollViewer>
-                    <StackPanel Spacing="18" Padding="0,16,0,0">
-                        <TextBlock Text="Audio devices" FontSize="18" FontWeight="SemiBold" />
-                        <Button Content="Refresh Devices" Click="OnRefreshDevicesClick" HorizontalAlignment="Left" />
+                <Grid Padding="0,16,0,0" RowSpacing="12">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="*" />
+                        <RowDefinition Height="220" />
+                    </Grid.RowDefinitions>
 
-                        <StackPanel Spacing="6">
-                            <TextBlock Text="Input Microphone" />
-                            <ComboBox x:Name="InputDeviceComboBox" PlaceholderText="Choose microphone" DisplayMemberPath="FriendlyName" Width="640" SelectionChanged="OnRouteSettingChanged" />
-                        </StackPanel>
-                        <StackPanel Spacing="6">
-                            <TextBlock Text="Virtual Output" />
-                            <ComboBox x:Name="VirtualOutputComboBox" PlaceholderText="Choose CABLE Input" DisplayMemberPath="FriendlyName" Width="640" SelectionChanged="OnRouteSettingChanged" />
-                        </StackPanel>
-                        <StackPanel Spacing="6">
-                            <TextBlock Text="Monitor Output" />
-                            <ComboBox x:Name="MonitorOutputComboBox" PlaceholderText="Choose headphones" DisplayMemberPath="FriendlyName" Width="640" SelectionChanged="OnRouteSettingChanged" />
-                        </StackPanel>
+                    <ScrollViewer Grid.Row="0" VerticalScrollBarVisibility="Auto" VerticalScrollMode="Enabled">
+                        <StackPanel Spacing="18" Padding="0,0,0,12">
+                            <TextBlock Text="Audio devices" FontSize="18" FontWeight="SemiBold" />
+                            <Button Content="Refresh Devices" Click="OnRefreshDevicesClick" HorizontalAlignment="Left" />
 
-                        <TextBlock Text="Output" FontSize="18" FontWeight="SemiBold" />
-                        <StackPanel Spacing="8">
-                            <TextBlock x:Name="VirtualOutputVolumeLabel" Text="Virtual Mic Master: 100%" FontWeight="SemiBold" />
-                            <Slider x:Name="VirtualOutputVolumeSlider" Minimum="0" Maximum="1.5" Value="1" StepFrequency="0.01" ValueChanged="OnOutputVolumeChanged" />
-                        </StackPanel>
+                            <StackPanel Spacing="6">
+                                <TextBlock Text="Input Microphone" />
+                                <ComboBox x:Name="InputDeviceComboBox" PlaceholderText="Choose microphone" DisplayMemberPath="FriendlyName" Width="640" SelectionChanged="OnRouteSettingChanged" />
+                            </StackPanel>
+                            <StackPanel Spacing="6">
+                                <TextBlock Text="Virtual Output" />
+                                <ComboBox x:Name="VirtualOutputComboBox" PlaceholderText="Choose CABLE Input" DisplayMemberPath="FriendlyName" Width="640" SelectionChanged="OnRouteSettingChanged" />
+                            </StackPanel>
+                            <StackPanel Spacing="6">
+                                <TextBlock Text="Monitor Output" />
+                                <ComboBox x:Name="MonitorOutputComboBox" PlaceholderText="Choose headphones" DisplayMemberPath="FriendlyName" Width="640" SelectionChanged="OnRouteSettingChanged" />
+                            </StackPanel>
 
-                        <TextBlock Text="SoundBoard" FontSize="18" FontWeight="SemiBold" />
-                        <StackPanel Spacing="8">
-                            <TextBlock x:Name="DelayLabel" Text="SoundBoard Virtual Mic Delay: 85 ms" FontWeight="SemiBold" />
-                            <Slider x:Name="SoundVirtualDelaySlider" Minimum="0" Maximum="300" Value="85" StepFrequency="1" ValueChanged="OnDelayChanged" />
-                            <TextBlock Text="SoundBoard plays in headphones immediately, then reaches CABLE Input after this delay. Changes apply on next Play Sound." Opacity="0.7" TextWrapping="Wrap" />
-                        </StackPanel>
+                            <TextBlock Text="Output" FontSize="18" FontWeight="SemiBold" />
+                            <StackPanel Spacing="8">
+                                <TextBlock x:Name="VirtualOutputVolumeLabel" Text="Virtual Mic Master: 100%" FontWeight="SemiBold" />
+                                <Slider x:Name="VirtualOutputVolumeSlider" Minimum="0" Maximum="1.5" Value="1" StepFrequency="0.01" ValueChanged="OnOutputVolumeChanged" />
+                            </StackPanel>
 
-                        <TextBox x:Name="LogTextBox" Header="Log" IsReadOnly="True" AcceptsReturn="True" TextWrapping="Wrap" Height="220" ScrollViewer.VerticalScrollBarVisibility="Auto" ScrollViewer.VerticalScrollMode="Enabled" />
-                    </StackPanel>
-                </ScrollViewer>
+                            <TextBlock Text="SoundBoard" FontSize="18" FontWeight="SemiBold" />
+                            <StackPanel Spacing="8">
+                                <TextBlock x:Name="DelayLabel" Text="SoundBoard Virtual Mic Delay: 85 ms" FontWeight="SemiBold" />
+                                <Slider x:Name="SoundVirtualDelaySlider" Minimum="0" Maximum="300" Value="85" StepFrequency="1" ValueChanged="OnDelayChanged" />
+                                <TextBlock Text="SoundBoard plays in headphones immediately, then reaches CABLE Input after this delay. Changes apply on next Play Sound." Opacity="0.7" TextWrapping="Wrap" />
+                            </StackPanel>
+                        </StackPanel>
+                    </ScrollViewer>
+
+                    <TextBox Grid.Row="1" x:Name="LogTextBox" Header="Log" IsReadOnly="True" AcceptsReturn="True" TextWrapping="Wrap" ScrollViewer.VerticalScrollBarVisibility="Auto" ScrollViewer.VerticalScrollMode="Enabled" />
+                </Grid>
             </TabViewItem>
         </TabView>
     </Grid>
