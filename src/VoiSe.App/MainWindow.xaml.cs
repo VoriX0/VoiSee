@@ -43,6 +43,7 @@ public sealed partial class MainWindow : Window
         _libraryStore = new SoundBoardLibraryStore(_settingsStore.DataDirectory);
         _library = _libraryStore.Load();
         InitializeComponent();
+        MainTabView.SelectionChanged += OnMainTabSelectionChanged;
         Closed += OnClosed;
         Activated += OnActivated;
 
@@ -59,7 +60,7 @@ public sealed partial class MainWindow : Window
         _timelineTimer.Tick += OnTimelineTimerTick;
         _timelineTimer.Start();
 
-        AppendLog("Gate 5.2 UI started.");
+        AppendLog("Gate 5.3 UI started.");
         AppendLog($"Settings path: {_settingsStore.SettingsPath}");
         StartupLog.Write("MainWindow initialized; waiting for first activation.");
     }
@@ -81,20 +82,20 @@ public sealed partial class MainWindow : Window
         try
         {
             AppendLog("Restoring saved settings...");
-            StartupLog.Write("Gate 5.2 restore started.");
+            StartupLog.Write("Gate 5.3 restore started.");
 
             ApplyStoredScalarSettingsToControls();
             AppendLog("Saved scalar settings applied.");
-            StartupLog.Write("Gate 5.2 scalar settings applied.");
+            StartupLog.Write("Gate 5.3 scalar settings applied.");
 
             RefreshDevices(saveAfterRefresh: false);
             LoadSoundBoardLibraryIntoUi();
             AppendLog("Settings restored.");
-            StartupLog.Write("Gate 5.2 restore completed.");
+            StartupLog.Write("Gate 5.3 restore completed.");
         }
         catch (Exception ex)
         {
-            StartupLog.Write("Gate 5.2 restore error: " + ex);
+            StartupLog.Write("Gate 5.3 restore error: " + ex);
             AppendLog($"Settings restore error: {ex.GetType().Name}: {ex.Message}");
         }
         finally
@@ -127,6 +128,27 @@ public sealed partial class MainWindow : Window
         }
 
         return Math.Min(max, Math.Max(min, value));
+    }
+
+    private void OnMainTabSelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        UpdateBottomPanelVisibility();
+    }
+
+    private void UpdateBottomPanelVisibility()
+    {
+        if (BottomStatsTextBlock is null || LogTextBox is null || BottomEmptyTextBlock is null || MainTabView is null)
+        {
+            return;
+        }
+
+        var selectedHeader = (MainTabView.SelectedItem as TabViewItem)?.Header?.ToString() ?? string.Empty;
+        var isSoundBoard = string.Equals(selectedHeader, "SoundBoard", StringComparison.OrdinalIgnoreCase);
+        var isSettings = string.Equals(selectedHeader, "Settings", StringComparison.OrdinalIgnoreCase);
+
+        BottomStatsTextBlock.Visibility = isSoundBoard ? Visibility.Visible : Visibility.Collapsed;
+        LogTextBox.Visibility = isSettings ? Visibility.Visible : Visibility.Collapsed;
+        BottomEmptyTextBlock.Visibility = (!isSoundBoard && !isSettings) ? Visibility.Visible : Visibility.Collapsed;
     }
 
     private void OnClosed(object sender, WindowEventArgs args)
@@ -840,9 +862,11 @@ public sealed partial class MainWindow : Window
             return;
         }
 
-        if (_timelineUserDragging)
+        if (TimelineSlider.IsEnabled && _engine is not null)
         {
-            CurrentTimeTextBlock.Text = FormatTime(TimelineSlider.Value);
+            var seconds = Math.Max(0, Math.Min(TimelineSlider.Maximum, e.NewValue));
+            _engine.SeekSound(seconds);
+            CurrentTimeTextBlock.Text = FormatTime(seconds);
         }
     }
 
@@ -891,7 +915,7 @@ public sealed partial class MainWindow : Window
         TransportStatusTextBlock.Text = status.IsActive
             ? (status.IsPaused ? "Paused" : "Playing")
             : "No sound";
-        PlayPauseButton.Content = status.IsActive && !status.IsPaused ? "⏸" : "▶";
+        PlayPauseButton.Content = status.IsActive && !status.IsPaused ? "\uE769" : "\uE768";
     }
 
     private static string FormatTime(double seconds)
@@ -916,6 +940,7 @@ public sealed partial class MainWindow : Window
         UpdateVoiceMonitorButton();
         UpdateBottomStats();
         UpdateTimeline();
+        UpdateBottomPanelVisibility();
     }
 
     private void UpdateDelayLabel()

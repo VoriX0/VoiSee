@@ -5,7 +5,7 @@
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     mc:Ignorable="d"
-    Title="VoiSe Gate 5.2 - SoundBoard Transport &amp; Timeline">
+    Title="VoiSe Gate 5.3 - SoundBoard Layout Fixes">
 
     <Grid Padding="20" RowSpacing="14">
         <Grid.RowDefinitions>
@@ -15,8 +15,8 @@
         </Grid.RowDefinitions>
 
         <StackPanel Grid.Row="0" Spacing="4">
-            <TextBlock Text="VoiSe Gate 5.2" FontSize="28" FontWeight="SemiBold" />
-            <TextBlock Text="SoundBoard transport polish: seekable timeline, icon controls, separated bottom status" Opacity="0.75" />
+            <TextBlock Text="VoiSe Gate 5.3" FontSize="28" FontWeight="SemiBold" />
+            <TextBlock Text="SoundBoard layout fixes: compact transport, working seek, tab-specific bottom panel" Opacity="0.75" />
         </StackPanel>
 
         <TabView x:Name="MainTabView" Grid.Row="1" IsAddTabButtonVisible="False" TabWidthMode="Equal">
@@ -36,18 +36,18 @@
                             <ColumnDefinition Width="2*" />
                         </Grid.ColumnDefinitions>
 
-                        <Grid Grid.Column="0" RowSpacing="6" ColumnSpacing="6" MaxWidth="260">
+                        <Grid Grid.Column="0" RowSpacing="8" ColumnSpacing="8" Width="132" HorizontalAlignment="Left" VerticalAlignment="Top">
                             <Grid.RowDefinitions>
                                 <RowDefinition Height="48" />
                                 <RowDefinition Height="48" />
                             </Grid.RowDefinitions>
                             <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="*" />
-                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="62" />
+                                <ColumnDefinition Width="62" />
                             </Grid.ColumnDefinitions>
-                            <Button Grid.Row="0" Grid.Column="0" Content="⏮" FontSize="20" Click="OnPreviousSoundClick" ToolTipService.ToolTip="Previous track" />
-                            <Button Grid.Row="0" Grid.Column="1" Content="⏭" FontSize="20" Click="OnNextSoundClick" ToolTipService.ToolTip="Next track" />
-                            <Button Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="2" Content="Stop" Click="OnStopSoundClick" ToolTipService.ToolTip="Stop sound" />
+                            <Button Grid.Row="0" Grid.Column="0" Content="&#xE892;" FontFamily="Segoe MDL2 Assets" FontSize="18" MinWidth="0" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" Click="OnPreviousSoundClick" ToolTipService.ToolTip="Previous track" />
+                            <Button Grid.Row="0" Grid.Column="1" Content="&#xE893;" FontFamily="Segoe MDL2 Assets" FontSize="18" MinWidth="0" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" Click="OnNextSoundClick" ToolTipService.ToolTip="Next track" />
+                            <Button Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="2" Content="Stop" MinWidth="0" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" Click="OnStopSoundClick" ToolTipService.ToolTip="Stop sound" />
                         </Grid>
 
                         <Grid Grid.Column="1" RowSpacing="6">
@@ -62,7 +62,7 @@
                                     <ColumnDefinition Width="52" />
                                     <ColumnDefinition Width="*" />
                                 </Grid.ColumnDefinitions>
-                                <Button Grid.Column="0" x:Name="PlayPauseButton" Content="▶" FontSize="22" Click="OnPlayPauseSoundClick" ToolTipService.ToolTip="Play / Pause" />
+                                <Button Grid.Column="0" x:Name="PlayPauseButton" Content="&#xE768;" FontFamily="Segoe MDL2 Assets" FontSize="22" MinWidth="0" Click="OnPlayPauseSoundClick" ToolTipService.ToolTip="Play / Pause" />
                                 <Slider Grid.Column="1" x:Name="TimelineSlider" Minimum="0" Maximum="1" Value="0" IsEnabled="False" PointerPressed="OnTimelinePointerPressed" PointerReleased="OnTimelinePointerReleased" ValueChanged="OnTimelineValueChanged" />
                             </Grid>
                             <Grid Grid.Row="2" Margin="62,0,0,0">
@@ -111,7 +111,13 @@
                             </StackPanel>
                         </Grid>
 
-                        <ComboBox Grid.Row="1" x:Name="CategoryComboBox" DisplayMemberPath="Name" PlaceholderText="Choose category" SelectionChanged="OnCategorySelectionChanged" HorizontalAlignment="Stretch" Margin="0,0,0,10" />
+                                                <Grid Grid.Row="1" Margin="0,0,0,18">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="1*" />
+                                <ColumnDefinition Width="3*" />
+                            </Grid.ColumnDefinitions>
+                            <ComboBox Grid.Column="0" x:Name="CategoryComboBox" DisplayMemberPath="Name" PlaceholderText="Choose category" SelectionChanged="OnCategorySelectionChanged" HorizontalAlignment="Stretch" />
+                        </Grid>
 
                         <ListView Grid.Row="2" x:Name="SoundListView" DisplayMemberPath="ListText" SelectionChanged="OnSoundSelectionChanged" RightTapped="OnSoundListRightTapped">
                             <ListView.ContextFlyout>
@@ -194,8 +200,6 @@
                             <TextBlock Text="SoundBoard plays in headphones immediately, then reaches CABLE Input after this delay. Changes apply on next Play Sound." Opacity="0.7" TextWrapping="Wrap" />
                         </StackPanel>
 
-                        <TextBlock Text="Diagnostics" FontSize="18" FontWeight="SemiBold" />
-                        <TextBox x:Name="LogTextBox" Header="Log" IsReadOnly="True" AcceptsReturn="True" TextWrapping="Wrap" Height="140" />
                     </StackPanel>
                 </ScrollViewer>
             </TabViewItem>
@@ -217,7 +221,11 @@
                 </StackPanel>
             </Border>
             <Border Grid.Column="1" Padding="10" BorderThickness="1" BorderBrush="Gray" CornerRadius="6">
-                <TextBlock x:Name="BottomStatsTextBlock" Text="Categories: 0 | Sounds in category: 0 | Category usage: 0" VerticalAlignment="Center" />
+                <Grid>
+                    <TextBlock x:Name="BottomStatsTextBlock" Text="Categories: 0 | Sounds in category: 0 | Category usage: 0" VerticalAlignment="Center" />
+                    <TextBox x:Name="LogTextBox" Header="Log" IsReadOnly="True" AcceptsReturn="True" TextWrapping="Wrap" Height="110" Visibility="Collapsed" />
+                    <TextBlock x:Name="BottomEmptyTextBlock" Text="" Visibility="Collapsed" />
+                </Grid>
             </Border>
         </Grid>
     </Grid>
