@@ -1,9 +1,7 @@
-# VoiSe Gate 6.9 — Voice and Settings Scroll Fix
+# VoiSe Gate 6.10 — Extended Voice and Settings Scroll
 
-Gate 6.9 keeps the working Gate 6.8 / Gate 6.5 SoundBoard wheel behavior and extends the same low-level wheel-routing approach to:
+Gate 6.10 keeps the working Gate 6.8 / Gate 6.5 SoundBoard wheel behavior and fixes the important difference that caused Voice Changer and Settings to stop scrolling near the bottom of a fullscreen window: SoundBoard used an extended bottom wheel zone, while Voice Changer and Settings were clipped at `RootGrid.ActualHeight`.
 
-- the Voice Changer tab, from the tab content top down to the bottom of the window;
-- the Settings log area, from the log area top down to the bottom of the window.
 
 The important rule: do **not** replace the working SoundBoard wheel calibration with the centered/client-pixel zone from Gate 6.6/6.7, because that breaks SoundBoard scrolling in fullscreen.
 
@@ -39,13 +37,13 @@ dotnet run --project src/VoiSe.App
 
 ## Scroll logic
 
-- SoundBoard: kept exactly on the restored working Gate 6.8 logic.
-- Voice Changer: wheel below the tab headers routes to `VoiceChangerScrollViewer` down to the end of the window.
-- Settings: wheel inside/below the log area routes to the internal log `ScrollViewer`.
+- SoundBoard: kept on the restored working Gate 6.8 logic.
+- Voice Changer: now uses the same extended-bottom rule as SoundBoard, routing wheel events from the Voice Changer content top through the lower fullscreen area to `VoiceChangerScrollViewer`.
+- Settings: now uses the same extended-bottom rule from the log area top through the lower fullscreen area to the internal log `ScrollViewer`.
 
 ## Presets
 
-New and recreated presets save all active Gate 6.9 sliders as separate JSON files in:
+New and recreated presets save all active Gate 6.10 sliders as separate JSON files in:
 
 ```powershell
 %LOCALAPPDATA%\VoiSe\presets\

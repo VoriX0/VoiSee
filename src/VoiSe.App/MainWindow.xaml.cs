@@ -92,7 +92,7 @@ public sealed partial class MainWindow : Window
         _timelineTimer.Tick += OnTimelineTimerTick;
         _timelineTimer.Start();
 
-        AppendLog("Gate 6.9 UI started.");
+        AppendLog("Gate 6.10 UI started.");
         AppendLog($"Settings path: {_settingsStore.SettingsPath}");
         StartupLog.Write("MainWindow initialized; waiting for first activation.");
     }
@@ -114,21 +114,21 @@ public sealed partial class MainWindow : Window
         try
         {
             AppendLog("Restoring saved settings...");
-            StartupLog.Write("Gate 6.9 restore started.");
+            StartupLog.Write("Gate 6.10 restore started.");
 
             ApplyStoredScalarSettingsToControls();
             AppendLog("Saved scalar settings applied.");
-            StartupLog.Write("Gate 6.9 scalar settings applied.");
+            StartupLog.Write("Gate 6.10 scalar settings applied.");
 
             RefreshDevices(saveAfterRefresh: false);
             LoadSoundBoardLibraryIntoUi();
             LoadVoicePresetsIntoUi();
             AppendLog("Settings restored.");
-            StartupLog.Write("Gate 6.9 restore completed.");
+            StartupLog.Write("Gate 6.10 restore completed.");
         }
         catch (Exception ex)
         {
-            StartupLog.Write("Gate 6.9 restore error: " + ex);
+            StartupLog.Write("Gate 6.10 restore error: " + ex);
             AppendLog($"Settings restore error: {ex.GetType().Name}: {ex.Message}");
         }
         finally
@@ -283,20 +283,30 @@ public sealed partial class MainWindow : Window
 
     private bool IsPointInVoiceChangerWheelZone(double yDip)
     {
-        // Gate 6.9: keep the working Gate 6.8 low-level wheel logic, but make
-        // the Voice Changer wheel zone extend from the tab content top to the
-        // bottom of the window. This avoids the lower part of the maximized
-        // window becoming a dead zone.
-        var top = GetElementTopDip(VoiceChangerScrollViewer);
-        return yDip >= top && IsPointBelowWindowBottom(yDip);
+        // Gate 6.10: SoundBoard worked because its wheel zone is allowed to extend
+        // below RootGrid.ActualHeight. Voice Changer used to be clipped at
+        // RootGrid.ActualHeight, which created a dead lower area in fullscreen.
+        return IsPointInExtendedVerticalWheelZone(VoiceChangerScrollViewer, yDip);
     }
 
     private bool IsPointInSettingsLogWheelZone(double yDip)
     {
-        // Use the same idea for Settings logs: if the cursor is inside the log
-        // area or below it, route the wheel to the log's internal scroll viewer.
-        var top = GetElementTopDip(SettingsLogArea);
-        return yDip >= top && IsPointBelowWindowBottom(yDip);
+        // Same fix for Settings: route wheel events from the log top down through
+        // the extended bottom zone, matching the successful SoundBoard behavior.
+        return IsPointInExtendedVerticalWheelZone(SettingsLogArea, yDip);
+    }
+
+    private bool IsPointInExtendedVerticalWheelZone(FrameworkElement? element, double yDip)
+    {
+        if (RootGrid is null || element is null)
+        {
+            return false;
+        }
+
+        var top = GetElementTopDip(element);
+        var usableHeight = Math.Max(1.0, RootGrid.ActualHeight - top);
+        var bottom = RootGrid.ActualHeight + usableHeight * SoundWheelZoneExpandBottomRatio;
+        return yDip >= top && yDip <= bottom;
     }
 
     private double GetElementTopDip(FrameworkElement? element)
@@ -317,9 +327,6 @@ public sealed partial class MainWindow : Window
             return 0.0;
         }
     }
-
-    private bool IsPointBelowWindowBottom(double yDip)
-        => RootGrid is not null && yDip <= RootGrid.ActualHeight;
 
     private bool TryScrollVoiceChanger(int wheelDelta)
     {
