@@ -2,7 +2,7 @@ namespace VoiSe.App;
 
 public sealed class VoiSeUserSettings
 {
-    public int SchemaVersion { get; set; } = 2;
+    public int SchemaVersion { get; set; } = 3;
 
     public string? InputDeviceId { get; set; }
     public string? InputDeviceName { get; set; }
@@ -22,7 +22,22 @@ public sealed class VoiSeUserSettings
     public double SoundBoardHeadphonesVolume { get; set; } = 1.0;
     public double SoundBoardVirtualMicDelayMs { get; set; } = 85.0;
 
+    // Legacy dB values are kept for backward compatibility with Gate 4/5 settings files.
     public double VoiceGainDb { get; set; } = 0.0;
     public double GateThresholdDb { get; set; } = -45.0;
     public double CompressorThresholdDb { get; set; } = -18.0;
+
+    // Gate 6 voice controls use a normalized -100..+100 UI scale.
+    public double VoiceInputGain { get; set; } = 0.0;
+    public double VoiceGain { get; set; } = 0.0;
+    public double VoicePitch { get; set; } = 0.0;
+    public double VoiceFormant { get; set; } = 0.0;
+    public double VoiceGate { get; set; } = 0.0;
+    public double VoiceCompressor { get; set; } = 0.0;
+    public double VoiceCompressionRatio { get; set; } = 0.0;
+    public double VoiceLimiter { get; set; } = 0.0;
+    public double VoiceRobot { get; set; } = 0.0;
+    public double VoiceRadio { get; set; } = 0.0;
+    public double VoiceReverb { get; set; } = 0.0;
+    public double VoiceBrightness { get; set; } = 0.0;
 }

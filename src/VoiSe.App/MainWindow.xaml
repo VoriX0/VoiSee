@@ -6,7 +6,7 @@
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     mc:Ignorable="d"
-    Title="VoiSe Gate 5.36 - SoundBoard Timeline 10 Percent Polish">
+    Title="VoiSe Gate 6.0 - Voice Changer Presets">
 
     <Grid x:Name="RootGrid" Padding="20" RowSpacing="14">
         <Grid.RowDefinitions>
@@ -21,8 +21,8 @@
                     <ColumnDefinition Width="Auto" />
                 </Grid.ColumnDefinitions>
                 <StackPanel Grid.Column="0" Spacing="4" VerticalAlignment="Center">
-                    <TextBlock Text="VoiSe Gate 5.36" FontSize="28" FontWeight="SemiBold" />
-                    <TextBlock Text="SoundBoard timeline 10 percent polish" Opacity="0.75" />
+                    <TextBlock Text="VoiSe Gate 6.0" FontSize="28" FontWeight="SemiBold" />
+                    <TextBlock Text="Voice Changer presets and normalized controls" Opacity="0.75" />
                 </StackPanel>
                 <StackPanel Grid.Column="1" Spacing="4" VerticalAlignment="Center" HorizontalAlignment="Right">
                     <StackPanel Orientation="Horizontal" Spacing="8">
@@ -242,29 +242,103 @@
                 </TabViewItem>
 
                 <TabViewItem Header="Voice Changer" IsClosable="False">
-                    <Border Padding="4">
-                        <ScrollViewer>
-                            <StackPanel Spacing="16" Padding="0,16,0,0">
-                                <InfoBar IsOpen="True" Severity="Informational" Title="Live voice settings" Message="Voice sliders are applied to the running engine without manual restart." />
-                                <StackPanel Orientation="Horizontal" Spacing="12">
-                                    <Button x:Name="VoiceMonitorButton" Content="Voice Monitor: Off" Click="OnToggleVoiceMonitorClick" />
-                                    <TextBlock Text="When enabled, your processed voice is sent to headphones at 100%. SoundBoard monitoring is controlled separately in SoundBoard." VerticalAlignment="Center" Opacity="0.75" TextWrapping="Wrap" />
+                    <ScrollViewer VerticalScrollBarVisibility="Auto" VerticalScrollMode="Enabled">
+                        <StackPanel Spacing="22" Padding="0,16,0,24">
+                            <Grid ColumnSpacing="16">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <StackPanel Grid.Column="0" Spacing="4">
+                                    <TextBlock Text="Voice processing" FontSize="20" FontWeight="SemiBold" />
+                                    <TextBlock Text="All controls use a normalized -100..+100 scale. Supported DSP controls are applied live to the running engine." Opacity="0.72" TextWrapping="Wrap" />
                                 </StackPanel>
-                                <StackPanel Spacing="8">
-                                    <TextBlock x:Name="VoiceGainLabel" Text="Voice Gain: 0 dB" FontWeight="SemiBold" />
-                                    <Slider x:Name="VoiceGainSlider" Minimum="-24" Maximum="12" Value="0" StepFrequency="1" ValueChanged="OnVoiceSettingsChanged" />
+                                <Button Grid.Column="1"
+                                        x:Name="VoiceMonitorButton"
+                                        Content="Voice Monitor: Off"
+                                        MinWidth="180"
+                                        Height="44"
+                                        HorizontalAlignment="Right"
+                                        VerticalAlignment="Top"
+                                        Click="OnToggleVoiceMonitorClick" />
+                            </Grid>
+
+                            <Grid ColumnSpacing="18" RowSpacing="18">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="Auto" />
+                                </Grid.RowDefinitions>
+
+                                <StackPanel Grid.Row="0" Grid.Column="0" Spacing="6">
+                                    <TextBlock x:Name="VoiceInputGainLabel" Text="Input Gain: 0" FontWeight="SemiBold" />
+                                    <Slider x:Name="InputGainSlider" Minimum="-100" Maximum="100" Value="0" StepFrequency="1" ValueChanged="OnVoiceSettingsChanged" />
                                 </StackPanel>
-                                <StackPanel Spacing="8">
-                                    <TextBlock x:Name="GateThresholdLabel" Text="Gate Threshold: -45 dB" FontWeight="SemiBold" />
-                                    <Slider x:Name="GateThresholdSlider" Minimum="-70" Maximum="-20" Value="-45" StepFrequency="1" ValueChanged="OnVoiceSettingsChanged" />
+                                <StackPanel Grid.Row="0" Grid.Column="1" Spacing="6">
+                                    <TextBlock x:Name="VoiceGainLabel" Text="Voice Gain: 0" FontWeight="SemiBold" />
+                                    <Slider x:Name="VoiceGainSlider" Minimum="-100" Maximum="100" Value="0" StepFrequency="1" ValueChanged="OnVoiceSettingsChanged" />
                                 </StackPanel>
-                                <StackPanel Spacing="8">
-                                    <TextBlock x:Name="CompressorThresholdLabel" Text="Compressor Threshold: -18 dB" FontWeight="SemiBold" />
-                                    <Slider x:Name="CompressorThresholdSlider" Minimum="-40" Maximum="0" Value="-18" StepFrequency="1" ValueChanged="OnVoiceSettingsChanged" />
+                                <StackPanel Grid.Row="0" Grid.Column="2" Spacing="6">
+                                    <TextBlock x:Name="PitchLabel" Text="Pitch: 0" FontWeight="SemiBold" />
+                                    <Slider x:Name="PitchSlider" Minimum="-100" Maximum="100" Value="0" StepFrequency="1" ValueChanged="OnVoiceSettingsChanged" />
                                 </StackPanel>
+
+                                <StackPanel Grid.Row="1" Grid.Column="0" Spacing="6">
+                                    <TextBlock x:Name="FormantLabel" Text="Formant: 0" FontWeight="SemiBold" />
+                                    <Slider x:Name="FormantSlider" Minimum="-100" Maximum="100" Value="0" StepFrequency="1" ValueChanged="OnVoiceSettingsChanged" />
+                                </StackPanel>
+                                <StackPanel Grid.Row="1" Grid.Column="1" Spacing="6">
+                                    <TextBlock x:Name="GateThresholdLabel" Text="Gate: 0" FontWeight="SemiBold" />
+                                    <Slider x:Name="GateThresholdSlider" Minimum="-100" Maximum="100" Value="0" StepFrequency="1" ValueChanged="OnVoiceSettingsChanged" />
+                                </StackPanel>
+                                <StackPanel Grid.Row="1" Grid.Column="2" Spacing="6">
+                                    <TextBlock x:Name="CompressorThresholdLabel" Text="Compressor: 0" FontWeight="SemiBold" />
+                                    <Slider x:Name="CompressorThresholdSlider" Minimum="-100" Maximum="100" Value="0" StepFrequency="1" ValueChanged="OnVoiceSettingsChanged" />
+                                </StackPanel>
+
+                                <StackPanel Grid.Row="2" Grid.Column="0" Spacing="6">
+                                    <TextBlock x:Name="CompressionRatioLabel" Text="Compression Ratio: 0" FontWeight="SemiBold" />
+                                    <Slider x:Name="CompressionRatioSlider" Minimum="-100" Maximum="100" Value="0" StepFrequency="1" ValueChanged="OnVoiceSettingsChanged" />
+                                </StackPanel>
+                                <StackPanel Grid.Row="2" Grid.Column="1" Spacing="6">
+                                    <TextBlock x:Name="LimiterLabel" Text="Limiter: 0" FontWeight="SemiBold" />
+                                    <Slider x:Name="LimiterSlider" Minimum="-100" Maximum="100" Value="0" StepFrequency="1" ValueChanged="OnVoiceSettingsChanged" />
+                                </StackPanel>
+                                <StackPanel Grid.Row="2" Grid.Column="2" Spacing="6">
+                                    <TextBlock x:Name="RobotLabel" Text="Robot: 0" FontWeight="SemiBold" />
+                                    <Slider x:Name="RobotSlider" Minimum="-100" Maximum="100" Value="0" StepFrequency="1" ValueChanged="OnVoiceSettingsChanged" />
+                                </StackPanel>
+
+                                <StackPanel Grid.Row="3" Grid.Column="0" Spacing="6">
+                                    <TextBlock x:Name="RadioLabel" Text="Radio: 0" FontWeight="SemiBold" />
+                                    <Slider x:Name="RadioSlider" Minimum="-100" Maximum="100" Value="0" StepFrequency="1" ValueChanged="OnVoiceSettingsChanged" />
+                                </StackPanel>
+                                <StackPanel Grid.Row="3" Grid.Column="1" Spacing="6">
+                                    <TextBlock x:Name="ReverbLabel" Text="Reverb: 0" FontWeight="SemiBold" />
+                                    <Slider x:Name="ReverbSlider" Minimum="-100" Maximum="100" Value="0" StepFrequency="1" ValueChanged="OnVoiceSettingsChanged" />
+                                </StackPanel>
+                                <StackPanel Grid.Row="3" Grid.Column="2" Spacing="6">
+                                    <TextBlock x:Name="BrightnessLabel" Text="Brightness: 0" FontWeight="SemiBold" />
+                                    <Slider x:Name="BrightnessSlider" Minimum="-100" Maximum="100" Value="0" StepFrequency="1" ValueChanged="OnVoiceSettingsChanged" />
+                                </StackPanel>
+                            </Grid>
+
+                            <StackPanel Spacing="12">
+                                <TextBlock Text="Presets" FontSize="20" FontWeight="SemiBold" />
+                                <VariableSizedWrapGrid x:Name="VoicePresetsPanel"
+                                                       Orientation="Horizontal"
+                                                       ItemWidth="112"
+                                                       ItemHeight="142"
+                                                       MaximumRowsOrColumns="8" />
                             </StackPanel>
-                        </ScrollViewer>
-                    </Border>
+                        </StackPanel>
+                    </ScrollViewer>
                 </TabViewItem>
 
                 <TabViewItem Header="Scenes" IsClosable="False">
