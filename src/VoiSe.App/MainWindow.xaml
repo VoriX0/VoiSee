@@ -6,7 +6,7 @@
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     mc:Ignorable="d"
-    Title="VoiSe Gate 5.32 - SoundBoard Shifted Wheel Zone">
+    Title="VoiSe Gate 5.33 - SoundBoard Expanded Wheel Zone">
 
     <Grid x:Name="RootGrid" Padding="20" RowSpacing="14">
         <Grid.RowDefinitions>
@@ -21,8 +21,8 @@
                     <ColumnDefinition Width="Auto" />
                 </Grid.ColumnDefinitions>
                 <StackPanel Grid.Column="0" Spacing="4" VerticalAlignment="Center">
-                    <TextBlock Text="VoiSe Gate 5.32" FontSize="28" FontWeight="SemiBold" />
-                    <TextBlock Text="SoundBoard full-tab wheel zone for Sounds list" Opacity="0.75" />
+                    <TextBlock Text="VoiSe Gate 5.33" FontSize="28" FontWeight="SemiBold" />
+                    <TextBlock Text="SoundBoard expanded wheel zone for Sounds list" Opacity="0.75" />
                 </StackPanel>
                 <StackPanel Grid.Column="1" Spacing="4" VerticalAlignment="Center" HorizontalAlignment="Right">
                     <StackPanel Orientation="Horizontal" Spacing="8">
@@ -218,7 +218,7 @@
                                                 <StackPanel x:Name="SoundItemsPanel" Spacing="4" Padding="0,0,0,8" />
                                             </ScrollViewer>
 
-                                            <!-- Gate 5.32: local input overlay lives in the same cell as the visual Sounds list.
+                                            <!-- Gate 5.33: local input overlay lives in the same cell as the visual Sounds list.
                                                  No TransformToVisual/Margin positioning, so the wheel/click zone cannot drift in fullscreen. -->
                                             <Border x:Name="SoundInputOverlay"
                                                     Background="#01000000"
