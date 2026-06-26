@@ -6,257 +6,309 @@
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     mc:Ignorable="d"
-    Title="VoiSe Gate 5.14 - SoundBoard Overlay Scroll Fix">
-
+    Title="VoiSe Gate 5.18 - SoundBoard Red Debug &amp; Wheel Trace">
 
     <Grid x:Name="RootGrid" Padding="20" RowSpacing="14">
+        <Grid.Resources>
+            <Style x:Key="DebugBorderStyle" TargetType="Border">
+                <Setter Property="BorderBrush" Value="Red" />
+                <Setter Property="BorderThickness" Value="1" />
+            </Style>
+        </Grid.Resources>
+
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
         </Grid.RowDefinitions>
 
-        <Grid Grid.Row="0" ColumnSpacing="16">
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="*" />
-                <ColumnDefinition Width="Auto" />
-            </Grid.ColumnDefinitions>
-            <StackPanel Grid.Column="0" Spacing="4" VerticalAlignment="Center">
-                <TextBlock Text="VoiSe Gate 5.14" FontSize="28" FontWeight="SemiBold" />
-                <TextBlock Text="SoundBoard polish: overlay scrolling and head alignment" Opacity="0.75" />
-            </StackPanel>
-            <StackPanel Grid.Column="1" Spacing="4" VerticalAlignment="Center" HorizontalAlignment="Right">
-                <StackPanel Orientation="Horizontal" Spacing="8">
-                    <Button Content="Start Engine" MinWidth="154" Height="50" Padding="22,10" FontSize="16" Click="OnStartEngineClick" />
-                    <Button Content="Stop Engine" MinWidth="154" Height="50" Padding="22,10" FontSize="16" Click="OnStopEngineClick" />
+        <Border Grid.Row="0" Style="{StaticResource DebugBorderStyle}" Padding="6">
+            <Grid ColumnSpacing="16">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <StackPanel Grid.Column="0" Spacing="4" VerticalAlignment="Center">
+                    <TextBlock Text="VoiSe Gate 5.18" FontSize="28" FontWeight="SemiBold" />
+                    <TextBlock Text="SoundBoard red debug overlay, head alignment and wheel trace" Opacity="0.75" />
                 </StackPanel>
-                <TextBlock x:Name="EngineStatusTextBlock" Text="Stopped" HorizontalAlignment="Right" Opacity="0.8" />
-            </StackPanel>
-        </Grid>
-
-        <TabView x:Name="MainTabView" Grid.Row="1" IsAddTabButtonVisible="False" TabWidthMode="Equal">
-            <TabViewItem Header="SoundBoard" IsClosable="False">
-                <Grid Padding="0,16,0,0" RowSpacing="16" HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
-                    <Grid.RowDefinitions>
-                        <RowDefinition Height="Auto" />
-                        <RowDefinition Height="*" />
-                    </Grid.RowDefinitions>
-
-                    <!-- HEAD -->
-                    <Grid Grid.Row="0" ColumnSpacing="8" MinHeight="128">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="Auto" />
-                            <ColumnDefinition Width="Auto" />
-                            <ColumnDefinition Width="*" />
-                            <ColumnDefinition Width="360" />
-                        </Grid.ColumnDefinitions>
-                        <Grid.RowDefinitions>
-                            <RowDefinition Height="Auto" />
-                            <RowDefinition Height="48" />
-                            <RowDefinition Height="48" />
-                        </Grid.RowDefinitions>
-
-                        <Grid Grid.Column="0" Grid.Row="1" Grid.RowSpan="2" RowSpacing="8" ColumnSpacing="8" Width="164" HorizontalAlignment="Left" VerticalAlignment="Top">
-                            <Grid.RowDefinitions>
-                                <RowDefinition Height="48" />
-                                <RowDefinition Height="48" />
-                            </Grid.RowDefinitions>
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="78" />
-                                <ColumnDefinition Width="78" />
-                            </Grid.ColumnDefinitions>
-                            <Button Grid.Row="0" Grid.Column="0" Content="&#xE892;" FontFamily="Segoe MDL2 Assets" FontSize="18" MinWidth="0" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" Click="OnPreviousSoundClick" ToolTipService.ToolTip="Previous track" />
-                            <Button Grid.Row="0" Grid.Column="1" Content="&#xE893;" FontFamily="Segoe MDL2 Assets" FontSize="18" MinWidth="0" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" Click="OnNextSoundClick" ToolTipService.ToolTip="Next track" />
-                            <Button Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="2" Content="Stop" MinWidth="0" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" Click="OnStopSoundClick" ToolTipService.ToolTip="Stop sound" />
-                        </Grid>
-
-                        <TextBlock Grid.Row="0" Grid.Column="1" Grid.ColumnSpan="2" x:Name="TransportStatusTextBlock" Text="No sound" HorizontalAlignment="Center" Opacity="0.75" />
-                        <Button Grid.Row="1" Grid.Column="1" x:Name="PlayPauseButton" Content="&#xE768;" FontFamily="Segoe MDL2 Assets" FontSize="22" MinWidth="0" Width="56" Height="48" HorizontalAlignment="Left" VerticalAlignment="Center" Click="OnPlayPauseSoundClick" ToolTipService.ToolTip="Play / Pause" />
-                        <Grid Grid.Row="1" Grid.Column="2" x:Name="TimelineHost" Height="48" VerticalAlignment="Center" Background="#01000000" PointerPressed="OnTimelineHostPointerPressed" PointerMoved="OnTimelineHostPointerMoved" PointerReleased="OnTimelineHostPointerReleased" PointerCanceled="OnTimelineHostPointerReleased" SizeChanged="OnTimelineHostSizeChanged">
-                            <Grid Height="8" VerticalAlignment="Center">
-                                <Border Background="#33FFFFFF" CornerRadius="4" />
-                                <Border x:Name="TimelineFill" Width="0" HorizontalAlignment="Left" Background="#99FFFFFF" CornerRadius="4" />
-                            </Grid>
-                            <Ellipse x:Name="TimelineThumb" Width="16" Height="16" HorizontalAlignment="Left" VerticalAlignment="Center" Fill="#FFFFFFFF">
-                                <Ellipse.RenderTransform>
-                                    <TranslateTransform x:Name="TimelineThumbTransform" X="0" />
-                                </Ellipse.RenderTransform>
-                            </Ellipse>
-                        </Grid>
-                        <Grid Grid.Row="2" Grid.Column="2" VerticalAlignment="Bottom" Margin="0,0,0,0">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="Auto" />
-                                <ColumnDefinition Width="*" />
-                                <ColumnDefinition Width="Auto" />
-                            </Grid.ColumnDefinitions>
-                            <TextBlock x:Name="CurrentTimeTextBlock" Text="00:00" VerticalAlignment="Bottom" />
-                            <TextBlock Grid.Column="2" x:Name="TotalTimeTextBlock" Text="00:00" VerticalAlignment="Bottom" />
-                        </Grid>
-
-                        <StackPanel Grid.Row="0" Grid.RowSpan="3" Grid.Column="3" Spacing="6" VerticalAlignment="Top">
-                            <TextBlock x:Name="SoundVirtualVolumeLabel" Text="SoundBoard → Virtual Mic: 100%" FontWeight="SemiBold" />
-                            <Slider x:Name="SoundVirtualVolumeSlider" Minimum="0" Maximum="1.5" Value="1" StepFrequency="0.01" ValueChanged="OnSoundVolumeChanged" />
-                            <TextBlock x:Name="SoundMonitorVolumeLabel" Text="SoundBoard → Headphones: 100%" FontWeight="SemiBold" />
-                            <Slider x:Name="SoundMonitorVolumeSlider" Minimum="0" Maximum="1.5" Value="1" StepFrequency="0.01" ValueChanged="OnSoundVolumeChanged" />
-                        </StackPanel>
-                    </Grid>
-
-                    <!-- BODY -->
-                    <Grid x:Name="SoundBoardBodyGrid" Grid.Row="1" RowSpacing="8" Background="Transparent">
-                        <Grid.RowDefinitions>
-                            <RowDefinition Height="Auto" />
-                            <RowDefinition Height="Auto" />
-                            <RowDefinition Height="Auto" />
-                            <RowDefinition Height="*" />
-                        </Grid.RowDefinitions>
-
-                        <StackPanel Grid.Row="0" Orientation="Horizontal" Spacing="8">
-                            <Button Content="Create Category" Click="OnAddCategoryClick" />
-                            <Button Content="Rename Category" Click="OnRenameCategoryClick" />
-                            <Button Content="Delete Category" Click="OnDeleteCategoryClick" />
-                        </StackPanel>
-
-                        <Grid Grid.Row="1" Margin="0,0,0,14">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="1*" />
-                                <ColumnDefinition Width="3*" />
-                            </Grid.ColumnDefinitions>
-                            <ComboBox Grid.Column="0" x:Name="CategoryComboBox" DisplayMemberPath="Name" PlaceholderText="Choose category" SelectionChanged="OnCategorySelectionChanged" HorizontalAlignment="Stretch" />
-                        </Grid>
-
-                        <StackPanel Grid.Row="2" Orientation="Horizontal" Spacing="8" Margin="0,18,0,4">
-                            <Button Content="Add Track" Click="OnAddSoundClick" />
-                            <Button Content="Delete Track" Click="OnDeleteSoundClick" />
-                        </StackPanel>
-
-                        <Grid Grid.Row="3"
-                              x:Name="SoundListArea"
-                              Canvas.ZIndex="100"
-                              Background="#01000000"
-                              VerticalAlignment="Top"
-                              HorizontalAlignment="Stretch">
-                            <ListView x:Name="SoundListView"
-                                      Background="#01000000"
-                                      DisplayMemberPath="ListText"
-                                      SelectionChanged="OnSoundSelectionChanged"
-                                      RightTapped="OnSoundListRightTapped"
-                                      DoubleTapped="OnSoundListDoubleTapped"
-                                      VerticalAlignment="Stretch"
-                                      HorizontalAlignment="Stretch"
-                                      ScrollViewer.VerticalScrollBarVisibility="Visible"
-                                      ScrollViewer.HorizontalScrollBarVisibility="Disabled"
-                                      ScrollViewer.VerticalScrollMode="Enabled"
-                                      ScrollViewer.HorizontalScrollMode="Disabled"
-                                      IsTabStop="True">
-                                <ListView.ContextFlyout>
-                                    <MenuFlyout>
-                                        <MenuFlyoutItem Text="Play" Click="OnSoundContextPlayClick" />
-                                        <MenuFlyoutItem Text="Assign Hotkey" Click="OnSoundContextAssignHotkeyClick" />
-                                        <MenuFlyoutItem Text="Rename" Click="OnSoundContextRenameClick" />
-                                        <MenuFlyoutItem Text="Choose Another File" Click="OnSoundContextReplaceFileClick" />
-                                        <MenuFlyoutSeparator />
-                                        <MenuFlyoutItem Text="Delete From Category" Click="OnSoundContextDeleteClick" />
-                                    </MenuFlyout>
-                                </ListView.ContextFlyout>
-                            </ListView>
-                        </Grid>
-                    </Grid>
-
-                </Grid>
-            </TabViewItem>
-
-            <TabViewItem Header="Voice Changer" IsClosable="False">
-                <ScrollViewer>
-                    <StackPanel Spacing="16" Padding="0,16,0,0">
-                        <InfoBar IsOpen="True" Severity="Informational" Title="Live voice settings" Message="Voice sliders are applied to the running engine without manual restart." />
-                        <StackPanel Orientation="Horizontal" Spacing="12">
-                            <Button x:Name="VoiceMonitorButton" Content="Voice Monitor: Off" Click="OnToggleVoiceMonitorClick" />
-                            <TextBlock Text="When enabled, your processed voice is sent to headphones at 100%. SoundBoard monitoring is controlled separately in SoundBoard." VerticalAlignment="Center" Opacity="0.75" TextWrapping="Wrap" />
-                        </StackPanel>
-                        <StackPanel Spacing="8">
-                            <TextBlock x:Name="VoiceGainLabel" Text="Voice Gain: 0 dB" FontWeight="SemiBold" />
-                            <Slider x:Name="VoiceGainSlider" Minimum="-24" Maximum="12" Value="0" StepFrequency="1" ValueChanged="OnVoiceSettingsChanged" />
-                        </StackPanel>
-                        <StackPanel Spacing="8">
-                            <TextBlock x:Name="GateThresholdLabel" Text="Gate Threshold: -45 dB" FontWeight="SemiBold" />
-                            <Slider x:Name="GateThresholdSlider" Minimum="-70" Maximum="-20" Value="-45" StepFrequency="1" ValueChanged="OnVoiceSettingsChanged" />
-                        </StackPanel>
-                        <StackPanel Spacing="8">
-                            <TextBlock x:Name="CompressorThresholdLabel" Text="Compressor Threshold: -18 dB" FontWeight="SemiBold" />
-                            <Slider x:Name="CompressorThresholdSlider" Minimum="-40" Maximum="0" Value="-18" StepFrequency="1" ValueChanged="OnVoiceSettingsChanged" />
-                        </StackPanel>
+                <StackPanel Grid.Column="1" Spacing="4" VerticalAlignment="Center" HorizontalAlignment="Right">
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <Button Content="Start Engine" MinWidth="154" Height="50" Padding="22,10" FontSize="16" Click="OnStartEngineClick" />
+                        <Button Content="Stop Engine" MinWidth="154" Height="50" Padding="22,10" FontSize="16" Click="OnStopEngineClick" />
                     </StackPanel>
-                </ScrollViewer>
-            </TabViewItem>
-
-            <TabViewItem Header="Scenes" IsClosable="False">
-                <StackPanel Spacing="12" Padding="0,16,0,0">
-                    <InfoBar IsOpen="True" Severity="Informational" Title="Coming next" Message="Scenes are not implemented in Gate 5.14. This tab reserves the final navigation structure from the start." />
-                    <TextBlock Text="Planned scene content:" FontSize="18" FontWeight="SemiBold" />
-                    <TextBlock Text="• voice preset&#x0a;• one background loop sound&#x0a;• several one-shot sounds&#x0a;• scene mixer settings" />
+                    <TextBlock x:Name="EngineStatusTextBlock" Text="Stopped" HorizontalAlignment="Right" Opacity="0.8" />
                 </StackPanel>
-            </TabViewItem>
+            </Grid>
+        </Border>
 
-            <TabViewItem Header="Settings" IsClosable="False">
-                <Grid Padding="0,16,0,0" RowSpacing="12">
-                    <Grid.RowDefinitions>
-                        <RowDefinition Height="*" />
-                        <RowDefinition Height="220" />
-                    </Grid.RowDefinitions>
-
-                    <ScrollViewer Grid.Row="0" VerticalScrollBarVisibility="Auto" VerticalScrollMode="Enabled">
-                        <StackPanel Spacing="18" Padding="0,0,0,12">
-                            <TextBlock Text="Audio devices" FontSize="18" FontWeight="SemiBold" />
-                            <Button Content="Refresh Devices" Click="OnRefreshDevicesClick" HorizontalAlignment="Left" />
-
-                            <StackPanel Spacing="6">
-                                <TextBlock Text="Input Microphone" />
-                                <ComboBox x:Name="InputDeviceComboBox" PlaceholderText="Choose microphone" DisplayMemberPath="FriendlyName" Width="640" SelectionChanged="OnRouteSettingChanged" />
-                            </StackPanel>
-                            <StackPanel Spacing="6">
-                                <TextBlock Text="Virtual Output" />
-                                <ComboBox x:Name="VirtualOutputComboBox" PlaceholderText="Choose CABLE Input" DisplayMemberPath="FriendlyName" Width="640" SelectionChanged="OnRouteSettingChanged" />
-                            </StackPanel>
-                            <StackPanel Spacing="6">
-                                <TextBlock Text="Monitor Output" />
-                                <ComboBox x:Name="MonitorOutputComboBox" PlaceholderText="Choose headphones" DisplayMemberPath="FriendlyName" Width="640" SelectionChanged="OnRouteSettingChanged" />
-                            </StackPanel>
-
-                            <TextBlock Text="Output" FontSize="18" FontWeight="SemiBold" />
-                            <StackPanel Spacing="8">
-                                <TextBlock x:Name="VirtualOutputVolumeLabel" Text="Virtual Mic Master: 100%" FontWeight="SemiBold" />
-                                <Slider x:Name="VirtualOutputVolumeSlider" Minimum="0" Maximum="1.5" Value="1" StepFrequency="0.01" ValueChanged="OnOutputVolumeChanged" />
-                            </StackPanel>
-
-                            <TextBlock Text="SoundBoard" FontSize="18" FontWeight="SemiBold" />
-                            <StackPanel Spacing="8">
-                                <TextBlock x:Name="DelayLabel" Text="SoundBoard Virtual Mic Delay: 85 ms" FontWeight="SemiBold" />
-                                <Slider x:Name="SoundVirtualDelaySlider" Minimum="0" Maximum="300" Value="85" StepFrequency="1" ValueChanged="OnDelayChanged" />
-                                <TextBlock Text="SoundBoard plays in headphones immediately, then reaches CABLE Input after this delay. Changes apply on next Play Sound." Opacity="0.7" TextWrapping="Wrap" />
-                            </StackPanel>
-                        </StackPanel>
-                    </ScrollViewer>
-
-                    <Grid Grid.Row="1" x:Name="SettingsLogArea" RowSpacing="6" Background="#01000000">
+        <Border Grid.Row="1" Style="{StaticResource DebugBorderStyle}" Padding="4">
+            <TabView x:Name="MainTabView" IsAddTabButtonVisible="False" TabWidthMode="Equal">
+                <TabViewItem Header="SoundBoard" IsClosable="False">
+                    <Grid Padding="0,16,0,0" RowSpacing="16" HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
                         <Grid.RowDefinitions>
                             <RowDefinition Height="Auto" />
                             <RowDefinition Height="*" />
                         </Grid.RowDefinitions>
-                        <TextBlock Text="Log" FontWeight="SemiBold" />
-                        <TextBox Grid.Row="1"
-                                 x:Name="LogTextBox"
-                                 IsReadOnly="True"
-                                 AcceptsReturn="True"
-                                 TextWrapping="Wrap"
-                                 Background="#01000000"
-                                 VerticalAlignment="Stretch"
-                                 HorizontalAlignment="Stretch"
-                                 ScrollViewer.VerticalScrollBarVisibility="Visible"
-                                 ScrollViewer.VerticalScrollMode="Enabled"
-                                 ScrollViewer.HorizontalScrollBarVisibility="Disabled"
-                                 ScrollViewer.HorizontalScrollMode="Disabled" />
+
+                        <!-- HEAD -->
+                        <Border Grid.Row="0" Style="{StaticResource DebugBorderStyle}" Padding="6">
+                            <Grid ColumnSpacing="8" MinHeight="128">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="360" />
+                                </Grid.ColumnDefinitions>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="104" />
+                                </Grid.RowDefinitions>
+
+                                <Border Grid.Column="0" Grid.Row="1" Style="{StaticResource DebugBorderStyle}" Padding="0" Width="164" Height="104" HorizontalAlignment="Left" VerticalAlignment="Top">
+                                    <Grid RowSpacing="8" ColumnSpacing="8">
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition Height="48" />
+                                            <RowDefinition Height="48" />
+                                        </Grid.RowDefinitions>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="78" />
+                                            <ColumnDefinition Width="78" />
+                                        </Grid.ColumnDefinitions>
+                                        <Button Grid.Row="0" Grid.Column="0" Content="&#xE892;" FontFamily="Segoe MDL2 Assets" FontSize="18" MinWidth="0" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" Click="OnPreviousSoundClick" ToolTipService.ToolTip="Previous track" />
+                                        <Button Grid.Row="0" Grid.Column="1" Content="&#xE893;" FontFamily="Segoe MDL2 Assets" FontSize="18" MinWidth="0" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" Click="OnNextSoundClick" ToolTipService.ToolTip="Next track" />
+                                        <Button Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="2" Content="Stop" MinWidth="0" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" Click="OnStopSoundClick" ToolTipService.ToolTip="Stop sound" />
+                                    </Grid>
+                                </Border>
+
+                                <Border Grid.Row="0" Grid.Column="1" Grid.ColumnSpan="2" Style="{StaticResource DebugBorderStyle}" Padding="2">
+                                    <TextBlock x:Name="TransportStatusTextBlock" Text="No sound" HorizontalAlignment="Center" Opacity="0.75" />
+                                </Border>
+
+                                <Border Grid.Row="1" Grid.Column="1" Grid.ColumnSpan="2" Style="{StaticResource DebugBorderStyle}" Padding="0" Height="104" VerticalAlignment="Top">
+                                    <Grid Height="104" ColumnSpacing="8" RowSpacing="8" VerticalAlignment="Top">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="56" />
+                                            <ColumnDefinition Width="*" />
+                                        </Grid.ColumnDefinitions>
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition Height="76" />
+                                            <RowDefinition Height="20" />
+                                        </Grid.RowDefinitions>
+
+                                        <Button Grid.Row="0" Grid.Column="0" x:Name="PlayPauseButton" Content="&#xE768;" FontFamily="Segoe MDL2 Assets" FontSize="22" MinWidth="0" Width="56" Height="48" HorizontalAlignment="Left" VerticalAlignment="Center" Click="OnPlayPauseSoundClick" ToolTipService.ToolTip="Play / Pause" />
+
+                                        <Grid Grid.Row="0" Grid.Column="1" x:Name="TimelineHost" Height="48" VerticalAlignment="Center" Background="#01000000" PointerPressed="OnTimelineHostPointerPressed" PointerMoved="OnTimelineHostPointerMoved" PointerReleased="OnTimelineHostPointerReleased" PointerCanceled="OnTimelineHostPointerReleased" SizeChanged="OnTimelineHostSizeChanged">
+                                            <Grid Height="8" VerticalAlignment="Center">
+                                                <Border Background="#33FFFFFF" CornerRadius="4" />
+                                                <Border x:Name="TimelineFill" Width="0" HorizontalAlignment="Left" Background="#99FFFFFF" CornerRadius="4" />
+                                            </Grid>
+                                            <Ellipse x:Name="TimelineThumb" Width="16" Height="16" HorizontalAlignment="Left" VerticalAlignment="Center" Fill="#FFFFFFFF">
+                                                <Ellipse.RenderTransform>
+                                                    <TranslateTransform x:Name="TimelineThumbTransform" X="0" />
+                                                </Ellipse.RenderTransform>
+                                            </Ellipse>
+                                        </Grid>
+
+                                        <Grid Grid.Row="1" Grid.Column="1" VerticalAlignment="Bottom">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="Auto" />
+                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="Auto" />
+                                            </Grid.ColumnDefinitions>
+                                            <TextBlock x:Name="CurrentTimeTextBlock" Text="00:00" VerticalAlignment="Bottom" />
+                                            <TextBlock Grid.Column="2" x:Name="TotalTimeTextBlock" Text="00:00" VerticalAlignment="Bottom" />
+                                        </Grid>
+                                    </Grid>
+                                </Border>
+
+                                <Border Grid.Row="0" Grid.RowSpan="2" Grid.Column="3" Style="{StaticResource DebugBorderStyle}" Padding="6">
+                                    <StackPanel Spacing="6" VerticalAlignment="Top">
+                                        <TextBlock x:Name="SoundVirtualVolumeLabel" Text="SoundBoard → Virtual Mic: 100%" FontWeight="SemiBold" />
+                                        <Slider x:Name="SoundVirtualVolumeSlider" Minimum="0" Maximum="1.5" Value="1" StepFrequency="0.01" ValueChanged="OnSoundVolumeChanged" />
+                                        <TextBlock x:Name="SoundMonitorVolumeLabel" Text="SoundBoard → Headphones: 100%" FontWeight="SemiBold" />
+                                        <Slider x:Name="SoundMonitorVolumeSlider" Minimum="0" Maximum="1.5" Value="1" StepFrequency="0.01" ValueChanged="OnSoundVolumeChanged" />
+                                    </StackPanel>
+                                </Border>
+                            </Grid>
+                        </Border>
+
+                        <!-- BODY -->
+                        <Border Grid.Row="1" Style="{StaticResource DebugBorderStyle}" Padding="6">
+                            <Grid x:Name="SoundBoardBodyGrid" RowSpacing="8" Background="Transparent">
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="*" />
+                                </Grid.RowDefinitions>
+
+                                <Border Grid.Row="0" Style="{StaticResource DebugBorderStyle}" Padding="4">
+                                    <StackPanel Orientation="Horizontal" Spacing="8">
+                                        <Button Content="Create Category" Click="OnAddCategoryClick" />
+                                        <Button Content="Rename Category" Click="OnRenameCategoryClick" />
+                                        <Button Content="Delete Category" Click="OnDeleteCategoryClick" />
+                                    </StackPanel>
+                                </Border>
+
+                                <Border Grid.Row="1" Style="{StaticResource DebugBorderStyle}" Padding="4" Margin="0,0,0,14">
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="1*" />
+                                            <ColumnDefinition Width="3*" />
+                                        </Grid.ColumnDefinitions>
+                                        <ComboBox Grid.Column="0" x:Name="CategoryComboBox" DisplayMemberPath="Name" PlaceholderText="Choose category" SelectionChanged="OnCategorySelectionChanged" HorizontalAlignment="Stretch" />
+                                    </Grid>
+                                </Border>
+
+                                <Border Grid.Row="2" Style="{StaticResource DebugBorderStyle}" Padding="4" Margin="0,18,0,4">
+                                    <StackPanel Orientation="Horizontal" Spacing="8">
+                                        <Button Content="Add Track" Click="OnAddSoundClick" />
+                                        <Button Content="Delete Track" Click="OnDeleteSoundClick" />
+                                    </StackPanel>
+                                </Border>
+
+                                <Border Grid.Row="3"
+                                        x:Name="SoundListArea"
+                                        Style="{StaticResource DebugBorderStyle}"
+                                        Canvas.ZIndex="100"
+                                        Background="#01000000"
+                                        Padding="2"
+                                        VerticalAlignment="Top"
+                                        HorizontalAlignment="Stretch">
+                                    <ListView x:Name="SoundListView"
+                                              Background="#01000000"
+                                              DisplayMemberPath="ListText"
+                                              SelectionChanged="OnSoundSelectionChanged"
+                                              RightTapped="OnSoundListRightTapped"
+                                              DoubleTapped="OnSoundListDoubleTapped"
+                                              VerticalAlignment="Stretch"
+                                              HorizontalAlignment="Stretch"
+                                              ScrollViewer.VerticalScrollBarVisibility="Visible"
+                                              ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                                              ScrollViewer.VerticalScrollMode="Enabled"
+                                              ScrollViewer.HorizontalScrollMode="Disabled"
+                                              IsTabStop="True">
+                                        <ListView.ContextFlyout>
+                                            <MenuFlyout>
+                                                <MenuFlyoutItem Text="Play" Click="OnSoundContextPlayClick" />
+                                                <MenuFlyoutItem Text="Assign Hotkey" Click="OnSoundContextAssignHotkeyClick" />
+                                                <MenuFlyoutItem Text="Rename" Click="OnSoundContextRenameClick" />
+                                                <MenuFlyoutItem Text="Choose Another File" Click="OnSoundContextReplaceFileClick" />
+                                                <MenuFlyoutSeparator />
+                                                <MenuFlyoutItem Text="Delete From Category" Click="OnSoundContextDeleteClick" />
+                                            </MenuFlyout>
+                                        </ListView.ContextFlyout>
+                                    </ListView>
+                                </Border>
+                            </Grid>
+                        </Border>
                     </Grid>
-                </Grid>
-            </TabViewItem>
-        </TabView>
+                </TabViewItem>
+
+                <TabViewItem Header="Voice Changer" IsClosable="False">
+                    <Border Style="{StaticResource DebugBorderStyle}" Padding="4">
+                        <ScrollViewer>
+                            <StackPanel Spacing="16" Padding="0,16,0,0">
+                                <InfoBar IsOpen="True" Severity="Informational" Title="Live voice settings" Message="Voice sliders are applied to the running engine without manual restart." />
+                                <StackPanel Orientation="Horizontal" Spacing="12">
+                                    <Button x:Name="VoiceMonitorButton" Content="Voice Monitor: Off" Click="OnToggleVoiceMonitorClick" />
+                                    <TextBlock Text="When enabled, your processed voice is sent to headphones at 100%. SoundBoard monitoring is controlled separately in SoundBoard." VerticalAlignment="Center" Opacity="0.75" TextWrapping="Wrap" />
+                                </StackPanel>
+                                <StackPanel Spacing="8">
+                                    <TextBlock x:Name="VoiceGainLabel" Text="Voice Gain: 0 dB" FontWeight="SemiBold" />
+                                    <Slider x:Name="VoiceGainSlider" Minimum="-24" Maximum="12" Value="0" StepFrequency="1" ValueChanged="OnVoiceSettingsChanged" />
+                                </StackPanel>
+                                <StackPanel Spacing="8">
+                                    <TextBlock x:Name="GateThresholdLabel" Text="Gate Threshold: -45 dB" FontWeight="SemiBold" />
+                                    <Slider x:Name="GateThresholdSlider" Minimum="-70" Maximum="-20" Value="-45" StepFrequency="1" ValueChanged="OnVoiceSettingsChanged" />
+                                </StackPanel>
+                                <StackPanel Spacing="8">
+                                    <TextBlock x:Name="CompressorThresholdLabel" Text="Compressor Threshold: -18 dB" FontWeight="SemiBold" />
+                                    <Slider x:Name="CompressorThresholdSlider" Minimum="-40" Maximum="0" Value="-18" StepFrequency="1" ValueChanged="OnVoiceSettingsChanged" />
+                                </StackPanel>
+                            </StackPanel>
+                        </ScrollViewer>
+                    </Border>
+                </TabViewItem>
+
+                <TabViewItem Header="Scenes" IsClosable="False">
+                    <Border Style="{StaticResource DebugBorderStyle}" Padding="4">
+                        <StackPanel Spacing="12" Padding="0,16,0,0">
+                            <InfoBar IsOpen="True" Severity="Informational" Title="Coming next" Message="Scenes are not implemented in Gate 5.18. This tab reserves the final navigation structure from the start." />
+                            <TextBlock Text="Planned scene content:" FontSize="18" FontWeight="SemiBold" />
+                            <TextBlock Text="• voice preset&#x0a;• one background loop sound&#x0a;• several one-shot sounds&#x0a;• scene mixer settings" />
+                        </StackPanel>
+                    </Border>
+                </TabViewItem>
+
+                <TabViewItem Header="Settings" IsClosable="False">
+                    <Grid Padding="0,16,0,0" RowSpacing="12">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="*" />
+                            <RowDefinition Height="220" />
+                        </Grid.RowDefinitions>
+
+                        <Border Grid.Row="0" Style="{StaticResource DebugBorderStyle}" Padding="4">
+                            <ScrollViewer VerticalScrollBarVisibility="Auto" VerticalScrollMode="Enabled">
+                                <StackPanel Spacing="18" Padding="0,0,0,12">
+                                    <TextBlock Text="Audio devices" FontSize="18" FontWeight="SemiBold" />
+                                    <Button Content="Refresh Devices" Click="OnRefreshDevicesClick" HorizontalAlignment="Left" />
+
+                                    <StackPanel Spacing="6">
+                                        <TextBlock Text="Input Microphone" />
+                                        <ComboBox x:Name="InputDeviceComboBox" PlaceholderText="Choose microphone" DisplayMemberPath="FriendlyName" Width="640" SelectionChanged="OnRouteSettingChanged" />
+                                    </StackPanel>
+                                    <StackPanel Spacing="6">
+                                        <TextBlock Text="Virtual Output" />
+                                        <ComboBox x:Name="VirtualOutputComboBox" PlaceholderText="Choose CABLE Input" DisplayMemberPath="FriendlyName" Width="640" SelectionChanged="OnRouteSettingChanged" />
+                                    </StackPanel>
+                                    <StackPanel Spacing="6">
+                                        <TextBlock Text="Monitor Output" />
+                                        <ComboBox x:Name="MonitorOutputComboBox" PlaceholderText="Choose headphones" DisplayMemberPath="FriendlyName" Width="640" SelectionChanged="OnRouteSettingChanged" />
+                                    </StackPanel>
+
+                                    <TextBlock Text="Output" FontSize="18" FontWeight="SemiBold" />
+                                    <StackPanel Spacing="8">
+                                        <TextBlock x:Name="VirtualOutputVolumeLabel" Text="Virtual Mic Master: 100%" FontWeight="SemiBold" />
+                                        <Slider x:Name="VirtualOutputVolumeSlider" Minimum="0" Maximum="1.5" Value="1" StepFrequency="0.01" ValueChanged="OnOutputVolumeChanged" />
+                                    </StackPanel>
+
+                                    <TextBlock Text="SoundBoard" FontSize="18" FontWeight="SemiBold" />
+                                    <StackPanel Spacing="8">
+                                        <TextBlock x:Name="DelayLabel" Text="SoundBoard Virtual Mic Delay: 85 ms" FontWeight="SemiBold" />
+                                        <Slider x:Name="SoundVirtualDelaySlider" Minimum="0" Maximum="300" Value="85" StepFrequency="1" ValueChanged="OnDelayChanged" />
+                                        <TextBlock Text="SoundBoard plays in headphones immediately, then reaches CABLE Input after this delay. Changes apply on next Play Sound." Opacity="0.7" TextWrapping="Wrap" />
+                                    </StackPanel>
+                                </StackPanel>
+                            </ScrollViewer>
+                        </Border>
+
+                        <Border Grid.Row="1" Style="{StaticResource DebugBorderStyle}" Padding="4">
+                            <Grid x:Name="SettingsLogArea" RowSpacing="6" Background="#01000000">
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="*" />
+                                </Grid.RowDefinitions>
+                                <TextBlock Text="Log" FontWeight="SemiBold" />
+                                <TextBox Grid.Row="1"
+                                         x:Name="LogTextBox"
+                                         IsReadOnly="True"
+                                         AcceptsReturn="True"
+                                         TextWrapping="Wrap"
+                                         Background="#01000000"
+                                         VerticalAlignment="Stretch"
+                                         HorizontalAlignment="Stretch"
+                                         ScrollViewer.VerticalScrollBarVisibility="Visible"
+                                         ScrollViewer.VerticalScrollMode="Enabled"
+                                         ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                                         ScrollViewer.HorizontalScrollMode="Disabled" />
+                            </Grid>
+                        </Border>
+                    </Grid>
+                </TabViewItem>
+            </TabView>
+        </Border>
+
+        <Canvas x:Name="DebugOverlayCanvas" Grid.RowSpan="2" IsHitTestVisible="False" Canvas.ZIndex="9999" />
     </Grid>
 </Window>

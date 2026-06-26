@@ -1,15 +1,19 @@
-# VoiSe Gate 5.14 - SoundBoard Overlay Scroll Fix
+# VoiSe Gate 5.18 — SoundBoard Red Debug & Wheel Trace
 
-Gate 5.14 continues polishing the SoundBoard UI.
+Gate 5.18 is a diagnostic build for finishing the SoundBoard UI.
 
 ## Changes
 
-- Window title and visible app header now show **VoiSe Gate 5.14**.
-- Track list area is recreated as an explicit top overlay-style area with its own native `ListView` scrolling.
-- The track list height is recalculated from the real cursor/list position to the bottom of the window, which should help in maximized/fullscreen mode.
-- Settings log area gets an explicit height recalculation as well.
-- Current track time and total duration are bottom-aligned with the Stop button while the timeline remains one line above them.
-- Double-click on a track still starts playback.
+- Window/header version updated to Gate 5.18.
+- The red debug overlay for all visible WinUI elements is kept.
+- The SoundBoard head timeline block is lifted upward: transport block and timeline block now start at the top of the same row.
+- The timeline block height is now the same as the Previous/Next/Stop transport block height, so its bottom edge should align with the bottom edge of Stop.
+- Added root-level mouse wheel tracing/routing with `handledEventsToo=true`.
+- When the pointer is inside the SoundBoard track-list area, wheel deltas are manually forwarded to the ListView internal ScrollViewer.
+- When the pointer is inside the Settings log area, wheel deltas are manually forwarded to the log TextBox internal ScrollViewer.
+- Wheel trace counters are shown temporarily in the UI:
+  - SoundBoard track wheel events update the transport status text.
+  - Settings log wheel events update the engine status text.
 
 ## Run
 
@@ -17,12 +21,10 @@ Gate 5.14 continues polishing the SoundBoard UI.
 dotnet run --project src/VoiSe.App
 ```
 
-## Check
+## What to check
 
-1. Open the app maximized/fullscreen.
-2. Add enough tracks to require scrolling.
-3. Try mouse-wheel scrolling below the fourth track.
-4. Check Settings log scrolling.
-5. Check that current time and total duration align with the bottom of the Stop button.
-
-If scrolling still fails, the next diagnostic gate should enable visible debug borders around all major layout zones to find the overlay that steals wheel hit-testing.
+1. In fullscreen, check whether red borders show any hidden element over the lower track area.
+2. Move the mouse below the 4th track and scroll the wheel.
+3. If the wheel event is caught, the SoundBoard status should change to `Track wheel: N`.
+4. In Settings, scroll the log area. If the wheel event is caught, the engine status should change to `Log wheel: N`.
+5. Check that the bottom edge of the timeline block aligns with the bottom edge of the Stop button, but the whole group is lifted toward the top of the head area.

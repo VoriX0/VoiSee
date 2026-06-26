@@ -1,7 +1,9 @@
+using Microsoft.UI;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
+using Microsoft.UI.Xaml.Shapes;
 using NAudio.CoreAudioApi;
 using System;
 using System.Collections.Generic;
@@ -35,7 +37,9 @@ public sealed partial class MainWindow : Window
     private bool _loadingSettings = true;
     private bool _loadedOnce;
     private bool _timelineUserDragging;
-        private double _timelineMaximumSeconds = 1.0;
+    private double _timelineMaximumSeconds = 1.0;
+    private int _soundWheelEvents;
+    private int _logWheelEvents;
 
     public MainWindow()
     {
@@ -45,6 +49,7 @@ public sealed partial class MainWindow : Window
         _library = _libraryStore.Load();
         InitializeComponent();
         RegisterWheelRoutingHandlers();
+        RootGrid.Loaded += (_, _) => DispatcherQueue.TryEnqueue(UpdateDebugOverlay);
         MainTabView.SelectionChanged += OnMainTabSelectionChanged;
         Closed += OnClosed;
         Activated += OnActivated;
@@ -62,24 +67,126 @@ public sealed partial class MainWindow : Window
         _timelineTimer.Tick += OnTimelineTimerTick;
         _timelineTimer.Start();
 
-        AppendLog("Gate 5.14 UI started.");
+        AppendLog("Gate 5.18 UI started.");
         AppendLog($"Settings path: {_settingsStore.SettingsPath}");
         StartupLog.Write("MainWindow initialized; waiting for first activation.");
     }
 
     private void RegisterWheelRoutingHandlers()
     {
-        // Gate 5.14: the track list is treated as an explicit top overlay area.
-        // The earlier auto/star layout visually left empty space below the 4th row in maximized
-        // mode, but that space was not actually owned by the ListView, so wheel events died there.
+        // Gate 5.18: keep dynamic heights, but also catch mouse wheel events at the root
+        // with handledEventsToo=true. This helps diagnose whether the lower part of the
+        // list/log is receiving wheel events at all, and manually forwards wheel deltas
+        // to the internal ScrollViewer when the pointer is inside the intended area.
         RootGrid.SizeChanged += OnRootGridSizeChanged;
         MainTabView.SizeChanged += OnRootGridSizeChanged;
+        RootGrid.AddHandler(UIElement.PointerWheelChangedEvent, new PointerEventHandler(OnRootPointerWheelChanged), true);
         DispatcherQueue.TryEnqueue(UpdateDynamicScrollAreaHeights);
     }
 
     private void OnRootGridSizeChanged(object sender, SizeChangedEventArgs e)
     {
         UpdateDynamicScrollAreaHeights();
+        DispatcherQueue.TryEnqueue(UpdateDebugOverlay);
+    }
+
+    private void OnRootPointerWheelChanged(object sender, PointerRoutedEventArgs e)
+    {
+        if (RootGrid is null)
+        {
+            return;
+        }
+
+        var pointerPoint = e.GetCurrentPoint(RootGrid);
+        var delta = pointerPoint.Properties.MouseWheelDelta;
+        if (delta == 0)
+        {
+            return;
+        }
+
+        if (MainTabView.SelectedIndex == 0 && IsPointerInsideElement(pointerPoint.Position, SoundListArea))
+        {
+            if (TryScrollElement(SoundListView, delta))
+            {
+                _soundWheelEvents++;
+                TransportStatusTextBlock.Text = $"Track wheel: {_soundWheelEvents}";
+                e.Handled = true;
+            }
+            return;
+        }
+
+        if (MainTabView.SelectedIndex == 3 && IsPointerInsideElement(pointerPoint.Position, SettingsLogArea))
+        {
+            if (TryScrollElement(LogTextBox, delta))
+            {
+                _logWheelEvents++;
+                EngineStatusTextBlock.Text = $"Log wheel: {_logWheelEvents}";
+                e.Handled = true;
+            }
+        }
+    }
+
+    private bool IsPointerInsideElement(Point rootPoint, FrameworkElement? element)
+    {
+        if (element is null || element.ActualWidth <= 0 || element.ActualHeight <= 0)
+        {
+            return false;
+        }
+
+        try
+        {
+            var topLeft = element.TransformToVisual(RootGrid).TransformPoint(new Point(0, 0));
+            return rootPoint.X >= topLeft.X
+                && rootPoint.X <= topLeft.X + element.ActualWidth
+                && rootPoint.Y >= topLeft.Y
+                && rootPoint.Y <= topLeft.Y + element.ActualHeight;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    private bool TryScrollElement(DependencyObject? scrollOwner, int wheelDelta)
+    {
+        var scrollViewer = FindDescendant<ScrollViewer>(scrollOwner);
+        if (scrollViewer is null)
+        {
+            return false;
+        }
+
+        // MouseWheelDelta is usually +120 for wheel up and -120 for wheel down.
+        // ScrollViewer vertical offset grows downward, so subtract delta.
+        var target = scrollViewer.VerticalOffset - wheelDelta;
+        target = Math.Max(0, Math.Min(scrollViewer.ScrollableHeight, target));
+        scrollViewer.ChangeView(null, target, null, disableAnimation: true);
+        return true;
+    }
+
+    private static T? FindDescendant<T>(DependencyObject? root) where T : DependencyObject
+    {
+        if (root is null)
+        {
+            return null;
+        }
+
+        var count = VisualTreeHelper.GetChildrenCount(root);
+        for (var i = 0; i < count; i++)
+        {
+            var child = VisualTreeHelper.GetChild(root, i);
+            if (child is T match)
+            {
+                return match;
+            }
+
+            var nested = FindDescendant<T>(child);
+            if (nested is not null)
+            {
+                return nested;
+            }
+        }
+
+        return null;
     }
 
     private void UpdateDynamicScrollAreaHeights()
@@ -131,6 +238,74 @@ public sealed partial class MainWindow : Window
         }
     }
 
+
+    private void UpdateDebugOverlay()
+    {
+        if (DebugOverlayCanvas is null || RootGrid is null || RootGrid.ActualWidth <= 0 || RootGrid.ActualHeight <= 0)
+        {
+            return;
+        }
+
+        DebugOverlayCanvas.Children.Clear();
+        DebugOverlayCanvas.Width = RootGrid.ActualWidth;
+        DebugOverlayCanvas.Height = RootGrid.ActualHeight;
+
+        var elements = new List<FrameworkElement>();
+        CollectDebugElements(RootGrid, elements);
+
+        foreach (var element in elements)
+        {
+            if (element.ActualWidth <= 1 || element.ActualHeight <= 1)
+            {
+                continue;
+            }
+
+            try
+            {
+                var point = element.TransformToVisual(RootGrid).TransformPoint(new Point(0, 0));
+                var rect = new Rectangle
+                {
+                    Width = element.ActualWidth,
+                    Height = element.ActualHeight,
+                    Stroke = new SolidColorBrush(Colors.Red),
+                    StrokeThickness = 1,
+                    IsHitTestVisible = false
+                };
+
+                Canvas.SetLeft(rect, point.X);
+                Canvas.SetTop(rect, point.Y);
+                DebugOverlayCanvas.Children.Add(rect);
+            }
+            catch
+            {
+                // Some transient WinUI elements cannot be transformed during layout changes.
+            }
+        }
+    }
+
+    private void CollectDebugElements(DependencyObject root, List<FrameworkElement> elements)
+    {
+        var count = VisualTreeHelper.GetChildrenCount(root);
+        for (var i = 0; i < count; i++)
+        {
+            var child = VisualTreeHelper.GetChild(root, i);
+            if (child == DebugOverlayCanvas || child is Shape)
+            {
+                continue;
+            }
+
+            if (child is FrameworkElement element &&
+                element.ActualWidth > 1 &&
+                element.ActualHeight > 1 &&
+                element.Visibility == Visibility.Visible)
+            {
+                elements.Add(element);
+            }
+
+            CollectDebugElements(child, elements);
+        }
+    }
+
     private void OnActivated(object sender, WindowActivatedEventArgs args)
     {
         if (_loadedOnce)
@@ -148,21 +323,21 @@ public sealed partial class MainWindow : Window
         try
         {
             AppendLog("Restoring saved settings...");
-            StartupLog.Write("Gate 5.14 restore started.");
+            StartupLog.Write("Gate 5.18 restore started.");
 
             ApplyStoredScalarSettingsToControls();
             AppendLog("Saved scalar settings applied.");
-            StartupLog.Write("Gate 5.14 scalar settings applied.");
+            StartupLog.Write("Gate 5.18 scalar settings applied.");
 
             RefreshDevices(saveAfterRefresh: false);
             LoadSoundBoardLibraryIntoUi();
-            DispatcherQueue.TryEnqueue(UpdateDynamicScrollAreaHeights);
+            DispatcherQueue.TryEnqueue(() => { UpdateDynamicScrollAreaHeights(); UpdateDebugOverlay(); });
             AppendLog("Settings restored.");
-            StartupLog.Write("Gate 5.14 restore completed.");
+            StartupLog.Write("Gate 5.18 restore completed.");
         }
         catch (Exception ex)
         {
-            StartupLog.Write("Gate 5.14 restore error: " + ex);
+            StartupLog.Write("Gate 5.18 restore error: " + ex);
             AppendLog($"Settings restore error: {ex.GetType().Name}: {ex.Message}");
         }
         finally
@@ -821,7 +996,7 @@ public sealed partial class MainWindow : Window
                 _libraryStore.IncrementUsage(_library, _selectedSound);
             }
             UpdateBottomStats();
-            AppendLog($"Sound started: {_selectedSound?.DisplayName ?? Path.GetFileName(soundPath)}. Virtual delay: {delayMs} ms.");
+            AppendLog($"Sound started: {_selectedSound?.DisplayName ?? System.IO.Path.GetFileName(soundPath)}. Virtual delay: {delayMs} ms.");
         }
         catch (Exception ex)
         {

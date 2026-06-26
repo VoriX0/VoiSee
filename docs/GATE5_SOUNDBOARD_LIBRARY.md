@@ -1,28 +1,5 @@
-# Gate 5.2 — SoundBoard Transport & Timeline
+# Gate 5.18 — SoundBoard Red Debug & Wheel Trace
 
-Gate 5.2 развивает SoundBoard-вкладку после Gate 5.1 и фокусируется на транспортной панели, таймлайне и расположении bottom-информации.
+This diagnostic gate keeps the full red debug overlay and adds root-level mouse wheel tracing/routing to investigate the remaining scroll issue in fullscreen.
 
-## Что сделано
-
-- Заголовок окна и верхний заголовок обновлены до `VoiSe Gate 5.2`.
-- Таймлайн вынесен на отдельную строку ниже статуса текущего звука.
-- Таймлайн поддерживает перемотку текущего воспроизведения.
-- Кнопки Play и Pause объединены в одну кнопку `▶ / ⏸`.
-- Кнопки Previous / Next заменены на `⏮ / ⏭`.
-- Кнопка Stop оставлена текстовой и полностью останавливает текущий звук.
-- Previous / Next сгруппированы сверху, Stop расположен под ними на ширину двух кнопок.
-- Play/Pause находится слева от таймлайна.
-- Между выпадающим списком категорий и списком треков увеличен визуальный отступ.
-- Bottom-информация SoundBoard перенесена в нижнюю глобальную область, где раньше был общий лог.
-- Лог приложения перенесён во вкладку Settings.
-
-## Ограничения
-
-- Перемотка работает для текущего активного звука.
-- Горячие клавиши по-прежнему хранятся как метки, но глобальное срабатывание hotkeys ещё не реализовано.
-- Сцены не реализованы в Gate 5.2.
-
-
-## Gate 5.5
-
-Polish pass: fixed track-list scroll area, removed header engine border, added timeline time tooltip, and restored Settings log scrolling.
+The SoundBoard head was also adjusted: the timeline group and transport block are now lifted upward together while keeping their bottom edges aligned.
