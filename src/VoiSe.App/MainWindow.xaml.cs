@@ -10,6 +10,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using VoiSe.Audio;
 using Windows.Storage.Pickers;
+using Windows.System;
 using WinRT.Interop;
 
 namespace VoiSe.App;
@@ -35,6 +36,8 @@ public sealed partial class MainWindow : Window
     private bool _loadedOnce;
     private bool _timelineUserDragging;
     private double _timelineMaximumSeconds = 1.0;
+    private string _trackSearchText = string.Empty;
+    private List<SoundBoardSound> _visibleSounds = new();
 
     public MainWindow()
     {
@@ -60,7 +63,7 @@ public sealed partial class MainWindow : Window
         _timelineTimer.Tick += OnTimelineTimerTick;
         _timelineTimer.Start();
 
-        AppendLog("Gate 5.21 UI started.");
+        AppendLog("Gate 5.26 UI started.");
         AppendLog($"Settings path: {_settingsStore.SettingsPath}");
         StartupLog.Write("MainWindow initialized; waiting for first activation.");
     }
@@ -82,20 +85,20 @@ public sealed partial class MainWindow : Window
         try
         {
             AppendLog("Restoring saved settings...");
-            StartupLog.Write("Gate 5.21 restore started.");
+            StartupLog.Write("Gate 5.26 restore started.");
 
             ApplyStoredScalarSettingsToControls();
             AppendLog("Saved scalar settings applied.");
-            StartupLog.Write("Gate 5.21 scalar settings applied.");
+            StartupLog.Write("Gate 5.26 scalar settings applied.");
 
             RefreshDevices(saveAfterRefresh: false);
             LoadSoundBoardLibraryIntoUi();
             AppendLog("Settings restored.");
-            StartupLog.Write("Gate 5.21 restore completed.");
+            StartupLog.Write("Gate 5.26 restore completed.");
         }
         catch (Exception ex)
         {
-            StartupLog.Write("Gate 5.21 restore error: " + ex);
+            StartupLog.Write("Gate 5.26 restore error: " + ex);
             AppendLog($"Settings restore error: {ex.GetType().Name}: {ex.Message}");
         }
         finally
@@ -132,7 +135,7 @@ public sealed partial class MainWindow : Window
 
     private void OnMainTabSelectionChanged(object sender, SelectionChangedEventArgs e)
     {
-        // Gate 5.21: no shared bottom panel and no custom track scroll routing.
+        // Gate 5.26: current SoundBoard design with a custom overlay sound scroller.
     }
 
     private void UpdateBottomPanelVisibility()
@@ -263,8 +266,8 @@ public sealed partial class MainWindow : Window
 
             if (_selectedSound is not null)
             {
-                SoundListView.SelectedItem = _selectedSound;
                 _soundFilePath = _selectedSound.FilePath;
+                RefreshSoundList();
             }
 
             UpdateBottomStats();
@@ -290,13 +293,106 @@ public sealed partial class MainWindow : Window
 
     private void RefreshSoundList()
     {
-        var sounds = FilterSoundsForSelectedCategory().ToList();
-        SoundListView.ItemsSource = sounds;
-        if (_selectedSound is not null)
+        _visibleSounds = FilterSoundsForSelectedCategory().ToList();
+        if (_selectedSound is not null && _visibleSounds.All(s => s.Id != _selectedSound.Id))
         {
-            SoundListView.SelectedItem = sounds.FirstOrDefault(s => s.Id == _selectedSound.Id);
+            _selectedSound = null;
+            _soundFilePath = null;
         }
+
+        RebuildSoundRows();
         UpdateBottomStats();
+    }
+
+    private void RebuildSoundRows()
+    {
+        if (SoundItemsPanel is null)
+        {
+            return;
+        }
+
+        SoundItemsPanel.Children.Clear();
+
+        foreach (var sound in _visibleSounds)
+        {
+            SoundItemsPanel.Children.Add(CreateSoundRow(sound));
+        }
+    }
+
+    private FrameworkElement CreateSoundRow(SoundBoardSound sound)
+    {
+        var isSelected = _selectedSound?.Id == sound.Id;
+        var row = new Border
+        {
+            Tag = sound,
+            MinHeight = 38,
+            Padding = new Thickness(12, 8, 12, 8),
+            CornerRadius = new CornerRadius(4),
+            Background = new SolidColorBrush(isSelected
+                ? Microsoft.UI.ColorHelper.FromArgb(0x28, 0xFF, 0xFF, 0xFF)
+                : Microsoft.UI.ColorHelper.FromArgb(0x00, 0x00, 0x00, 0x00)),
+            HorizontalAlignment = HorizontalAlignment.Stretch,
+            ContextFlyout = CreateSoundContextFlyout()
+        };
+
+        var text = new TextBlock
+        {
+            Text = sound.ListText,
+            TextWrapping = TextWrapping.NoWrap,
+            VerticalAlignment = VerticalAlignment.Center
+        };
+
+        row.Child = text;
+        row.Tapped += OnSoundRowTapped;
+        row.DoubleTapped += OnSoundRowDoubleTapped;
+        row.RightTapped += OnSoundRowRightTapped;
+        return row;
+    }
+
+    private MenuFlyout CreateSoundContextFlyout()
+    {
+        var flyout = new MenuFlyout();
+        var play = new MenuFlyoutItem { Text = "Play" };
+        play.Click += OnSoundContextPlayClick;
+        var hotkey = new MenuFlyoutItem { Text = "Assign Hotkey" };
+        hotkey.Click += OnSoundContextAssignHotkeyClick;
+        var rename = new MenuFlyoutItem { Text = "Rename" };
+        rename.Click += OnSoundContextRenameClick;
+        var replace = new MenuFlyoutItem { Text = "Choose Another File" };
+        replace.Click += OnSoundContextReplaceFileClick;
+        var delete = new MenuFlyoutItem { Text = "Delete From Category" };
+        delete.Click += OnSoundContextDeleteClick;
+
+        flyout.Items.Add(play);
+        flyout.Items.Add(hotkey);
+        flyout.Items.Add(rename);
+        flyout.Items.Add(replace);
+        flyout.Items.Add(new MenuFlyoutSeparator());
+        flyout.Items.Add(delete);
+        return flyout;
+    }
+
+    private void SelectSound(SoundBoardSound? sound, bool save = true)
+    {
+        _selectedSound = sound;
+        _soundFilePath = sound?.FilePath;
+        if (sound is not null)
+        {
+            _settings.LastSoundId = sound.Id;
+            _settings.LastSoundFilePath = sound.FilePath;
+        }
+        else
+        {
+            _settings.LastSoundId = null;
+            _settings.LastSoundFilePath = null;
+        }
+
+        RebuildSoundRows();
+        UpdateBottomStats();
+        if (save)
+        {
+            SaveCurrentSettings();
+        }
     }
 
     private IEnumerable<SoundBoardSound> FilterSoundsForSelectedCategory()
@@ -307,7 +403,17 @@ public sealed partial class MainWindow : Window
         {
             query = query.Where(s => s.CategoryId == category.Id);
         }
-        return query.OrderBy(s => s.DisplayName);
+
+        if (!string.IsNullOrWhiteSpace(_trackSearchText))
+        {
+            var term = _trackSearchText.Trim();
+            query = query.Where(s =>
+                s.DisplayName.Contains(term, StringComparison.CurrentCultureIgnoreCase) ||
+                s.OriginalFileName.Contains(term, StringComparison.CurrentCultureIgnoreCase) ||
+                (!string.IsNullOrWhiteSpace(s.Hotkey) && s.Hotkey.Contains(term, StringComparison.CurrentCultureIgnoreCase)));
+        }
+
+        return query.OrderBy(s => s.DisplayName, StringComparer.CurrentCultureIgnoreCase);
     }
 
     private SoundBoardCategory? PickCategory(string? categoryId)
@@ -340,12 +446,7 @@ public sealed partial class MainWindow : Window
 
     private void OnSoundSelectionChanged(object sender, SelectionChangedEventArgs e)
     {
-        if (_loadingLibrary) return;
-
-        _selectedSound = SoundListView.SelectedItem as SoundBoardSound;
-        _soundFilePath = _selectedSound?.FilePath;
-        SaveCurrentSettings();
-        UpdateBottomStats();
+        // Gate 5.26: the ListView was replaced with a custom overlay scroller.
     }
 
     private async void OnAddSoundClick(object sender, RoutedEventArgs e)
@@ -369,8 +470,7 @@ public sealed partial class MainWindow : Window
             _settings.LastSoundId = sound.Id;
             _settings.LastSoundFilePath = sound.FilePath;
             RefreshSoundList();
-            SoundListView.SelectedItem = sound;
-            SaveCurrentSettings();
+            SelectSound(sound);
             AppendLog($"Track added to {category.Name}: {sound.DisplayName}");
         }
         catch (Exception ex)
@@ -459,6 +559,32 @@ public sealed partial class MainWindow : Window
         DeleteSelectedSound();
     }
 
+    private void OnSearchTrackClick(object sender, RoutedEventArgs e)
+    {
+        ApplyTrackSearch();
+    }
+
+    private void OnTrackSearchKeyDown(object sender, KeyRoutedEventArgs e)
+    {
+        if (e.Key == VirtualKey.Enter)
+        {
+            e.Handled = true;
+            ApplyTrackSearch();
+        }
+    }
+
+    private void ApplyTrackSearch()
+    {
+        _trackSearchText = TrackSearchTextBox?.Text?.Trim() ?? string.Empty;
+        RefreshSoundList();
+        var first = _visibleSounds.FirstOrDefault();
+        SelectSound(first);
+
+        AppendLog(string.IsNullOrWhiteSpace(_trackSearchText)
+            ? "Track search cleared."
+            : $"Track search: {_trackSearchText}");
+    }
+
     private void DeleteSelectedSound()
     {
         if (_selectedSound is null)
@@ -503,22 +629,36 @@ public sealed partial class MainWindow : Window
 
     private void OnSoundListRightTapped(object sender, RightTappedRoutedEventArgs e)
     {
-        if (FindAncestor<ListViewItem>(e.OriginalSource as DependencyObject) is { } item && item.Content is SoundBoardSound sound)
-        {
-            SoundListView.SelectedItem = sound;
-            _selectedSound = sound;
-            _soundFilePath = sound.FilePath;
-        }
+        // Gate 5.26: kept for compatibility with older XAML packages.
     }
 
     private void OnSoundListDoubleTapped(object sender, DoubleTappedRoutedEventArgs e)
     {
-        if (FindAncestor<ListViewItem>(e.OriginalSource as DependencyObject) is { } item && item.Content is SoundBoardSound sound)
+        // Gate 5.26: kept for compatibility with older XAML packages.
+    }
+
+    private void OnSoundRowTapped(object sender, TappedRoutedEventArgs e)
+    {
+        if (sender is FrameworkElement { Tag: SoundBoardSound sound })
         {
-            SoundListView.SelectedItem = sound;
-            _selectedSound = sound;
-            _soundFilePath = sound.FilePath;
-            SaveCurrentSettings();
+            SelectSound(sound);
+            e.Handled = true;
+        }
+    }
+
+    private void OnSoundRowRightTapped(object sender, RightTappedRoutedEventArgs e)
+    {
+        if (sender is FrameworkElement { Tag: SoundBoardSound sound })
+        {
+            SelectSound(sound);
+        }
+    }
+
+    private void OnSoundRowDoubleTapped(object sender, DoubleTappedRoutedEventArgs e)
+    {
+        if (sender is FrameworkElement { Tag: SoundBoardSound sound })
+        {
+            SelectSound(sound);
             PlaySelectedSound();
             e.Handled = true;
         }
@@ -787,10 +927,7 @@ public sealed partial class MainWindow : Window
 
         var index = _selectedSound is null ? -1 : sounds.FindIndex(s => s.Id == _selectedSound.Id);
         var nextIndex = index < 0 ? 0 : (index + delta + sounds.Count) % sounds.Count;
-        _selectedSound = sounds[nextIndex];
-        _soundFilePath = _selectedSound.FilePath;
-        SoundListView.SelectedItem = _selectedSound;
-        SaveCurrentSettings();
+        SelectSound(sounds[nextIndex]);
         if (play) PlaySelectedSound();
     }
 
@@ -987,7 +1124,26 @@ public sealed partial class MainWindow : Window
 
     private void UpdateBottomStats()
     {
-        // Gate 5.5: category/sound stats footer was removed from the UI.
+        if (CategoryInfoTextBlock is null)
+        {
+            return;
+        }
+
+        var category = CurrentCategory;
+        var soundsInCategory = category is null
+            ? Enumerable.Empty<SoundBoardSound>()
+            : _library.Sounds.Where(s => s.CategoryId == category.Id);
+        var soundCount = soundsInCategory.Count();
+        var categoryUsage = category?.UsageCount ?? 0;
+        var soundUsage = soundsInCategory.Sum(s => s.UsageCount);
+        var visibleCount = FilterSoundsForSelectedCategory().Count();
+
+        CategoryInfoTextBlock.Text =
+            $"Categories: {_library.Categories.Count}\n" +
+            $"Tracks in category: {soundCount}\n" +
+            $"Visible tracks: {visibleCount}\n" +
+            $"Category uses: {categoryUsage}\n" +
+            $"Track uses: {soundUsage}";
     }
 
     private void SaveCurrentSettings()

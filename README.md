@@ -1,17 +1,23 @@
-# VoiSe Gate 5.21 — SoundBoard Wide Track List
+# VoiSe Gate 5.26 — SoundBoard Overlay Sound Scroller
 
-Gate 5.21 keeps the corrected SoundBoard head layout, removes debug borders, and tries a different fix for the fullscreen scrolling problem.
+Gate 5.26 keeps the current SoundBoard design from Gate 5.25, but replaces the problematic native ListView scrolling area with a custom overlay-style sound scroller.
 
-## Changes
+## What changed
 
-- Window/header version updated to Gate 5.21.
-- Debug borders are removed.
-- SoundBoard head blocks are raised again: `Previous / Next / Stop` and `Play / Timeline / Time` are aligned like in the last good head version.
-- SoundBoard body spacing is tightened so the track list starts directly after `Add Track / Delete Track` again.
-- Track list and log areas get explicit dynamic height from their visual top edge to the bottom of the app surface.
-- Added a window-level `WM_MOUSEWHEEL` fallback: when the cursor is visually over the track-list/log area, the wheel is routed to the internal ScrollViewer even if WinUI hit-testing is shifted in fullscreen.
-- Double-click playback for tracks is kept.
-- Custom timeline is kept.
+- Window/header version updated to Gate 5.26.
+- The current SoundBoard visual layout is preserved:
+  - categories on the left;
+  - small gap;
+  - Sounds area on the right;
+  - header/search/Add/Delete layout unchanged.
+- The old scrollable sound ListView was removed from the right pane.
+- A new independent `ScrollViewer + StackPanel` sound list is rendered in the same visual position.
+- The new sound rows keep:
+  - selection;
+  - right-click context menu;
+  - double-click to play;
+  - search filtering;
+  - Add/Delete sound flow.
 
 ## Run
 
@@ -19,19 +25,10 @@ Gate 5.21 keeps the corrected SoundBoard head layout, removes debug borders, and
 dotnet run --project src/VoiSe.App
 ```
 
-## What to check
+## Check
 
-1. Head layout: the transport block is closer to `No sound`, and the timeline block remains aligned with `Stop`.
-2. Track list starts right after the track buttons again.
-3. In fullscreen, mouse wheel scrolling works over the actual track list area, including below the 4th track.
-4. Settings log scrolling works in the lower part of the log area.
-5. Double-clicking a track starts playback.
-
-
-## Gate 5.21 changes
-
-- Redesigns SoundBoard body: left 25% for category controls and category selector, 5% gap, right 70% for the track list.
-- Removes separate/internal track-list scrolling.
-- Moves Add Track / Delete Track into the left control column below the category selector.
-- Removes the previous window-level wheel routing hacks that caused shifted scroll zones in fullscreen.
-- Keeps the successful Head alignment from the previous gate.
+1. The window title says Gate 5.26.
+2. The SoundBoard design should look the same as Gate 5.25.
+3. Try mouse wheel scrolling directly over the Sounds list.
+4. Double-click a sound row to play it.
+5. Right-click a sound row and check the context menu.
