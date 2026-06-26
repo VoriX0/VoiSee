@@ -6,7 +6,7 @@
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     mc:Ignorable="d"
-    Title="VoiSe Gate 6.0 - Voice Changer Presets">
+    Title="VoiSe Gate 6.1 - Voice Preset Management">
 
     <Grid x:Name="RootGrid" Padding="20" RowSpacing="14">
         <Grid.RowDefinitions>
@@ -21,8 +21,8 @@
                     <ColumnDefinition Width="Auto" />
                 </Grid.ColumnDefinitions>
                 <StackPanel Grid.Column="0" Spacing="4" VerticalAlignment="Center">
-                    <TextBlock Text="VoiSe Gate 6.0" FontSize="28" FontWeight="SemiBold" />
-                    <TextBlock Text="Voice Changer presets and normalized controls" Opacity="0.75" />
+                    <TextBlock Text="VoiSe Gate 6.1" FontSize="28" FontWeight="SemiBold" />
+                    <TextBlock Text="Voice preset management and extended controls" Opacity="0.75" />
                 </StackPanel>
                 <StackPanel Grid.Column="1" Spacing="4" VerticalAlignment="Center" HorizontalAlignment="Right">
                     <StackPanel Orientation="Horizontal" Spacing="8">
@@ -251,7 +251,8 @@
                                 </Grid.ColumnDefinitions>
                                 <StackPanel Grid.Column="0" Spacing="4">
                                     <TextBlock Text="Voice processing" FontSize="20" FontWeight="SemiBold" />
-                                    <TextBlock Text="All controls use a normalized -100..+100 scale. Supported DSP controls are applied live to the running engine." Opacity="0.72" TextWrapping="Wrap" />
+                                    <TextBlock Text="Sliders use -100..+100. Number fields allow -9999..+9999 for experimental presets." Opacity="0.72" TextWrapping="Wrap" />
+                                    <TextBlock Text="Warning: extreme values can cause loud audio, clipping, instability, or device/output problems. Increase them carefully." Opacity="0.82" Foreground="#FFFFD166" TextWrapping="Wrap" />
                                 </StackPanel>
                                 <Button Grid.Column="1"
                                         x:Name="VoiceMonitorButton"
@@ -277,54 +278,102 @@
                                 </Grid.RowDefinitions>
 
                                 <StackPanel Grid.Row="0" Grid.Column="0" Spacing="6">
-                                    <TextBlock x:Name="VoiceInputGainLabel" Text="Input Gain: 0" FontWeight="SemiBold" />
+                                    <Grid ColumnSpacing="8">
+                                        <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="70" /></Grid.ColumnDefinitions>
+                                        <TextBlock x:Name="VoiceInputGainLabel" Text="Input Gain" FontWeight="SemiBold" VerticalAlignment="Center" />
+                                        <TextBox Grid.Column="1" x:Name="InputGainValueBox" Text="0" MaxLength="5" TextAlignment="Right" TextChanged="OnVoiceValueTextChanged" />
+                                    </Grid>
                                     <Slider x:Name="InputGainSlider" Minimum="-100" Maximum="100" Value="0" StepFrequency="1" ValueChanged="OnVoiceSettingsChanged" />
                                 </StackPanel>
                                 <StackPanel Grid.Row="0" Grid.Column="1" Spacing="6">
-                                    <TextBlock x:Name="VoiceGainLabel" Text="Voice Gain: 0" FontWeight="SemiBold" />
+                                    <Grid ColumnSpacing="8">
+                                        <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="70" /></Grid.ColumnDefinitions>
+                                        <TextBlock x:Name="VoiceGainLabel" Text="Voice Gain" FontWeight="SemiBold" VerticalAlignment="Center" />
+                                        <TextBox Grid.Column="1" x:Name="VoiceGainValueBox" Text="0" MaxLength="5" TextAlignment="Right" TextChanged="OnVoiceValueTextChanged" />
+                                    </Grid>
                                     <Slider x:Name="VoiceGainSlider" Minimum="-100" Maximum="100" Value="0" StepFrequency="1" ValueChanged="OnVoiceSettingsChanged" />
                                 </StackPanel>
                                 <StackPanel Grid.Row="0" Grid.Column="2" Spacing="6">
-                                    <TextBlock x:Name="PitchLabel" Text="Pitch: 0" FontWeight="SemiBold" />
+                                    <Grid ColumnSpacing="8">
+                                        <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="70" /></Grid.ColumnDefinitions>
+                                        <TextBlock x:Name="PitchLabel" Text="Pitch" FontWeight="SemiBold" VerticalAlignment="Center" />
+                                        <TextBox Grid.Column="1" x:Name="PitchValueBox" Text="0" MaxLength="5" TextAlignment="Right" TextChanged="OnVoiceValueTextChanged" />
+                                    </Grid>
                                     <Slider x:Name="PitchSlider" Minimum="-100" Maximum="100" Value="0" StepFrequency="1" ValueChanged="OnVoiceSettingsChanged" />
                                 </StackPanel>
 
                                 <StackPanel Grid.Row="1" Grid.Column="0" Spacing="6">
-                                    <TextBlock x:Name="FormantLabel" Text="Formant: 0" FontWeight="SemiBold" />
+                                    <Grid ColumnSpacing="8">
+                                        <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="70" /></Grid.ColumnDefinitions>
+                                        <TextBlock x:Name="FormantLabel" Text="Formant" FontWeight="SemiBold" VerticalAlignment="Center" />
+                                        <TextBox Grid.Column="1" x:Name="FormantValueBox" Text="0" MaxLength="5" TextAlignment="Right" TextChanged="OnVoiceValueTextChanged" />
+                                    </Grid>
                                     <Slider x:Name="FormantSlider" Minimum="-100" Maximum="100" Value="0" StepFrequency="1" ValueChanged="OnVoiceSettingsChanged" />
                                 </StackPanel>
                                 <StackPanel Grid.Row="1" Grid.Column="1" Spacing="6">
-                                    <TextBlock x:Name="GateThresholdLabel" Text="Gate: 0" FontWeight="SemiBold" />
+                                    <Grid ColumnSpacing="8">
+                                        <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="70" /></Grid.ColumnDefinitions>
+                                        <TextBlock x:Name="GateThresholdLabel" Text="Gate" FontWeight="SemiBold" VerticalAlignment="Center" />
+                                        <TextBox Grid.Column="1" x:Name="GateThresholdValueBox" Text="0" MaxLength="5" TextAlignment="Right" TextChanged="OnVoiceValueTextChanged" />
+                                    </Grid>
                                     <Slider x:Name="GateThresholdSlider" Minimum="-100" Maximum="100" Value="0" StepFrequency="1" ValueChanged="OnVoiceSettingsChanged" />
                                 </StackPanel>
                                 <StackPanel Grid.Row="1" Grid.Column="2" Spacing="6">
-                                    <TextBlock x:Name="CompressorThresholdLabel" Text="Compressor: 0" FontWeight="SemiBold" />
+                                    <Grid ColumnSpacing="8">
+                                        <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="70" /></Grid.ColumnDefinitions>
+                                        <TextBlock x:Name="CompressorThresholdLabel" Text="Compression Threshold" FontWeight="SemiBold" VerticalAlignment="Center" />
+                                        <TextBox Grid.Column="1" x:Name="CompressorThresholdValueBox" Text="0" MaxLength="5" TextAlignment="Right" TextChanged="OnVoiceValueTextChanged" />
+                                    </Grid>
                                     <Slider x:Name="CompressorThresholdSlider" Minimum="-100" Maximum="100" Value="0" StepFrequency="1" ValueChanged="OnVoiceSettingsChanged" />
                                 </StackPanel>
 
                                 <StackPanel Grid.Row="2" Grid.Column="0" Spacing="6">
-                                    <TextBlock x:Name="CompressionRatioLabel" Text="Compression Ratio: 0" FontWeight="SemiBold" />
+                                    <Grid ColumnSpacing="8">
+                                        <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="70" /></Grid.ColumnDefinitions>
+                                        <TextBlock x:Name="CompressionRatioLabel" Text="Compression Ratio" FontWeight="SemiBold" VerticalAlignment="Center" />
+                                        <TextBox Grid.Column="1" x:Name="CompressionRatioValueBox" Text="0" MaxLength="5" TextAlignment="Right" TextChanged="OnVoiceValueTextChanged" />
+                                    </Grid>
                                     <Slider x:Name="CompressionRatioSlider" Minimum="-100" Maximum="100" Value="0" StepFrequency="1" ValueChanged="OnVoiceSettingsChanged" />
                                 </StackPanel>
                                 <StackPanel Grid.Row="2" Grid.Column="1" Spacing="6">
-                                    <TextBlock x:Name="LimiterLabel" Text="Limiter: 0" FontWeight="SemiBold" />
+                                    <Grid ColumnSpacing="8">
+                                        <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="70" /></Grid.ColumnDefinitions>
+                                        <TextBlock x:Name="LimiterLabel" Text="Limiter" FontWeight="SemiBold" VerticalAlignment="Center" />
+                                        <TextBox Grid.Column="1" x:Name="LimiterValueBox" Text="0" MaxLength="5" TextAlignment="Right" TextChanged="OnVoiceValueTextChanged" />
+                                    </Grid>
                                     <Slider x:Name="LimiterSlider" Minimum="-100" Maximum="100" Value="0" StepFrequency="1" ValueChanged="OnVoiceSettingsChanged" />
                                 </StackPanel>
                                 <StackPanel Grid.Row="2" Grid.Column="2" Spacing="6">
-                                    <TextBlock x:Name="RobotLabel" Text="Robot: 0" FontWeight="SemiBold" />
+                                    <Grid ColumnSpacing="8">
+                                        <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="70" /></Grid.ColumnDefinitions>
+                                        <TextBlock x:Name="RobotLabel" Text="Robot" FontWeight="SemiBold" VerticalAlignment="Center" />
+                                        <TextBox Grid.Column="1" x:Name="RobotValueBox" Text="0" MaxLength="5" TextAlignment="Right" TextChanged="OnVoiceValueTextChanged" />
+                                    </Grid>
                                     <Slider x:Name="RobotSlider" Minimum="-100" Maximum="100" Value="0" StepFrequency="1" ValueChanged="OnVoiceSettingsChanged" />
                                 </StackPanel>
 
                                 <StackPanel Grid.Row="3" Grid.Column="0" Spacing="6">
-                                    <TextBlock x:Name="RadioLabel" Text="Radio: 0" FontWeight="SemiBold" />
+                                    <Grid ColumnSpacing="8">
+                                        <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="70" /></Grid.ColumnDefinitions>
+                                        <TextBlock x:Name="RadioLabel" Text="Radio" FontWeight="SemiBold" VerticalAlignment="Center" />
+                                        <TextBox Grid.Column="1" x:Name="RadioValueBox" Text="0" MaxLength="5" TextAlignment="Right" TextChanged="OnVoiceValueTextChanged" />
+                                    </Grid>
                                     <Slider x:Name="RadioSlider" Minimum="-100" Maximum="100" Value="0" StepFrequency="1" ValueChanged="OnVoiceSettingsChanged" />
                                 </StackPanel>
                                 <StackPanel Grid.Row="3" Grid.Column="1" Spacing="6">
-                                    <TextBlock x:Name="ReverbLabel" Text="Reverb: 0" FontWeight="SemiBold" />
+                                    <Grid ColumnSpacing="8">
+                                        <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="70" /></Grid.ColumnDefinitions>
+                                        <TextBlock x:Name="ReverbLabel" Text="Reverb" FontWeight="SemiBold" VerticalAlignment="Center" />
+                                        <TextBox Grid.Column="1" x:Name="ReverbValueBox" Text="0" MaxLength="5" TextAlignment="Right" TextChanged="OnVoiceValueTextChanged" />
+                                    </Grid>
                                     <Slider x:Name="ReverbSlider" Minimum="-100" Maximum="100" Value="0" StepFrequency="1" ValueChanged="OnVoiceSettingsChanged" />
                                 </StackPanel>
                                 <StackPanel Grid.Row="3" Grid.Column="2" Spacing="6">
-                                    <TextBlock x:Name="BrightnessLabel" Text="Brightness: 0" FontWeight="SemiBold" />
+                                    <Grid ColumnSpacing="8">
+                                        <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="70" /></Grid.ColumnDefinitions>
+                                        <TextBlock x:Name="BrightnessLabel" Text="Brightness" FontWeight="SemiBold" VerticalAlignment="Center" />
+                                        <TextBox Grid.Column="1" x:Name="BrightnessValueBox" Text="0" MaxLength="5" TextAlignment="Right" TextChanged="OnVoiceValueTextChanged" />
+                                    </Grid>
                                     <Slider x:Name="BrightnessSlider" Minimum="-100" Maximum="100" Value="0" StepFrequency="1" ValueChanged="OnVoiceSettingsChanged" />
                                 </StackPanel>
                             </Grid>

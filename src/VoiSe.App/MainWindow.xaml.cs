@@ -28,6 +28,8 @@ public sealed partial class MainWindow : Window
     private SoundBoardLibrary _library;
     private IReadOnlyList<VoicePreset> _voicePresets = Array.Empty<VoicePreset>();
     private bool _loadingVoicePreset;
+    private bool _syncingVoiceControls;
+    private readonly DispatcherTimer _voiceSettingsApplyTimer;
     private Gate2UnifiedAudioEngine? _engine;
     private string? _soundFilePath;
     private SoundBoardSound? _selectedSound;
@@ -52,6 +54,8 @@ public sealed partial class MainWindow : Window
     private const double SoundWheelZoneExpandUpRatio = 0.25;
     private const double SoundWheelZoneExpandRightRatio = 0.60;
     private const double SoundWheelZoneExpandBottomRatio = 0.40;
+    private const double VoiceValueMin = -9999.0;
+    private const double VoiceValueMax = 9999.0;
 
     public MainWindow()
     {
@@ -74,6 +78,12 @@ public sealed partial class MainWindow : Window
         };
         _routeRestartTimer.Tick += OnRouteRestartTimerTick;
 
+        _voiceSettingsApplyTimer = new DispatcherTimer
+        {
+            Interval = TimeSpan.FromMilliseconds(180)
+        };
+        _voiceSettingsApplyTimer.Tick += OnVoiceSettingsApplyTimerTick;
+
         _timelineTimer = new DispatcherTimer
         {
             Interval = TimeSpan.FromMilliseconds(200)
@@ -81,7 +91,7 @@ public sealed partial class MainWindow : Window
         _timelineTimer.Tick += OnTimelineTimerTick;
         _timelineTimer.Start();
 
-        AppendLog("Gate 6.0 UI started.");
+        AppendLog("Gate 6.1 UI started.");
         AppendLog($"Settings path: {_settingsStore.SettingsPath}");
         StartupLog.Write("MainWindow initialized; waiting for first activation.");
     }
@@ -103,21 +113,21 @@ public sealed partial class MainWindow : Window
         try
         {
             AppendLog("Restoring saved settings...");
-            StartupLog.Write("Gate 6.0 restore started.");
+            StartupLog.Write("Gate 6.1 restore started.");
 
             ApplyStoredScalarSettingsToControls();
             AppendLog("Saved scalar settings applied.");
-            StartupLog.Write("Gate 6.0 scalar settings applied.");
+            StartupLog.Write("Gate 6.1 scalar settings applied.");
 
             RefreshDevices(saveAfterRefresh: false);
             LoadSoundBoardLibraryIntoUi();
             LoadVoicePresetsIntoUi();
             AppendLog("Settings restored.");
-            StartupLog.Write("Gate 6.0 restore completed.");
+            StartupLog.Write("Gate 6.1 restore completed.");
         }
         catch (Exception ex)
         {
-            StartupLog.Write("Gate 6.0 restore error: " + ex);
+            StartupLog.Write("Gate 6.1 restore error: " + ex);
             AppendLog($"Settings restore error: {ex.GetType().Name}: {ex.Message}");
         }
         finally
@@ -135,18 +145,18 @@ public sealed partial class MainWindow : Window
         SoundVirtualVolumeSlider.Value = Clamp(_settings.SoundBoardVirtualMicVolume, 0, 1.5);
         SoundMonitorVolumeSlider.Value = Clamp(_settings.SoundBoardHeadphonesVolume, 0, 1.5);
         SoundVirtualDelaySlider.Value = Clamp(_settings.SoundBoardVirtualMicDelayMs, 0, 300);
-        InputGainSlider.Value = Clamp(_settings.VoiceInputGain, -100, 100);
-        VoiceGainSlider.Value = Clamp(_settings.VoiceGain, -100, 100);
-        PitchSlider.Value = Clamp(_settings.VoicePitch, -100, 100);
-        FormantSlider.Value = Clamp(_settings.VoiceFormant, -100, 100);
-        GateThresholdSlider.Value = Clamp(_settings.VoiceGate, -100, 100);
-        CompressorThresholdSlider.Value = Clamp(_settings.VoiceCompressor, -100, 100);
-        CompressionRatioSlider.Value = Clamp(_settings.VoiceCompressionRatio, -100, 100);
-        LimiterSlider.Value = Clamp(_settings.VoiceLimiter, -100, 100);
-        RobotSlider.Value = Clamp(_settings.VoiceRobot, -100, 100);
-        RadioSlider.Value = Clamp(_settings.VoiceRadio, -100, 100);
-        ReverbSlider.Value = Clamp(_settings.VoiceReverb, -100, 100);
-        BrightnessSlider.Value = Clamp(_settings.VoiceBrightness, -100, 100);
+        SetVoiceControl(InputGainSlider, InputGainValueBox, _settings.VoiceInputGain);
+        SetVoiceControl(VoiceGainSlider, VoiceGainValueBox, _settings.VoiceGain);
+        SetVoiceControl(PitchSlider, PitchValueBox, _settings.VoicePitch);
+        SetVoiceControl(FormantSlider, FormantValueBox, _settings.VoiceFormant);
+        SetVoiceControl(GateThresholdSlider, GateThresholdValueBox, _settings.VoiceGate);
+        SetVoiceControl(CompressorThresholdSlider, CompressorThresholdValueBox, _settings.VoiceCompressor);
+        SetVoiceControl(CompressionRatioSlider, CompressionRatioValueBox, _settings.VoiceCompressionRatio);
+        SetVoiceControl(LimiterSlider, LimiterValueBox, _settings.VoiceLimiter);
+        SetVoiceControl(RobotSlider, RobotValueBox, _settings.VoiceRobot);
+        SetVoiceControl(RadioSlider, RadioValueBox, _settings.VoiceRadio);
+        SetVoiceControl(ReverbSlider, ReverbValueBox, _settings.VoiceReverb);
+        SetVoiceControl(BrightnessSlider, BrightnessValueBox, _settings.VoiceBrightness);
         _voiceMonitorEnabled = _settings.VoiceMonitorEnabled;
         UpdateAllLabels();
     }
@@ -1155,15 +1165,15 @@ public sealed partial class MainWindow : Window
     {
         return new EffectSettings
         {
-            InputGainDb = (float)MapCentered(InputGainSlider.Value, 0, -12, 12),
-            VoiceGainDb = (float)MapCentered(VoiceGainSlider.Value, 0, -24, 12),
-            GateThresholdDb = (float)MapCentered(GateThresholdSlider.Value, -45, -70, -20),
-            CompressorThresholdDb = (float)MapCentered(CompressorThresholdSlider.Value, -18, -40, 0),
-            CompressorRatio = (float)MapCentered(CompressionRatioSlider.Value, 3, 1, 8),
+            InputGainDb = (float)MapCentered(GetVoiceValue(InputGainSlider, InputGainValueBox), 0, -12, 12),
+            VoiceGainDb = (float)MapCentered(GetVoiceValue(VoiceGainSlider, VoiceGainValueBox), 0, -24, 12),
+            GateThresholdDb = (float)MapCentered(GetVoiceValue(GateThresholdSlider, GateThresholdValueBox), -45, -70, -20),
+            CompressorThresholdDb = (float)MapCentered(GetVoiceValue(CompressorThresholdSlider, CompressorThresholdValueBox), -18, -40, 0),
+            CompressorRatio = (float)MapCentered(GetVoiceValue(CompressionRatioSlider, CompressionRatioValueBox), 3, 1, 8),
             GateEnabled = true,
             CompressorEnabled = true,
             LimiterEnabled = true,
-            LimiterCeilingDb = (float)MapCentered(LimiterSlider.Value, -1, -12, -0.1),
+            LimiterCeilingDb = (float)MapCentered(GetVoiceValue(LimiterSlider, LimiterValueBox), -1, -12, -0.1),
             VirtualOutputGain = (float)VirtualOutputVolumeSlider.Value,
             VoiceMonitorGain = _voiceMonitorEnabled ? 1.0f : 0.0f
         };
@@ -1290,8 +1300,69 @@ public sealed partial class MainWindow : Window
 
     private void OnVoiceSettingsChanged(object sender, Microsoft.UI.Xaml.Controls.Primitives.RangeBaseValueChangedEventArgs e)
     {
+        if (_syncingVoiceControls)
+        {
+            return;
+        }
+
+        if (sender is Slider slider)
+        {
+            _syncingVoiceControls = true;
+            try
+            {
+                SyncVoiceTextBoxFromSlider(slider);
+            }
+            finally
+            {
+                _syncingVoiceControls = false;
+            }
+        }
+
         UpdateVoiceSettingLabels();
-        if (!_loadingSettings && !_loadingVoicePreset) ApplyLiveSettings("voice setting changed");
+        ScheduleVoiceSettingsApply();
+    }
+
+    private void OnVoiceValueTextChanged(object sender, TextChangedEventArgs e)
+    {
+        if (_syncingVoiceControls || sender is not TextBox textBox)
+        {
+            return;
+        }
+
+        if (!TryParseVoiceValue(textBox.Text, out var value))
+        {
+            return;
+        }
+
+        _syncingVoiceControls = true;
+        try
+        {
+            SyncVoiceSliderFromTextBox(textBox, value);
+        }
+        finally
+        {
+            _syncingVoiceControls = false;
+        }
+
+        UpdateVoiceSettingLabels();
+        ScheduleVoiceSettingsApply();
+    }
+
+    private void ScheduleVoiceSettingsApply()
+    {
+        if (_loadingSettings || _loadingVoicePreset)
+        {
+            return;
+        }
+
+        _voiceSettingsApplyTimer.Stop();
+        _voiceSettingsApplyTimer.Start();
+    }
+
+    private void OnVoiceSettingsApplyTimerTick(object? sender, object e)
+    {
+        _voiceSettingsApplyTimer.Stop();
+        ApplyLiveSettings("voice setting changed");
     }
 
     private void OnToggleVoiceMonitorClick(object sender, RoutedEventArgs e)
@@ -1460,6 +1531,8 @@ public sealed partial class MainWindow : Window
             }
         };
         button.Click += OnVoicePresetClick;
+        button.ContextFlyout = CreateVoicePresetFlyout(preset);
+        stack.ContextFlyout = CreateVoicePresetFlyout(preset);
 
         var label = new TextBlock
         {
@@ -1473,6 +1546,150 @@ public sealed partial class MainWindow : Window
         stack.Children.Add(button);
         stack.Children.Add(label);
         return stack;
+    }
+
+    private MenuFlyout CreateVoicePresetFlyout(VoicePreset preset)
+    {
+        var flyout = new MenuFlyout();
+
+        var selectItem = new MenuFlyoutItem { Text = "Select" };
+        selectItem.Click += (_, _) => ApplyVoicePreset(preset);
+        flyout.Items.Add(selectItem);
+
+        var renameItem = new MenuFlyoutItem { Text = "Rename" };
+        renameItem.Click += async (_, _) => await RenameVoicePresetAsync(preset);
+        flyout.Items.Add(renameItem);
+
+        var recreateItem = new MenuFlyoutItem { Text = "Recreate" };
+        recreateItem.Click += (_, _) => RecreateVoicePreset(preset);
+        flyout.Items.Add(recreateItem);
+
+        var hotkeyItem = new MenuFlyoutItem { Text = "Choose hotkey" };
+        hotkeyItem.Click += async (_, _) => await EditVoicePresetHotkeysAsync(preset);
+        flyout.Items.Add(hotkeyItem);
+
+        var deleteItem = new MenuFlyoutItem { Text = "Delete" };
+        deleteItem.Click += async (_, _) => await DeleteVoicePresetAsync(preset);
+        flyout.Items.Add(deleteItem);
+
+        return flyout;
+    }
+
+    private async Task RenameVoicePresetAsync(VoicePreset preset)
+    {
+        var newName = await ShowTextDialogAsync("Rename voice preset", "Preset name", preset.Name);
+        if (string.IsNullOrWhiteSpace(newName))
+        {
+            return;
+        }
+
+        try
+        {
+            _voicePresetStore.RenamePreset(preset, newName.Trim());
+            LoadVoicePresetsIntoUi();
+            AppendLog($"Voice preset renamed: {preset.Name}");
+        }
+        catch (Exception ex)
+        {
+            AppendLog($"Voice preset rename error: {ex.Message}");
+        }
+    }
+
+    private void RecreateVoicePreset(VoicePreset preset)
+    {
+        try
+        {
+            var recreated = CaptureCurrentVoicePreset(preset.Name);
+            recreated.Icon = string.IsNullOrWhiteSpace(preset.Icon) ? "🎙️" : preset.Icon;
+            recreated.PushToTalkHotkey = preset.PushToTalkHotkey;
+            recreated.PresetHotkey = preset.PresetHotkey;
+            recreated.FilePath = preset.FilePath;
+            _voicePresetStore.OverwritePreset(recreated);
+            LoadVoicePresetsIntoUi();
+            AppendLog($"Voice preset recreated from current sliders: {recreated.Name}");
+        }
+        catch (Exception ex)
+        {
+            AppendLog($"Voice preset recreate error: {ex.Message}");
+        }
+    }
+
+    private async Task EditVoicePresetHotkeysAsync(VoicePreset preset)
+    {
+        var pushToTalkBox = new TextBox
+        {
+            Header = "Push to talk",
+            PlaceholderText = "Hold hotkey to use this voice",
+            Text = preset.PushToTalkHotkey ?? string.Empty,
+            MinWidth = 360
+        };
+
+        var presetBox = new TextBox
+        {
+            Header = "Preset select",
+            PlaceholderText = "Press once to apply this preset",
+            Text = preset.PresetHotkey ?? string.Empty,
+            MinWidth = 360
+        };
+
+        var panel = new StackPanel
+        {
+            Spacing = 12
+        };
+        panel.Children.Add(pushToTalkBox);
+        panel.Children.Add(presetBox);
+
+        var dialog = new ContentDialog
+        {
+            Title = $"Hotkeys: {preset.Name}",
+            Content = panel,
+            PrimaryButtonText = "Save",
+            CloseButtonText = "Cancel",
+            DefaultButton = ContentDialogButton.Primary,
+            XamlRoot = ((FrameworkElement)Content).XamlRoot
+        };
+
+        var result = await dialog.ShowAsync();
+        if (result != ContentDialogResult.Primary)
+        {
+            return;
+        }
+
+        preset.PushToTalkHotkey = string.IsNullOrWhiteSpace(pushToTalkBox.Text) ? null : pushToTalkBox.Text.Trim();
+        preset.PresetHotkey = string.IsNullOrWhiteSpace(presetBox.Text) ? null : presetBox.Text.Trim();
+        _voicePresetStore.OverwritePreset(preset);
+        LoadVoicePresetsIntoUi();
+        AppendLog($"Voice preset hotkeys saved: {preset.Name}");
+    }
+
+    private async Task DeleteVoicePresetAsync(VoicePreset preset)
+    {
+        var dialog = new ContentDialog
+        {
+            Title = "Delete voice preset",
+            Content = $"Delete preset '{preset.Name}'? The JSON file will be removed from the presets folder.",
+            PrimaryButtonText = "Delete",
+            CloseButtonText = "Cancel",
+            DefaultButton = ContentDialogButton.Close,
+            XamlRoot = ((FrameworkElement)Content).XamlRoot
+        };
+
+        var result = await dialog.ShowAsync();
+        if (result != ContentDialogResult.Primary)
+        {
+            return;
+        }
+
+        try
+        {
+            _voicePresetStore.DeletePreset(preset);
+            LoadVoicePresetsIntoUi();
+            AppendLog($"Voice preset deleted: {preset.Name}");
+        }
+        catch (Exception ex)
+        {
+            AppendLog($"Voice preset delete error: {ex.Message}");
+        }
     }
 
     private FrameworkElement CreateNewVoicePresetTile()
@@ -1554,18 +1771,18 @@ public sealed partial class MainWindow : Window
             Icon = "🎙️",
             Sliders = new Dictionary<string, double>
             {
-                ["InputGain"] = InputGainSlider.Value,
-                ["VoiceGain"] = VoiceGainSlider.Value,
-                ["Pitch"] = PitchSlider.Value,
-                ["Formant"] = FormantSlider.Value,
-                ["Gate"] = GateThresholdSlider.Value,
-                ["Compressor"] = CompressorThresholdSlider.Value,
-                ["CompressionRatio"] = CompressionRatioSlider.Value,
-                ["Limiter"] = LimiterSlider.Value,
-                ["Robot"] = RobotSlider.Value,
-                ["Radio"] = RadioSlider.Value,
-                ["Reverb"] = ReverbSlider.Value,
-                ["Brightness"] = BrightnessSlider.Value
+                ["InputGain"] = GetVoiceValue(InputGainSlider, InputGainValueBox),
+                ["VoiceGain"] = GetVoiceValue(VoiceGainSlider, VoiceGainValueBox),
+                ["Pitch"] = GetVoiceValue(PitchSlider, PitchValueBox),
+                ["Formant"] = GetVoiceValue(FormantSlider, FormantValueBox),
+                ["Gate"] = GetVoiceValue(GateThresholdSlider, GateThresholdValueBox),
+                ["Compressor"] = GetVoiceValue(CompressorThresholdSlider, CompressorThresholdValueBox),
+                ["CompressionRatio"] = GetVoiceValue(CompressionRatioSlider, CompressionRatioValueBox),
+                ["Limiter"] = GetVoiceValue(LimiterSlider, LimiterValueBox),
+                ["Robot"] = GetVoiceValue(RobotSlider, RobotValueBox),
+                ["Radio"] = GetVoiceValue(RadioSlider, RadioValueBox),
+                ["Reverb"] = GetVoiceValue(ReverbSlider, ReverbValueBox),
+                ["Brightness"] = GetVoiceValue(BrightnessSlider, BrightnessValueBox)
             }
         };
     }
@@ -1575,18 +1792,18 @@ public sealed partial class MainWindow : Window
         _loadingVoicePreset = true;
         try
         {
-            SetVoiceSlider(InputGainSlider, preset, "InputGain");
-            SetVoiceSlider(VoiceGainSlider, preset, "VoiceGain");
-            SetVoiceSlider(PitchSlider, preset, "Pitch");
-            SetVoiceSlider(FormantSlider, preset, "Formant");
-            SetVoiceSlider(GateThresholdSlider, preset, "Gate");
-            SetVoiceSlider(CompressorThresholdSlider, preset, "Compressor");
-            SetVoiceSlider(CompressionRatioSlider, preset, "CompressionRatio");
-            SetVoiceSlider(LimiterSlider, preset, "Limiter");
-            SetVoiceSlider(RobotSlider, preset, "Robot");
-            SetVoiceSlider(RadioSlider, preset, "Radio");
-            SetVoiceSlider(ReverbSlider, preset, "Reverb");
-            SetVoiceSlider(BrightnessSlider, preset, "Brightness");
+            SetVoiceControlFromPreset(InputGainSlider, InputGainValueBox, preset, "InputGain");
+            SetVoiceControlFromPreset(VoiceGainSlider, VoiceGainValueBox, preset, "VoiceGain");
+            SetVoiceControlFromPreset(PitchSlider, PitchValueBox, preset, "Pitch");
+            SetVoiceControlFromPreset(FormantSlider, FormantValueBox, preset, "Formant");
+            SetVoiceControlFromPreset(GateThresholdSlider, GateThresholdValueBox, preset, "Gate");
+            SetVoiceControlFromPreset(CompressorThresholdSlider, CompressorThresholdValueBox, preset, "Compressor");
+            SetVoiceControlFromPreset(CompressionRatioSlider, CompressionRatioValueBox, preset, "CompressionRatio");
+            SetVoiceControlFromPreset(LimiterSlider, LimiterValueBox, preset, "Limiter");
+            SetVoiceControlFromPreset(RobotSlider, RobotValueBox, preset, "Robot");
+            SetVoiceControlFromPreset(RadioSlider, RadioValueBox, preset, "Radio");
+            SetVoiceControlFromPreset(ReverbSlider, ReverbValueBox, preset, "Reverb");
+            SetVoiceControlFromPreset(BrightnessSlider, BrightnessValueBox, preset, "Brightness");
         }
         finally
         {
@@ -1597,12 +1814,104 @@ public sealed partial class MainWindow : Window
         ApplyLiveSettings($"voice preset applied: {preset.Name}");
     }
 
-    private static void SetVoiceSlider(Slider slider, VoicePreset preset, string key)
+    private void SetVoiceControlFromPreset(Slider slider, TextBox textBox, VoicePreset preset, string key)
     {
         if (preset.Sliders is not null && preset.Sliders.TryGetValue(key, out var value))
         {
+            SetVoiceControl(slider, textBox, value);
+        }
+    }
+
+    private void SetVoiceControl(Slider slider, TextBox textBox, double value)
+    {
+        value = Clamp(value, VoiceValueMin, VoiceValueMax);
+        _syncingVoiceControls = true;
+        try
+        {
+            slider.Value = Clamp(value, -100, 100);
+            textBox.Text = ((int)Math.Round(value)).ToString();
+        }
+        finally
+        {
+            _syncingVoiceControls = false;
+        }
+    }
+
+    private void SyncVoiceTextBoxFromSlider(Slider slider)
+    {
+        var value = (int)Math.Round(slider.Value);
+        var textBox = GetVoiceTextBoxForSlider(slider);
+        if (textBox is not null)
+        {
+            textBox.Text = value.ToString();
+        }
+    }
+
+    private void SyncVoiceSliderFromTextBox(TextBox textBox, double value)
+    {
+        var slider = GetVoiceSliderForTextBox(textBox);
+        if (slider is not null)
+        {
             slider.Value = Clamp(value, -100, 100);
         }
+    }
+
+    private TextBox? GetVoiceTextBoxForSlider(Slider slider)
+    {
+        if (slider == InputGainSlider) return InputGainValueBox;
+        if (slider == VoiceGainSlider) return VoiceGainValueBox;
+        if (slider == PitchSlider) return PitchValueBox;
+        if (slider == FormantSlider) return FormantValueBox;
+        if (slider == GateThresholdSlider) return GateThresholdValueBox;
+        if (slider == CompressorThresholdSlider) return CompressorThresholdValueBox;
+        if (slider == CompressionRatioSlider) return CompressionRatioValueBox;
+        if (slider == LimiterSlider) return LimiterValueBox;
+        if (slider == RobotSlider) return RobotValueBox;
+        if (slider == RadioSlider) return RadioValueBox;
+        if (slider == ReverbSlider) return ReverbValueBox;
+        if (slider == BrightnessSlider) return BrightnessValueBox;
+        return null;
+    }
+
+    private Slider? GetVoiceSliderForTextBox(TextBox textBox)
+    {
+        if (textBox == InputGainValueBox) return InputGainSlider;
+        if (textBox == VoiceGainValueBox) return VoiceGainSlider;
+        if (textBox == PitchValueBox) return PitchSlider;
+        if (textBox == FormantValueBox) return FormantSlider;
+        if (textBox == GateThresholdValueBox) return GateThresholdSlider;
+        if (textBox == CompressorThresholdValueBox) return CompressorThresholdSlider;
+        if (textBox == CompressionRatioValueBox) return CompressionRatioSlider;
+        if (textBox == LimiterValueBox) return LimiterSlider;
+        if (textBox == RobotValueBox) return RobotSlider;
+        if (textBox == RadioValueBox) return RadioSlider;
+        if (textBox == ReverbValueBox) return ReverbSlider;
+        if (textBox == BrightnessValueBox) return BrightnessSlider;
+        return null;
+    }
+
+    private static bool TryParseVoiceValue(string text, out double value)
+    {
+        value = 0;
+        if (string.IsNullOrWhiteSpace(text) || text.Trim() == "-" || text.Trim() == "+")
+        {
+            return false;
+        }
+
+        if (!int.TryParse(text.Trim(), out var parsed))
+        {
+            return false;
+        }
+
+        value = Clamp(parsed, VoiceValueMin, VoiceValueMax);
+        return true;
+    }
+
+    private static double GetVoiceValue(Slider slider, TextBox textBox)
+    {
+        return TryParseVoiceValue(textBox.Text, out var value)
+            ? value
+            : slider.Value;
     }
 
     private void UpdateVoiceMonitorButton()
@@ -1650,18 +1959,18 @@ public sealed partial class MainWindow : Window
             InputGainSlider is null || VoiceGainSlider is null || PitchSlider is null || FormantSlider is null ||
             GateThresholdSlider is null || CompressorThresholdSlider is null || CompressionRatioSlider is null || LimiterSlider is null ||
             RobotSlider is null || RadioSlider is null || ReverbSlider is null || BrightnessSlider is null) return;
-        VoiceInputGainLabel.Text = $"Input Gain: {FormatSigned(InputGainSlider.Value)}";
-        VoiceGainLabel.Text = $"Voice Gain: {FormatSigned(VoiceGainSlider.Value)}";
-        PitchLabel.Text = $"Pitch: {FormatSigned(PitchSlider.Value)}";
-        FormantLabel.Text = $"Formant: {FormatSigned(FormantSlider.Value)}";
-        GateThresholdLabel.Text = $"Gate: {FormatSigned(GateThresholdSlider.Value)}";
-        CompressorThresholdLabel.Text = $"Compressor: {FormatSigned(CompressorThresholdSlider.Value)}";
-        CompressionRatioLabel.Text = $"Compression Ratio: {FormatSigned(CompressionRatioSlider.Value)}";
-        LimiterLabel.Text = $"Limiter: {FormatSigned(LimiterSlider.Value)}";
-        RobotLabel.Text = $"Robot: {FormatSigned(RobotSlider.Value)}";
-        RadioLabel.Text = $"Radio: {FormatSigned(RadioSlider.Value)}";
-        ReverbLabel.Text = $"Reverb: {FormatSigned(ReverbSlider.Value)}";
-        BrightnessLabel.Text = $"Brightness: {FormatSigned(BrightnessSlider.Value)}";
+        VoiceInputGainLabel.Text = "Input Gain";
+        VoiceGainLabel.Text = "Voice Gain";
+        PitchLabel.Text = "Pitch";
+        FormantLabel.Text = "Formant";
+        GateThresholdLabel.Text = "Gate";
+        CompressorThresholdLabel.Text = "Compression Threshold";
+        CompressionRatioLabel.Text = "Compression Ratio";
+        LimiterLabel.Text = "Limiter";
+        RobotLabel.Text = "Robot";
+        RadioLabel.Text = "Radio";
+        ReverbLabel.Text = "Reverb";
+        BrightnessLabel.Text = "Brightness";
     }
 
     private static string FormatSigned(double value)
@@ -1717,18 +2026,18 @@ public sealed partial class MainWindow : Window
         _settings.SoundBoardVirtualMicVolume = SoundVirtualVolumeSlider?.Value ?? 1.0;
         _settings.SoundBoardHeadphonesVolume = SoundMonitorVolumeSlider?.Value ?? 1.0;
         _settings.SoundBoardVirtualMicDelayMs = SoundVirtualDelaySlider?.Value ?? 85.0;
-        _settings.VoiceInputGain = InputGainSlider?.Value ?? 0.0;
-        _settings.VoiceGain = VoiceGainSlider?.Value ?? 0.0;
-        _settings.VoicePitch = PitchSlider?.Value ?? 0.0;
-        _settings.VoiceFormant = FormantSlider?.Value ?? 0.0;
-        _settings.VoiceGate = GateThresholdSlider?.Value ?? 0.0;
-        _settings.VoiceCompressor = CompressorThresholdSlider?.Value ?? 0.0;
-        _settings.VoiceCompressionRatio = CompressionRatioSlider?.Value ?? 0.0;
-        _settings.VoiceLimiter = LimiterSlider?.Value ?? 0.0;
-        _settings.VoiceRobot = RobotSlider?.Value ?? 0.0;
-        _settings.VoiceRadio = RadioSlider?.Value ?? 0.0;
-        _settings.VoiceReverb = ReverbSlider?.Value ?? 0.0;
-        _settings.VoiceBrightness = BrightnessSlider?.Value ?? 0.0;
+        _settings.VoiceInputGain = GetVoiceValue(InputGainSlider, InputGainValueBox);
+        _settings.VoiceGain = GetVoiceValue(VoiceGainSlider, VoiceGainValueBox);
+        _settings.VoicePitch = GetVoiceValue(PitchSlider, PitchValueBox);
+        _settings.VoiceFormant = GetVoiceValue(FormantSlider, FormantValueBox);
+        _settings.VoiceGate = GetVoiceValue(GateThresholdSlider, GateThresholdValueBox);
+        _settings.VoiceCompressor = GetVoiceValue(CompressorThresholdSlider, CompressorThresholdValueBox);
+        _settings.VoiceCompressionRatio = GetVoiceValue(CompressionRatioSlider, CompressionRatioValueBox);
+        _settings.VoiceLimiter = GetVoiceValue(LimiterSlider, LimiterValueBox);
+        _settings.VoiceRobot = GetVoiceValue(RobotSlider, RobotValueBox);
+        _settings.VoiceRadio = GetVoiceValue(RadioSlider, RadioValueBox);
+        _settings.VoiceReverb = GetVoiceValue(ReverbSlider, ReverbValueBox);
+        _settings.VoiceBrightness = GetVoiceValue(BrightnessSlider, BrightnessValueBox);
 
         // Keep legacy dB fields meaningful for older settings readers.
         _settings.VoiceGainDb = MapCentered(_settings.VoiceGain, 0, -24, 12);

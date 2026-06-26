@@ -13,6 +13,28 @@ public sealed class VoicePresetStore
         WriteIndented = true
     };
 
+    private const string DefaultPresetJson = """
+{
+  "SchemaVersion": 1,
+  "Name": "Default",
+  "Icon": "\uD83C\uDF99\uFE0F",
+  "Sliders": {
+    "InputGain": -0,
+    "VoiceGain": -0,
+    "Pitch": 0,
+    "Formant": -0,
+    "Gate": -100,
+    "Compressor": 100,
+    "CompressionRatio": -0,
+    "Limiter": -0,
+    "Robot": -0,
+    "Radio": 0,
+    "Reverb": -100,
+    "Brightness": -0
+  }
+}
+""";
+
     public VoicePresetStore(string dataDirectory)
     {
         PresetsDirectory = Path.Combine(dataDirectory, "presets");
@@ -23,7 +45,7 @@ public sealed class VoicePresetStore
 
     public IReadOnlyList<VoicePreset> LoadPresets()
     {
-        EnsureStarterPresets();
+        EnsureDefaultPresetWhenEmpty();
 
         var presets = new List<VoicePreset>();
         foreach (var file in Directory.EnumerateFiles(PresetsDirectory, "*.json").OrderBy(Path.GetFileName, StringComparer.CurrentCultureIgnoreCase))
@@ -38,6 +60,7 @@ public sealed class VoicePresetStore
                 }
 
                 preset.Sliders ??= new Dictionary<string, double>();
+                preset.FilePath = file;
                 presets.Add(preset);
             }
             catch
@@ -54,20 +77,50 @@ public sealed class VoicePresetStore
     public string SavePreset(VoicePreset preset)
     {
         Directory.CreateDirectory(PresetsDirectory);
-        var safeName = MakeSafeFileName(preset.Name);
-        var path = Path.Combine(PresetsDirectory, safeName + ".json");
-        var suffix = 2;
-        while (File.Exists(path))
-        {
-            path = Path.Combine(PresetsDirectory, safeName + "-" + suffix + ".json");
-            suffix++;
-        }
-
+        var path = GetAvailablePresetPath(preset.Name);
+        preset.FilePath = path;
         File.WriteAllText(path, JsonSerializer.Serialize(preset, JsonOptions));
         return path;
     }
 
-    private void EnsureStarterPresets()
+    public string OverwritePreset(VoicePreset preset)
+    {
+        Directory.CreateDirectory(PresetsDirectory);
+        var path = !string.IsNullOrWhiteSpace(preset.FilePath)
+            ? preset.FilePath!
+            : Path.Combine(PresetsDirectory, MakeSafeFileName(preset.Name) + ".json");
+
+        preset.FilePath = path;
+        File.WriteAllText(path, JsonSerializer.Serialize(preset, JsonOptions));
+        return path;
+    }
+
+    public string RenamePreset(VoicePreset preset, string newName)
+    {
+        Directory.CreateDirectory(PresetsDirectory);
+        var oldPath = preset.FilePath;
+        preset.Name = newName.Trim();
+        var newPath = GetAvailablePresetPath(preset.Name, oldPath);
+
+        if (!string.IsNullOrWhiteSpace(oldPath) && File.Exists(oldPath) && !string.Equals(oldPath, newPath, StringComparison.OrdinalIgnoreCase))
+        {
+            File.Move(oldPath, newPath);
+        }
+
+        preset.FilePath = newPath;
+        File.WriteAllText(newPath, JsonSerializer.Serialize(preset, JsonOptions));
+        return newPath;
+    }
+
+    public void DeletePreset(VoicePreset preset)
+    {
+        if (!string.IsNullOrWhiteSpace(preset.FilePath) && File.Exists(preset.FilePath))
+        {
+            File.Delete(preset.FilePath);
+        }
+    }
+
+    private void EnsureDefaultPresetWhenEmpty()
     {
         Directory.CreateDirectory(PresetsDirectory);
         if (Directory.EnumerateFiles(PresetsDirectory, "*.json").Any())
@@ -75,52 +128,26 @@ public sealed class VoicePresetStore
             return;
         }
 
-        var starterPresets = new[]
-        {
-            new VoicePreset { Name = "Normal", Sliders = SliderMap(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0) },
-            new VoicePreset { Name = "Deep Voice", Sliders = SliderMap(0, 10, -45, -25, 5, -5, 10, 0, 0, 0, 0, -10) },
-            new VoicePreset { Name = "High Voice", Sliders = SliderMap(0, 0, 42, 24, 0, 0, 0, 0, 0, 0, 0, 18) },
-            new VoicePreset { Name = "Robot", Sliders = SliderMap(0, 0, 0, -10, 5, 12, 18, 0, 85, 10, 0, 0) },
-            new VoicePreset { Name = "Demon", Sliders = SliderMap(0, 18, -60, -40, 8, 12, 12, 0, 20, 0, 40, -20) },
-            new VoicePreset { Name = "Radio", Sliders = SliderMap(0, 6, 0, 0, 20, 25, 25, -8, 0, 80, 0, 35) }
-        };
-
-        foreach (var preset in starterPresets)
-        {
-            var path = Path.Combine(PresetsDirectory, MakeSafeFileName(preset.Name) + ".json");
-            File.WriteAllText(path, JsonSerializer.Serialize(preset, JsonOptions));
-        }
+        File.WriteAllText(Path.Combine(PresetsDirectory, "Default.json"), DefaultPresetJson);
     }
 
-    private static Dictionary<string, double> SliderMap(
-        double inputGain,
-        double voiceGain,
-        double pitch,
-        double formant,
-        double gate,
-        double compressor,
-        double compressionRatio,
-        double limiter,
-        double robot,
-        double radio,
-        double reverb,
-        double brightness)
+    private string GetAvailablePresetPath(string presetName, string? currentPath = null)
     {
-        return new Dictionary<string, double>
+        var safeName = MakeSafeFileName(presetName);
+        var path = Path.Combine(PresetsDirectory, safeName + ".json");
+        if (!string.IsNullOrWhiteSpace(currentPath) && string.Equals(path, currentPath, StringComparison.OrdinalIgnoreCase))
         {
-            ["InputGain"] = inputGain,
-            ["VoiceGain"] = voiceGain,
-            ["Pitch"] = pitch,
-            ["Formant"] = formant,
-            ["Gate"] = gate,
-            ["Compressor"] = compressor,
-            ["CompressionRatio"] = compressionRatio,
-            ["Limiter"] = limiter,
-            ["Robot"] = robot,
-            ["Radio"] = radio,
-            ["Reverb"] = reverb,
-            ["Brightness"] = brightness
-        };
+            return path;
+        }
+
+        var suffix = 2;
+        while (File.Exists(path) && !string.Equals(path, currentPath, StringComparison.OrdinalIgnoreCase))
+        {
+            path = Path.Combine(PresetsDirectory, safeName + "-" + suffix + ".json");
+            suffix++;
+        }
+
+        return path;
     }
 
     private static string MakeSafeFileName(string name)
