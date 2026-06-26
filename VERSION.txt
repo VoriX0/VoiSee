@@ -1,1 +1,1 @@
-VoiSe Gate 5.18 - SoundBoard Red Debug & Wheel Trace
+VoiSe Gate 5.19 - SoundBoard Native Scroll Cleanup

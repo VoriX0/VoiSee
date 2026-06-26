@@ -1,9 +1,7 @@
-using Microsoft.UI;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
-using Microsoft.UI.Xaml.Shapes;
 using NAudio.CoreAudioApi;
 using System;
 using System.Collections.Generic;
@@ -38,8 +36,6 @@ public sealed partial class MainWindow : Window
     private bool _loadedOnce;
     private bool _timelineUserDragging;
     private double _timelineMaximumSeconds = 1.0;
-    private int _soundWheelEvents;
-    private int _logWheelEvents;
 
     public MainWindow()
     {
@@ -49,7 +45,6 @@ public sealed partial class MainWindow : Window
         _library = _libraryStore.Load();
         InitializeComponent();
         RegisterWheelRoutingHandlers();
-        RootGrid.Loaded += (_, _) => DispatcherQueue.TryEnqueue(UpdateDebugOverlay);
         MainTabView.SelectionChanged += OnMainTabSelectionChanged;
         Closed += OnClosed;
         Activated += OnActivated;
@@ -67,85 +62,38 @@ public sealed partial class MainWindow : Window
         _timelineTimer.Tick += OnTimelineTimerTick;
         _timelineTimer.Start();
 
-        AppendLog("Gate 5.18 UI started.");
+        AppendLog("Gate 5.19 UI started.");
         AppendLog($"Settings path: {_settingsStore.SettingsPath}");
         StartupLog.Write("MainWindow initialized; waiting for first activation.");
     }
 
     private void RegisterWheelRoutingHandlers()
     {
-        // Gate 5.18: keep dynamic heights, but also catch mouse wheel events at the root
-        // with handledEventsToo=true. This helps diagnose whether the lower part of the
-        // list/log is receiving wheel events at all, and manually forwards wheel deltas
-        // to the internal ScrollViewer when the pointer is inside the intended area.
-        RootGrid.SizeChanged += OnRootGridSizeChanged;
-        MainTabView.SizeChanged += OnRootGridSizeChanged;
-        RootGrid.AddHandler(UIElement.PointerWheelChangedEvent, new PointerEventHandler(OnRootPointerWheelChanged), true);
-        DispatcherQueue.TryEnqueue(UpdateDynamicScrollAreaHeights);
+        // Gate 5.19: no fullscreen coordinate hacks. The track list and Settings log
+        // own their real layout area and receive wheel events directly.
+        SoundListView.AddHandler(UIElement.PointerWheelChangedEvent, new PointerEventHandler(OnSoundListPointerWheelChanged), true);
+        LogTextBox.AddHandler(UIElement.PointerWheelChangedEvent, new PointerEventHandler(OnLogPointerWheelChanged), true);
     }
 
-    private void OnRootGridSizeChanged(object sender, SizeChangedEventArgs e)
+    private void OnSoundListPointerWheelChanged(object sender, PointerRoutedEventArgs e)
     {
-        UpdateDynamicScrollAreaHeights();
-        DispatcherQueue.TryEnqueue(UpdateDebugOverlay);
+        var delta = e.GetCurrentPoint(SoundListView).Properties.MouseWheelDelta;
+        if (delta != 0 && TryScrollElement(SoundListView, delta))
+        {
+            e.Handled = true;
+        }
     }
 
-    private void OnRootPointerWheelChanged(object sender, PointerRoutedEventArgs e)
+    private void OnLogPointerWheelChanged(object sender, PointerRoutedEventArgs e)
     {
-        if (RootGrid is null)
+        var delta = e.GetCurrentPoint(LogTextBox).Properties.MouseWheelDelta;
+        if (delta != 0 && TryScrollElement(LogTextBox, delta))
         {
-            return;
-        }
-
-        var pointerPoint = e.GetCurrentPoint(RootGrid);
-        var delta = pointerPoint.Properties.MouseWheelDelta;
-        if (delta == 0)
-        {
-            return;
-        }
-
-        if (MainTabView.SelectedIndex == 0 && IsPointerInsideElement(pointerPoint.Position, SoundListArea))
-        {
-            if (TryScrollElement(SoundListView, delta))
-            {
-                _soundWheelEvents++;
-                TransportStatusTextBlock.Text = $"Track wheel: {_soundWheelEvents}";
-                e.Handled = true;
-            }
-            return;
-        }
-
-        if (MainTabView.SelectedIndex == 3 && IsPointerInsideElement(pointerPoint.Position, SettingsLogArea))
-        {
-            if (TryScrollElement(LogTextBox, delta))
-            {
-                _logWheelEvents++;
-                EngineStatusTextBlock.Text = $"Log wheel: {_logWheelEvents}";
-                e.Handled = true;
-            }
+            e.Handled = true;
         }
     }
 
-    private bool IsPointerInsideElement(Point rootPoint, FrameworkElement? element)
-    {
-        if (element is null || element.ActualWidth <= 0 || element.ActualHeight <= 0)
-        {
-            return false;
-        }
 
-        try
-        {
-            var topLeft = element.TransformToVisual(RootGrid).TransformPoint(new Point(0, 0));
-            return rootPoint.X >= topLeft.X
-                && rootPoint.X <= topLeft.X + element.ActualWidth
-                && rootPoint.Y >= topLeft.Y
-                && rootPoint.Y <= topLeft.Y + element.ActualHeight;
-        }
-        catch
-        {
-            return false;
-        }
-    }
 
     private bool TryScrollElement(DependencyObject? scrollOwner, int wheelDelta)
     {
@@ -189,122 +137,9 @@ public sealed partial class MainWindow : Window
         return null;
     }
 
-    private void UpdateDynamicScrollAreaHeights()
-    {
-        UpdateSoundListOverlayHeight();
-        UpdateSettingsLogHeight();
-    }
-
-    private void UpdateSoundListOverlayHeight()
-    {
-        if (RootGrid is null || SoundListArea is null || SoundListView is null || RootGrid.ActualHeight <= 0)
-        {
-            return;
-        }
-
-        try
-        {
-            var top = SoundListArea.TransformToVisual(RootGrid).TransformPoint(new Point(0, 0)).Y;
-            var targetTrackListHeight = Math.Max(260, RootGrid.ActualHeight - top - 24);
-            SoundListArea.Height = targetTrackListHeight;
-            SoundListView.Height = targetTrackListHeight;
-            SoundListArea.MinHeight = targetTrackListHeight;
-            SoundListView.MinHeight = targetTrackListHeight;
-        }
-        catch
-        {
-            var fallbackHeight = Math.Max(260, RootGrid.ActualHeight - 420);
-            SoundListArea.Height = fallbackHeight;
-            SoundListView.Height = fallbackHeight;
-        }
-    }
-
-    private void UpdateSettingsLogHeight()
-    {
-        if (RootGrid is null || SettingsLogArea is null || LogTextBox is null || RootGrid.ActualHeight <= 0)
-        {
-            return;
-        }
-
-        try
-        {
-            var top = LogTextBox.TransformToVisual(RootGrid).TransformPoint(new Point(0, 0)).Y;
-            var targetLogHeight = Math.Max(140, RootGrid.ActualHeight - top - 24);
-            LogTextBox.Height = targetLogHeight;
-        }
-        catch
-        {
-            LogTextBox.Height = 180;
-        }
-    }
 
 
-    private void UpdateDebugOverlay()
-    {
-        if (DebugOverlayCanvas is null || RootGrid is null || RootGrid.ActualWidth <= 0 || RootGrid.ActualHeight <= 0)
-        {
-            return;
-        }
 
-        DebugOverlayCanvas.Children.Clear();
-        DebugOverlayCanvas.Width = RootGrid.ActualWidth;
-        DebugOverlayCanvas.Height = RootGrid.ActualHeight;
-
-        var elements = new List<FrameworkElement>();
-        CollectDebugElements(RootGrid, elements);
-
-        foreach (var element in elements)
-        {
-            if (element.ActualWidth <= 1 || element.ActualHeight <= 1)
-            {
-                continue;
-            }
-
-            try
-            {
-                var point = element.TransformToVisual(RootGrid).TransformPoint(new Point(0, 0));
-                var rect = new Rectangle
-                {
-                    Width = element.ActualWidth,
-                    Height = element.ActualHeight,
-                    Stroke = new SolidColorBrush(Colors.Red),
-                    StrokeThickness = 1,
-                    IsHitTestVisible = false
-                };
-
-                Canvas.SetLeft(rect, point.X);
-                Canvas.SetTop(rect, point.Y);
-                DebugOverlayCanvas.Children.Add(rect);
-            }
-            catch
-            {
-                // Some transient WinUI elements cannot be transformed during layout changes.
-            }
-        }
-    }
-
-    private void CollectDebugElements(DependencyObject root, List<FrameworkElement> elements)
-    {
-        var count = VisualTreeHelper.GetChildrenCount(root);
-        for (var i = 0; i < count; i++)
-        {
-            var child = VisualTreeHelper.GetChild(root, i);
-            if (child == DebugOverlayCanvas || child is Shape)
-            {
-                continue;
-            }
-
-            if (child is FrameworkElement element &&
-                element.ActualWidth > 1 &&
-                element.ActualHeight > 1 &&
-                element.Visibility == Visibility.Visible)
-            {
-                elements.Add(element);
-            }
-
-            CollectDebugElements(child, elements);
-        }
-    }
 
     private void OnActivated(object sender, WindowActivatedEventArgs args)
     {
@@ -323,21 +158,20 @@ public sealed partial class MainWindow : Window
         try
         {
             AppendLog("Restoring saved settings...");
-            StartupLog.Write("Gate 5.18 restore started.");
+            StartupLog.Write("Gate 5.19 restore started.");
 
             ApplyStoredScalarSettingsToControls();
             AppendLog("Saved scalar settings applied.");
-            StartupLog.Write("Gate 5.18 scalar settings applied.");
+            StartupLog.Write("Gate 5.19 scalar settings applied.");
 
             RefreshDevices(saveAfterRefresh: false);
             LoadSoundBoardLibraryIntoUi();
-            DispatcherQueue.TryEnqueue(() => { UpdateDynamicScrollAreaHeights(); UpdateDebugOverlay(); });
             AppendLog("Settings restored.");
-            StartupLog.Write("Gate 5.18 restore completed.");
+            StartupLog.Write("Gate 5.19 restore completed.");
         }
         catch (Exception ex)
         {
-            StartupLog.Write("Gate 5.18 restore error: " + ex);
+            StartupLog.Write("Gate 5.19 restore error: " + ex);
             AppendLog($"Settings restore error: {ex.GetType().Name}: {ex.Message}");
         }
         finally

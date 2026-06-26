@@ -6,30 +6,23 @@
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     mc:Ignorable="d"
-    Title="VoiSe Gate 5.18 - SoundBoard Red Debug &amp; Wheel Trace">
+    Title="VoiSe Gate 5.19 - SoundBoard Native Scroll Cleanup">
 
     <Grid x:Name="RootGrid" Padding="20" RowSpacing="14">
-        <Grid.Resources>
-            <Style x:Key="DebugBorderStyle" TargetType="Border">
-                <Setter Property="BorderBrush" Value="Red" />
-                <Setter Property="BorderThickness" Value="1" />
-            </Style>
-        </Grid.Resources>
-
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
         </Grid.RowDefinitions>
 
-        <Border Grid.Row="0" Style="{StaticResource DebugBorderStyle}" Padding="6">
+        <Border Grid.Row="0" Padding="6">
             <Grid ColumnSpacing="16">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*" />
                     <ColumnDefinition Width="Auto" />
                 </Grid.ColumnDefinitions>
                 <StackPanel Grid.Column="0" Spacing="4" VerticalAlignment="Center">
-                    <TextBlock Text="VoiSe Gate 5.18" FontSize="28" FontWeight="SemiBold" />
-                    <TextBlock Text="SoundBoard red debug overlay, head alignment and wheel trace" Opacity="0.75" />
+                    <TextBlock Text="VoiSe Gate 5.19" FontSize="28" FontWeight="SemiBold" />
+                    <TextBlock Text="SoundBoard native scroll cleanup and debug overlay removed" Opacity="0.75" />
                 </StackPanel>
                 <StackPanel Grid.Column="1" Spacing="4" VerticalAlignment="Center" HorizontalAlignment="Right">
                     <StackPanel Orientation="Horizontal" Spacing="8">
@@ -41,7 +34,7 @@
             </Grid>
         </Border>
 
-        <Border Grid.Row="1" Style="{StaticResource DebugBorderStyle}" Padding="4">
+        <Border Grid.Row="1" Padding="4">
             <TabView x:Name="MainTabView" IsAddTabButtonVisible="False" TabWidthMode="Equal">
                 <TabViewItem Header="SoundBoard" IsClosable="False">
                     <Grid Padding="0,16,0,0" RowSpacing="16" HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
@@ -51,7 +44,7 @@
                         </Grid.RowDefinitions>
 
                         <!-- HEAD -->
-                        <Border Grid.Row="0" Style="{StaticResource DebugBorderStyle}" Padding="6">
+                        <Border Grid.Row="0" Padding="6">
                             <Grid ColumnSpacing="8" MinHeight="128">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="Auto" />
@@ -64,7 +57,7 @@
                                     <RowDefinition Height="104" />
                                 </Grid.RowDefinitions>
 
-                                <Border Grid.Column="0" Grid.Row="1" Style="{StaticResource DebugBorderStyle}" Padding="0" Width="164" Height="104" HorizontalAlignment="Left" VerticalAlignment="Top">
+                                <Border Grid.Column="0" Grid.Row="1" Padding="0" Width="164" Height="104" HorizontalAlignment="Left" VerticalAlignment="Stretch">
                                     <Grid RowSpacing="8" ColumnSpacing="8">
                                         <Grid.RowDefinitions>
                                             <RowDefinition Height="48" />
@@ -80,12 +73,12 @@
                                     </Grid>
                                 </Border>
 
-                                <Border Grid.Row="0" Grid.Column="1" Grid.ColumnSpan="2" Style="{StaticResource DebugBorderStyle}" Padding="2">
+                                <Border Grid.Row="0" Grid.Column="1" Grid.ColumnSpan="2" Padding="2">
                                     <TextBlock x:Name="TransportStatusTextBlock" Text="No sound" HorizontalAlignment="Center" Opacity="0.75" />
                                 </Border>
 
-                                <Border Grid.Row="1" Grid.Column="1" Grid.ColumnSpan="2" Style="{StaticResource DebugBorderStyle}" Padding="0" Height="104" VerticalAlignment="Top">
-                                    <Grid Height="104" ColumnSpacing="8" RowSpacing="8" VerticalAlignment="Top">
+                                <Border Grid.Row="1" Grid.Column="1" Grid.ColumnSpan="2" Padding="0" Height="104" VerticalAlignment="Stretch">
+                                    <Grid Height="104" ColumnSpacing="8" RowSpacing="8" VerticalAlignment="Stretch">
                                         <Grid.ColumnDefinitions>
                                             <ColumnDefinition Width="56" />
                                             <ColumnDefinition Width="*" />
@@ -97,7 +90,7 @@
 
                                         <Button Grid.Row="0" Grid.Column="0" x:Name="PlayPauseButton" Content="&#xE768;" FontFamily="Segoe MDL2 Assets" FontSize="22" MinWidth="0" Width="56" Height="48" HorizontalAlignment="Left" VerticalAlignment="Center" Click="OnPlayPauseSoundClick" ToolTipService.ToolTip="Play / Pause" />
 
-                                        <Grid Grid.Row="0" Grid.Column="1" x:Name="TimelineHost" Height="48" VerticalAlignment="Center" Background="#01000000" PointerPressed="OnTimelineHostPointerPressed" PointerMoved="OnTimelineHostPointerMoved" PointerReleased="OnTimelineHostPointerReleased" PointerCanceled="OnTimelineHostPointerReleased" SizeChanged="OnTimelineHostSizeChanged">
+                                        <Grid Grid.Row="0" Grid.Column="1" x:Name="TimelineHost" Height="48" VerticalAlignment="Center" Background="Transparent" PointerPressed="OnTimelineHostPointerPressed" PointerMoved="OnTimelineHostPointerMoved" PointerReleased="OnTimelineHostPointerReleased" PointerCanceled="OnTimelineHostPointerReleased" SizeChanged="OnTimelineHostSizeChanged">
                                             <Grid Height="8" VerticalAlignment="Center">
                                                 <Border Background="#33FFFFFF" CornerRadius="4" />
                                                 <Border x:Name="TimelineFill" Width="0" HorizontalAlignment="Left" Background="#99FFFFFF" CornerRadius="4" />
@@ -121,8 +114,8 @@
                                     </Grid>
                                 </Border>
 
-                                <Border Grid.Row="0" Grid.RowSpan="2" Grid.Column="3" Style="{StaticResource DebugBorderStyle}" Padding="6">
-                                    <StackPanel Spacing="6" VerticalAlignment="Top">
+                                <Border Grid.Row="0" Grid.RowSpan="2" Grid.Column="3" Padding="6">
+                                    <StackPanel Spacing="6" VerticalAlignment="Stretch">
                                         <TextBlock x:Name="SoundVirtualVolumeLabel" Text="SoundBoard → Virtual Mic: 100%" FontWeight="SemiBold" />
                                         <Slider x:Name="SoundVirtualVolumeSlider" Minimum="0" Maximum="1.5" Value="1" StepFrequency="0.01" ValueChanged="OnSoundVolumeChanged" />
                                         <TextBlock x:Name="SoundMonitorVolumeLabel" Text="SoundBoard → Headphones: 100%" FontWeight="SemiBold" />
@@ -133,7 +126,7 @@
                         </Border>
 
                         <!-- BODY -->
-                        <Border Grid.Row="1" Style="{StaticResource DebugBorderStyle}" Padding="6">
+                        <Border Grid.Row="1" Padding="6">
                             <Grid x:Name="SoundBoardBodyGrid" RowSpacing="8" Background="Transparent">
                                 <Grid.RowDefinitions>
                                     <RowDefinition Height="Auto" />
@@ -142,7 +135,7 @@
                                     <RowDefinition Height="*" />
                                 </Grid.RowDefinitions>
 
-                                <Border Grid.Row="0" Style="{StaticResource DebugBorderStyle}" Padding="4">
+                                <Border Grid.Row="0" Padding="4">
                                     <StackPanel Orientation="Horizontal" Spacing="8">
                                         <Button Content="Create Category" Click="OnAddCategoryClick" />
                                         <Button Content="Rename Category" Click="OnRenameCategoryClick" />
@@ -150,7 +143,7 @@
                                     </StackPanel>
                                 </Border>
 
-                                <Border Grid.Row="1" Style="{StaticResource DebugBorderStyle}" Padding="4" Margin="0,0,0,14">
+                                <Border Grid.Row="1" Padding="4" Margin="0,0,0,14">
                                     <Grid>
                                         <Grid.ColumnDefinitions>
                                             <ColumnDefinition Width="1*" />
@@ -160,7 +153,7 @@
                                     </Grid>
                                 </Border>
 
-                                <Border Grid.Row="2" Style="{StaticResource DebugBorderStyle}" Padding="4" Margin="0,18,0,4">
+                                <Border Grid.Row="2" Padding="4" Margin="0,18,0,4">
                                     <StackPanel Orientation="Horizontal" Spacing="8">
                                         <Button Content="Add Track" Click="OnAddSoundClick" />
                                         <Button Content="Delete Track" Click="OnDeleteSoundClick" />
@@ -169,14 +162,13 @@
 
                                 <Border Grid.Row="3"
                                         x:Name="SoundListArea"
-                                        Style="{StaticResource DebugBorderStyle}"
-                                        Canvas.ZIndex="100"
-                                        Background="#01000000"
+                                       
+                                        Background="Transparent"
                                         Padding="2"
-                                        VerticalAlignment="Top"
+                                        VerticalAlignment="Stretch"
                                         HorizontalAlignment="Stretch">
                                     <ListView x:Name="SoundListView"
-                                              Background="#01000000"
+                                              Background="Transparent"
                                               DisplayMemberPath="ListText"
                                               SelectionChanged="OnSoundSelectionChanged"
                                               RightTapped="OnSoundListRightTapped"
@@ -206,7 +198,7 @@
                 </TabViewItem>
 
                 <TabViewItem Header="Voice Changer" IsClosable="False">
-                    <Border Style="{StaticResource DebugBorderStyle}" Padding="4">
+                    <Border Padding="4">
                         <ScrollViewer>
                             <StackPanel Spacing="16" Padding="0,16,0,0">
                                 <InfoBar IsOpen="True" Severity="Informational" Title="Live voice settings" Message="Voice sliders are applied to the running engine without manual restart." />
@@ -232,9 +224,9 @@
                 </TabViewItem>
 
                 <TabViewItem Header="Scenes" IsClosable="False">
-                    <Border Style="{StaticResource DebugBorderStyle}" Padding="4">
+                    <Border Padding="4">
                         <StackPanel Spacing="12" Padding="0,16,0,0">
-                            <InfoBar IsOpen="True" Severity="Informational" Title="Coming next" Message="Scenes are not implemented in Gate 5.18. This tab reserves the final navigation structure from the start." />
+                            <InfoBar IsOpen="True" Severity="Informational" Title="Coming next" Message="Scenes are not implemented in Gate 5.19. This tab reserves the final navigation structure from the start." />
                             <TextBlock Text="Planned scene content:" FontSize="18" FontWeight="SemiBold" />
                             <TextBlock Text="• voice preset&#x0a;• one background loop sound&#x0a;• several one-shot sounds&#x0a;• scene mixer settings" />
                         </StackPanel>
@@ -248,7 +240,7 @@
                             <RowDefinition Height="220" />
                         </Grid.RowDefinitions>
 
-                        <Border Grid.Row="0" Style="{StaticResource DebugBorderStyle}" Padding="4">
+                        <Border Grid.Row="0" Padding="4">
                             <ScrollViewer VerticalScrollBarVisibility="Auto" VerticalScrollMode="Enabled">
                                 <StackPanel Spacing="18" Padding="0,0,0,12">
                                     <TextBlock Text="Audio devices" FontSize="18" FontWeight="SemiBold" />
@@ -283,8 +275,8 @@
                             </ScrollViewer>
                         </Border>
 
-                        <Border Grid.Row="1" Style="{StaticResource DebugBorderStyle}" Padding="4">
-                            <Grid x:Name="SettingsLogArea" RowSpacing="6" Background="#01000000">
+                        <Border Grid.Row="1" Padding="4">
+                            <Grid x:Name="SettingsLogArea" RowSpacing="6" Background="Transparent">
                                 <Grid.RowDefinitions>
                                     <RowDefinition Height="Auto" />
                                     <RowDefinition Height="*" />
@@ -295,7 +287,7 @@
                                          IsReadOnly="True"
                                          AcceptsReturn="True"
                                          TextWrapping="Wrap"
-                                         Background="#01000000"
+                                         Background="Transparent"
                                          VerticalAlignment="Stretch"
                                          HorizontalAlignment="Stretch"
                                          ScrollViewer.VerticalScrollBarVisibility="Visible"
@@ -308,7 +300,5 @@
                 </TabViewItem>
             </TabView>
         </Border>
-
-        <Canvas x:Name="DebugOverlayCanvas" Grid.RowSpan="2" IsHitTestVisible="False" Canvas.ZIndex="9999" />
-    </Grid>
+</Grid>
 </Window>
