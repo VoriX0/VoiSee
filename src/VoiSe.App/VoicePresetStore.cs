@@ -19,18 +19,9 @@ public sealed class VoicePresetStore
   "Name": "Default",
   "Icon": "\uD83C\uDF99\uFE0F",
   "Sliders": {
-    "InputGain": -0,
     "VoiceGain": -0,
-    "Pitch": 0,
-    "Formant": -0,
     "Gate": -100,
-    "Compressor": 100,
-    "CompressionRatio": -0,
-    "Limiter": -0,
-    "Robot": -0,
-    "Radio": 0,
-    "Reverb": -100,
-    "Brightness": -0
+    "Compressor": 100
   }
 }
 """;

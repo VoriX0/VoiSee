@@ -52,8 +52,8 @@ public sealed partial class MainWindow : Window
     private const int WhMouseLl = 14;
     private const int WmMouseWheel = 0x020A;
     private const double SoundWheelZoneExpandUpRatio = 0.25;
-    private const double SoundWheelZoneExpandRightRatio = 0.60;
-    private const double SoundWheelZoneExpandBottomRatio = 0.40;
+    private const double SoundWheelZoneExpandRightRatio = 1.00;
+    private const double SoundWheelZoneExpandBottomRatio = 0.75;
     private const double VoiceValueMin = -9999.0;
     private const double VoiceValueMax = 9999.0;
 
@@ -91,7 +91,7 @@ public sealed partial class MainWindow : Window
         _timelineTimer.Tick += OnTimelineTimerTick;
         _timelineTimer.Start();
 
-        AppendLog("Gate 6.1 UI started.");
+        AppendLog("Gate 6.2 UI started.");
         AppendLog($"Settings path: {_settingsStore.SettingsPath}");
         StartupLog.Write("MainWindow initialized; waiting for first activation.");
     }
@@ -113,21 +113,21 @@ public sealed partial class MainWindow : Window
         try
         {
             AppendLog("Restoring saved settings...");
-            StartupLog.Write("Gate 6.1 restore started.");
+            StartupLog.Write("Gate 6.2 restore started.");
 
             ApplyStoredScalarSettingsToControls();
             AppendLog("Saved scalar settings applied.");
-            StartupLog.Write("Gate 6.1 scalar settings applied.");
+            StartupLog.Write("Gate 6.2 scalar settings applied.");
 
             RefreshDevices(saveAfterRefresh: false);
             LoadSoundBoardLibraryIntoUi();
             LoadVoicePresetsIntoUi();
             AppendLog("Settings restored.");
-            StartupLog.Write("Gate 6.1 restore completed.");
+            StartupLog.Write("Gate 6.2 restore completed.");
         }
         catch (Exception ex)
         {
-            StartupLog.Write("Gate 6.1 restore error: " + ex);
+            StartupLog.Write("Gate 6.2 restore error: " + ex);
             AppendLog($"Settings restore error: {ex.GetType().Name}: {ex.Message}");
         }
         finally
@@ -145,18 +145,9 @@ public sealed partial class MainWindow : Window
         SoundVirtualVolumeSlider.Value = Clamp(_settings.SoundBoardVirtualMicVolume, 0, 1.5);
         SoundMonitorVolumeSlider.Value = Clamp(_settings.SoundBoardHeadphonesVolume, 0, 1.5);
         SoundVirtualDelaySlider.Value = Clamp(_settings.SoundBoardVirtualMicDelayMs, 0, 300);
-        SetVoiceControl(InputGainSlider, InputGainValueBox, _settings.VoiceInputGain);
         SetVoiceControl(VoiceGainSlider, VoiceGainValueBox, _settings.VoiceGain);
-        SetVoiceControl(PitchSlider, PitchValueBox, _settings.VoicePitch);
-        SetVoiceControl(FormantSlider, FormantValueBox, _settings.VoiceFormant);
         SetVoiceControl(GateThresholdSlider, GateThresholdValueBox, _settings.VoiceGate);
         SetVoiceControl(CompressorThresholdSlider, CompressorThresholdValueBox, _settings.VoiceCompressor);
-        SetVoiceControl(CompressionRatioSlider, CompressionRatioValueBox, _settings.VoiceCompressionRatio);
-        SetVoiceControl(LimiterSlider, LimiterValueBox, _settings.VoiceLimiter);
-        SetVoiceControl(RobotSlider, RobotValueBox, _settings.VoiceRobot);
-        SetVoiceControl(RadioSlider, RadioValueBox, _settings.VoiceRadio);
-        SetVoiceControl(ReverbSlider, ReverbValueBox, _settings.VoiceReverb);
-        SetVoiceControl(BrightnessSlider, BrightnessValueBox, _settings.VoiceBrightness);
         _voiceMonitorEnabled = _settings.VoiceMonitorEnabled;
         UpdateAllLabels();
     }
@@ -1163,17 +1154,20 @@ public sealed partial class MainWindow : Window
 
     private EffectSettings CreateEffectSettings()
     {
+        var compressorValue = GetVoiceValue(CompressorThresholdSlider, CompressorThresholdValueBox);
+
         return new EffectSettings
         {
-            InputGainDb = (float)MapCentered(GetVoiceValue(InputGainSlider, InputGainValueBox), 0, -12, 12),
+            // Gate 6.2: only sliders that are actually connected to the current DSP are shown.
+            InputGainDb = 0.0f,
             VoiceGainDb = (float)MapCentered(GetVoiceValue(VoiceGainSlider, VoiceGainValueBox), 0, -24, 12),
             GateThresholdDb = (float)MapCentered(GetVoiceValue(GateThresholdSlider, GateThresholdValueBox), -45, -70, -20),
-            CompressorThresholdDb = (float)MapCentered(GetVoiceValue(CompressorThresholdSlider, CompressorThresholdValueBox), -18, -40, 0),
-            CompressorRatio = (float)MapCentered(GetVoiceValue(CompressionRatioSlider, CompressionRatioValueBox), 3, 1, 8),
+            CompressorThresholdDb = (float)MapCentered(compressorValue, -24, -60, -6),
+            CompressorRatio = (float)MapCentered(compressorValue, 4, 1.5, 12),
             GateEnabled = true,
             CompressorEnabled = true,
             LimiterEnabled = true,
-            LimiterCeilingDb = (float)MapCentered(GetVoiceValue(LimiterSlider, LimiterValueBox), -1, -12, -0.1),
+            LimiterCeilingDb = -1.0f,
             VirtualOutputGain = (float)VirtualOutputVolumeSlider.Value,
             VoiceMonitorGain = _voiceMonitorEnabled ? 1.0f : 0.0f
         };
@@ -1771,18 +1765,9 @@ public sealed partial class MainWindow : Window
             Icon = "🎙️",
             Sliders = new Dictionary<string, double>
             {
-                ["InputGain"] = GetVoiceValue(InputGainSlider, InputGainValueBox),
                 ["VoiceGain"] = GetVoiceValue(VoiceGainSlider, VoiceGainValueBox),
-                ["Pitch"] = GetVoiceValue(PitchSlider, PitchValueBox),
-                ["Formant"] = GetVoiceValue(FormantSlider, FormantValueBox),
                 ["Gate"] = GetVoiceValue(GateThresholdSlider, GateThresholdValueBox),
-                ["Compressor"] = GetVoiceValue(CompressorThresholdSlider, CompressorThresholdValueBox),
-                ["CompressionRatio"] = GetVoiceValue(CompressionRatioSlider, CompressionRatioValueBox),
-                ["Limiter"] = GetVoiceValue(LimiterSlider, LimiterValueBox),
-                ["Robot"] = GetVoiceValue(RobotSlider, RobotValueBox),
-                ["Radio"] = GetVoiceValue(RadioSlider, RadioValueBox),
-                ["Reverb"] = GetVoiceValue(ReverbSlider, ReverbValueBox),
-                ["Brightness"] = GetVoiceValue(BrightnessSlider, BrightnessValueBox)
+                ["Compressor"] = GetVoiceValue(CompressorThresholdSlider, CompressorThresholdValueBox)
             }
         };
     }
@@ -1792,18 +1777,9 @@ public sealed partial class MainWindow : Window
         _loadingVoicePreset = true;
         try
         {
-            SetVoiceControlFromPreset(InputGainSlider, InputGainValueBox, preset, "InputGain");
             SetVoiceControlFromPreset(VoiceGainSlider, VoiceGainValueBox, preset, "VoiceGain");
-            SetVoiceControlFromPreset(PitchSlider, PitchValueBox, preset, "Pitch");
-            SetVoiceControlFromPreset(FormantSlider, FormantValueBox, preset, "Formant");
             SetVoiceControlFromPreset(GateThresholdSlider, GateThresholdValueBox, preset, "Gate");
             SetVoiceControlFromPreset(CompressorThresholdSlider, CompressorThresholdValueBox, preset, "Compressor");
-            SetVoiceControlFromPreset(CompressionRatioSlider, CompressionRatioValueBox, preset, "CompressionRatio");
-            SetVoiceControlFromPreset(LimiterSlider, LimiterValueBox, preset, "Limiter");
-            SetVoiceControlFromPreset(RobotSlider, RobotValueBox, preset, "Robot");
-            SetVoiceControlFromPreset(RadioSlider, RadioValueBox, preset, "Radio");
-            SetVoiceControlFromPreset(ReverbSlider, ReverbValueBox, preset, "Reverb");
-            SetVoiceControlFromPreset(BrightnessSlider, BrightnessValueBox, preset, "Brightness");
         }
         finally
         {
@@ -1858,35 +1834,17 @@ public sealed partial class MainWindow : Window
 
     private TextBox? GetVoiceTextBoxForSlider(Slider slider)
     {
-        if (slider == InputGainSlider) return InputGainValueBox;
         if (slider == VoiceGainSlider) return VoiceGainValueBox;
-        if (slider == PitchSlider) return PitchValueBox;
-        if (slider == FormantSlider) return FormantValueBox;
         if (slider == GateThresholdSlider) return GateThresholdValueBox;
         if (slider == CompressorThresholdSlider) return CompressorThresholdValueBox;
-        if (slider == CompressionRatioSlider) return CompressionRatioValueBox;
-        if (slider == LimiterSlider) return LimiterValueBox;
-        if (slider == RobotSlider) return RobotValueBox;
-        if (slider == RadioSlider) return RadioValueBox;
-        if (slider == ReverbSlider) return ReverbValueBox;
-        if (slider == BrightnessSlider) return BrightnessValueBox;
         return null;
     }
 
     private Slider? GetVoiceSliderForTextBox(TextBox textBox)
     {
-        if (textBox == InputGainValueBox) return InputGainSlider;
         if (textBox == VoiceGainValueBox) return VoiceGainSlider;
-        if (textBox == PitchValueBox) return PitchSlider;
-        if (textBox == FormantValueBox) return FormantSlider;
         if (textBox == GateThresholdValueBox) return GateThresholdSlider;
         if (textBox == CompressorThresholdValueBox) return CompressorThresholdSlider;
-        if (textBox == CompressionRatioValueBox) return CompressionRatioSlider;
-        if (textBox == LimiterValueBox) return LimiterSlider;
-        if (textBox == RobotValueBox) return RobotSlider;
-        if (textBox == RadioValueBox) return RadioSlider;
-        if (textBox == ReverbValueBox) return ReverbSlider;
-        if (textBox == BrightnessValueBox) return BrightnessSlider;
         return null;
     }
 
@@ -1953,24 +1911,11 @@ public sealed partial class MainWindow : Window
 
     private void UpdateVoiceSettingLabels()
     {
-        if (VoiceInputGainLabel is null || VoiceGainLabel is null || PitchLabel is null || FormantLabel is null ||
-            GateThresholdLabel is null || CompressorThresholdLabel is null || CompressionRatioLabel is null || LimiterLabel is null ||
-            RobotLabel is null || RadioLabel is null || ReverbLabel is null || BrightnessLabel is null ||
-            InputGainSlider is null || VoiceGainSlider is null || PitchSlider is null || FormantSlider is null ||
-            GateThresholdSlider is null || CompressorThresholdSlider is null || CompressionRatioSlider is null || LimiterSlider is null ||
-            RobotSlider is null || RadioSlider is null || ReverbSlider is null || BrightnessSlider is null) return;
-        VoiceInputGainLabel.Text = "Input Gain";
+        if (VoiceGainLabel is null || GateThresholdLabel is null || CompressorThresholdLabel is null ||
+            VoiceGainSlider is null || GateThresholdSlider is null || CompressorThresholdSlider is null) return;
         VoiceGainLabel.Text = "Voice Gain";
-        PitchLabel.Text = "Pitch";
-        FormantLabel.Text = "Formant";
         GateThresholdLabel.Text = "Gate";
-        CompressorThresholdLabel.Text = "Compression Threshold";
-        CompressionRatioLabel.Text = "Compression Ratio";
-        LimiterLabel.Text = "Limiter";
-        RobotLabel.Text = "Robot";
-        RadioLabel.Text = "Radio";
-        ReverbLabel.Text = "Reverb";
-        BrightnessLabel.Text = "Brightness";
+        CompressorThresholdLabel.Text = "Compressor";
     }
 
     private static string FormatSigned(double value)
@@ -2026,23 +1971,14 @@ public sealed partial class MainWindow : Window
         _settings.SoundBoardVirtualMicVolume = SoundVirtualVolumeSlider?.Value ?? 1.0;
         _settings.SoundBoardHeadphonesVolume = SoundMonitorVolumeSlider?.Value ?? 1.0;
         _settings.SoundBoardVirtualMicDelayMs = SoundVirtualDelaySlider?.Value ?? 85.0;
-        _settings.VoiceInputGain = GetVoiceValue(InputGainSlider, InputGainValueBox);
         _settings.VoiceGain = GetVoiceValue(VoiceGainSlider, VoiceGainValueBox);
-        _settings.VoicePitch = GetVoiceValue(PitchSlider, PitchValueBox);
-        _settings.VoiceFormant = GetVoiceValue(FormantSlider, FormantValueBox);
         _settings.VoiceGate = GetVoiceValue(GateThresholdSlider, GateThresholdValueBox);
         _settings.VoiceCompressor = GetVoiceValue(CompressorThresholdSlider, CompressorThresholdValueBox);
-        _settings.VoiceCompressionRatio = GetVoiceValue(CompressionRatioSlider, CompressionRatioValueBox);
-        _settings.VoiceLimiter = GetVoiceValue(LimiterSlider, LimiterValueBox);
-        _settings.VoiceRobot = GetVoiceValue(RobotSlider, RobotValueBox);
-        _settings.VoiceRadio = GetVoiceValue(RadioSlider, RadioValueBox);
-        _settings.VoiceReverb = GetVoiceValue(ReverbSlider, ReverbValueBox);
-        _settings.VoiceBrightness = GetVoiceValue(BrightnessSlider, BrightnessValueBox);
 
         // Keep legacy dB fields meaningful for older settings readers.
         _settings.VoiceGainDb = MapCentered(_settings.VoiceGain, 0, -24, 12);
         _settings.GateThresholdDb = MapCentered(_settings.VoiceGate, -45, -70, -20);
-        _settings.CompressorThresholdDb = MapCentered(_settings.VoiceCompressor, -18, -40, 0);
+        _settings.CompressorThresholdDb = MapCentered(_settings.VoiceCompressor, -24, -60, -6);
 
         _settingsStore.Save(_settings);
     }
