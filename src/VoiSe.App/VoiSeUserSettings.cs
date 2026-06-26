@@ -41,14 +41,14 @@ public sealed class VoiSeUserSettings
     public double VoiceReverb { get; set; } = 0.0;
     public double VoiceBrightness { get; set; } = 0.0; // legacy / ignored from Gate 6.2+
 
-    // Gate 6.4 connected DSP controls.
-    public double VoiceTimbre { get; set; } = 0.0;
+    // Gate 6.5 connected DSP controls.
+    public double VoiceTimbre { get; set; } = 0.0; // legacy / ignored from Gate 6.5+
     public double VoiceBass { get; set; } = 0.0;
     public double VoiceTreble { get; set; } = 0.0;
     public double VoiceDistortion { get; set; } = 0.0;
     public double VoiceTremolo { get; set; } = 0.0;
     public double VoiceEcho { get; set; } = 0.0;
     public double VoiceBitCrusher { get; set; } = 0.0;
-    public double VoiceChorus { get; set; } = 0.0;
+    public double VoiceChorus { get; set; } = 0.0; // legacy / ignored from Gate 6.5+
     public double VoiceAlien { get; set; } = 0.0;
 }

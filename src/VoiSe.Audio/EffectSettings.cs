@@ -10,9 +10,8 @@ public sealed class EffectSettings
     public float CompressorRatio { get; set; } = 3.0f;
     public float VoiceGainDb { get; set; } = 0.0f;
 
-    // Gate 6.4 connected experimental DSP controls. Values are normalized from the UI
-    // roughly as -1..+1 for slider range -100..+100, while numeric boxes can exceed it.
-    public float TimbreAmount { get; set; } = 0.0f;
+    // Gate 6.5 connected DSP controls. PitchSemitones is clamped in the UI/DSP path.
+    public float PitchSemitones { get; set; } = 0.0f;
     public float BassAmount { get; set; } = 0.0f;
     public float TrebleAmount { get; set; } = 0.0f;
     public float DistortionAmount { get; set; } = 0.0f;
@@ -22,7 +21,6 @@ public sealed class EffectSettings
     public float ReverbAmount { get; set; } = 0.0f;
     public float RadioAmount { get; set; } = 0.0f;
     public float BitCrusherAmount { get; set; } = 0.0f;
-    public float ChorusAmount { get; set; } = 0.0f;
     public float AlienAmount { get; set; } = 0.0f;
 
     public bool LimiterEnabled { get; set; } = true;

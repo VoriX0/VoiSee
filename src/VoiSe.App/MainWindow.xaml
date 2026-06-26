@@ -6,7 +6,7 @@
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     mc:Ignorable="d"
-    Title="VoiSe Gate 6.4 - Voice Timbre and Fun Effects">
+    Title="VoiSe Gate 6.6 - Centered SoundBoard Wheel Zone">
 
     <Grid x:Name="RootGrid" Padding="20" RowSpacing="14">
         <Grid.RowDefinitions>
@@ -21,8 +21,8 @@
                     <ColumnDefinition Width="Auto" />
                 </Grid.ColumnDefinitions>
                 <StackPanel Grid.Column="0" Spacing="4" VerticalAlignment="Center">
-                    <TextBlock Text="VoiSe Gate 6.4" FontSize="28" FontWeight="SemiBold" />
-                    <TextBlock Text="Voice active sliders and tuned SoundBoard wheel zone" Opacity="0.75" />
+                    <TextBlock Text="VoiSe Gate 6.6" FontSize="28" FontWeight="SemiBold" />
+                    <TextBlock Text="Voice pitch shifter and centered SoundBoard wheel zone" Opacity="0.75" />
                 </StackPanel>
                 <StackPanel Grid.Column="1" Spacing="4" VerticalAlignment="Center" HorizontalAlignment="Right">
                     <StackPanel Orientation="Horizontal" Spacing="8">
@@ -251,7 +251,7 @@
                                 </Grid.ColumnDefinitions>
                                 <StackPanel Grid.Column="0" Spacing="4">
                                     <TextBlock Text="Voice processing" FontSize="20" FontWeight="SemiBold" />
-                                    <TextBlock Text="Only connected DSP sliders are shown. Sliders use -100..+100. Number fields allow -9999..+9999 for experimental presets." Opacity="0.72" TextWrapping="Wrap" />
+                                    <TextBlock Text="Connected DSP sliders are shown. Pitch is a real-time low-latency shifter; sliders use -100..+100. Number fields allow -9999..+9999 for experimental presets." Opacity="0.72" TextWrapping="Wrap" />
                                     <TextBlock Text="Warning: extreme values can cause loud audio, clipping, instability, or device/output problems. Increase them carefully." Opacity="0.82" Foreground="#FFFFD166" TextWrapping="Wrap" />
                                 </StackPanel>
                                 <Button Grid.Column="1"
@@ -308,10 +308,10 @@
                                 <StackPanel Grid.Row="1" Grid.Column="0" Spacing="6">
                                     <Grid ColumnSpacing="8">
                                         <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="70" /></Grid.ColumnDefinitions>
-                                        <TextBlock x:Name="TimbreLabel" Text="Timbre" FontWeight="SemiBold" VerticalAlignment="Center" />
-                                        <TextBox Grid.Column="1" x:Name="TimbreValueBox" Text="0" MaxLength="5" TextAlignment="Right" TextChanged="OnVoiceValueTextChanged" />
+                                        <TextBlock x:Name="PitchLabel" Text="Pitch" FontWeight="SemiBold" VerticalAlignment="Center" />
+                                        <TextBox Grid.Column="1" x:Name="PitchValueBox" Text="0" MaxLength="5" TextAlignment="Right" TextChanged="OnVoiceValueTextChanged" />
                                     </Grid>
-                                    <Slider x:Name="TimbreSlider" Minimum="-100" Maximum="100" Value="0" StepFrequency="1" ValueChanged="OnVoiceSettingsChanged" />
+                                    <Slider x:Name="PitchSlider" Minimum="-100" Maximum="100" Value="0" StepFrequency="1" ValueChanged="OnVoiceSettingsChanged" />
                                 </StackPanel>
 
                                 <StackPanel Grid.Row="1" Grid.Column="1" Spacing="6">
@@ -396,15 +396,6 @@
                                 </StackPanel>
 
                                 <StackPanel Grid.Row="4" Grid.Column="1" Spacing="6">
-                                    <Grid ColumnSpacing="8">
-                                        <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="70" /></Grid.ColumnDefinitions>
-                                        <TextBlock x:Name="ChorusLabel" Text="Chorus" FontWeight="SemiBold" VerticalAlignment="Center" />
-                                        <TextBox Grid.Column="1" x:Name="ChorusValueBox" Text="0" MaxLength="5" TextAlignment="Right" TextChanged="OnVoiceValueTextChanged" />
-                                    </Grid>
-                                    <Slider x:Name="ChorusSlider" Minimum="-100" Maximum="100" Value="0" StepFrequency="1" ValueChanged="OnVoiceSettingsChanged" />
-                                </StackPanel>
-
-                                <StackPanel Grid.Row="4" Grid.Column="2" Spacing="6">
                                     <Grid ColumnSpacing="8">
                                         <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="70" /></Grid.ColumnDefinitions>
                                         <TextBlock x:Name="AlienLabel" Text="Alien" FontWeight="SemiBold" VerticalAlignment="Center" />

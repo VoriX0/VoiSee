@@ -22,7 +22,7 @@ public sealed class VoicePresetStore
     "VoiceGain": 0,
     "Gate": -100,
     "Compressor": 100,
-    "Timbre": 0,
+    "Pitch": 0,
     "Bass": 0,
     "Treble": 0,
     "Distortion": 0,
@@ -32,7 +32,6 @@ public sealed class VoicePresetStore
     "Reverb": 0,
     "Radio": 0,
     "BitCrusher": 0,
-    "Chorus": 0,
     "Alien": 0
   }
 }

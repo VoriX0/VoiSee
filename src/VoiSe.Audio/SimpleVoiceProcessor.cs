@@ -6,7 +6,9 @@ public sealed class SimpleVoiceProcessor
     private const int Channels = 2;
     private const int EchoDelaySamples = SampleRate * Channels / 4;      // ~250 ms
     private const int ReverbDelaySamples = SampleRate * Channels / 18;   // ~55 ms
-    private const int ChorusBufferSamples = SampleRate * Channels / 16;   // ~62 ms max chorus delay
+    private const int PitchBufferSamples = 8192;                          // ~170 ms per channel at 48 kHz
+    private const int PitchMinDelaySamples = 256;                         // ~5 ms safety delay
+    private const int PitchDepthSamples = 2048;                           // ~43 ms pitch-shift grain depth
 
     private readonly object _sync = new();
     private EffectSettings _settings;
@@ -15,7 +17,7 @@ public sealed class SimpleVoiceProcessor
     private float _inputGain;
     private float _voiceGain;
     private float _limiterCeiling;
-    private float _timbreAmount;
+    private float _pitchSemitones;
     private float _bassAmount;
     private float _trebleAmount;
     private float _distortionAmount;
@@ -25,28 +27,25 @@ public sealed class SimpleVoiceProcessor
     private float _reverbAmount;
     private float _radioAmount;
     private float _bitCrusherAmount;
-    private float _chorusAmount;
     private float _alienAmount;
 
     private readonly float[] _toneLow = new float[Channels];
-    private readonly float[] _timbreLow = new float[Channels];
     private readonly float[] _radioLow = new float[Channels];
     private readonly float[] _radioBand = new float[Channels];
     private readonly float[] _bitHeld = new float[Channels];
     private readonly int[] _bitHoldRemaining = new int[Channels];
     private readonly float[] _echoBuffer = new float[EchoDelaySamples];
     private readonly float[] _reverbBuffer = new float[ReverbDelaySamples];
-    private readonly float[] _chorusBuffer = new float[ChorusBufferSamples];
+    private readonly float[][] _pitchBuffers = { new float[PitchBufferSamples], new float[PitchBufferSamples] };
+    private readonly int[] _pitchWriteIndex = new int[Channels];
     private int _echoIndex;
     private int _reverbIndex;
-    private int _chorusIndex;
     private double _robotPhase;
     private double _tremoloPhase;
-    private double _chorusPhase;
     private double _alienPhase;
+    private double _pitchPhase;
     private float _robotMod = 1.0f;
     private float _tremoloMod = 1.0f;
-    private float _chorusMod = 0.0f;
     private float _alienMod = 1.0f;
 
     public SimpleVoiceProcessor(EffectSettings settings)
@@ -72,7 +71,7 @@ public sealed class SimpleVoiceProcessor
         float inputGain;
         float voiceGain;
         float limiterCeiling;
-        float timbreAmount;
+        float pitchSemitones;
         float bassAmount;
         float trebleAmount;
         float distortionAmount;
@@ -82,7 +81,6 @@ public sealed class SimpleVoiceProcessor
         float reverbAmount;
         float radioAmount;
         float bitCrusherAmount;
-        float chorusAmount;
         float alienAmount;
 
         lock (_sync)
@@ -93,7 +91,7 @@ public sealed class SimpleVoiceProcessor
             inputGain = _inputGain;
             voiceGain = _voiceGain;
             limiterCeiling = _limiterCeiling;
-            timbreAmount = _timbreAmount;
+            pitchSemitones = _pitchSemitones;
             bassAmount = _bassAmount;
             trebleAmount = _trebleAmount;
             distortionAmount = _distortionAmount;
@@ -103,11 +101,9 @@ public sealed class SimpleVoiceProcessor
             reverbAmount = _reverbAmount;
             radioAmount = _radioAmount;
             bitCrusherAmount = _bitCrusherAmount;
-            chorusAmount = _chorusAmount;
             alienAmount = _alienAmount;
         }
 
-        var timbre = Math.Clamp(timbreAmount, -2.5f, 2.5f);
         var bassGain = Decibels.DbToLinear(bassAmount * 10.0f);
         var trebleGain = Decibels.DbToLinear(trebleAmount * 10.0f);
         var toneBlend = Math.Clamp(Math.Max(Math.Abs(bassAmount), Math.Abs(trebleAmount)), 0.0f, 1.0f);
@@ -121,7 +117,6 @@ public sealed class SimpleVoiceProcessor
         var reverbFeedback = Math.Clamp(Math.Max(0.0f, reverbAmount), 0.0f, 1.0f) * 0.55f;
         var radioMix = Math.Clamp(Math.Max(0.0f, radioAmount), 0.0f, 1.0f);
         var bitMix = Math.Clamp(Math.Max(0.0f, bitCrusherAmount), 0.0f, 1.0f);
-        var chorusMix = Math.Clamp(Math.Max(0.0f, chorusAmount), 0.0f, 1.0f) * 0.65f;
         var alienMix = Math.Clamp(Math.Max(0.0f, alienAmount), 0.0f, 1.0f);
         var alienFrequency = 35.0f + alienMix * 180.0f;
         var bitDepth = (int)Math.Round(16 - bitMix * 12);
@@ -134,7 +129,7 @@ public sealed class SimpleVoiceProcessor
             var channel = i % Channels;
             if (channel == 0)
             {
-                AdvanceModulators(robotMix, tremoloDepth, chorusMix, alienMix, alienFrequency);
+                AdvanceModulators(robotMix, tremoloDepth, alienMix, alienFrequency);
             }
 
             var dry = samples[i] * inputGain;
@@ -150,15 +145,14 @@ public sealed class SimpleVoiceProcessor
                 sample = CompressSample(sample, compressorThreshold, settings.CompressorRatio);
             }
 
+            sample = ApplyPitchShift(sample, channel, pitchSemitones);
             sample = ApplyTone(sample, channel, bassGain, trebleGain, toneBlend);
-            sample = ApplyTimbre(sample, channel, timbre);
             sample = ApplyRadio(sample, channel, radioMix);
             sample = ApplyRobot(sample, robotMix);
             sample = ApplyAlien(sample, alienMix);
             sample = ApplyTremolo(sample, tremoloDepth);
             sample = ApplyDistortion(sample, distortionMix, distortionDrive);
             sample = ApplyBitCrusher(sample, channel, bitMix, bitLevels, bitHoldSamples);
-            sample = ApplyChorus(sample, chorusMix);
             sample = ApplyEcho(sample, i, echoMix, echoFeedback);
             sample = ApplyReverb(sample, i, reverbMix, reverbFeedback);
 
@@ -184,7 +178,7 @@ public sealed class SimpleVoiceProcessor
         _inputGain = Decibels.DbToLinear(settings.InputGainDb);
         _voiceGain = Decibels.DbToLinear(settings.VoiceGainDb);
         _limiterCeiling = Decibels.DbToLinear(settings.LimiterCeilingDb);
-        _timbreAmount = ClampEffectAmount(settings.TimbreAmount);
+        _pitchSemitones = Math.Clamp(settings.PitchSemitones, -24.0f, 24.0f);
         _bassAmount = ClampEffectAmount(settings.BassAmount);
         _trebleAmount = ClampEffectAmount(settings.TrebleAmount);
         _distortionAmount = ClampEffectAmount(settings.DistortionAmount);
@@ -194,13 +188,12 @@ public sealed class SimpleVoiceProcessor
         _reverbAmount = ClampEffectAmount(settings.ReverbAmount);
         _radioAmount = ClampEffectAmount(settings.RadioAmount);
         _bitCrusherAmount = ClampEffectAmount(settings.BitCrusherAmount);
-        _chorusAmount = ClampEffectAmount(settings.ChorusAmount);
         _alienAmount = ClampEffectAmount(settings.AlienAmount);
     }
 
     private static float ClampEffectAmount(float value) => Math.Clamp(value, -4.0f, 4.0f);
 
-    private void AdvanceModulators(float robotMix, float tremoloDepth, float chorusMix, float alienMix, float alienFrequency)
+    private void AdvanceModulators(float robotMix, float tremoloDepth, float alienMix, float alienFrequency)
     {
         if (robotMix > 0.001f)
         {
@@ -224,16 +217,6 @@ public sealed class SimpleVoiceProcessor
             _tremoloMod = 1.0f;
         }
 
-        if (chorusMix > 0.001f)
-        {
-            _chorusPhase += 2.0 * Math.PI * 0.65 / SampleRate;
-            if (_chorusPhase > Math.PI * 2.0) _chorusPhase -= Math.PI * 2.0;
-            _chorusMod = 0.5f + 0.5f * (float)Math.Sin(_chorusPhase);
-        }
-        else
-        {
-            _chorusMod = 0.0f;
-        }
 
         if (alienMix > 0.001f)
         {
@@ -245,6 +228,64 @@ public sealed class SimpleVoiceProcessor
         {
             _alienMod = 1.0f;
         }
+    }
+
+
+    private float ApplyPitchShift(float sample, int channel, float semitones)
+    {
+        var buffer = _pitchBuffers[channel];
+        var writeIndex = _pitchWriteIndex[channel];
+        buffer[writeIndex] = sample;
+
+        if (Math.Abs(semitones) <= 0.01f)
+        {
+            _pitchWriteIndex[channel] = (writeIndex + 1) % buffer.Length;
+            return sample;
+        }
+
+        var ratio = MathF.Pow(2.0f, semitones / 12.0f);
+        if (channel == 0)
+        {
+            AdvancePitchPhase(ratio);
+        }
+
+        var phaseA = (float)_pitchPhase;
+        var phaseB = phaseA + 0.5f;
+        if (phaseB >= 1.0f) phaseB -= 1.0f;
+
+        var tapA = ReadPitchTap(buffer, writeIndex, phaseA);
+        var tapB = ReadPitchTap(buffer, writeIndex, phaseB);
+
+        // Cosine crossfade hides the discontinuity where each moving delay wraps.
+        var fadeA = 0.5f - 0.5f * MathF.Cos(phaseA * MathF.PI * 2.0f);
+        var shifted = tapA * fadeA + tapB * (1.0f - fadeA);
+
+        _pitchWriteIndex[channel] = (writeIndex + 1) % buffer.Length;
+        return Math.Clamp(shifted, -1.0f, 1.0f);
+    }
+
+    private void AdvancePitchPhase(float ratio)
+    {
+        // Variable-delay pitch shifter: changing the read delay slope shifts pitch
+        // while the crossfaded second tap keeps the output length stable.
+        _pitchPhase += (1.0 - ratio) / PitchDepthSamples;
+        while (_pitchPhase < 0.0) _pitchPhase += 1.0;
+        while (_pitchPhase >= 1.0) _pitchPhase -= 1.0;
+    }
+
+    private static float ReadPitchTap(float[] buffer, int writeIndex, float phase)
+    {
+        var delay = PitchMinDelaySamples + phase * PitchDepthSamples;
+        var readPosition = writeIndex - delay;
+        while (readPosition < 0) readPosition += buffer.Length;
+        while (readPosition >= buffer.Length) readPosition -= buffer.Length;
+
+        var index0 = (int)MathF.Floor(readPosition);
+        var index1 = index0 + 1;
+        if (index1 >= buffer.Length) index1 = 0;
+
+        var frac = readPosition - index0;
+        return buffer[index0] * (1.0f - frac) + buffer[index1] * frac;
     }
 
     private float ApplyTone(float sample, int channel, float bassGain, float trebleGain, float toneBlend)
@@ -260,39 +301,6 @@ public sealed class SimpleVoiceProcessor
         var high = sample - low;
         var toned = low * bassGain + high * trebleGain;
         return Lerp(sample, toned, toneBlend);
-    }
-
-    private float ApplyTimbre(float sample, int channel, float amount)
-    {
-        if (Math.Abs(amount) <= 0.001f)
-        {
-            return sample;
-        }
-
-        var direction = Math.Sign(amount);
-        var strength = Math.Clamp(Math.Abs(amount), 0.0f, 1.0f);
-
-        // A simple spectral tilt: negative values make the voice darker/deeper,
-        // positive values attenuate lows and emphasize highs for a squeakier color.
-        _timbreLow[channel] += 0.028f * (sample - _timbreLow[channel]);
-        var low = _timbreLow[channel];
-        var high = sample - low;
-
-        float shaped;
-        if (direction < 0)
-        {
-            var lowGain = Decibels.DbToLinear(14.0f * strength);
-            var highGain = Decibels.DbToLinear(-12.0f * strength);
-            shaped = low * lowGain + high * highGain;
-        }
-        else
-        {
-            var lowGain = Decibels.DbToLinear(-16.0f * strength);
-            var highGain = Decibels.DbToLinear(16.0f * strength);
-            shaped = MathF.Tanh((low * lowGain + high * highGain) * (1.0f + 0.8f * strength));
-        }
-
-        return Math.Clamp(Lerp(sample, shaped, strength), -1.0f, 1.0f);
     }
 
     private float ApplyRadio(float sample, int channel, float mix)
@@ -366,30 +374,6 @@ public sealed class SimpleVoiceProcessor
 
         _bitHoldRemaining[channel]--;
         return Lerp(sample, _bitHeld[channel], mix);
-    }
-
-    private float ApplyChorus(float sample, float mix)
-    {
-        if (mix <= 0.001f)
-        {
-            _chorusBuffer[_chorusIndex] = sample;
-            _chorusIndex++;
-            if (_chorusIndex >= _chorusBuffer.Length) _chorusIndex = 0;
-            return sample;
-        }
-
-        var delayMs = 10.0f + _chorusMod * 18.0f;
-        var delaySamples = Math.Clamp((int)(delayMs * SampleRate * Channels / 1000.0f), Channels, _chorusBuffer.Length - 1);
-        var readIndex = _chorusIndex - delaySamples;
-        if (readIndex < 0) readIndex += _chorusBuffer.Length;
-
-        var delayed = _chorusBuffer[readIndex];
-        _chorusBuffer[_chorusIndex] = sample;
-        _chorusIndex++;
-        if (_chorusIndex >= _chorusBuffer.Length) _chorusIndex = 0;
-
-        var chorus = sample * 0.78f + delayed * 0.72f;
-        return Math.Clamp(Lerp(sample, chorus, mix), -1.0f, 1.0f);
     }
 
     private float ApplyEcho(float sample, int index, float mix, float feedback)
