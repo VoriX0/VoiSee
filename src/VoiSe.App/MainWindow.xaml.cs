@@ -29,6 +29,7 @@ public sealed partial class MainWindow : Window
     private IReadOnlyList<VoicePreset> _voicePresets = Array.Empty<VoicePreset>();
     private bool _loadingVoicePreset;
     private bool _syncingVoiceControls;
+    private ScrollViewer? _logInnerScrollViewer;
     private readonly DispatcherTimer _voiceSettingsApplyTimer;
     private Gate2UnifiedAudioEngine? _engine;
     private string? _soundFilePath;
@@ -91,7 +92,7 @@ public sealed partial class MainWindow : Window
         _timelineTimer.Tick += OnTimelineTimerTick;
         _timelineTimer.Start();
 
-        AppendLog("Gate 6.8 UI started.");
+        AppendLog("Gate 6.9 UI started.");
         AppendLog($"Settings path: {_settingsStore.SettingsPath}");
         StartupLog.Write("MainWindow initialized; waiting for first activation.");
     }
@@ -113,21 +114,21 @@ public sealed partial class MainWindow : Window
         try
         {
             AppendLog("Restoring saved settings...");
-            StartupLog.Write("Gate 6.8 restore started.");
+            StartupLog.Write("Gate 6.9 restore started.");
 
             ApplyStoredScalarSettingsToControls();
             AppendLog("Saved scalar settings applied.");
-            StartupLog.Write("Gate 6.8 scalar settings applied.");
+            StartupLog.Write("Gate 6.9 scalar settings applied.");
 
             RefreshDevices(saveAfterRefresh: false);
             LoadSoundBoardLibraryIntoUi();
             LoadVoicePresetsIntoUi();
             AppendLog("Settings restored.");
-            StartupLog.Write("Gate 6.8 restore completed.");
+            StartupLog.Write("Gate 6.9 restore completed.");
         }
         catch (Exception ex)
         {
-            StartupLog.Write("Gate 6.8 restore error: " + ex);
+            StartupLog.Write("Gate 6.9 restore error: " + ex);
             AppendLog($"Settings restore error: {ex.GetType().Name}: {ex.Message}");
         }
         finally
@@ -252,7 +253,8 @@ public sealed partial class MainWindow : Window
         return MainTabView.SelectedIndex switch
         {
             0 => IsPointInSoundBoardWheelZone(xDip, yDip) && TryScrollSoundOverlay(delta),
-            1 => IsPointBelowSelectedTabContent(yDip) && TryScrollVoiceChanger(delta),
+            1 => IsPointInVoiceChangerWheelZone(yDip) && TryScrollVoiceChanger(delta),
+            3 => IsPointInSettingsLogWheelZone(yDip) && TryScrollSettingsLog(delta),
             _ => false
         };
     }
@@ -279,31 +281,45 @@ public sealed partial class MainWindow : Window
         return xDip >= zoneLeft && xDip <= zoneRight && yDip >= zoneTop && yDip <= zoneBottom;
     }
 
-    private bool IsPointBelowSelectedTabContent(double yDip)
+    private bool IsPointInVoiceChangerWheelZone(double yDip)
     {
-        if (RootGrid is null || MainTabView is null)
-        {
-            return false;
-        }
-
-        FrameworkElement? selectedRoot = MainTabView.SelectedIndex switch
-        {
-            0 => SoundBoardTabRoot,
-            1 => VoiceChangerScrollViewer,
-            _ => null
-        };
-
-        if (selectedRoot is null)
-        {
-            return false;
-        }
-
-        var top = selectedRoot.TransformToVisual(RootGrid)
-            .TransformPoint(new Windows.Foundation.Point(0, 0))
-            .Y;
-
-        return yDip >= top && yDip <= RootGrid.ActualHeight;
+        // Gate 6.9: keep the working Gate 6.8 low-level wheel logic, but make
+        // the Voice Changer wheel zone extend from the tab content top to the
+        // bottom of the window. This avoids the lower part of the maximized
+        // window becoming a dead zone.
+        var top = GetElementTopDip(VoiceChangerScrollViewer);
+        return yDip >= top && IsPointBelowWindowBottom(yDip);
     }
+
+    private bool IsPointInSettingsLogWheelZone(double yDip)
+    {
+        // Use the same idea for Settings logs: if the cursor is inside the log
+        // area or below it, route the wheel to the log's internal scroll viewer.
+        var top = GetElementTopDip(SettingsLogArea);
+        return yDip >= top && IsPointBelowWindowBottom(yDip);
+    }
+
+    private double GetElementTopDip(FrameworkElement? element)
+    {
+        if (RootGrid is null || element is null)
+        {
+            return 0.0;
+        }
+
+        try
+        {
+            return element.TransformToVisual(RootGrid)
+                .TransformPoint(new Windows.Foundation.Point(0, 0))
+                .Y;
+        }
+        catch
+        {
+            return 0.0;
+        }
+    }
+
+    private bool IsPointBelowWindowBottom(double yDip)
+        => RootGrid is not null && yDip <= RootGrid.ActualHeight;
 
     private bool TryScrollVoiceChanger(int wheelDelta)
     {
@@ -318,6 +334,48 @@ public sealed partial class MainWindow : Window
         target = Math.Max(0, Math.Min(VoiceChangerScrollViewer.ScrollableHeight, target));
         VoiceChangerScrollViewer.ChangeView(null, target, null, disableAnimation: false);
         return true;
+    }
+
+    private bool TryScrollSettingsLog(int wheelDelta)
+    {
+        if (LogTextBox is null || wheelDelta == 0)
+        {
+            return false;
+        }
+
+        _logInnerScrollViewer ??= FindDescendantScrollViewer(LogTextBox);
+        if (_logInnerScrollViewer is null)
+        {
+            return false;
+        }
+
+        var notches = Math.Max(1.0, Math.Abs(wheelDelta) / 120.0);
+        var step = 42.0 * notches;
+        var target = _logInnerScrollViewer.VerticalOffset - Math.Sign(wheelDelta) * step;
+        target = Math.Max(0, Math.Min(_logInnerScrollViewer.ScrollableHeight, target));
+        _logInnerScrollViewer.ChangeView(null, target, null, disableAnimation: false);
+        return true;
+    }
+
+    private static ScrollViewer? FindDescendantScrollViewer(DependencyObject root)
+    {
+        var count = VisualTreeHelper.GetChildrenCount(root);
+        for (var i = 0; i < count; i++)
+        {
+            var child = VisualTreeHelper.GetChild(root, i);
+            if (child is ScrollViewer scrollViewer)
+            {
+                return scrollViewer;
+            }
+
+            var nested = FindDescendantScrollViewer(child);
+            if (nested is not null)
+            {
+                return nested;
+            }
+        }
+
+        return null;
     }
 
     private bool _windowHandleIsUnavailable() => _windowHandle == IntPtr.Zero;
@@ -2144,7 +2202,15 @@ public sealed partial class MainWindow : Window
 
         DispatcherQueue.TryEnqueue(() =>
         {
-            LogTextBox.Select(LogTextBox.Text.Length, 0);
+            _logInnerScrollViewer ??= FindDescendantScrollViewer(LogTextBox);
+            if (_logInnerScrollViewer is not null)
+            {
+                _logInnerScrollViewer.ChangeView(null, _logInnerScrollViewer.ScrollableHeight, null, disableAnimation: true);
+            }
+            else
+            {
+                LogTextBox.Select(LogTextBox.Text.Length, 0);
+            }
         });
     }
 }

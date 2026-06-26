@@ -1,6 +1,11 @@
-# VoiSe Gate 6.8 — Voice Changer Scroll Fix
+# VoiSe Gate 6.9 — Voice and Settings Scroll Fix
 
-Gate 6.8 keeps the working Gate 6.8 SoundBoard wheel behavior and fixes Voice Changer scrolling by routing mouse wheel events for the Voice Changer tab directly to its own ScrollViewer.
+Gate 6.9 keeps the working Gate 6.8 / Gate 6.5 SoundBoard wheel behavior and extends the same low-level wheel-routing approach to:
+
+- the Voice Changer tab, from the tab content top down to the bottom of the window;
+- the Settings log area, from the log area top down to the bottom of the window.
+
+The important rule: do **not** replace the working SoundBoard wheel calibration with the centered/client-pixel zone from Gate 6.6/6.7, because that breaks SoundBoard scrolling in fullscreen.
 
 ## Run
 
@@ -32,30 +37,18 @@ dotnet run --project src/VoiSe.App
 - Slider range remains `-100..+100` and maps roughly to `-12..+12` semitones.
 - Numeric fields may exceed the slider range, but the DSP path clamps pitch to a safe `-24..+24` semitones.
 
-## Removed from Gate 6.4
+## Scroll logic
 
-- Timbre was removed because it sounded too similar to Bass.
-- Chorus was removed because the effect was not noticeable enough.
-- Alien was kept.
-
-## SoundBoard wheel zone
-
-The SoundBoard wheel catch-zone was expanded again:
-
-- +60% to the right;
-- +50% downward.
+- SoundBoard: kept exactly on the restored working Gate 6.8 logic.
+- Voice Changer: wheel below the tab headers routes to `VoiceChangerScrollViewer` down to the end of the window.
+- Settings: wheel inside/below the log area routes to the internal log `ScrollViewer`.
 
 ## Presets
 
-New and recreated presets save all active Gate 6.8 sliders as separate JSON files in:
+New and recreated presets save all active Gate 6.9 sliders as separate JSON files in:
 
 ```powershell
 %LOCALAPPDATA%\VoiSe\presets\
 ```
 
 Existing older presets still load; removed keys are ignored.
-
-
-## Gate 6.8 change
-
-After comparing Gate 6.5 and Gate 6.6, the centered SoundBoard wheel-zone change was reverted: it replaced the working Gate 6.5 DIP-based SoundBoard wheel catch-zone with a client-pixel centered zone and broke the SoundBoard scroll area. Gate 6.8 restores the Gate 6.5 SoundBoard logic and adds a separate global wheel route for the Voice Changer tab.
