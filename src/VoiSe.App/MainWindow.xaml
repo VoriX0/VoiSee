@@ -6,7 +6,7 @@
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     mc:Ignorable="d"
-    Title="VoiSe Gate 7.0 - Scenes Foundation">
+    Title="VoiSe Gate 7.2 - Scene Editor">
 
     <Grid x:Name="RootGrid" Padding="20" RowSpacing="14">
         <Grid.RowDefinitions>
@@ -21,8 +21,8 @@
                     <ColumnDefinition Width="Auto" />
                 </Grid.ColumnDefinitions>
                 <StackPanel Grid.Column="0" Spacing="4" VerticalAlignment="Center">
-                    <TextBlock Text="VoiSe Gate 7.0" FontSize="28" FontWeight="SemiBold" />
-                    <TextBlock Text="Scenes: save and restore voice, soundboard and mixer state" Opacity="0.75" />
+                    <TextBlock Text="VoiSe Gate 7.2" FontSize="28" FontWeight="SemiBold" />
+                    <TextBlock Text="Scenes: active scene state, voice settings, one looped sound, and scene-local hotkeys" Opacity="0.75" />
                 </StackPanel>
                 <StackPanel Grid.Column="1" Spacing="4" VerticalAlignment="Center" HorizontalAlignment="Right">
                     <StackPanel Orientation="Horizontal" Spacing="8">
@@ -441,9 +441,9 @@
                             </Grid.ColumnDefinitions>
                             <StackPanel Grid.Column="0" Spacing="4">
                                 <TextBlock Text="Scenes" FontSize="20" FontWeight="SemiBold" />
-                                <TextBlock Text="A scene captures the current voice sliders, voice monitor state, selected SoundBoard category/sound, and mixer volumes. Apply it to quickly switch modes." Opacity="0.72" TextWrapping="Wrap" />
+                                <TextBlock Text="Scene editor: activate scenes, choose a voice preset, set one looped sound, and assign scene-local sound hotkeys." Opacity="0.72" TextWrapping="Wrap" />
                             </StackPanel>
-                            <Button Grid.Column="1" Content="Capture current scene" MinWidth="180" Height="44" Click="OnCaptureSceneClick" />
+                            <Button Grid.Column="1" x:Name="SceneDisableButton" Content="Disable scenes" MinWidth="180" Height="44" Click="OnDisableScenesClick" />
                         </Grid>
 
                         <Grid Grid.Row="1" ColumnSpacing="18">
@@ -457,10 +457,19 @@
                                 <ListView x:Name="ScenesListView" MinHeight="360" SelectionChanged="OnSceneSelectionChanged">
                                     <ListView.ItemTemplate>
                                         <DataTemplate>
-                                            <StackPanel Spacing="2" Padding="4">
-                                                <TextBlock Text="{Binding Name}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
-                                                <TextBlock Text="{Binding BackgroundSoundName}" Opacity="0.65" FontSize="12" TextTrimming="CharacterEllipsis" />
-                                            </StackPanel>
+                                            <Grid Padding="4" ColumnSpacing="8">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="*" />
+                                                    <ColumnDefinition Width="Auto" />
+                                                </Grid.ColumnDefinitions>
+                                                <StackPanel Grid.Column="0" Spacing="2">
+                                                    <TextBlock Text="{Binding Name}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
+                                                    <TextBlock Text="{Binding SceneListSubtitle}" Opacity="0.65" FontSize="12" TextTrimming="CharacterEllipsis" />
+                                                </StackPanel>
+                                                <Border Grid.Column="1" Padding="8,2" MinWidth="54" Background="#22FFFFFF" BorderBrush="#44FFFFFF" BorderThickness="1" CornerRadius="8" VerticalAlignment="Center" Opacity="{Binding ActiveOpacity}">
+                                                    <TextBlock Text="{Binding ActiveBadge}" FontSize="10" FontWeight="SemiBold" HorizontalAlignment="Center" />
+                                                </Border>
+                                            </Grid>
                                         </DataTemplate>
                                     </ListView.ItemTemplate>
                                 </ListView>
@@ -472,22 +481,83 @@
                                     <Grid.RowDefinitions>
                                         <RowDefinition Height="Auto" />
                                         <RowDefinition Height="Auto" />
-                                        <RowDefinition Height="Auto" />
                                     </Grid.RowDefinitions>
                                     <Button Grid.Row="0" Grid.Column="0" x:Name="SceneApplyButton" Content="Apply" HorizontalAlignment="Stretch" Click="OnApplySceneClick" />
-                                    <Button Grid.Row="0" Grid.Column="1" x:Name="SceneUpdateButton" Content="Update" HorizontalAlignment="Stretch" Click="OnUpdateSceneClick" />
-                                    <Button Grid.Row="1" Grid.Column="0" x:Name="SceneRenameButton" Content="Rename" HorizontalAlignment="Stretch" Click="OnRenameSceneClick" />
-                                    <Button Grid.Row="1" Grid.Column="1" x:Name="SceneDeleteButton" Content="Delete" HorizontalAlignment="Stretch" Click="OnDeleteSceneClick" />
-                                    <Button Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="2" Content="Open scenes folder" HorizontalAlignment="Stretch" Click="OnOpenScenesFolderClick" />
+                                    <Button Grid.Row="0" Grid.Column="1" x:Name="SceneRenameButton" Content="Rename" HorizontalAlignment="Stretch" Click="OnRenameSceneClick" />
+                                    <Button Grid.Row="1" Grid.Column="0" x:Name="SceneDeleteButton" Content="Delete" HorizontalAlignment="Stretch" Click="OnDeleteSceneClick" />
+                                    <Button Grid.Row="1" Grid.Column="1" x:Name="SceneCreateNewButton" Content="Create New" HorizontalAlignment="Stretch" Click="OnCreateNewSceneClick" />
                                 </Grid>
                             </StackPanel>
 
                             <Border Grid.Column="1" Padding="18" BorderThickness="1" BorderBrush="#33FFFFFF" CornerRadius="8">
-                                <StackPanel Spacing="14">
-                                    <TextBlock x:Name="SceneDetailsTitleTextBlock" Text="Scene details" FontSize="18" FontWeight="SemiBold" />
-                                    <TextBlock x:Name="SceneDetailsTextBlock" Text="No scene selected." TextWrapping="Wrap" Opacity="0.82" />
-                                    <InfoBar IsOpen="True" Severity="Informational" Title="Gate 7.0 foundation" Message="This first Scenes gate restores state but does not autoplay background loops yet. Loop layers and multi-sound scene actions come next." />
-                                </StackPanel>
+                                <Grid RowSpacing="16">
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto" />
+                                        <RowDefinition Height="Auto" />
+                                        <RowDefinition Height="Auto" />
+                                        <RowDefinition Height="*" />
+                                    </Grid.RowDefinitions>
+
+                                    <TextBlock x:Name="SceneDetailsTitleTextBlock" Grid.Row="0" Text="Scene details" FontSize="18" FontWeight="SemiBold" />
+
+                                    <TextBlock Grid.Row="1" Text="Scene Settings" FontSize="16" FontWeight="SemiBold" />
+
+                                    <Grid Grid.Row="2" ColumnSpacing="18">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="*" />
+                                        </Grid.ColumnDefinitions>
+
+                                        <StackPanel Grid.Column="0" Spacing="8">
+                                            <TextBlock Text="Looped sound" FontWeight="SemiBold" />
+                                            <Border Padding="10" Background="#08000000" BorderBrush="#22FFFFFF" BorderThickness="1" CornerRadius="6">
+                                                <VariableSizedWrapGrid x:Name="LoopedSceneSoundsPanel"
+                                                                       Orientation="Horizontal"
+                                                                       ItemWidth="164"
+                                                                       ItemHeight="68"
+                                                                       MaximumRowsOrColumns="1" />
+                                            </Border>
+                                            <TextBlock x:Name="SceneLoopedEmptyTextBlock" Text="No looped sound in this scene." Opacity="0.62" />
+                                            <CheckBox x:Name="SceneAutostartLoopsCheckBox"
+                                                      Content="Start looped sound when scene is enabled"
+                                                      Checked="OnSceneAutostartLoopsChanged"
+                                                      Unchecked="OnSceneAutostartLoopsChanged" />
+                                        </StackPanel>
+
+                                        <StackPanel Grid.Column="1" Spacing="8">
+                                            <TextBlock Text="Voice settings" FontWeight="SemiBold" />
+                                            <ComboBox x:Name="SceneVoicePresetComboBox"
+                                                      DisplayMemberPath="Name"
+                                                      PlaceholderText="Voice preset"
+                                                      HorizontalAlignment="Stretch"
+                                                      SelectionChanged="OnSceneVoicePresetSelectionChanged" />
+                                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                                <Button x:Name="SceneVoicePresetClearButton" Content="Clear" MinWidth="86" Click="OnSceneVoicePresetClearClick" />
+                                                <Button x:Name="SceneVoicePresetCreateButton" Content="Create new" MinWidth="112" Click="OnSceneVoicePresetCreateClick" />
+                                            </StackPanel>
+                                            <Button x:Name="SceneVoiceMonitorButton"
+                                                    Content="Voice Monitor: Off"
+                                                    MinWidth="180"
+                                                    HorizontalAlignment="Left"
+                                                    Click="OnToggleVoiceMonitorClick" />
+                                        </StackPanel>
+                                    </Grid>
+
+                                    <Grid Grid.Row="3" RowSpacing="8">
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition Height="Auto" />
+                                            <RowDefinition Height="*" />
+                                        </Grid.RowDefinitions>
+                                        <TextBlock Grid.Row="0" Text="Scene sound buttons" FontSize="16" FontWeight="SemiBold" />
+                                        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" VerticalScrollMode="Enabled" HorizontalScrollBarVisibility="Disabled" HorizontalScrollMode="Disabled" ZoomMode="Disabled">
+                                            <VariableSizedWrapGrid x:Name="SceneSoundsPanel"
+                                                                   Orientation="Horizontal"
+                                                                   ItemWidth="164"
+                                                                   ItemHeight="68"
+                                                                   MaximumRowsOrColumns="6" />
+                                        </ScrollViewer>
+                                    </Grid>
+                                </Grid>
                             </Border>
                         </Grid>
                     </Grid>

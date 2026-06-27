@@ -1,4 +1,4 @@
-# VoiSe Gate 7.0 — Scenes Foundation
+# VoiSe Gate 7.1 — Scene Editor Redesign
 
 Gate 7 starts the Scenes feature.
 
@@ -25,3 +25,8 @@ Run:
 ```powershell
 dotnet run --project src/VoiSe.App
 ```
+
+
+## Gate 7.1
+
+See `docs/GATE7_1_SCENE_EDITOR_REDESIGN.md` for the scene editor redesign details.

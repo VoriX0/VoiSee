@@ -1,5 +1,6 @@
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Controls.Primitives;
 using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
 using NAudio.CoreAudioApi;
@@ -33,6 +34,7 @@ public sealed partial class MainWindow : Window
     private IReadOnlyList<VoicePreset> _voicePresets = Array.Empty<VoicePreset>();
     private IReadOnlyList<VoiSeScene> _scenes = Array.Empty<VoiSeScene>();
     private VoiSeScene? _selectedScene;
+    private string? _activeSceneId;
     private string? _lastAppliedVoicePresetName;
     private bool _loadingVoicePreset;
     private bool _syncingVoiceControls;
@@ -75,6 +77,9 @@ public sealed partial class MainWindow : Window
     private const double SoundWheelZoneExpandBottomRatio = 1.60;
     private const double VoiceValueMin = -9999.0;
     private const double VoiceValueMax = 9999.0;
+    private const double SceneSoundButtonWidth = 154.0;
+    private const double SceneSoundButtonHeight = 58.0;
+    private bool _loadingSceneUi;
 
     public MainWindow()
     {
@@ -112,7 +117,7 @@ public sealed partial class MainWindow : Window
         _timelineTimer.Tick += OnTimelineTimerTick;
         _timelineTimer.Start();
 
-        AppendLog("Gate 7.0 UI started.");
+        AppendLog("Gate 7.2 UI started.");
         AppendLog($"Settings path: {_settingsStore.SettingsPath}");
         StartupLog.Write("MainWindow initialized; waiting for first activation.");
     }
@@ -134,21 +139,22 @@ public sealed partial class MainWindow : Window
         try
         {
             AppendLog("Restoring saved settings...");
-            StartupLog.Write("Gate 7.0 restore started.");
+            StartupLog.Write("Gate 7.1 restore started.");
 
             ApplyStoredScalarSettingsToControls();
             AppendLog("Saved scalar settings applied.");
-            StartupLog.Write("Gate 7.0 scalar settings applied.");
+            StartupLog.Write("Gate 7.1 scalar settings applied.");
 
             RefreshDevices(saveAfterRefresh: false);
             LoadSoundBoardLibraryIntoUi();
             LoadVoicePresetsIntoUi();
+            LoadScenesIntoUi();
             AppendLog("Settings restored.");
-            StartupLog.Write("Gate 7.0 restore completed.");
+            StartupLog.Write("Gate 7.1 restore completed.");
         }
         catch (Exception ex)
         {
-            StartupLog.Write("Gate 7.0 restore error: " + ex);
+            StartupLog.Write("Gate 7.1 restore error: " + ex);
             AppendLog($"Settings restore error: {ex.GetType().Name}: {ex.Message}");
         }
         finally
@@ -570,9 +576,49 @@ public sealed partial class MainWindow : Window
             }
         }
 
+        if (TryHandleTransportHotkey(current)) return true;
+        if (TryHandleSceneHotkey(current)) return true;
         if (TryHandleSoundHotkey(current)) return true;
         if (TryHandleVoicePresetHotkey(current)) return true;
-        if (TryHandleTransportHotkey(current)) return true;
+
+        return false;
+    }
+
+    private bool TryHandleSceneHotkey(HotkeyGesture current)
+    {
+        if (string.IsNullOrWhiteSpace(_activeSceneId))
+        {
+            return false;
+        }
+
+        var activeScene = _scenes.FirstOrDefault(scene => scene.Id == _activeSceneId);
+        if (activeScene is null)
+        {
+            return false;
+        }
+
+        foreach (var sceneButton in activeScene.SoundButtons.OrderBy(button => button.IsLooped ? 0 : 1).ThenBy(button => button.SortOrder))
+        {
+            if (!HotkeyGesture.TryParse(sceneButton.SceneHotkey, out var configured) || !configured.Equals(current))
+            {
+                continue;
+            }
+
+            var sound = PickSound(sceneButton.SoundId);
+            if (sound is null)
+            {
+                continue;
+            }
+
+            var displayName = string.IsNullOrWhiteSpace(sceneButton.LocalName) ? sound.DisplayName : sceneButton.LocalName!.Trim();
+            DispatcherQueue.TryEnqueue(() =>
+            {
+                SelectSound(sound);
+                PlaySelectedSound();
+                AppendLog($"Scene hotkey: {activeScene.Name} / {displayName} [{configured}]");
+            });
+            return true;
+        }
 
         return false;
     }
@@ -994,7 +1040,12 @@ public sealed partial class MainWindow : Window
         try
         {
             var result = await dialog.ShowAsync();
-            return result == ContentDialogResult.Primary ? GetHotkeyButtonValue(hotkeyButton) : null;
+            if (result != ContentDialogResult.Primary)
+            {
+                return null;
+            }
+
+            return GetHotkeyButtonValue(hotkeyButton) ?? string.Empty;
         }
         finally
         {
@@ -1484,6 +1535,7 @@ public sealed partial class MainWindow : Window
             }
 
             UpdateBottomStats();
+            RebuildSceneSoundButtons();
             AppendLog($"SoundBoard library loaded: {_library.Categories.Count} categories, {_library.Sounds.Count} sounds.");
             AppendLog($"SoundBoard data: {_libraryStore.LibraryPath}");
         }
@@ -2337,6 +2389,14 @@ public sealed partial class MainWindow : Window
         _voiceMonitorEnabled = !_voiceMonitorEnabled;
         UpdateVoiceMonitorButton();
         ApplyLiveSettings(_voiceMonitorEnabled ? "voice monitor enabled" : "voice monitor disabled");
+
+        if (ReferenceEquals(sender, SceneVoiceMonitorButton) && _selectedScene is not null)
+        {
+            _selectedScene.VoiceMonitorEnabled = _voiceMonitorEnabled;
+            SaveSelectedSceneEditorChange(_voiceMonitorEnabled
+                ? "Scene voice monitor enabled."
+                : "Scene voice monitor disabled.");
+        }
     }
 
     private void OnTimelineHostPointerPressed(object sender, PointerRoutedEventArgs e)
@@ -2456,10 +2516,11 @@ public sealed partial class MainWindow : Window
         {
             var selectedId = _selectedScene?.Id;
             _scenes = _sceneStore.LoadScenes();
+            UpdateSceneActiveFlags();
             if (ScenesListView is not null)
             {
+                var nextSelection = _scenes.FirstOrDefault(s => s.Id == selectedId) ?? _scenes.FirstOrDefault();
                 ScenesListView.ItemsSource = _scenes;
-                var nextSelection = _scenes.FirstOrDefault(scene => scene.Id == selectedId) ?? _scenes.FirstOrDefault();
                 ScenesListView.SelectedItem = nextSelection;
                 _selectedScene = nextSelection;
             }
@@ -2483,49 +2544,89 @@ public sealed partial class MainWindow : Window
     {
         var hasScene = _selectedScene is not null;
         if (SceneApplyButton is not null) SceneApplyButton.IsEnabled = hasScene;
-        if (SceneUpdateButton is not null) SceneUpdateButton.IsEnabled = hasScene;
         if (SceneRenameButton is not null) SceneRenameButton.IsEnabled = hasScene;
         if (SceneDeleteButton is not null) SceneDeleteButton.IsEnabled = hasScene;
+        SetSceneEditorEnabled(hasScene);
 
-        if (SceneDetailsTitleTextBlock is null || SceneDetailsTextBlock is null)
+        if (SceneDetailsTitleTextBlock is not null)
+        {
+            SceneDetailsTitleTextBlock.Text = _selectedScene?.Name ?? "Scene details";
+        }
+
+        RefreshSceneVoicePresetComboBox();
+        RefreshSceneLoopAutostartCheckBox();
+        RebuildSceneSoundButtons();
+    }
+
+    private void SetSceneEditorEnabled(bool enabled)
+    {
+        if (SceneVoicePresetComboBox is not null) SceneVoicePresetComboBox.IsEnabled = enabled;
+        if (SceneVoicePresetClearButton is not null) SceneVoicePresetClearButton.IsEnabled = enabled;
+        if (SceneVoicePresetCreateButton is not null) SceneVoicePresetCreateButton.IsEnabled = enabled;
+        if (SceneVoiceMonitorButton is not null) SceneVoiceMonitorButton.IsEnabled = enabled;
+        if (SceneAutostartLoopsCheckBox is not null) SceneAutostartLoopsCheckBox.IsEnabled = enabled;
+    }
+
+    private void RefreshSceneVoicePresetComboBox()
+    {
+        if (SceneVoicePresetComboBox is null)
         {
             return;
         }
 
-        if (_selectedScene is null)
+        _loadingSceneUi = true;
+        try
         {
-            SceneDetailsTitleTextBlock.Text = "Scene details";
-            SceneDetailsTextBlock.Text = "No scene selected. Capture the current VoiSe state to create your first scene.";
+            var selectedName = _selectedScene?.VoicePresetName;
+            var presets = _voicePresets.ToList();
+            SceneVoicePresetComboBox.ItemsSource = presets;
+            SceneVoicePresetComboBox.SelectedItem = string.IsNullOrWhiteSpace(selectedName)
+                ? null
+                : presets.FirstOrDefault(p => string.Equals(p.Name, selectedName, StringComparison.CurrentCultureIgnoreCase));
+        }
+        finally
+        {
+            _loadingSceneUi = false;
+        }
+    }
+
+    private void RefreshSceneLoopAutostartCheckBox()
+    {
+        if (SceneAutostartLoopsCheckBox is null)
+        {
             return;
         }
 
-        SceneDetailsTitleTextBlock.Text = _selectedScene.Name;
-        SceneDetailsTextBlock.Text = CreateSceneDetailsText(_selectedScene);
+        _loadingSceneUi = true;
+        try
+        {
+            SceneAutostartLoopsCheckBox.IsChecked = _selectedScene?.AutoStartLoopedSounds ?? false;
+        }
+        finally
+        {
+            _loadingSceneUi = false;
+        }
     }
 
     private string CreateSceneDetailsText(VoiSeScene scene)
     {
-        var voicePreset = string.IsNullOrWhiteSpace(scene.VoicePresetName) ? "embedded slider state" : scene.VoicePresetName;
-        var category = string.IsNullOrWhiteSpace(scene.SoundCategoryName) ? "—" : scene.SoundCategoryName;
-        var background = string.IsNullOrWhiteSpace(scene.BackgroundSoundName) ? "—" : scene.BackgroundSoundName;
-        var oneShots = scene.OneShotSoundIds?.Count ?? 0;
-
-        return
-            $"Voice: {voicePreset}\n" +
-            $"Voice monitor: {(scene.VoiceMonitorEnabled ? "On" : "Off")}\n" +
-            $"SoundBoard category: {category}\n" +
-            $"Background / selected sound: {background}\n" +
-            $"One-shot sound slots: {oneShots}\n\n" +
-            $"Virtual Mic Master: {(int)Math.Round(scene.VirtualMicMasterVolume * 100)}%\n" +
-            $"SoundBoard → Virtual Mic: {(int)Math.Round(scene.SoundBoardVirtualMicVolume * 100)}%\n" +
-            $"SoundBoard → Headphones: {(int)Math.Round(scene.SoundBoardHeadphonesVolume * 100)}%\n" +
-            $"SoundBoard Virtual Mic Delay: {(int)Math.Round(scene.SoundBoardVirtualMicDelayMs)} ms\n\n" +
-            $"Updated: {scene.UpdatedAtUtc.ToLocalTime():yyyy-MM-dd HH:mm}";
+        var normalCount = scene.SoundButtons.Count(b => !b.IsLooped);
+        var hasLoop = scene.SoundButtons.Any(b => b.IsLooped);
+        return string.Join(Environment.NewLine,
+            $"Voice preset: {scene.VoicePresetName ?? "none"}",
+            $"Scene buttons: {normalCount}",
+            $"Looped sound: {(hasLoop ? "set" : "none")}",
+            $"Autostart loop: {(scene.AutoStartLoopedSounds ? "on" : "off")}",
+            $"Virtual Mic Master: {scene.VirtualMicMasterVolume:P0}",
+            $"SoundBoard → Virtual Mic: {scene.SoundBoardVirtualMicVolume:P0}",
+            $"SoundBoard → Headphones: {scene.SoundBoardHeadphonesVolume:P0}",
+            $"SoundBoard Delay: {scene.SoundBoardVirtualMicDelayMs:0} ms",
+            $"Updated UTC: {scene.UpdatedAtUtc:yyyy-MM-dd HH:mm:ss}");
     }
 
-    private async void OnCaptureSceneClick(object sender, RoutedEventArgs e)
+    private async void OnCreateNewSceneClick(object sender, RoutedEventArgs e)
     {
-        var name = await ShowTextDialogAsync("Capture current scene", "Scene name", "New Scene");
+        var name = await ShowTextDialogAsync("Create new scene", "Scene name", "New Scene");
         if (string.IsNullOrWhiteSpace(name))
         {
             return;
@@ -2534,16 +2635,27 @@ public sealed partial class MainWindow : Window
         try
         {
             var scene = CaptureCurrentScene(name.Trim());
+            scene.SoundButtons.Clear();
+            scene.AutoStartLoopedSounds = false;
             _sceneStore.SaveScene(scene);
             _selectedScene = scene;
             LoadScenesIntoUi();
             SelectSceneById(scene.Id);
-            AppendLog($"Scene captured: {scene.Name}");
+            AppendLog($"Scene created: {scene.Name}");
         }
         catch (Exception ex)
         {
-            AppendLog($"Scene capture error: {ex.Message}");
+            AppendLog($"Scene create error: {ex.Message}");
         }
+    }
+
+    private void OnDisableScenesClick(object sender, RoutedEventArgs e)
+    {
+        _activeSceneId = null;
+        UpdateSceneActiveFlags();
+        RefreshSceneListBinding();
+        TransportStop();
+        AppendLog("Scenes disabled.");
     }
 
     private void OnApplySceneClick(object sender, RoutedEventArgs e)
@@ -2567,11 +2679,18 @@ public sealed partial class MainWindow : Window
 
         try
         {
+            var previousButtons = _selectedScene.SoundButtons
+                .Select(CloneSceneSoundButton)
+                .ToList();
+            var previousAutostartLoops = _selectedScene.AutoStartLoopedSounds;
+
             var updated = CaptureCurrentScene(_selectedScene.Name);
             updated.Id = _selectedScene.Id;
             updated.Icon = _selectedScene.Icon;
             updated.CreatedAtUtc = _selectedScene.CreatedAtUtc;
             updated.FilePath = _selectedScene.FilePath;
+            updated.SoundButtons = previousButtons.Count == 0 ? updated.SoundButtons : previousButtons;
+            updated.AutoStartLoopedSounds = previousAutostartLoops;
             _sceneStore.OverwriteScene(updated);
             _selectedScene = updated;
             LoadScenesIntoUi();
@@ -2640,6 +2759,11 @@ public sealed partial class MainWindow : Window
         try
         {
             _sceneStore.DeleteScene(scene);
+            if (string.Equals(_activeSceneId, scene.Id, StringComparison.OrdinalIgnoreCase))
+            {
+                _activeSceneId = null;
+            }
+
             _selectedScene = null;
             LoadScenesIntoUi();
             AppendLog($"Scene deleted: {scene.Name}");
@@ -2672,6 +2796,18 @@ public sealed partial class MainWindow : Window
     {
         var category = CurrentCategory;
         var sound = _selectedSound;
+        var sceneSoundButtons = new List<SceneSoundButton>();
+        if (sound is not null)
+        {
+            sceneSoundButtons.Add(new SceneSoundButton
+            {
+                SoundId = sound.Id,
+                LocalName = sound.DisplayName,
+                IsLooped = false,
+                SortOrder = 0
+            });
+        }
+
         return new VoiSeScene
         {
             Name = name,
@@ -2682,6 +2818,7 @@ public sealed partial class MainWindow : Window
             SoundCategoryName = category?.Name,
             BackgroundSoundId = sound?.Id,
             BackgroundSoundName = sound?.DisplayName,
+            SoundButtons = sceneSoundButtons,
             VirtualMicMasterVolume = VirtualOutputVolumeSlider?.Value ?? 1.0,
             SoundBoardVirtualMicVolume = SoundVirtualVolumeSlider?.Value ?? 1.0,
             SoundBoardHeadphonesVolume = SoundMonitorVolumeSlider?.Value ?? 1.0,
@@ -2700,10 +2837,25 @@ public sealed partial class MainWindow : Window
             _voiceMonitorEnabled = scene.VoiceMonitorEnabled;
             UpdateVoiceMonitorButton();
 
-            ApplyVoiceSliderDictionary(scene.VoiceSliders);
-            _lastAppliedVoicePresetName = scene.VoicePresetName;
+            var scenePreset = string.IsNullOrWhiteSpace(scene.VoicePresetName)
+                ? null
+                : _voicePresets.FirstOrDefault(p => string.Equals(p.Name, scene.VoicePresetName, StringComparison.CurrentCultureIgnoreCase));
+            if (scenePreset is not null)
+            {
+                ApplyVoicePreset(scenePreset);
+            }
+            else
+            {
+                ApplyVoiceSliderDictionary(scene.VoiceSliders);
+                _lastAppliedVoicePresetName = null;
+            }
 
-            var category = PickCategory(scene.SoundCategoryId)
+            var firstButtonSound = scene.SoundButtons
+                .OrderBy(b => b.SortOrder)
+                .Select(b => PickSound(b.SoundId))
+                .FirstOrDefault(s => s is not null);
+
+            var category = PickCategory(firstButtonSound?.CategoryId ?? scene.SoundCategoryId)
                 ?? _library.Categories.FirstOrDefault(c => string.Equals(c.Name, scene.SoundCategoryName, StringComparison.CurrentCultureIgnoreCase));
             if (category is not null)
             {
@@ -2711,7 +2863,8 @@ public sealed partial class MainWindow : Window
                 RefreshSoundList();
             }
 
-            var sound = PickSound(scene.BackgroundSoundId)
+            var sound = firstButtonSound
+                ?? PickSound(scene.BackgroundSoundId)
                 ?? _library.Sounds.FirstOrDefault(s => string.Equals(s.DisplayName, scene.BackgroundSoundName, StringComparison.CurrentCultureIgnoreCase));
             if (sound is not null)
             {
@@ -2730,6 +2883,25 @@ public sealed partial class MainWindow : Window
             if (_engine is not null)
             {
                 _engine.UpdateSoundVolumes((float)SoundVirtualVolumeSlider.Value, (float)SoundMonitorVolumeSlider.Value);
+            }
+
+            _activeSceneId = scene.Id;
+            UpdateSceneActiveFlags();
+            RefreshSceneListBinding();
+
+            if (scene.AutoStartLoopedSounds)
+            {
+                var loopedSound = scene.SoundButtons
+                    .Where(b => b.IsLooped)
+                    .OrderBy(b => b.SortOrder)
+                    .Select(b => PickSound(b.SoundId))
+                    .FirstOrDefault(s => s is not null);
+                if (loopedSound is not null)
+                {
+                    SelectSound(loopedSound);
+                    PlaySelectedSound();
+                    AppendLog("Looped sound autostart requested. Current transport starts the scene looped sound.");
+                }
             }
 
             AppendLog($"Scene applied: {scene.Name}");
@@ -2780,6 +2952,16 @@ public sealed partial class MainWindow : Window
         }
     }
 
+
+    private void UpdateSceneActiveFlags()
+    {
+        foreach (var scene in _scenes)
+        {
+            scene.IsActive = !string.IsNullOrWhiteSpace(_activeSceneId)
+                && string.Equals(scene.Id, _activeSceneId, StringComparison.OrdinalIgnoreCase);
+        }
+    }
+
     private void SelectSceneById(string sceneId)
     {
         var scene = _scenes.FirstOrDefault(s => s.Id == sceneId);
@@ -2791,12 +2973,615 @@ public sealed partial class MainWindow : Window
         }
     }
 
+    private static SceneSoundButton CloneSceneSoundButton(SceneSoundButton source)
+    {
+        return new SceneSoundButton
+        {
+            Id = source.Id,
+            SoundId = source.SoundId,
+            LocalName = source.LocalName,
+            SceneHotkey = source.SceneHotkey,
+            IsLooped = source.IsLooped,
+            SortOrder = source.SortOrder
+        };
+    }
+
+    private sealed class SceneSoundButtonContext
+    {
+        public required VoiSeScene Scene { get; init; }
+        public required SceneSoundButton Button { get; init; }
+        public SoundBoardSound? Sound { get; init; }
+        public string SourceName => Sound?.DisplayName ?? "Missing SoundBoard sound";
+        public string DisplayName => string.IsNullOrWhiteSpace(Button.LocalName) ? SourceName : Button.LocalName!.Trim();
+    }
+
+    private void RebuildSceneSoundButtons()
+    {
+        if (LoopedSceneSoundsPanel is null || SceneSoundsPanel is null)
+        {
+            return;
+        }
+
+        LoopedSceneSoundsPanel.Children.Clear();
+        SceneSoundsPanel.Children.Clear();
+
+        if (_selectedScene is null)
+        {
+            if (SceneLoopedEmptyTextBlock is not null)
+            {
+                SceneLoopedEmptyTextBlock.Visibility = Visibility.Visible;
+                SceneLoopedEmptyTextBlock.Text = "No scene selected.";
+            }
+            return;
+        }
+
+        var orderedButtons = _selectedScene.SoundButtons
+            .OrderBy(b => b.SortOrder)
+            .ThenBy(b => b.LocalName)
+            .ToList();
+
+        var loopedButton = orderedButtons.FirstOrDefault(b => b.IsLooped);
+        if (loopedButton is not null)
+        {
+            LoopedSceneSoundsPanel.Children.Add(CreateSceneSoundButton(loopedButton));
+        }
+
+        foreach (var sceneButton in orderedButtons.Where(b => !b.IsLooped))
+        {
+            SceneSoundsPanel.Children.Add(CreateSceneSoundButton(sceneButton));
+        }
+
+        SceneSoundsPanel.Children.Add(CreateSceneAddSoundButton());
+
+        if (SceneLoopedEmptyTextBlock is not null)
+        {
+            SceneLoopedEmptyTextBlock.Visibility = loopedButton is null ? Visibility.Visible : Visibility.Collapsed;
+            SceneLoopedEmptyTextBlock.Text = "No looped sound in this scene.";
+        }
+    }
+
+    private Button CreateSceneButtonShell()
+    {
+        return new Button
+        {
+            Width = SceneSoundButtonWidth,
+            Height = SceneSoundButtonHeight,
+            MinWidth = 0,
+            Margin = new Thickness(0, 0, 10, 10),
+            Padding = new Thickness(10, 6, 10, 6),
+            HorizontalAlignment = HorizontalAlignment.Left,
+            VerticalAlignment = VerticalAlignment.Top,
+            HorizontalContentAlignment = HorizontalAlignment.Stretch,
+            VerticalContentAlignment = VerticalAlignment.Center
+        };
+    }
+
+    private Button CreateSceneSoundButton(SceneSoundButton sceneButton)
+    {
+        var sound = PickSound(sceneButton.SoundId);
+        var context = new SceneSoundButtonContext
+        {
+            Scene = _selectedScene!,
+            Button = sceneButton,
+            Sound = sound
+        };
+
+        var button = CreateSceneButtonShell();
+        button.Tag = context;
+        button.Content = CreateSceneSoundButtonContent(context);
+        button.ContextFlyout = CreateSceneSoundButtonFlyout(context);
+        button.Click += OnSceneSoundButtonClick;
+        return button;
+    }
+
+    private FrameworkElement CreateSceneSoundButtonContent(SceneSoundButtonContext context)
+    {
+        var stack = new StackPanel
+        {
+            Spacing = 2,
+            HorizontalAlignment = HorizontalAlignment.Stretch,
+            VerticalAlignment = VerticalAlignment.Center
+        };
+
+        stack.Children.Add(new TextBlock
+        {
+            Text = context.DisplayName,
+            FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
+            TextTrimming = TextTrimming.CharacterEllipsis,
+            TextWrapping = TextWrapping.NoWrap,
+            HorizontalAlignment = HorizontalAlignment.Stretch
+        });
+
+        var hotkeyParts = new List<string>();
+        if (!string.IsNullOrWhiteSpace(context.Button.SceneHotkey))
+        {
+            hotkeyParts.Add($"Scene: {context.Button.SceneHotkey}");
+        }
+
+        if (!string.IsNullOrWhiteSpace(context.Sound?.Hotkey))
+        {
+            hotkeyParts.Add($"SB: {context.Sound!.Hotkey}");
+        }
+
+        stack.Children.Add(new TextBlock
+        {
+            Text = hotkeyParts.Count == 0 ? " " : string.Join("  ", hotkeyParts),
+            FontSize = 11,
+            Opacity = 0.68,
+            TextTrimming = TextTrimming.CharacterEllipsis,
+            TextWrapping = TextWrapping.NoWrap,
+            HorizontalAlignment = HorizontalAlignment.Stretch
+        });
+
+        return stack;
+    }
+
+    private Button CreateSceneAddSoundButton()
+    {
+        var button = CreateSceneButtonShell();
+        button.Content = new TextBlock
+        {
+            Text = "+",
+            FontSize = 30,
+            FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
+            HorizontalAlignment = HorizontalAlignment.Center,
+            VerticalAlignment = VerticalAlignment.Center,
+            TextAlignment = TextAlignment.Center
+        };
+
+        var flyout = new Flyout
+        {
+            Placement = FlyoutPlacementMode.Bottom
+        };
+        flyout.Content = CreateSceneAddSoundFlyoutContent(flyout);
+        button.Flyout = flyout;
+        return button;
+    }
+
+    private FrameworkElement CreateSceneAddSoundFlyoutContent(Flyout flyout)
+    {
+        var panel = new StackPanel
+        {
+            Width = 420,
+            Spacing = 8,
+            Padding = new Thickness(10)
+        };
+
+        var categoryCombo = new ComboBox
+        {
+            Header = "Category",
+            DisplayMemberPath = "Name",
+            HorizontalAlignment = HorizontalAlignment.Stretch,
+            ItemsSource = _library.Categories.OrderBy(c => c.SortOrder).ThenBy(c => c.Name).ToList()
+        };
+        categoryCombo.SelectedIndex = categoryCombo.Items.Count > 0 ? 0 : -1;
+
+        var searchBox = new TextBox
+        {
+            Header = "Search",
+            PlaceholderText = "Search sound"
+        };
+
+        var soundList = new ListView
+        {
+            Height = 260,
+            SelectionMode = ListViewSelectionMode.Single,
+            DisplayMemberPath = "ListText"
+        };
+
+        void refreshList()
+        {
+            soundList.ItemsSource = FilterSoundsForScenePicker(categoryCombo.SelectedItem as SoundBoardCategory, searchBox.Text)
+                .ToList();
+        }
+
+        categoryCombo.SelectionChanged += (_, _) => refreshList();
+        searchBox.TextChanged += (_, _) => refreshList();
+        soundList.SelectionChanged += (_, _) =>
+        {
+            if (soundList.SelectedItem is SoundBoardSound sound)
+            {
+                AddSceneSoundButton(sound);
+                flyout.Hide();
+            }
+        };
+
+        panel.Children.Add(categoryCombo);
+        panel.Children.Add(searchBox);
+        panel.Children.Add(soundList);
+        refreshList();
+        return panel;
+    }
+
+    private IEnumerable<SoundBoardSound> FilterSoundsForScenePicker(SoundBoardCategory? category, string? searchText)
+    {
+        var query = _library.Sounds.AsEnumerable();
+        if (category is not null)
+        {
+            query = query.Where(s => s.CategoryId == category.Id);
+        }
+
+        var term = searchText?.Trim();
+        if (!string.IsNullOrWhiteSpace(term))
+        {
+            query = query.Where(s =>
+                s.DisplayName.Contains(term, StringComparison.CurrentCultureIgnoreCase) ||
+                s.OriginalFileName.Contains(term, StringComparison.CurrentCultureIgnoreCase) ||
+                (!string.IsNullOrWhiteSpace(s.Hotkey) && s.Hotkey.Contains(term, StringComparison.CurrentCultureIgnoreCase)));
+        }
+
+        return query.OrderBy(s => s.DisplayName, StringComparer.CurrentCultureIgnoreCase);
+    }
+
+    private void AddSceneSoundButton(SoundBoardSound sound)
+    {
+        if (_selectedScene is null)
+        {
+            AppendLog("Select a scene before adding sounds.");
+            return;
+        }
+
+        var nextOrder = _selectedScene.SoundButtons.Count == 0
+            ? 0
+            : _selectedScene.SoundButtons.Max(b => b.SortOrder) + 1;
+        _selectedScene.SoundButtons.Add(new SceneSoundButton
+        {
+            SoundId = sound.Id,
+            LocalName = sound.DisplayName,
+            IsLooped = false,
+            SortOrder = nextOrder
+        });
+
+        SaveSelectedSceneEditorChange($"Scene sound added: {sound.DisplayName}");
+    }
+
+    private MenuFlyout CreateSceneSoundButtonFlyout(SceneSoundButtonContext context)
+    {
+        var flyout = new MenuFlyout();
+
+        flyout.Items.Add(new MenuFlyoutItem
+        {
+            Text = $"SoundBoard: {context.SourceName}",
+            IsEnabled = false
+        });
+        flyout.Items.Add(new MenuFlyoutSeparator());
+
+        var rename = new MenuFlyoutItem { Text = "Rename" };
+        rename.Click += async (_, _) => await RenameSceneSoundButtonAsync(context.Button);
+        flyout.Items.Add(rename);
+
+        var chooseAnother = new MenuFlyoutItem { Text = "Choose another sound" };
+        chooseAnother.Click += async (_, _) => await ChooseAnotherSceneSoundAsync(context.Button);
+        flyout.Items.Add(chooseAnother);
+
+        var delete = new MenuFlyoutItem { Text = "Delete" };
+        delete.Click += (_, _) => DeleteSceneSoundButton(context.Button);
+        flyout.Items.Add(delete);
+
+        var hotkeyText = string.IsNullOrWhiteSpace(context.Button.SceneHotkey)
+            ? "Scene hotkey"
+            : $"Scene hotkey: {context.Button.SceneHotkey}";
+        var hotkey = new MenuFlyoutItem
+        {
+            Text = hotkeyText,
+            IsEnabled = context.Sound is not null
+        };
+        hotkey.Click += async (_, _) => await EditSceneSoundHotkeyAsync(context.Button);
+        flyout.Items.Add(hotkey);
+
+        var loop = new MenuFlyoutItem { Text = context.Button.IsLooped ? "Unloop" : "Loop" };
+        loop.Click += (_, _) => SetSceneSoundLooped(context.Button, !context.Button.IsLooped);
+        flyout.Items.Add(loop);
+
+        return flyout;
+    }
+
+    private void OnSceneSoundButtonClick(object sender, RoutedEventArgs e)
+    {
+        if (sender is not FrameworkElement { Tag: SceneSoundButtonContext context })
+        {
+            return;
+        }
+
+        if (context.Sound is null)
+        {
+            AppendLog($"Scene sound button target is missing: {context.DisplayName}");
+            return;
+        }
+
+        SelectSound(context.Sound);
+        PlaySelectedSound();
+    }
+
+    private async Task RenameSceneSoundButtonAsync(SceneSoundButton sceneButton)
+    {
+        if (_selectedScene is null)
+        {
+            return;
+        }
+
+        var sound = PickSound(sceneButton.SoundId);
+        var currentName = string.IsNullOrWhiteSpace(sceneButton.LocalName)
+            ? sound?.DisplayName ?? "Scene sound"
+            : sceneButton.LocalName!;
+        var name = await ShowTextDialogAsync("Rename scene button", "Button name", currentName);
+        if (string.IsNullOrWhiteSpace(name))
+        {
+            return;
+        }
+
+        sceneButton.LocalName = name.Trim();
+        SaveSelectedSceneEditorChange($"Scene button renamed: {sceneButton.LocalName}");
+    }
+
+    private async Task ChooseAnotherSceneSoundAsync(SceneSoundButton sceneButton)
+    {
+        var sound = await ShowSceneSoundPickerDialogAsync("Choose another sound");
+        if (sound is null)
+        {
+            return;
+        }
+
+        sceneButton.SoundId = sound.Id;
+        sceneButton.LocalName = sound.DisplayName;
+        SaveSelectedSceneEditorChange($"Scene button sound changed: {sound.DisplayName}");
+    }
+
+    private void DeleteSceneSoundButton(SceneSoundButton sceneButton)
+    {
+        if (_selectedScene is null)
+        {
+            return;
+        }
+
+        var soundName = PickSound(sceneButton.SoundId)?.DisplayName ?? sceneButton.LocalName ?? sceneButton.SoundId;
+        _selectedScene.SoundButtons.RemoveAll(b => b.Id == sceneButton.Id);
+        NormalizeSceneButtonSortOrder(_selectedScene);
+        SaveSelectedSceneEditorChange($"Scene button deleted: {soundName}");
+    }
+
+    private async Task EditSceneSoundHotkeyAsync(SceneSoundButton sceneButton)
+    {
+        var sound = PickSound(sceneButton.SoundId);
+        if (sound is null)
+        {
+            AppendLog("Cannot assign scene hotkey: source SoundBoard sound is missing.");
+            return;
+        }
+
+        var hotkey = await CaptureHotkeyDialogAsync(
+            "Scene sound hotkey",
+            "This hotkey belongs only to the selected scene button. SoundBoard hotkeys remain unchanged. Conflict priority: Transport, Scene, SoundBoard.",
+            sceneButton.SceneHotkey);
+        if (hotkey is null)
+        {
+            return;
+        }
+
+        sceneButton.SceneHotkey = NormalizeOptionalHotkey(hotkey);
+        SaveSelectedSceneEditorChange($"Scene hotkey updated: {sound.DisplayName} -> {sceneButton.SceneHotkey ?? "none"}");
+    }
+
+    private void SetSceneSoundLooped(SceneSoundButton sceneButton, bool looped)
+    {
+        if (_selectedScene is null)
+        {
+            return;
+        }
+
+        if (looped)
+        {
+            foreach (var button in _selectedScene.SoundButtons.Where(b => b.Id != sceneButton.Id))
+            {
+                button.IsLooped = false;
+            }
+        }
+
+        sceneButton.IsLooped = looped;
+        sceneButton.SortOrder = _selectedScene.SoundButtons
+            .Where(b => b.Id != sceneButton.Id && b.IsLooped == looped)
+            .Select(b => b.SortOrder)
+            .DefaultIfEmpty(-1)
+            .Max() + 1;
+        NormalizeSceneButtonSortOrder(_selectedScene);
+        SaveSelectedSceneEditorChange(looped ? "Scene button moved to looped sound." : "Scene button moved to normal sounds.");
+    }
+
+
+    private static void EnforceSingleLoopedSceneSound(VoiSeScene scene)
+    {
+        var firstLoop = scene.SoundButtons
+            .Where(button => button.IsLooped)
+            .OrderBy(button => button.SortOrder)
+            .FirstOrDefault();
+
+        if (firstLoop is null)
+        {
+            return;
+        }
+
+        foreach (var button in scene.SoundButtons)
+        {
+            button.IsLooped = button.Id == firstLoop.Id;
+        }
+    }
+
+    private static void NormalizeSceneButtonSortOrder(VoiSeScene scene)
+    {
+        var order = 0;
+        foreach (var button in scene.SoundButtons.OrderBy(b => b.IsLooped ? 0 : 1).ThenBy(b => b.SortOrder).ToList())
+        {
+            button.SortOrder = order++;
+        }
+    }
+
+    private async Task<SoundBoardSound?> ShowSceneSoundPickerDialogAsync(string title)
+    {
+        var panel = new StackPanel
+        {
+            Spacing = 10,
+            MinWidth = 420
+        };
+
+        var categoryCombo = new ComboBox
+        {
+            Header = "Category",
+            DisplayMemberPath = "Name",
+            HorizontalAlignment = HorizontalAlignment.Stretch,
+            ItemsSource = _library.Categories.OrderBy(c => c.SortOrder).ThenBy(c => c.Name).ToList()
+        };
+        categoryCombo.SelectedIndex = categoryCombo.Items.Count > 0 ? 0 : -1;
+
+        var searchBox = new TextBox
+        {
+            Header = "Search",
+            PlaceholderText = "Search sound"
+        };
+
+        var soundList = new ListView
+        {
+            Height = 300,
+            SelectionMode = ListViewSelectionMode.Single,
+            DisplayMemberPath = "ListText"
+        };
+
+        ContentDialog? dialog = null;
+        void refreshList()
+        {
+            soundList.ItemsSource = FilterSoundsForScenePicker(categoryCombo.SelectedItem as SoundBoardCategory, searchBox.Text)
+                .ToList();
+            if (dialog is not null)
+            {
+                dialog.IsPrimaryButtonEnabled = soundList.SelectedItem is SoundBoardSound;
+            }
+        }
+
+        categoryCombo.SelectionChanged += (_, _) => refreshList();
+        searchBox.TextChanged += (_, _) => refreshList();
+        soundList.SelectionChanged += (_, _) =>
+        {
+            if (dialog is not null)
+            {
+                dialog.IsPrimaryButtonEnabled = soundList.SelectedItem is SoundBoardSound;
+            }
+        };
+
+        panel.Children.Add(categoryCombo);
+        panel.Children.Add(searchBox);
+        panel.Children.Add(soundList);
+        refreshList();
+
+        dialog = new ContentDialog
+        {
+            Title = title,
+            Content = panel,
+            PrimaryButtonText = "Choose",
+            CloseButtonText = "Cancel",
+            DefaultButton = ContentDialogButton.Primary,
+            IsPrimaryButtonEnabled = false,
+            XamlRoot = ((FrameworkElement)Content).XamlRoot
+        };
+
+        var result = await dialog.ShowAsync();
+        return result == ContentDialogResult.Primary ? soundList.SelectedItem as SoundBoardSound : null;
+    }
+
+    private void SaveSelectedSceneEditorChange(string logMessage)
+    {
+        if (_selectedScene is null || _loadingSceneUi)
+        {
+            return;
+        }
+
+        try
+        {
+            EnforceSingleLoopedSceneSound(_selectedScene);
+            NormalizeSceneButtonSortOrder(_selectedScene);
+            _sceneStore.OverwriteScene(_selectedScene);
+            RefreshSceneListBinding();
+            RebuildSceneSoundButtons();
+            AppendLog(logMessage);
+        }
+        catch (Exception ex)
+        {
+            AppendLog($"Scene save error: {ex.Message}");
+        }
+    }
+
+    private void RefreshSceneListBinding()
+    {
+        if (ScenesListView is null)
+        {
+            return;
+        }
+
+        UpdateSceneActiveFlags();
+        var selectedId = _selectedScene?.Id;
+        ScenesListView.ItemsSource = null;
+        ScenesListView.ItemsSource = _scenes;
+
+        if (!string.IsNullOrWhiteSpace(selectedId))
+        {
+            SelectSceneById(selectedId);
+        }
+    }
+
+    private void OnSceneVoicePresetSelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (_loadingSceneUi || _selectedScene is null)
+        {
+            return;
+        }
+
+        if (SceneVoicePresetComboBox.SelectedItem is not VoicePreset preset)
+        {
+            return;
+        }
+
+        _selectedScene.VoicePresetName = preset.Name;
+        _selectedScene.VoiceSliders = preset.Sliders?.ToDictionary(kvp => kvp.Key, kvp => kvp.Value) ?? new Dictionary<string, double>();
+        SaveSelectedSceneEditorChange($"Scene voice preset selected: {preset.Name}");
+    }
+
+    private void OnSceneVoicePresetClearClick(object sender, RoutedEventArgs e)
+    {
+        if (_selectedScene is null)
+        {
+            return;
+        }
+
+        _selectedScene.VoicePresetName = null;
+        _selectedScene.VoiceSliders.Clear();
+        RefreshSceneVoicePresetComboBox();
+        SaveSelectedSceneEditorChange("Scene voice preset cleared.");
+    }
+
+    private void OnSceneVoicePresetCreateClick(object sender, RoutedEventArgs e)
+    {
+        MainTabView.SelectedIndex = 1;
+        AppendLog("Open Voice Changer to create a new preset.");
+    }
+
+    private void OnSceneAutostartLoopsChanged(object sender, RoutedEventArgs e)
+    {
+        if (_loadingSceneUi || _selectedScene is null || SceneAutostartLoopsCheckBox is null)
+        {
+            return;
+        }
+
+        _selectedScene.AutoStartLoopedSounds = SceneAutostartLoopsCheckBox.IsChecked == true;
+        SaveSelectedSceneEditorChange(_selectedScene.AutoStartLoopedSounds
+            ? "Scene loop autostart enabled."
+            : "Scene loop autostart disabled.");
+    }
+
     private void LoadVoicePresetsIntoUi()
     {
         try
         {
             _voicePresets = _voicePresetStore.LoadPresets();
             RebuildVoicePresetButtons();
+            RefreshSceneVoicePresetComboBox();
             AppendLog($"Voice presets loaded: {_voicePresets.Count}. Folder: {_voicePresetStore.PresetsDirectory}");
         }
         catch (Exception ex)
@@ -3386,8 +4171,16 @@ public sealed partial class MainWindow : Window
 
     private void UpdateVoiceMonitorButton()
     {
-        if (VoiceMonitorButton is null) return;
-        VoiceMonitorButton.Content = _voiceMonitorEnabled ? "Voice Monitor: On" : "Voice Monitor: Off";
+        var text = _voiceMonitorEnabled ? "Voice Monitor: On" : "Voice Monitor: Off";
+        if (VoiceMonitorButton is not null)
+        {
+            VoiceMonitorButton.Content = text;
+        }
+
+        if (SceneVoiceMonitorButton is not null)
+        {
+            SceneVoiceMonitorButton.Content = text;
+        }
     }
 
     private void UpdateAllLabels()

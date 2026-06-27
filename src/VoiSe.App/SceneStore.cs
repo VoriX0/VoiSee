@@ -39,9 +39,13 @@ public sealed class SceneStore
                 }
 
                 scene.Id = string.IsNullOrWhiteSpace(scene.Id) ? Guid.NewGuid().ToString("N") : scene.Id;
+                scene.SchemaVersion = Math.Max(1, scene.SchemaVersion);
                 scene.Icon = string.IsNullOrWhiteSpace(scene.Icon) ? "🎬" : scene.Icon;
                 scene.VoiceSliders ??= new Dictionary<string, double>();
                 scene.OneShotSoundIds ??= new List<string>();
+                scene.SoundButtons ??= new List<SceneSoundButton>();
+                MigrateLegacySceneSounds(scene);
+                EnforceSingleLoopedSound(scene);
                 scene.FilePath = file;
                 scenes.Add(scene);
             }
@@ -59,9 +63,7 @@ public sealed class SceneStore
     public string SaveScene(VoiSeScene scene)
     {
         Directory.CreateDirectory(ScenesDirectory);
-        scene.Id = string.IsNullOrWhiteSpace(scene.Id) ? Guid.NewGuid().ToString("N") : scene.Id;
-        scene.CreatedAtUtc = scene.CreatedAtUtc == default ? DateTime.UtcNow : scene.CreatedAtUtc;
-        scene.UpdatedAtUtc = DateTime.UtcNow;
+        PrepareSceneForSave(scene);
         scene.FilePath = GetAvailableScenePath(scene.Name);
         File.WriteAllText(scene.FilePath, JsonSerializer.Serialize(scene, JsonOptions));
         return scene.FilePath;
@@ -70,9 +72,7 @@ public sealed class SceneStore
     public string OverwriteScene(VoiSeScene scene)
     {
         Directory.CreateDirectory(ScenesDirectory);
-        scene.Id = string.IsNullOrWhiteSpace(scene.Id) ? Guid.NewGuid().ToString("N") : scene.Id;
-        scene.CreatedAtUtc = scene.CreatedAtUtc == default ? DateTime.UtcNow : scene.CreatedAtUtc;
-        scene.UpdatedAtUtc = DateTime.UtcNow;
+        PrepareSceneForSave(scene);
 
         var path = !string.IsNullOrWhiteSpace(scene.FilePath)
             ? scene.FilePath!
@@ -106,6 +106,74 @@ public sealed class SceneStore
         if (!string.IsNullOrWhiteSpace(scene.FilePath) && File.Exists(scene.FilePath))
         {
             File.Delete(scene.FilePath);
+        }
+    }
+
+    private static void PrepareSceneForSave(VoiSeScene scene)
+    {
+        scene.SchemaVersion = Math.Max(3, scene.SchemaVersion);
+        scene.Id = string.IsNullOrWhiteSpace(scene.Id) ? Guid.NewGuid().ToString("N") : scene.Id;
+        scene.Icon = string.IsNullOrWhiteSpace(scene.Icon) ? "🎬" : scene.Icon;
+        scene.VoiceSliders ??= new Dictionary<string, double>();
+        scene.OneShotSoundIds ??= new List<string>();
+        scene.SoundButtons ??= new List<SceneSoundButton>();
+        MigrateLegacySceneSounds(scene);
+        EnforceSingleLoopedSound(scene);
+        scene.CreatedAtUtc = scene.CreatedAtUtc == default ? DateTime.UtcNow : scene.CreatedAtUtc;
+        scene.UpdatedAtUtc = DateTime.UtcNow;
+    }
+
+    private static void MigrateLegacySceneSounds(VoiSeScene scene)
+    {
+        if (scene.SoundButtons.Count != 0)
+        {
+            return;
+        }
+
+        var sortOrder = 0;
+        if (!string.IsNullOrWhiteSpace(scene.BackgroundSoundId))
+        {
+            scene.SoundButtons.Add(new SceneSoundButton
+            {
+                SoundId = scene.BackgroundSoundId!,
+                LocalName = scene.BackgroundSoundName,
+                IsLooped = true,
+                SortOrder = sortOrder++
+            });
+        }
+
+        foreach (var soundId in scene.OneShotSoundIds.Where(id => !string.IsNullOrWhiteSpace(id)))
+        {
+            if (scene.SoundButtons.Any(button => button.SoundId == soundId))
+            {
+                continue;
+            }
+
+            scene.SoundButtons.Add(new SceneSoundButton
+            {
+                SoundId = soundId,
+                IsLooped = false,
+                SortOrder = sortOrder++
+            });
+        }
+    }
+
+
+    private static void EnforceSingleLoopedSound(VoiSeScene scene)
+    {
+        var firstLoop = scene.SoundButtons
+            .Where(button => button.IsLooped)
+            .OrderBy(button => button.SortOrder)
+            .FirstOrDefault();
+
+        if (firstLoop is null)
+        {
+            return;
+        }
+
+        foreach (var button in scene.SoundButtons)
+        {
+            button.IsLooped = button.Id == firstLoop.Id;
         }
     }
 
