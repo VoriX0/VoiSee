@@ -46,7 +46,7 @@ public sealed class SoundboardTransport
         }
     }
 
-    public void Play(string filePath, float virtualVolume, float monitorVolume, int virtualDelayMs)
+    public void Play(string filePath, float virtualVolume, float monitorVolume, int virtualDelayMs, bool loop = false)
     {
         var data = SoundFileLoader.LoadToFormat(filePath, _format);
         var delaySamples = Math.Max(0, (int)Math.Round(_format.SampleRate * (virtualDelayMs / 1000.0)) * _format.Channels);
@@ -59,7 +59,8 @@ public sealed class SoundboardTransport
                 _format.Channels,
                 Math.Clamp(virtualVolume, 0.0f, 2.0f),
                 Math.Clamp(monitorVolume, 0.0f, 2.0f),
-                delaySamples);
+                delaySamples,
+                loop);
         }
     }
 
@@ -144,8 +145,9 @@ public sealed class SoundboardTransport
         private int _remainingVirtualDelaySamples;
         private bool _virtualFinished;
         private bool _monitorFinished;
+        private readonly bool _loop;
 
-        public ActiveSound(float[] samples, int sampleRate, int channels, float virtualVolume, float monitorVolume, int virtualDelaySamples)
+        public ActiveSound(float[] samples, int sampleRate, int channels, float virtualVolume, float monitorVolume, int virtualDelaySamples, bool loop)
         {
             _samples = samples;
             _sampleRate = sampleRate;
@@ -154,9 +156,10 @@ public sealed class SoundboardTransport
             _monitorVolume = monitorVolume;
             _initialVirtualDelaySamples = Math.Max(0, virtualDelaySamples);
             _remainingVirtualDelaySamples = _initialVirtualDelaySamples;
+            _loop = loop;
         }
 
-        public bool IsFinished => _virtualFinished && _monitorFinished;
+        public bool IsFinished => _samples.Length == 0 || (!_loop && _virtualFinished && _monitorFinished);
         public bool IsPaused { get; private set; }
 
         public void TogglePause()
@@ -213,33 +216,87 @@ public sealed class SoundboardTransport
                 return written;
             }
 
+            if (_samples.Length == 0)
+            {
+                Array.Clear(buffer, offset, count);
+                _virtualFinished = true;
+                _monitorFinished = true;
+                return written;
+            }
+
             var position = route == AudioRoute.VirtualMicrophone ? _virtualPosition : _monitorPosition;
-            var remaining = Math.Max(0, _samples.Length - position);
-            var toCopy = Math.Min(count, remaining);
             var volume = route == AudioRoute.VirtualMicrophone ? _virtualVolume : _monitorVolume;
 
-            for (var i = 0; i < toCopy; i++)
+            if (_loop)
+            {
+                var copied = 0;
+                while (copied < count)
+                {
+                    if (position >= _samples.Length)
+                    {
+                        position = 0;
+                    }
+
+                    var remaining = Math.Max(0, _samples.Length - position);
+                    var toCopy = Math.Min(count - copied, remaining);
+                    if (toCopy <= 0)
+                    {
+                        break;
+                    }
+
+                    for (var i = 0; i < toCopy; i++)
+                    {
+                        buffer[offset + copied + i] = _samples[position + i] * volume;
+                    }
+
+                    position += toCopy;
+                    copied += toCopy;
+                }
+
+                if (position >= _samples.Length)
+                {
+                    position = 0;
+                }
+
+                if (route == AudioRoute.VirtualMicrophone)
+                {
+                    _virtualPosition = position;
+                    _virtualFinished = false;
+                }
+                else
+                {
+                    _monitorPosition = position;
+                    _monitorFinished = false;
+                }
+
+                return written + copied;
+            }
+
+            var remainingOnce = Math.Max(0, _samples.Length - position);
+            var toCopyOnce = Math.Min(count, remainingOnce);
+
+            for (var i = 0; i < toCopyOnce; i++)
             {
                 buffer[offset + i] = _samples[position + i] * volume;
             }
 
-            if (toCopy < count)
+            if (toCopyOnce < count)
             {
-                Array.Clear(buffer, offset + toCopy, count - toCopy);
+                Array.Clear(buffer, offset + toCopyOnce, count - toCopyOnce);
             }
 
             if (route == AudioRoute.VirtualMicrophone)
             {
-                _virtualPosition += toCopy;
+                _virtualPosition += toCopyOnce;
                 _virtualFinished = _virtualPosition >= _samples.Length && _remainingVirtualDelaySamples == 0;
             }
             else
             {
-                _monitorPosition += toCopy;
+                _monitorPosition += toCopyOnce;
                 _monitorFinished = _monitorPosition >= _samples.Length;
             }
 
-            return written + toCopy;
+            return written + toCopyOnce;
         }
     }
 }

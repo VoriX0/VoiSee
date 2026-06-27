@@ -94,9 +94,9 @@ public sealed class Gate2UnifiedAudioEngine : IDisposable
         _capture.StartRecording();
     }
 
-    public void PlaySound(string filePath, float virtualVolume, float monitorVolume, int virtualDelayMs)
+    public void PlaySound(string filePath, float virtualVolume, float monitorVolume, int virtualDelayMs, bool loop = false)
     {
-        _soundboard.Play(filePath, virtualVolume, monitorVolume, virtualDelayMs);
+        _soundboard.Play(filePath, virtualVolume, monitorVolume, virtualDelayMs, loop);
     }
 
     public void StopSound()

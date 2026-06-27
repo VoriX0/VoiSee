@@ -2216,7 +2216,7 @@ public sealed partial class MainWindow : Window
         AppendLog(paused ? "Sound paused." : "Sound resumed.");
     }
 
-    private void PlaySelectedSound()
+    private void PlaySelectedSound(bool loop = false)
     {
         if (_engine is null)
         {
@@ -2238,13 +2238,13 @@ public sealed partial class MainWindow : Window
             var virtualVolume = (float)SoundVirtualVolumeSlider.Value;
             var monitorVolume = (float)SoundMonitorVolumeSlider.Value;
             _currentSoundDisplayName = _selectedSound?.DisplayName ?? System.IO.Path.GetFileNameWithoutExtension(soundPath);
-            _engine.PlaySound(soundPath, virtualVolume, monitorVolume, delayMs);
+            _engine.PlaySound(soundPath, virtualVolume, monitorVolume, delayMs, loop);
             if (_selectedSound is not null)
             {
                 _libraryStore.IncrementUsage(_library, _selectedSound);
             }
             UpdateBottomStats();
-            AppendLog($"Sound started: {_selectedSound?.DisplayName ?? System.IO.Path.GetFileName(soundPath)}. Virtual delay: {delayMs} ms.");
+            AppendLog($"Sound started{(loop ? " in loop" : string.Empty)}: {_selectedSound?.DisplayName ?? System.IO.Path.GetFileName(soundPath)}. Virtual delay: {delayMs} ms.");
         }
         catch (Exception ex)
         {
@@ -2389,14 +2389,6 @@ public sealed partial class MainWindow : Window
         _voiceMonitorEnabled = !_voiceMonitorEnabled;
         UpdateVoiceMonitorButton();
         ApplyLiveSettings(_voiceMonitorEnabled ? "voice monitor enabled" : "voice monitor disabled");
-
-        if (ReferenceEquals(sender, SceneVoiceMonitorButton) && _selectedScene is not null)
-        {
-            _selectedScene.VoiceMonitorEnabled = _voiceMonitorEnabled;
-            SaveSelectedSceneEditorChange(_voiceMonitorEnabled
-                ? "Scene voice monitor enabled."
-                : "Scene voice monitor disabled.");
-        }
     }
 
     private void OnTimelineHostPointerPressed(object sender, PointerRoutedEventArgs e)
@@ -2565,6 +2557,7 @@ public sealed partial class MainWindow : Window
         if (SceneVoicePresetCreateButton is not null) SceneVoicePresetCreateButton.IsEnabled = enabled;
         if (SceneVoiceMonitorButton is not null) SceneVoiceMonitorButton.IsEnabled = enabled;
         if (SceneAutostartLoopsCheckBox is not null) SceneAutostartLoopsCheckBox.IsEnabled = enabled;
+        RefreshSceneLoopActionButtons();
     }
 
     private void RefreshSceneVoicePresetComboBox()
@@ -2813,7 +2806,7 @@ public sealed partial class MainWindow : Window
             Name = name,
             VoicePresetName = _lastAppliedVoicePresetName,
             VoiceSliders = CaptureCurrentVoicePreset(name).Sliders,
-            VoiceMonitorEnabled = _voiceMonitorEnabled,
+            VoiceMonitorEnabled = false,
             SoundCategoryId = category?.Id,
             SoundCategoryName = category?.Name,
             BackgroundSoundId = sound?.Id,
@@ -2834,9 +2827,6 @@ public sealed partial class MainWindow : Window
             SoundVirtualVolumeSlider.Value = Clamp(scene.SoundBoardVirtualMicVolume, 0, 1.5);
             SoundMonitorVolumeSlider.Value = Clamp(scene.SoundBoardHeadphonesVolume, 0, 1.5);
             SoundVirtualDelaySlider.Value = Clamp(scene.SoundBoardVirtualMicDelayMs, 0, 300);
-            _voiceMonitorEnabled = scene.VoiceMonitorEnabled;
-            UpdateVoiceMonitorButton();
-
             var scenePreset = string.IsNullOrWhiteSpace(scene.VoicePresetName)
                 ? null
                 : _voicePresets.FirstOrDefault(p => string.Equals(p.Name, scene.VoicePresetName, StringComparison.CurrentCultureIgnoreCase));
@@ -2899,8 +2889,8 @@ public sealed partial class MainWindow : Window
                 if (loopedSound is not null)
                 {
                     SelectSound(loopedSound);
-                    PlaySelectedSound();
-                    AppendLog("Looped sound autostart requested. Current transport starts the scene looped sound.");
+                    PlaySelectedSound(loop: true);
+                    AppendLog("Looped sound autostart requested. Scene looped sound started in loop mode.");
                 }
             }
 
@@ -3012,6 +3002,7 @@ public sealed partial class MainWindow : Window
                 SceneLoopedEmptyTextBlock.Visibility = Visibility.Visible;
                 SceneLoopedEmptyTextBlock.Text = "No scene selected.";
             }
+            RefreshSceneLoopActionButtons();
             return;
         }
 
@@ -3023,7 +3014,7 @@ public sealed partial class MainWindow : Window
         var loopedButton = orderedButtons.FirstOrDefault(b => b.IsLooped);
         if (loopedButton is not null)
         {
-            LoopedSceneSoundsPanel.Children.Add(CreateSceneSoundButton(loopedButton));
+            LoopedSceneSoundsPanel.Children.Add(CreateLoopedSceneSoundButton(loopedButton));
         }
 
         foreach (var sceneButton in orderedButtons.Where(b => !b.IsLooped))
@@ -3038,6 +3029,25 @@ public sealed partial class MainWindow : Window
             SceneLoopedEmptyTextBlock.Visibility = loopedButton is null ? Visibility.Visible : Visibility.Collapsed;
             SceneLoopedEmptyTextBlock.Text = "No looped sound in this scene.";
         }
+
+        RefreshSceneLoopActionButtons();
+    }
+
+    private void RefreshSceneLoopActionButtons()
+    {
+        var hasScene = _selectedScene is not null;
+        var hasLoopedSound = GetSelectedSceneLoopedButton() is not null;
+        if (SceneLoopPlayLoopButton is not null) SceneLoopPlayLoopButton.IsEnabled = hasLoopedSound;
+        if (SceneLoopPlayOnceButton is not null) SceneLoopPlayOnceButton.IsEnabled = hasLoopedSound;
+        if (SceneLoopRemoveButton is not null) SceneLoopRemoveButton.IsEnabled = hasLoopedSound;
+        if (SceneLoopChooseButton is not null) SceneLoopChooseButton.IsEnabled = hasScene;
+    }
+
+    private SceneSoundButton? GetSelectedSceneLoopedButton()
+    {
+        return _selectedScene?.SoundButtons
+            .OrderBy(b => b.SortOrder)
+            .FirstOrDefault(b => b.IsLooped);
     }
 
     private Button CreateSceneButtonShell()
@@ -3054,6 +3064,35 @@ public sealed partial class MainWindow : Window
             HorizontalContentAlignment = HorizontalAlignment.Stretch,
             VerticalContentAlignment = VerticalAlignment.Center
         };
+    }
+
+    private Button CreateLoopedSceneSoundButton(SceneSoundButton sceneButton)
+    {
+        var sound = PickSound(sceneButton.SoundId);
+        var context = new SceneSoundButtonContext
+        {
+            Scene = _selectedScene!,
+            Button = sceneButton,
+            Sound = sound
+        };
+
+        var button = CreateSceneButtonShell();
+        button.Width = double.NaN;
+        button.Margin = new Thickness(0, 0, 0, 0);
+        button.HorizontalAlignment = HorizontalAlignment.Stretch;
+        button.Tag = context;
+        button.Content = new TextBlock
+        {
+            Text = context.DisplayName,
+            FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
+            TextTrimming = TextTrimming.CharacterEllipsis,
+            TextWrapping = TextWrapping.NoWrap,
+            HorizontalAlignment = HorizontalAlignment.Stretch,
+            VerticalAlignment = VerticalAlignment.Center
+        };
+        button.ContextFlyout = CreateSceneSoundButtonFlyout(context);
+        button.Click += OnSceneSoundButtonClick;
+        return button;
     }
 
     private Button CreateSceneSoundButton(SceneSoundButton sceneButton)
@@ -3268,10 +3307,6 @@ public sealed partial class MainWindow : Window
         };
         hotkey.Click += async (_, _) => await EditSceneSoundHotkeyAsync(context.Button);
         flyout.Items.Add(hotkey);
-
-        var loop = new MenuFlyoutItem { Text = context.Button.IsLooped ? "Unloop" : "Loop" };
-        loop.Click += (_, _) => SetSceneSoundLooped(context.Button, !context.Button.IsLooped);
-        flyout.Items.Add(loop);
 
         return flyout;
     }
@@ -3541,6 +3576,87 @@ public sealed partial class MainWindow : Window
         _selectedScene.VoicePresetName = preset.Name;
         _selectedScene.VoiceSliders = preset.Sliders?.ToDictionary(kvp => kvp.Key, kvp => kvp.Value) ?? new Dictionary<string, double>();
         SaveSelectedSceneEditorChange($"Scene voice preset selected: {preset.Name}");
+    }
+
+    private void OnSceneLoopPlayLoopClick(object sender, RoutedEventArgs e)
+    {
+        PlaySceneLoopedSound(loop: true);
+    }
+
+    private void OnSceneLoopPlayOnceClick(object sender, RoutedEventArgs e)
+    {
+        PlaySceneLoopedSound(loop: false);
+    }
+
+    private void OnSceneLoopRemoveClick(object sender, RoutedEventArgs e)
+    {
+        var loopedButton = GetSelectedSceneLoopedButton();
+        if (_selectedScene is null || loopedButton is null)
+        {
+            return;
+        }
+
+        var soundName = PickSound(loopedButton.SoundId)?.DisplayName ?? loopedButton.LocalName ?? loopedButton.SoundId;
+        _selectedScene.SoundButtons.RemoveAll(b => b.Id == loopedButton.Id);
+        NormalizeSceneButtonSortOrder(_selectedScene);
+        SaveSelectedSceneEditorChange($"Scene looped sound removed: {soundName}");
+    }
+
+    private async void OnSceneLoopChooseClick(object sender, RoutedEventArgs e)
+    {
+        if (_selectedScene is null)
+        {
+            return;
+        }
+
+        var sound = await ShowSceneSoundPickerDialogAsync("Choose looped sound");
+        if (sound is null)
+        {
+            return;
+        }
+
+        var loopedButton = GetSelectedSceneLoopedButton();
+        if (loopedButton is null)
+        {
+            var nextOrder = _selectedScene.SoundButtons.Count == 0
+                ? 0
+                : _selectedScene.SoundButtons.Max(b => b.SortOrder) + 1;
+            _selectedScene.SoundButtons.Add(new SceneSoundButton
+            {
+                SoundId = sound.Id,
+                LocalName = sound.DisplayName,
+                IsLooped = true,
+                SortOrder = nextOrder
+            });
+        }
+        else
+        {
+            loopedButton.SoundId = sound.Id;
+            loopedButton.LocalName = sound.DisplayName;
+        }
+
+        EnforceSingleLoopedSceneSound(_selectedScene);
+        SaveSelectedSceneEditorChange($"Scene looped sound selected: {sound.DisplayName}");
+    }
+
+    private void PlaySceneLoopedSound(bool loop)
+    {
+        var loopedButton = GetSelectedSceneLoopedButton();
+        if (loopedButton is null)
+        {
+            AppendLog("No looped sound selected for this scene.");
+            return;
+        }
+
+        var sound = PickSound(loopedButton.SoundId);
+        if (sound is null)
+        {
+            AppendLog($"Scene looped sound target is missing: {loopedButton.LocalName ?? loopedButton.SoundId}");
+            return;
+        }
+
+        SelectSound(sound);
+        PlaySelectedSound(loop);
     }
 
     private void OnSceneVoicePresetClearClick(object sender, RoutedEventArgs e)
