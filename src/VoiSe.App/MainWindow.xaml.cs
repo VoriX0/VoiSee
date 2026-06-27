@@ -57,6 +57,7 @@ public sealed partial class MainWindow : Window
     private IntPtr _windowHandle;
     private VoicePreset? _pushToTalkPreviousVoicePreset;
     private HotkeyGesture? _activePushToTalkGesture;
+    private bool _capturingHotkey;
     private const int WhMouseLl = 14;
     private const int WhKeyboardLl = 13;
     private const int WmMouseWheel = 0x020A;
@@ -105,7 +106,7 @@ public sealed partial class MainWindow : Window
         _timelineTimer.Tick += OnTimelineTimerTick;
         _timelineTimer.Start();
 
-        AppendLog("Gate 6.16 UI started.");
+        AppendLog("Gate 6.17 UI started.");
         AppendLog($"Settings path: {_settingsStore.SettingsPath}");
         StartupLog.Write("MainWindow initialized; waiting for first activation.");
     }
@@ -127,21 +128,21 @@ public sealed partial class MainWindow : Window
         try
         {
             AppendLog("Restoring saved settings...");
-            StartupLog.Write("Gate 6.16 restore started.");
+            StartupLog.Write("Gate 6.17 restore started.");
 
             ApplyStoredScalarSettingsToControls();
             AppendLog("Saved scalar settings applied.");
-            StartupLog.Write("Gate 6.16 scalar settings applied.");
+            StartupLog.Write("Gate 6.17 scalar settings applied.");
 
             RefreshDevices(saveAfterRefresh: false);
             LoadSoundBoardLibraryIntoUi();
             LoadVoicePresetsIntoUi();
             AppendLog("Settings restored.");
-            StartupLog.Write("Gate 6.16 restore completed.");
+            StartupLog.Write("Gate 6.17 restore completed.");
         }
         catch (Exception ex)
         {
-            StartupLog.Write("Gate 6.16 restore error: " + ex);
+            StartupLog.Write("Gate 6.17 restore error: " + ex);
             AppendLog($"Settings restore error: {ex.GetType().Name}: {ex.Message}");
         }
         finally
@@ -237,6 +238,11 @@ public sealed partial class MainWindow : Window
         if (nCode >= 0)
         {
             var message = wParam.ToInt32();
+            if (_capturingHotkey)
+            {
+                return CallNextHookEx(_keyboardHookHandle, nCode, wParam, lParam);
+            }
+
             if (message == WmKeyDown || message == WmSysKeyDown || message == WmKeyUp || message == WmSysKeyUp)
             {
                 try
@@ -546,6 +552,17 @@ public sealed partial class MainWindow : Window
         }
 
         var current = currentMaybe.Value;
+
+        // Plain single-key hotkeys are local-only so letters like H are not stolen from Telegram, Discord, browsers, etc.
+        // Ctrl/Alt/Shift combinations remain global and are consumed by VoiSe when they match a configured hotkey.
+        if (!current.HasModifier)
+        {
+            if (GetForegroundWindow() != _windowHandle || IsTextInputFocused())
+            {
+                return false;
+            }
+        }
+
         if (TryHandleSoundHotkey(current)) return true;
         if (TryHandleVoicePresetHotkey(current)) return true;
         if (TryHandleTransportHotkey(current)) return true;
@@ -630,15 +647,16 @@ public sealed partial class MainWindow : Window
 
     private bool TryHandleTransportHotkey(HotkeyGesture current)
     {
-        if (HotkeyGesture.TryParse(_settings.SoundBoardPlayHotkey, out var play) && play.Equals(current))
+        if (HotkeyGesture.TryParse(_settings.SoundBoardPlayHotkey, out var playPause) && playPause.Equals(current))
         {
-            DispatcherQueue.TryEnqueue(TransportPlay);
+            DispatcherQueue.TryEnqueue(TransportPlayPause);
             return true;
         }
 
-        if (HotkeyGesture.TryParse(_settings.SoundBoardPauseHotkey, out var pause) && pause.Equals(current))
+        // Legacy fallback: old settings files may still contain a separate Pause hotkey.
+        if (HotkeyGesture.TryParse(_settings.SoundBoardPauseHotkey, out var legacyPause) && legacyPause.Equals(current))
         {
-            DispatcherQueue.TryEnqueue(TransportPause);
+            DispatcherQueue.TryEnqueue(TransportPlayPause);
             return true;
         }
 
@@ -661,6 +679,21 @@ public sealed partial class MainWindow : Window
         }
 
         return false;
+    }
+
+    private void TransportPlayPause()
+    {
+        var status = _engine?.GetSoundStatus() ?? SoundboardStatus.Empty;
+        if (status.IsActive)
+        {
+            _engine?.ToggleSoundPause();
+            UpdateTimeline();
+            AppendLog(status.IsPaused ? "Transport hotkey: resume." : "Transport hotkey: pause.");
+            return;
+        }
+
+        PlaySelectedSound();
+        AppendLog("Transport hotkey: play.");
     }
 
     private void TransportPlay()
@@ -704,26 +737,38 @@ public sealed partial class MainWindow : Window
 
     private static bool IsModifierDown(int vkCode) => (GetAsyncKeyState(vkCode) & unchecked((short)0x8000)) != 0;
 
+    private bool IsTextInputFocused()
+    {
+        try
+        {
+            if (Content is not FrameworkElement root)
+            {
+                return false;
+            }
+
+            var focused = FocusManager.GetFocusedElement(root.XamlRoot);
+            return focused is TextBox or PasswordBox;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
     private async void OnConfigureTransportHotkeysClick(object sender, RoutedEventArgs e)
     {
-        var playBox = new TextBox { Header = "Play", PlaceholderText = "Example: Ctrl+Alt+P", Text = _settings.SoundBoardPlayHotkey ?? string.Empty, MinWidth = 380 };
-        var pauseBox = new TextBox { Header = "Pause", PlaceholderText = "Example: Ctrl+Alt+Space", Text = _settings.SoundBoardPauseHotkey ?? string.Empty, MinWidth = 380 };
-        var stopBox = new TextBox { Header = "Stop", PlaceholderText = "Example: Ctrl+Alt+S", Text = _settings.SoundBoardStopHotkey ?? string.Empty, MinWidth = 380 };
-        var nextBox = new TextBox { Header = "Next", PlaceholderText = "Example: Ctrl+Alt+Right", Text = _settings.SoundBoardNextHotkey ?? string.Empty, MinWidth = 380 };
-        var previousBox = new TextBox { Header = "Previous", PlaceholderText = "Example: Ctrl+Alt+Left", Text = _settings.SoundBoardPreviousHotkey ?? string.Empty, MinWidth = 380 };
-
         var panel = new StackPanel { Spacing = 10 };
         panel.Children.Add(new TextBlock
         {
-            Text = "Use Ctrl / Alt / Shift combinations when possible. These hotkeys are global while VoiSe is running.",
+            Text = "Click a field and press the key or key combination. Single letters/numbers work only when VoiSe is focused; use Ctrl/Alt/Shift combinations for global hotkeys that should work while typing in other apps.",
             TextWrapping = TextWrapping.Wrap,
             Opacity = 0.78
         });
-        panel.Children.Add(playBox);
-        panel.Children.Add(pauseBox);
-        panel.Children.Add(stopBox);
-        panel.Children.Add(nextBox);
-        panel.Children.Add(previousBox);
+
+        panel.Children.Add(CreateHotkeyCaptureRow("Play / Pause", _settings.SoundBoardPlayHotkey, out var playPauseBox));
+        panel.Children.Add(CreateHotkeyCaptureRow("Stop", _settings.SoundBoardStopHotkey, out var stopBox));
+        panel.Children.Add(CreateHotkeyCaptureRow("Next", _settings.SoundBoardNextHotkey, out var nextBox));
+        panel.Children.Add(CreateHotkeyCaptureRow("Previous", _settings.SoundBoardPreviousHotkey, out var previousBox));
 
         var dialog = new ContentDialog
         {
@@ -735,20 +780,123 @@ public sealed partial class MainWindow : Window
             XamlRoot = ((FrameworkElement)Content).XamlRoot
         };
 
-        var result = await dialog.ShowAsync();
-        if (result != ContentDialogResult.Primary)
+        _capturingHotkey = true;
+        try
         {
-            return;
+            var result = await dialog.ShowAsync();
+            if (result != ContentDialogResult.Primary)
+            {
+                return;
+            }
+        }
+        finally
+        {
+            _capturingHotkey = false;
         }
 
-        _settings.SoundBoardPlayHotkey = NormalizeOptionalHotkey(playBox.Text);
-        _settings.SoundBoardPauseHotkey = NormalizeOptionalHotkey(pauseBox.Text);
+        _settings.SoundBoardPlayHotkey = NormalizeOptionalHotkey(playPauseBox.Text);
+        _settings.SoundBoardPauseHotkey = null;
         _settings.SoundBoardStopHotkey = NormalizeOptionalHotkey(stopBox.Text);
         _settings.SoundBoardNextHotkey = NormalizeOptionalHotkey(nextBox.Text);
         _settings.SoundBoardPreviousHotkey = NormalizeOptionalHotkey(previousBox.Text);
         _settingsStore.Save(_settings);
         UpdateTransportHotkeySummary();
         AppendLog("Transport hotkeys updated.");
+    }
+
+    private FrameworkElement CreateHotkeyCaptureRow(string header, string? initialValue, out TextBox textBox)
+    {
+        var grid = new Grid { ColumnSpacing = 8 };
+        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+
+        textBox = CreateHotkeyCaptureTextBox(header, initialValue);
+        Grid.SetColumn(textBox, 0);
+        grid.Children.Add(textBox);
+
+        var clearButton = new Button
+        {
+            Content = "Clear",
+            MinWidth = 72,
+            VerticalAlignment = VerticalAlignment.Bottom
+        };
+        clearButton.Click += (_, _) => textBox.Text = string.Empty;
+        Grid.SetColumn(clearButton, 1);
+        grid.Children.Add(clearButton);
+
+        return grid;
+    }
+
+    private TextBox CreateHotkeyCaptureTextBox(string header, string? initialValue)
+    {
+        var box = new TextBox
+        {
+            Header = header,
+            PlaceholderText = "Click here, then press a key or combination",
+            Text = initialValue ?? string.Empty,
+            IsReadOnly = true,
+            MinWidth = 380
+        };
+        box.KeyDown += OnHotkeyCaptureBoxKeyDown;
+        return box;
+    }
+
+    private void OnHotkeyCaptureBoxKeyDown(object sender, KeyRoutedEventArgs e)
+    {
+        var vkCode = (int)e.Key;
+        if (IsModifierKey(vkCode))
+        {
+            e.Handled = true;
+            return;
+        }
+
+        var gestureMaybe = HotkeyGesture.FromKeyboardState(vkCode, IsModifierDown);
+        if (gestureMaybe.HasValue && sender is TextBox box)
+        {
+            box.Text = gestureMaybe.Value.ToString();
+            e.Handled = true;
+        }
+    }
+
+    private async Task<string?> CaptureHotkeyDialogAsync(string title, string description, string? initialValue)
+    {
+        var panel = new StackPanel { Spacing = 10 };
+        panel.Children.Add(new TextBlock
+        {
+            Text = description,
+            TextWrapping = TextWrapping.Wrap,
+            Opacity = 0.78
+        });
+
+        var box = CreateHotkeyCaptureTextBox("Hotkey", initialValue);
+        panel.Children.Add(box);
+
+        var dialog = new ContentDialog
+        {
+            Title = title,
+            Content = panel,
+            PrimaryButtonText = "Save",
+            SecondaryButtonText = "Clear",
+            CloseButtonText = "Cancel",
+            DefaultButton = ContentDialogButton.Primary,
+            XamlRoot = ((FrameworkElement)Content).XamlRoot
+        };
+
+        _capturingHotkey = true;
+        try
+        {
+            var result = await dialog.ShowAsync();
+            return result switch
+            {
+                ContentDialogResult.Primary => box.Text,
+                ContentDialogResult.Secondary => string.Empty,
+                _ => null
+            };
+        }
+        finally
+        {
+            _capturingHotkey = false;
+        }
     }
 
     private static string? NormalizeOptionalHotkey(string? text)
@@ -765,8 +913,7 @@ public sealed partial class MainWindow : Window
 
         var parts = new[]
         {
-            $"Play: {(_settings.SoundBoardPlayHotkey ?? "—")}",
-            $"Pause: {(_settings.SoundBoardPauseHotkey ?? "—")}",
+            $"Play/Pause: {(_settings.SoundBoardPlayHotkey ?? "—")}",
             $"Stop: {(_settings.SoundBoardStopHotkey ?? "—")}",
             $"Next: {(_settings.SoundBoardNextHotkey ?? "—")}",
             $"Prev: {(_settings.SoundBoardPreviousHotkey ?? "—")}"
@@ -776,6 +923,8 @@ public sealed partial class MainWindow : Window
 
     private readonly record struct HotkeyGesture(bool Ctrl, bool Alt, bool Shift, int KeyCode)
     {
+        public bool HasModifier => Ctrl || Alt || Shift;
+
         public static HotkeyGesture? FromKeyboardState(int vkCode, Func<int, bool> isDown)
         {
             if (!TryGetKeyName(vkCode, out _))
@@ -1650,7 +1799,10 @@ public sealed partial class MainWindow : Window
     private async void OnSoundContextAssignHotkeyClick(object sender, RoutedEventArgs e)
     {
         if (_selectedSound is null) return;
-        var hotkey = await ShowTextDialogAsync("Assign hotkey", "Example: Ctrl+Alt+1", _selectedSound.Hotkey ?? string.Empty);
+        var hotkey = await CaptureHotkeyDialogAsync(
+            "Assign sound hotkey",
+            "Click the field and press a key or combination. Single letters/numbers are local-only; use Ctrl/Alt/Shift combinations for global hotkeys that work while other apps are focused.",
+            _selectedSound.Hotkey);
         if (hotkey is null) return;
         var normalized = NormalizeOptionalHotkey(hotkey);
         _libraryStore.SetHotkey(_library, _selectedSound, normalized);
@@ -2344,28 +2496,18 @@ public sealed partial class MainWindow : Window
 
     private async Task EditVoicePresetHotkeysAsync(VoicePreset preset)
     {
-        var pushToTalkBox = new TextBox
-        {
-            Header = "Push to talk",
-            PlaceholderText = "Hold hotkey to use this voice",
-            Text = preset.PushToTalkHotkey ?? string.Empty,
-            MinWidth = 360
-        };
-
-        var presetBox = new TextBox
-        {
-            Header = "Preset select",
-            PlaceholderText = "Press once to apply this preset",
-            Text = preset.PresetHotkey ?? string.Empty,
-            MinWidth = 360
-        };
-
         var panel = new StackPanel
         {
             Spacing = 12
         };
-        panel.Children.Add(pushToTalkBox);
-        panel.Children.Add(presetBox);
+        panel.Children.Add(new TextBlock
+        {
+            Text = "Click a field and press the key or key combination. Single letters/numbers are local-only; use Ctrl/Alt/Shift combinations for global preset switching.",
+            TextWrapping = TextWrapping.Wrap,
+            Opacity = 0.78
+        });
+        panel.Children.Add(CreateHotkeyCaptureRow("Push to talk", preset.PushToTalkHotkey, out var pushToTalkBox));
+        panel.Children.Add(CreateHotkeyCaptureRow("Preset select", preset.PresetHotkey, out var presetBox));
 
         var dialog = new ContentDialog
         {
@@ -2377,10 +2519,18 @@ public sealed partial class MainWindow : Window
             XamlRoot = ((FrameworkElement)Content).XamlRoot
         };
 
-        var result = await dialog.ShowAsync();
-        if (result != ContentDialogResult.Primary)
+        _capturingHotkey = true;
+        try
         {
-            return;
+            var result = await dialog.ShowAsync();
+            if (result != ContentDialogResult.Primary)
+            {
+                return;
+            }
+        }
+        finally
+        {
+            _capturingHotkey = false;
         }
 
         preset.PushToTalkHotkey = NormalizeOptionalHotkey(pushToTalkBox.Text);

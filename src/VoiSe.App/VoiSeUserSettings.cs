@@ -53,7 +53,7 @@ public sealed class VoiSeUserSettings
     public double VoiceAlien { get; set; } = 0.0;
 
 
-    // Gate 6.16 global transport hotkeys. SoundBoard sound hotkeys live in soundboard.json;
+    // Gate 6.17 global transport hotkeys. SoundBoard sound hotkeys live in soundboard.json;
     // voice preset hotkeys live in individual preset JSON files.
     public string? SoundBoardPlayHotkey { get; set; }
     public string? SoundBoardPauseHotkey { get; set; }

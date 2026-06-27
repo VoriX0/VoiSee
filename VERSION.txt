@@ -1,1 +1,1 @@
-Gate 6.16 - Global Hotkeys Build Fix
+Gate 6.17 - Hotkey Capture UX
