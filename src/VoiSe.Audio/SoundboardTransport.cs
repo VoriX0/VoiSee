@@ -6,7 +6,8 @@ public sealed class SoundboardTransport
 {
     private readonly WaveFormat _format;
     private readonly object _sync = new();
-    private ActiveSound? _active;
+    private ActiveSound? _primary;
+    private readonly List<ActiveSound> _overlays = new();
 
     public SoundboardTransport(WaveFormat format)
     {
@@ -19,7 +20,7 @@ public sealed class SoundboardTransport
         {
             lock (_sync)
             {
-                return _active is not null && !_active.IsPaused;
+                return (_primary is not null && !_primary.IsPaused) || _overlays.Any(sound => !sound.IsPaused);
             }
         }
     }
@@ -30,7 +31,7 @@ public sealed class SoundboardTransport
         {
             lock (_sync)
             {
-                return _active is not null;
+                return _primary is not null || _overlays.Count > 0;
             }
         }
     }
@@ -41,7 +42,12 @@ public sealed class SoundboardTransport
         {
             lock (_sync)
             {
-                return _active?.IsPaused ?? false;
+                if (_primary is not null)
+                {
+                    return _primary.IsPaused;
+                }
+
+                return _overlays.Count > 0 && _overlays.All(sound => sound.IsPaused);
             }
         }
     }
@@ -50,17 +56,32 @@ public sealed class SoundboardTransport
     {
         var data = SoundFileLoader.LoadToFormat(filePath, _format);
         var delaySamples = Math.Max(0, (int)Math.Round(_format.SampleRate * (virtualDelayMs / 1000.0)) * _format.Channels);
+        var sound = new ActiveSound(
+            data,
+            _format.SampleRate,
+            _format.Channels,
+            Math.Clamp(virtualVolume, 0.0f, 2.0f),
+            Math.Clamp(monitorVolume, 0.0f, 2.0f),
+            delaySamples,
+            loop);
 
         lock (_sync)
         {
-            _active = new ActiveSound(
-                data,
-                _format.SampleRate,
-                _format.Channels,
-                Math.Clamp(virtualVolume, 0.0f, 2.0f),
-                Math.Clamp(monitorVolume, 0.0f, 2.0f),
-                delaySamples,
-                loop);
+            if (loop)
+            {
+                _primary = sound;
+                return;
+            }
+
+            if (_primary is not null && _primary.IsLoop && !_primary.IsFinished)
+            {
+                _overlays.Add(sound);
+                RemoveFinishedOverlays();
+                return;
+            }
+
+            _primary = sound;
+            _overlays.Clear();
         }
     }
 
@@ -68,7 +89,8 @@ public sealed class SoundboardTransport
     {
         lock (_sync)
         {
-            _active = null;
+            _primary = null;
+            _overlays.Clear();
         }
     }
 
@@ -76,13 +98,19 @@ public sealed class SoundboardTransport
     {
         lock (_sync)
         {
-            if (_active is null)
+            if (_primary is null && _overlays.Count == 0)
             {
                 return false;
             }
 
-            _active.TogglePause();
-            return _active.IsPaused;
+            var newPausedState = !(_primary?.IsPaused ?? _overlays.All(sound => sound.IsPaused));
+            _primary?.SetPaused(newPausedState);
+            foreach (var overlay in _overlays)
+            {
+                overlay.SetPaused(newPausedState);
+            }
+
+            return newPausedState;
         }
     }
 
@@ -90,17 +118,22 @@ public sealed class SoundboardTransport
     {
         lock (_sync)
         {
-            _active?.Seek(seconds);
+            _primary?.Seek(seconds);
         }
     }
 
     public void UpdateVolumes(float virtualVolume, float monitorVolume)
     {
+        var clampedVirtual = Math.Clamp(virtualVolume, 0.0f, 2.0f);
+        var clampedMonitor = Math.Clamp(monitorVolume, 0.0f, 2.0f);
+
         lock (_sync)
         {
-            _active?.UpdateVolumes(
-                Math.Clamp(virtualVolume, 0.0f, 2.0f),
-                Math.Clamp(monitorVolume, 0.0f, 2.0f));
+            _primary?.UpdateVolumes(clampedVirtual, clampedMonitor);
+            foreach (var overlay in _overlays)
+            {
+                overlay.UpdateVolumes(clampedVirtual, clampedMonitor);
+            }
         }
     }
 
@@ -108,7 +141,15 @@ public sealed class SoundboardTransport
     {
         lock (_sync)
         {
-            return _active?.GetStatus() ?? SoundboardStatus.Empty;
+            RemoveFinishedOverlays();
+            if (_primary is not null && _primary.IsFinished)
+            {
+                _primary = null;
+            }
+
+            return _primary?.GetStatus()
+                ?? _overlays.FirstOrDefault()?.GetStatus()
+                ?? SoundboardStatus.Empty;
         }
     }
 
@@ -116,19 +157,56 @@ public sealed class SoundboardTransport
     {
         lock (_sync)
         {
-            if (_active is null)
+            Array.Clear(buffer, offset, count);
+
+            if (_primary is null && _overlays.Count == 0)
             {
-                Array.Clear(buffer, offset, count);
                 return 0;
             }
 
-            var written = _active.Read(route, buffer, offset, count);
-            if (_active.IsFinished)
+            MixSound(route, _primary, buffer, offset, count);
+            if (_primary is not null && _primary.IsFinished)
             {
-                _active = null;
+                _primary = null;
             }
 
-            return written;
+            for (var index = _overlays.Count - 1; index >= 0; index--)
+            {
+                var overlay = _overlays[index];
+                MixSound(route, overlay, buffer, offset, count);
+                if (overlay.IsFinished)
+                {
+                    _overlays.RemoveAt(index);
+                }
+            }
+
+            return count;
+        }
+    }
+
+    private static void MixSound(AudioRoute route, ActiveSound? sound, float[] output, int offset, int count)
+    {
+        if (sound is null)
+        {
+            return;
+        }
+
+        var scratch = new float[count];
+        sound.Read(route, scratch, 0, count);
+        for (var i = 0; i < count; i++)
+        {
+            output[offset + i] += scratch[i];
+        }
+    }
+
+    private void RemoveFinishedOverlays()
+    {
+        for (var index = _overlays.Count - 1; index >= 0; index--)
+        {
+            if (_overlays[index].IsFinished)
+            {
+                _overlays.RemoveAt(index);
+            }
         }
     }
 
@@ -145,7 +223,6 @@ public sealed class SoundboardTransport
         private int _remainingVirtualDelaySamples;
         private bool _virtualFinished;
         private bool _monitorFinished;
-        private readonly bool _loop;
 
         public ActiveSound(float[] samples, int sampleRate, int channels, float virtualVolume, float monitorVolume, int virtualDelaySamples, bool loop)
         {
@@ -156,15 +233,16 @@ public sealed class SoundboardTransport
             _monitorVolume = monitorVolume;
             _initialVirtualDelaySamples = Math.Max(0, virtualDelaySamples);
             _remainingVirtualDelaySamples = _initialVirtualDelaySamples;
-            _loop = loop;
+            IsLoop = loop;
         }
 
-        public bool IsFinished => _samples.Length == 0 || (!_loop && _virtualFinished && _monitorFinished);
+        public bool IsLoop { get; }
+        public bool IsFinished => _samples.Length == 0 || (!IsLoop && _virtualFinished && _monitorFinished);
         public bool IsPaused { get; private set; }
 
-        public void TogglePause()
+        public void SetPaused(bool paused)
         {
-            IsPaused = !IsPaused;
+            IsPaused = paused;
         }
 
         public void UpdateVolumes(float virtualVolume, float monitorVolume)
@@ -227,7 +305,7 @@ public sealed class SoundboardTransport
             var position = route == AudioRoute.VirtualMicrophone ? _virtualPosition : _monitorPosition;
             var volume = route == AudioRoute.VirtualMicrophone ? _virtualVolume : _monitorVolume;
 
-            if (_loop)
+            if (IsLoop)
             {
                 var copied = 0;
                 while (copied < count)

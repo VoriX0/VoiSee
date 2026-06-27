@@ -6,7 +6,7 @@
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     mc:Ignorable="d"
-    Title="VoiSe Gate 7.3 - Scene Editor">
+    Title="VoiSe Gate 7.4 - Scene Editor">
 
     <Grid x:Name="RootGrid" Padding="20" RowSpacing="14">
         <Grid.RowDefinitions>
@@ -22,7 +22,7 @@
                 </Grid.ColumnDefinitions>
                 <StackPanel Grid.Column="0" Spacing="4" VerticalAlignment="Center">
                     <TextBlock Text="VoiSe Gate 7.2" FontSize="28" FontWeight="SemiBold" />
-                    <TextBlock Text="Scenes: active scene state, voice settings, one looped sound, and scene-local hotkeys" Opacity="0.75" />
+                    <TextBlock Text="Scenes: active scene state, voice settings, one looped sound, parallel scene sounds, and scene-local hotkeys" Opacity="0.75" />
                 </StackPanel>
                 <StackPanel Grid.Column="1" Spacing="4" VerticalAlignment="Center" HorizontalAlignment="Right">
                     <StackPanel Orientation="Horizontal" Spacing="8">
@@ -447,7 +447,7 @@
 
                             <StackPanel Grid.Column="0" Spacing="10">
                                 <TextBlock Text="Saved scenes" FontSize="18" FontWeight="SemiBold" />
-                                <ListView x:Name="ScenesListView" MinHeight="360" SelectionChanged="OnSceneSelectionChanged">
+                                <ListView x:Name="ScenesListView" Height="300" SelectionChanged="OnSceneSelectionChanged">
                                     <ListView.ItemTemplate>
                                         <DataTemplate>
                                             <Grid Padding="4" ColumnSpacing="8">
@@ -512,15 +512,14 @@
                                                 </Grid.ColumnDefinitions>
                                                 <Grid Grid.Column="0"
                                                       x:Name="LoopedSceneSoundsPanel"
-                                                      Height="68" />
+                                                      Height="58" />
                                                 <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="4" VerticalAlignment="Top">
-                                                    <Button x:Name="SceneLoopPlayLoopButton" Content="↻" Width="36" Height="36" Click="OnSceneLoopPlayLoopClick" ToolTipService.ToolTip="Start loop" />
-                                                    <Button x:Name="SceneLoopPlayOnceButton" Content="▶" Width="36" Height="36" Click="OnSceneLoopPlayOnceClick" ToolTipService.ToolTip="Play once" />
-                                                    <Button x:Name="SceneLoopRemoveButton" Content="✕" Width="36" Height="36" Click="OnSceneLoopRemoveClick" ToolTipService.ToolTip="Remove sound" />
-                                                    <Button x:Name="SceneLoopChooseButton" Content="…" Width="36" Height="36" Click="OnSceneLoopChooseClick" ToolTipService.ToolTip="Choose another sound" />
+                                                    <Button x:Name="SceneLoopPlayLoopButton" Content="↻" Width="42" Height="58" Click="OnSceneLoopPlayLoopClick" ToolTipService.ToolTip="Start loop" />
+                                                    <Button x:Name="SceneLoopPlayOnceButton" Content="▶" Width="42" Height="58" Click="OnSceneLoopPlayOnceClick" ToolTipService.ToolTip="Play once" />
+                                                    <Button x:Name="SceneLoopRemoveButton" Content="✕" Width="42" Height="58" Click="OnSceneLoopRemoveClick" ToolTipService.ToolTip="Remove sound" />
+                                                    <Button x:Name="SceneLoopChooseButton" Content="⮏" Width="42" Height="58" Click="OnSceneLoopChooseClick" ToolTipService.ToolTip="Choose another sound" />
                                                 </StackPanel>
                                             </Grid>
-                                            <TextBlock x:Name="SceneLoopedEmptyTextBlock" Text="No looped sound in this scene." Opacity="0.62" />
                                             <CheckBox x:Name="SceneAutostartLoopsCheckBox"
                                                       Content="Start looped sound when scene is enabled"
                                                       Checked="OnSceneAutostartLoopsChanged"
@@ -535,14 +534,13 @@
                                                       HorizontalAlignment="Stretch"
                                                       SelectionChanged="OnSceneVoicePresetSelectionChanged" />
                                             <StackPanel Orientation="Horizontal" Spacing="8">
-                                                <Button x:Name="SceneVoicePresetClearButton" Content="Clear" MinWidth="86" Click="OnSceneVoicePresetClearClick" />
-                                                <Button x:Name="SceneVoicePresetCreateButton" Content="Create new" MinWidth="112" Click="OnSceneVoicePresetCreateClick" />
+                                                <Button x:Name="SceneVoicePresetClearButton" Content="Clear" MinWidth="78" Click="OnSceneVoicePresetClearClick" />
+                                                <Button x:Name="SceneVoicePresetCreateButton" Content="Create new" MinWidth="104" Click="OnSceneVoicePresetCreateClick" />
+                                                <Button x:Name="SceneVoiceMonitorButton"
+                                                        Content="Voice Monitor: Off"
+                                                        MinWidth="150"
+                                                        Click="OnToggleVoiceMonitorClick" />
                                             </StackPanel>
-                                            <Button x:Name="SceneVoiceMonitorButton"
-                                                    Content="Voice Monitor: Off"
-                                                    MinWidth="180"
-                                                    HorizontalAlignment="Left"
-                                                    Click="OnToggleVoiceMonitorClick" />
                                         </StackPanel>
                                     </Grid>
 

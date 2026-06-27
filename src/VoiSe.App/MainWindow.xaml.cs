@@ -2997,11 +2997,7 @@ public sealed partial class MainWindow : Window
 
         if (_selectedScene is null)
         {
-            if (SceneLoopedEmptyTextBlock is not null)
-            {
-                SceneLoopedEmptyTextBlock.Visibility = Visibility.Visible;
-                SceneLoopedEmptyTextBlock.Text = "No scene selected.";
-            }
+            LoopedSceneSoundsPanel.Children.Add(CreateLoopedSceneSoundSlot(null, "No scene selected"));
             RefreshSceneLoopActionButtons();
             return;
         }
@@ -3012,10 +3008,7 @@ public sealed partial class MainWindow : Window
             .ToList();
 
         var loopedButton = orderedButtons.FirstOrDefault(b => b.IsLooped);
-        if (loopedButton is not null)
-        {
-            LoopedSceneSoundsPanel.Children.Add(CreateLoopedSceneSoundButton(loopedButton));
-        }
+        LoopedSceneSoundsPanel.Children.Add(CreateLoopedSceneSoundSlot(loopedButton, "No sound"));
 
         foreach (var sceneButton in orderedButtons.Where(b => !b.IsLooped))
         {
@@ -3023,12 +3016,6 @@ public sealed partial class MainWindow : Window
         }
 
         SceneSoundsPanel.Children.Add(CreateSceneAddSoundButton());
-
-        if (SceneLoopedEmptyTextBlock is not null)
-        {
-            SceneLoopedEmptyTextBlock.Visibility = loopedButton is null ? Visibility.Visible : Visibility.Collapsed;
-            SceneLoopedEmptyTextBlock.Text = "No looped sound in this scene.";
-        }
 
         RefreshSceneLoopActionButtons();
     }
@@ -3066,33 +3053,42 @@ public sealed partial class MainWindow : Window
         };
     }
 
-    private Button CreateLoopedSceneSoundButton(SceneSoundButton sceneButton)
+    private FrameworkElement CreateLoopedSceneSoundSlot(SceneSoundButton? sceneButton, string emptyText)
     {
-        var sound = PickSound(sceneButton.SoundId);
-        var context = new SceneSoundButtonContext
-        {
-            Scene = _selectedScene!,
-            Button = sceneButton,
-            Sound = sound
-        };
+        var displayName = emptyText;
+        var opacity = 0.62;
 
-        var button = CreateSceneButtonShell();
-        button.Width = double.NaN;
-        button.Margin = new Thickness(0, 0, 0, 0);
-        button.HorizontalAlignment = HorizontalAlignment.Stretch;
-        button.Tag = context;
-        button.Content = new TextBlock
+        if (sceneButton is not null)
         {
-            Text = context.DisplayName,
-            FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
-            TextTrimming = TextTrimming.CharacterEllipsis,
-            TextWrapping = TextWrapping.NoWrap,
+            var sound = PickSound(sceneButton.SoundId);
+            displayName = string.IsNullOrWhiteSpace(sceneButton.LocalName)
+                ? sound?.DisplayName ?? "Missing SoundBoard sound"
+                : sceneButton.LocalName!.Trim();
+            opacity = 1.0;
+        }
+
+        return new Border
+        {
+            Height = SceneSoundButtonHeight,
+            MinHeight = SceneSoundButtonHeight,
+            Padding = new Thickness(10, 6, 10, 6),
+            CornerRadius = new CornerRadius(4),
+            Background = new SolidColorBrush(sceneButton is null
+                ? Microsoft.UI.ColorHelper.FromArgb(0x12, 0xFF, 0xFF, 0xFF)
+                : Microsoft.UI.ColorHelper.FromArgb(0x28, 0xFF, 0xFF, 0xFF)),
             HorizontalAlignment = HorizontalAlignment.Stretch,
-            VerticalAlignment = VerticalAlignment.Center
+            VerticalAlignment = VerticalAlignment.Top,
+            Child = new TextBlock
+            {
+                Text = displayName,
+                Opacity = opacity,
+                FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
+                TextTrimming = TextTrimming.CharacterEllipsis,
+                TextWrapping = TextWrapping.NoWrap,
+                HorizontalAlignment = HorizontalAlignment.Stretch,
+                VerticalAlignment = VerticalAlignment.Center
+            }
         };
-        button.ContextFlyout = CreateSceneSoundButtonFlyout(context);
-        button.Click += OnSceneSoundButtonClick;
-        return button;
     }
 
     private Button CreateSceneSoundButton(SceneSoundButton sceneButton)
