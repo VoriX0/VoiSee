@@ -338,8 +338,8 @@ public sealed partial class MainWindow : Window
         {
             0 => IsPointInSoundBoardWheelZone(xDip, yDip) && TryScrollSoundOverlay(delta),
             1 => IsPointInVoiceChangerWheelZone(yDip) && TryScrollVoiceChanger(delta),
-            2 => TryHandleScenesWheel(yDip, delta),
-            3 => TryHandleSettingsWheel(yDip, delta),
+            2 => TryHandleScenesWheel(xDip, yDip, delta),
+            3 => TryHandleSettingsWheel(xDip, yDip, delta),
             _ => false
         };
     }
@@ -387,6 +387,36 @@ public sealed partial class MainWindow : Window
         return yDip >= top && yDip <= bottom;
     }
 
+    private bool IsPointInElementWheelZone(FrameworkElement? element, double xDip, double yDip, bool extendBottom)
+    {
+        if (RootGrid is null || element is null)
+        {
+            return false;
+        }
+
+        try
+        {
+            var topLeft = element.TransformToVisual(RootGrid)
+                .TransformPoint(new Windows.Foundation.Point(0, 0));
+            var left = topLeft.X;
+            var top = topLeft.Y;
+            var right = left + Math.Max(1.0, element.ActualWidth);
+            var bottom = top + Math.Max(1.0, element.ActualHeight);
+
+            if (extendBottom)
+            {
+                var usableHeight = Math.Max(1.0, RootGrid.ActualHeight - top);
+                bottom = Math.Max(bottom, RootGrid.ActualHeight + usableHeight * SoundWheelZoneExpandBottomRatio);
+            }
+
+            return xDip >= left && xDip <= right && yDip >= top && yDip <= bottom;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
     private bool IsPointInCompactElementWheelZone(FrameworkElement? element, double yDip, double heightMultiplier)
     {
         if (RootGrid is null || element is null)
@@ -424,9 +454,21 @@ public sealed partial class MainWindow : Window
         return TryScrollViewer(VoiceChangerScrollViewer, wheelDelta, 42.0);
     }
 
-    private bool TryHandleScenesWheel(double yDip, int wheelDelta)
+    private bool TryHandleScenesWheel(double xDip, double yDip, int wheelDelta)
     {
-        if (IsPointInExtendedVerticalWheelZone(SceneSoundButtonsScrollViewer, yDip))
+        // Gate 7.10 buildfix 1: the scene list and scene sound buttons must own
+        // separate horizontal zones. A Y-only extended check made the right sound
+        // button scroller steal wheel events while the pointer was over the left
+        // scene list at the same vertical position.
+        if (IsPointInElementWheelZone(ScenesListView, xDip, yDip, extendBottom: false))
+        {
+            var sceneListScrollViewer = FindDescendantScrollViewer(ScenesListView);
+            return sceneListScrollViewer is not null
+                ? TryScrollViewer(sceneListScrollViewer, wheelDelta, 42.0)
+                : false;
+        }
+
+        if (IsPointInElementWheelZone(SceneSoundButtonsScrollViewer, xDip, yDip, extendBottom: true))
         {
             return TryScrollViewer(SceneSoundButtonsScrollViewer, wheelDelta, 42.0);
         }
@@ -434,9 +476,9 @@ public sealed partial class MainWindow : Window
         return false;
     }
 
-    private bool TryHandleSettingsWheel(double yDip, int wheelDelta)
+    private bool TryHandleSettingsWheel(double xDip, double yDip, int wheelDelta)
     {
-        if (IsPointInExtendedVerticalWheelZone(SettingsScrollViewer, yDip))
+        if (IsPointInElementWheelZone(SettingsScrollViewer, xDip, yDip, extendBottom: true))
         {
             return TryScrollViewer(SettingsScrollViewer, wheelDelta, 42.0);
         }
