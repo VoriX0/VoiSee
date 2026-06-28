@@ -75,7 +75,7 @@ public sealed partial class MainWindow : Window
     private const double SoundWheelZoneExpandUpRatio = 0.25;
     private const double SoundWheelZoneExpandRightRatio = 2.00;
     private const double SoundWheelZoneExpandBottomRatio = 1.60;
-    private const double SceneListWheelZoneExpandDownRatio = 0.35;
+    private const double SceneListWheelZoneExpandDownRatio = 0.65;
     private const double VoiceValueMin = -9999.0;
     private const double VoiceValueMax = 9999.0;
     private const double SceneSoundButtonWidth = 252.0;
@@ -464,9 +464,9 @@ public sealed partial class MainWindow : Window
 
     private bool TryHandleScenesWheel(double xDip, double yDip, int wheelDelta)
     {
-        // Gate 7.10 buildfix 2: the scene list and scene sound buttons must own
-        // separate horizontal zones, but the left scene list needs a slightly
-        // longer lower wheel zone so scrolling still works near the bottom controls.
+        // Gate 7.10 buildfix 3: the scene list and scene sound buttons must own
+        // separate horizontal zones, but the left scene list lower wheel zone
+        // is extended by 65% so scrolling still works near the bottom controls.
         if (IsPointInElementWheelZone(ScenesListView, xDip, yDip, extendBottom: false, bottomExtensionRatio: SceneListWheelZoneExpandDownRatio))
         {
             var sceneListScrollViewer = FindDescendantScrollViewer(ScenesListView);
