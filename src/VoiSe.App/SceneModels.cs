@@ -7,7 +7,7 @@ namespace VoiSe.App;
 
 public sealed class VoiSeScene
 {
-    public int SchemaVersion { get; set; } = 6;
+    public int SchemaVersion { get; set; } = 7;
     public string Id { get; set; } = Guid.NewGuid().ToString("N");
     public string Name { get; set; } = "Scene";
     public string Icon { get; set; } = "🎬";
@@ -30,6 +30,10 @@ public sealed class VoiSeScene
     public double LoopedSoundHeadphonesVolume { get; set; } = 1.0;
     public double SceneButtonsVirtualMicVolume { get; set; } = 1.0;
     public double SceneButtonsHeadphonesVolume { get; set; } = 1.0;
+
+    public string? StopOneShotSoundsHotkey { get; set; }
+    public string? PauseOneShotSoundsHotkey { get; set; }
+    public string? DisableSceneHotkey { get; set; }
 
     public double VirtualMicMasterVolume { get; set; } = 1.0;
     public double SoundBoardVirtualMicVolume { get; set; } = 1.0;

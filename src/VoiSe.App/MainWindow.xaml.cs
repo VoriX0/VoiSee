@@ -77,8 +77,8 @@ public sealed partial class MainWindow : Window
     private const double SoundWheelZoneExpandBottomRatio = 1.60;
     private const double VoiceValueMin = -9999.0;
     private const double VoiceValueMax = 9999.0;
-    private const double SceneSoundButtonWidth = 170.0;
-    private const double SceneSoundButtonHeight = 92.0;
+    private const double SceneSoundButtonWidth = 224.0;
+    private const double SceneSoundButtonHeight = 120.0;
     private const double SceneLoopIconHeight = 42.0;
     private readonly Dictionary<string, SceneTimelineBinding> _sceneTimelineBindings = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, double> _soundDurationSecondsCache = new(StringComparer.OrdinalIgnoreCase);
@@ -120,7 +120,7 @@ public sealed partial class MainWindow : Window
         _timelineTimer.Tick += OnTimelineTimerTick;
         _timelineTimer.Start();
 
-        AppendLog("Gate 7.7 UI started.");
+        AppendLog("Gate 7.8 UI started.");
         AppendLog($"Settings path: {_settingsStore.SettingsPath}");
         StartupLog.Write("MainWindow initialized; waiting for first activation.");
     }
@@ -600,6 +600,24 @@ public sealed partial class MainWindow : Window
             return false;
         }
 
+        if (HotkeyGesture.TryParse(activeScene.StopOneShotSoundsHotkey, out var stopOneShots) && stopOneShots.Equals(current))
+        {
+            DispatcherQueue.TryEnqueue(() => StopSceneOneShotSounds(activeScene, "Scene hotkey: stop one-shot sounds."));
+            return true;
+        }
+
+        if (HotkeyGesture.TryParse(activeScene.PauseOneShotSoundsHotkey, out var pauseOneShots) && pauseOneShots.Equals(current))
+        {
+            DispatcherQueue.TryEnqueue(() => ToggleSceneOneShotSoundsPause(activeScene));
+            return true;
+        }
+
+        if (HotkeyGesture.TryParse(activeScene.DisableSceneHotkey, out var disableScene) && disableScene.Equals(current))
+        {
+            DispatcherQueue.TryEnqueue(() => DisableActiveScene($"Scene hotkey: scene disabled [{disableScene}]."));
+            return true;
+        }
+
         foreach (var sceneButton in activeScene.SoundButtons.OrderBy(button => button.IsLooped ? 0 : 1).ThenBy(button => button.SortOrder))
         {
             if (!HotkeyGesture.TryParse(sceneButton.SceneHotkey, out var configured) || !configured.Equals(current))
@@ -622,7 +640,7 @@ public sealed partial class MainWindow : Window
                 }
                 else
                 {
-                    PlaySceneSound(activeScene, sceneButton, sound, false, "Scene sound");
+                    ToggleSceneSoundButtonPlayback(activeScene, sceneButton, sound);
                 }
 
                 AppendLog($"Scene hotkey: {activeScene.Name} / {displayName} [{configured}]");
@@ -2689,6 +2707,7 @@ public sealed partial class MainWindow : Window
         RefreshSceneVoicePresetComboBox();
         RefreshSceneLoopAutostartCheckBox();
         RefreshSceneVolumeControls();
+        RefreshSceneActionHotkeyButtons();
         RebuildSceneSoundButtons();
     }
 
@@ -2701,6 +2720,9 @@ public sealed partial class MainWindow : Window
         if (SceneAutostartLoopsCheckBox is not null) SceneAutostartLoopsCheckBox.IsEnabled = enabled;
         if (SceneLoopHeadphonesVolumeSlider is not null) SceneLoopHeadphonesVolumeSlider.IsEnabled = enabled;
         if (SceneLoopVirtualMicVolumeSlider is not null) SceneLoopVirtualMicVolumeSlider.IsEnabled = enabled;
+        if (SceneStopOneShotsHotkeyButton is not null) SceneStopOneShotsHotkeyButton.IsEnabled = enabled;
+        if (ScenePauseOneShotsHotkeyButton is not null) ScenePauseOneShotsHotkeyButton.IsEnabled = enabled;
+        if (SceneDisableHotkeyButton is not null) SceneDisableHotkeyButton.IsEnabled = enabled;
         RefreshSceneLoopActionButtons();
     }
 
@@ -2767,6 +2789,24 @@ public sealed partial class MainWindow : Window
         UpdateSceneVolumeLabels();
     }
 
+    private void RefreshSceneActionHotkeyButtons()
+    {
+        if (SceneStopOneShotsHotkeyButton is not null)
+        {
+            SceneStopOneShotsHotkeyButton.Content = $"Stop one-shots: {(_selectedScene?.StopOneShotSoundsHotkey ?? "—")}";
+        }
+
+        if (ScenePauseOneShotsHotkeyButton is not null)
+        {
+            ScenePauseOneShotsHotkeyButton.Content = $"Pause one-shots: {(_selectedScene?.PauseOneShotSoundsHotkey ?? "—")}";
+        }
+
+        if (SceneDisableHotkeyButton is not null)
+        {
+            SceneDisableHotkeyButton.Content = $"Disable scene: {(_selectedScene?.DisableSceneHotkey ?? "—")}";
+        }
+    }
+
     private string CreateSceneDetailsText(VoiSeScene scene)
     {
         var normalCount = scene.SoundButtons.Count(b => !b.IsLooped);
@@ -2778,6 +2818,9 @@ public sealed partial class MainWindow : Window
             $"Autostart loop: {(scene.AutoStartLoopedSounds ? "on" : "off")}",
             $"Looped → Virtual Mic: {scene.LoopedSoundVirtualMicVolume:P0}",
             $"Looped → Headphones: {scene.LoopedSoundHeadphonesVolume:P0}",
+            $"Stop one-shots hotkey: {scene.StopOneShotSoundsHotkey ?? "none"}",
+            $"Pause one-shots hotkey: {scene.PauseOneShotSoundsHotkey ?? "none"}",
+            $"Disable scene hotkey: {scene.DisableSceneHotkey ?? "none"}",
             $"Virtual Mic Master: {scene.VirtualMicMasterVolume:P0}",
             $"SoundBoard → Virtual Mic: {scene.SoundBoardVirtualMicVolume:P0}",
             $"SoundBoard → Headphones: {scene.SoundBoardHeadphonesVolume:P0}",
@@ -2812,11 +2855,16 @@ public sealed partial class MainWindow : Window
 
     private void OnDisableScenesClick(object sender, RoutedEventArgs e)
     {
+        DisableActiveScene("Scenes disabled.");
+    }
+
+    private void DisableActiveScene(string logMessage)
+    {
         _activeSceneId = null;
         UpdateSceneActiveFlags();
         RefreshSceneListBinding();
         TransportStop();
-        AppendLog("Scenes disabled.");
+        AppendLog(logMessage);
     }
 
     private void OnApplySceneClick(object sender, RoutedEventArgs e)
@@ -2846,6 +2894,9 @@ public sealed partial class MainWindow : Window
             var previousAutostartLoops = _selectedScene.AutoStartLoopedSounds;
             var previousLoopVirtualVolume = _selectedScene.LoopedSoundVirtualMicVolume;
             var previousLoopHeadphonesVolume = _selectedScene.LoopedSoundHeadphonesVolume;
+            var previousStopOneShotsHotkey = _selectedScene.StopOneShotSoundsHotkey;
+            var previousPauseOneShotsHotkey = _selectedScene.PauseOneShotSoundsHotkey;
+            var previousDisableSceneHotkey = _selectedScene.DisableSceneHotkey;
             var updated = CaptureCurrentScene(_selectedScene.Name);
             updated.Id = _selectedScene.Id;
             updated.Icon = _selectedScene.Icon;
@@ -2855,6 +2906,9 @@ public sealed partial class MainWindow : Window
             updated.AutoStartLoopedSounds = previousAutostartLoops;
             updated.LoopedSoundVirtualMicVolume = previousLoopVirtualVolume;
             updated.LoopedSoundHeadphonesVolume = previousLoopHeadphonesVolume;
+            updated.StopOneShotSoundsHotkey = previousStopOneShotsHotkey;
+            updated.PauseOneShotSoundsHotkey = previousPauseOneShotsHotkey;
+            updated.DisableSceneHotkey = previousDisableSceneHotkey;
             _sceneStore.OverwriteScene(updated);
             _selectedScene = updated;
             LoadScenesIntoUi();
@@ -3309,7 +3363,7 @@ public sealed partial class MainWindow : Window
             Height = SceneSoundButtonHeight,
             MinWidth = 0,
             Margin = new Thickness(0, 0, 10, 10),
-            Padding = new Thickness(10, 6, 10, 6),
+            Padding = new Thickness(12, 8, 12, 8),
             HorizontalAlignment = HorizontalAlignment.Left,
             VerticalAlignment = VerticalAlignment.Top,
             HorizontalContentAlignment = HorizontalAlignment.Stretch,
@@ -3375,13 +3429,13 @@ public sealed partial class MainWindow : Window
 
         if (playbackKey is not null)
         {
-            var timeline = CreateSceneTimeline(playbackKey, GetSoundDurationSeconds(sound), includePlayPauseButton: true);
+            var timeline = CreateSceneTimeline(playbackKey, GetSoundDurationSeconds(sound), includePlayPauseButton: false);
             Grid.SetRow(timeline, 1);
             root.Children.Add(timeline);
         }
         else
         {
-            var placeholder = CreateSceneTimeline($"scene:none:loop:{Guid.NewGuid():N}", 0, includePlayPauseButton: true);
+            var placeholder = CreateSceneTimeline($"scene:none:loop:{Guid.NewGuid():N}", 0, includePlayPauseButton: false);
             placeholder.Opacity = 0.45;
             placeholder.IsHitTestVisible = false;
             Grid.SetRow(placeholder, 1);
@@ -3416,7 +3470,8 @@ public sealed partial class MainWindow : Window
         {
             playPause = new Button
             {
-                Content = "▶",
+                Content = "\uE768",
+                FontFamily = new FontFamily("Segoe MDL2 Assets"),
                 Width = 30,
                 Height = 28,
                 MinWidth = 0,
@@ -3549,7 +3604,7 @@ public sealed partial class MainWindow : Window
             binding.Slider.Opacity = status.IsActive ? 1.0 : 0.52;
             if (binding.PlayPauseButton is not null)
             {
-                binding.PlayPauseButton.Content = status.IsActive && !status.IsPaused ? "⏸" : "▶";
+                binding.PlayPauseButton.Content = status.IsActive && !status.IsPaused ? "\uE769" : "\uE768";
             }
         }
     }
@@ -3598,7 +3653,7 @@ public sealed partial class MainWindow : Window
     {
         var stack = new StackPanel
         {
-            Spacing = 2,
+            Spacing = 4,
             HorizontalAlignment = HorizontalAlignment.Stretch,
             VerticalAlignment = VerticalAlignment.Center
         };
@@ -3642,15 +3697,23 @@ public sealed partial class MainWindow : Window
     private Button CreateSceneAddSoundButton()
     {
         var button = CreateSceneButtonShell();
-        button.Content = new TextBlock
+        button.HorizontalContentAlignment = HorizontalAlignment.Center;
+        button.VerticalContentAlignment = VerticalAlignment.Center;
+        var addContent = new Grid
+        {
+            Width = SceneSoundButtonWidth - 24,
+            Height = SceneSoundButtonHeight - 16
+        };
+        addContent.Children.Add(new TextBlock
         {
             Text = "+",
-            FontSize = 30,
+            FontSize = 36,
             FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
             HorizontalAlignment = HorizontalAlignment.Center,
             VerticalAlignment = VerticalAlignment.Center,
             TextAlignment = TextAlignment.Center
-        };
+        });
+        button.Content = addContent;
 
         var flyout = new Flyout
         {
@@ -3769,7 +3832,7 @@ public sealed partial class MainWindow : Window
 
         var panel = new StackPanel
         {
-            Width = 360,
+            Width = 420,
             Spacing = 8,
             Padding = new Thickness(10)
         };
@@ -3979,7 +4042,24 @@ public sealed partial class MainWindow : Window
             return;
         }
 
-        PlaySceneSound(context.Scene, context.Button, context.Sound, false, "Scene sound");
+        ToggleSceneSoundButtonPlayback(context.Scene, context.Button, context.Sound);
+    }
+
+    private void ToggleSceneSoundButtonPlayback(VoiSeScene scene, SceneSoundButton button, SoundBoardSound sound)
+    {
+        var playbackKey = SceneButtonPlaybackKey(scene.Id, button.Id);
+        var status = _engine?.GetSoundStatus(playbackKey) ?? SoundboardStatus.Empty;
+        if (status.IsActive)
+        {
+            var paused = _engine?.ToggleSoundPause(playbackKey) ?? false;
+            UpdateSceneTimelines();
+            AppendLog(paused
+                ? $"Scene sound paused: {button.LocalName ?? sound.DisplayName}"
+                : $"Scene sound resumed: {button.LocalName ?? sound.DisplayName}");
+            return;
+        }
+
+        PlaySceneSound(scene, button, sound, false, "Scene sound");
     }
 
     private async Task RenameSceneSoundButtonAsync(SceneSoundButton sceneButton)
@@ -4221,6 +4301,51 @@ public sealed partial class MainWindow : Window
         }
     }
 
+    private void StopSceneOneShotSounds(VoiSeScene scene, string logMessage)
+    {
+        foreach (var button in scene.SoundButtons.Where(button => !button.IsLooped))
+        {
+            _engine?.StopSound(SceneButtonPlaybackKey(scene.Id, button.Id));
+        }
+
+        UpdateSceneTimelines();
+        AppendLog(logMessage);
+    }
+
+    private void ToggleSceneOneShotSoundsPause(VoiSeScene scene)
+    {
+        var oneShotKeys = scene.SoundButtons
+            .Where(button => !button.IsLooped)
+            .Select(button => SceneButtonPlaybackKey(scene.Id, button.Id))
+            .ToList();
+        var activeStatuses = oneShotKeys
+            .Select(key => new { Key = key, Status = _engine?.GetSoundStatus(key) ?? SoundboardStatus.Empty })
+            .Where(item => item.Status.IsActive)
+            .ToList();
+
+        if (activeStatuses.Count == 0)
+        {
+            AppendLog("No active scene one-shot sounds to pause.");
+            return;
+        }
+
+        var shouldPause = activeStatuses.Any(item => !item.Status.IsPaused);
+        foreach (var item in activeStatuses)
+        {
+            if (shouldPause && !item.Status.IsPaused)
+            {
+                _engine?.ToggleSoundPause(item.Key);
+            }
+            else if (!shouldPause && item.Status.IsPaused)
+            {
+                _engine?.ToggleSoundPause(item.Key);
+            }
+        }
+
+        UpdateSceneTimelines();
+        AppendLog(shouldPause ? "Scene one-shot sounds paused." : "Scene one-shot sounds resumed.");
+    }
+
     private void OnSceneVoicePresetSelectionChanged(object sender, SelectionChangedEventArgs e)
     {
         if (_loadingSceneUi || _selectedScene is null)
@@ -4245,7 +4370,23 @@ public sealed partial class MainWindow : Window
 
     private void OnSceneLoopPlayOnceClick(object sender, RoutedEventArgs e)
     {
-        PlaySceneLoopedSound(loop: false);
+        var loopedButton = GetSelectedSceneLoopedButton();
+        if (_selectedScene is null || loopedButton is null)
+        {
+            return;
+        }
+
+        var playbackKey = SceneLoopPlaybackKey(_selectedScene.Id, loopedButton.Id);
+        var status = _engine?.GetSoundStatus(playbackKey) ?? SoundboardStatus.Empty;
+        if (status.IsActive)
+        {
+            _engine?.StopSound(playbackKey);
+            UpdateSceneTimelines();
+            AppendLog("Scene looped sound stopped.");
+            return;
+        }
+
+        PlaySceneLoopedSound(loop: true);
     }
 
     private void OnSceneLoopRemoveClick(object sender, RoutedEventArgs e)
@@ -4323,6 +4464,45 @@ public sealed partial class MainWindow : Window
         {
             PlaySceneSound(_selectedScene, loopedButton, sound, loop, "Scene looped sound");
         }
+    }
+
+    private async void OnSceneStopOneShotsHotkeyClick(object sender, RoutedEventArgs e)
+    {
+        if (_selectedScene is null) return;
+        var hotkey = await CaptureHotkeyDialogAsync(
+            "Stop one-shot scene sounds hotkey",
+            "This hotkey stops all non-looped sounds currently playing in the active scene.",
+            _selectedScene.StopOneShotSoundsHotkey);
+        if (hotkey is null) return;
+        _selectedScene.StopOneShotSoundsHotkey = NormalizeOptionalHotkey(hotkey);
+        SaveSelectedSceneEditorChange($"Scene stop one-shots hotkey updated: {_selectedScene.StopOneShotSoundsHotkey ?? "none"}");
+        RefreshSceneActionHotkeyButtons();
+    }
+
+    private async void OnScenePauseOneShotsHotkeyClick(object sender, RoutedEventArgs e)
+    {
+        if (_selectedScene is null) return;
+        var hotkey = await CaptureHotkeyDialogAsync(
+            "Pause one-shot scene sounds hotkey",
+            "This hotkey toggles pause/resume for all non-looped sounds currently playing in the active scene.",
+            _selectedScene.PauseOneShotSoundsHotkey);
+        if (hotkey is null) return;
+        _selectedScene.PauseOneShotSoundsHotkey = NormalizeOptionalHotkey(hotkey);
+        SaveSelectedSceneEditorChange($"Scene pause one-shots hotkey updated: {_selectedScene.PauseOneShotSoundsHotkey ?? "none"}");
+        RefreshSceneActionHotkeyButtons();
+    }
+
+    private async void OnSceneDisableHotkeyClick(object sender, RoutedEventArgs e)
+    {
+        if (_selectedScene is null) return;
+        var hotkey = await CaptureHotkeyDialogAsync(
+            "Disable scene hotkey",
+            "This hotkey disables the currently active scene and stops scene playback.",
+            _selectedScene.DisableSceneHotkey);
+        if (hotkey is null) return;
+        _selectedScene.DisableSceneHotkey = NormalizeOptionalHotkey(hotkey);
+        SaveSelectedSceneEditorChange($"Scene disable hotkey updated: {_selectedScene.DisableSceneHotkey ?? "none"}");
+        RefreshSceneActionHotkeyButtons();
     }
 
     private void OnSceneVoicePresetClearClick(object sender, RoutedEventArgs e)

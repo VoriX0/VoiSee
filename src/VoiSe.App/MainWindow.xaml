@@ -6,7 +6,7 @@
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     mc:Ignorable="d"
-    Title="VoiSe Gate 7.7 - Scene Playback">
+    Title="VoiSe Gate 7.8 - Scene Playback">
 
     <Grid x:Name="RootGrid" Padding="20" RowSpacing="14">
         <Grid.RowDefinitions>
@@ -21,8 +21,8 @@
                     <ColumnDefinition Width="Auto" />
                 </Grid.ColumnDefinitions>
                 <StackPanel Grid.Column="0" Spacing="4" VerticalAlignment="Center">
-                    <TextBlock Text="VoiSe Gate 7.7" FontSize="28" FontWeight="SemiBold" />
-                    <TextBlock Text="Scenes: single-instance scene sounds, independent timelines, active-scene SoundBoard lock, and scene-local hotkeys" Opacity="0.75" />
+                    <TextBlock Text="VoiSe Gate 7.8" FontSize="28" FontWeight="SemiBold" />
+                    <TextBlock Text="Scenes: play/pause sound buttons, action hotkeys, independent timelines, and active-scene SoundBoard lock" Opacity="0.75" />
                 </StackPanel>
                 <StackPanel Grid.Column="1" Spacing="4" VerticalAlignment="Center" HorizontalAlignment="Right">
                     <StackPanel Orientation="Horizontal" Spacing="8">
@@ -145,6 +145,8 @@
                                 <!-- LEFT: categories and category info panel -->
                                 <Grid Grid.Column="0" RowSpacing="8" VerticalAlignment="Stretch">
                                     <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto" />
+                                        <RowDefinition Height="Auto" />
                                         <RowDefinition Height="Auto" />
                                         <RowDefinition Height="Auto" />
                                         <RowDefinition Height="*" />
@@ -506,6 +508,7 @@
                                         <RowDefinition Height="Auto" />
                                         <RowDefinition Height="Auto" />
                                         <RowDefinition Height="Auto" />
+                                        <RowDefinition Height="Auto" />
                                         <RowDefinition Height="*" />
                                     </Grid.RowDefinitions>
 
@@ -549,8 +552,8 @@
                                                       x:Name="LoopedSceneSoundsPanel"
                                                       Height="88" />
                                                 <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="4" VerticalAlignment="Top">
-                                                    <Button x:Name="SceneLoopPlayLoopButton" Content="⟲" Width="42" Height="42" Click="OnSceneLoopPlayLoopClick" ToolTipService.ToolTip="Start loop" />
-                                                    <Button x:Name="SceneLoopPlayOnceButton" Content="▶" Width="42" Height="42" Click="OnSceneLoopPlayOnceClick" ToolTipService.ToolTip="Play once" />
+                                                    <Button x:Name="SceneLoopPlayLoopButton" Content="∞" Width="42" Height="42" Click="OnSceneLoopPlayLoopClick" ToolTipService.ToolTip="Start loop" />
+                                                    <Button x:Name="SceneLoopPlayOnceButton" Content="▶■" Width="42" Height="42" FontSize="13" Click="OnSceneLoopPlayOnceClick" ToolTipService.ToolTip="Play / stop looped sound" />
                                                     <Button x:Name="SceneLoopRemoveButton" Content="✕" Width="42" Height="42" Click="OnSceneLoopRemoveClick" ToolTipService.ToolTip="Remove sound" />
                                                     <Button x:Name="SceneLoopChooseButton" Content="⮏" Width="42" Height="42" Click="OnSceneLoopChooseClick" ToolTipService.ToolTip="Choose another sound" />
                                                 </StackPanel>
@@ -579,7 +582,14 @@
                                         </StackPanel>
                                     </Grid>
 
-                                    <Grid Grid.Row="3" RowSpacing="8">
+                                    <StackPanel Grid.Row="3" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                                        <TextBlock Text="Scene action hotkeys" FontWeight="SemiBold" VerticalAlignment="Center" />
+                                        <Button x:Name="SceneStopOneShotsHotkeyButton" Content="Stop one-shots: —" MinWidth="150" Click="OnSceneStopOneShotsHotkeyClick" />
+                                        <Button x:Name="ScenePauseOneShotsHotkeyButton" Content="Pause one-shots: —" MinWidth="154" Click="OnScenePauseOneShotsHotkeyClick" />
+                                        <Button x:Name="SceneDisableHotkeyButton" Content="Disable scene: —" MinWidth="148" Click="OnSceneDisableHotkeyClick" />
+                                    </StackPanel>
+
+                                    <Grid Grid.Row="4" RowSpacing="8">
                                         <Grid.RowDefinitions>
                                             <RowDefinition Height="Auto" />
                                             <RowDefinition Height="*" />
@@ -593,8 +603,8 @@
                                         <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" VerticalScrollMode="Enabled" HorizontalScrollBarVisibility="Disabled" HorizontalScrollMode="Disabled" ZoomMode="Disabled">
                                             <VariableSizedWrapGrid x:Name="SceneSoundsPanel"
                                                                    Orientation="Horizontal"
-                                                                   ItemWidth="164"
-                                                                   ItemHeight="68"
+                                                                   ItemWidth="218"
+                                                                   ItemHeight="118"
                                                                    MaximumRowsOrColumns="6" />
                                         </ScrollViewer>
                                     </Grid>
