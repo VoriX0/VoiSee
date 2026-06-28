@@ -52,7 +52,7 @@ public sealed class SoundboardTransport
         }
     }
 
-    public void Play(string filePath, float virtualVolume, float monitorVolume, int virtualDelayMs, bool loop = false)
+    public void Play(string filePath, float virtualVolume, float monitorVolume, int virtualDelayMs, bool loop = false, string? playbackKey = null)
     {
         var data = SoundFileLoader.LoadToFormat(filePath, _format);
         var delaySamples = Math.Max(0, (int)Math.Round(_format.SampleRate * (virtualDelayMs / 1000.0)) * _format.Channels);
@@ -63,7 +63,8 @@ public sealed class SoundboardTransport
             Math.Clamp(virtualVolume, 0.0f, 2.0f),
             Math.Clamp(monitorVolume, 0.0f, 2.0f),
             delaySamples,
-            loop);
+            loop,
+            playbackKey);
 
         lock (_sync)
         {
@@ -71,6 +72,14 @@ public sealed class SoundboardTransport
             {
                 _primary = sound;
                 _overlays.Clear();
+                return;
+            }
+
+            if (!string.IsNullOrWhiteSpace(playbackKey))
+            {
+                RemoveByKey(playbackKey);
+                _overlays.Add(sound);
+                RemoveFinishedOverlays();
                 return;
             }
 
@@ -86,59 +95,101 @@ public sealed class SoundboardTransport
         }
     }
 
-    public void Stop()
+    public void Stop(string? playbackKey = null)
     {
         lock (_sync)
         {
-            _primary = null;
-            _overlays.Clear();
+            if (string.IsNullOrWhiteSpace(playbackKey))
+            {
+                _primary = null;
+                _overlays.Clear();
+                return;
+            }
+
+            RemoveByKey(playbackKey);
         }
     }
 
-    public bool TogglePause()
+    public bool TogglePause(string? playbackKey = null)
     {
         lock (_sync)
         {
-            if (_primary is null && _overlays.Count == 0)
+            if (string.IsNullOrWhiteSpace(playbackKey))
+            {
+                if (_primary is null && _overlays.Count == 0)
+                {
+                    return false;
+                }
+
+                var newPausedState = !(_primary?.IsPaused ?? _overlays.All(sound => sound.IsPaused));
+                _primary?.SetPaused(newPausedState);
+                foreach (var overlay in _overlays)
+                {
+                    overlay.SetPaused(newPausedState);
+                }
+
+                return newPausedState;
+            }
+
+            var targets = FindByKey(playbackKey).ToList();
+            if (targets.Count == 0)
             {
                 return false;
             }
 
-            var newPausedState = !(_primary?.IsPaused ?? _overlays.All(sound => sound.IsPaused));
-            _primary?.SetPaused(newPausedState);
-            foreach (var overlay in _overlays)
+            var newState = !targets.All(sound => sound.IsPaused);
+            foreach (var target in targets)
             {
-                overlay.SetPaused(newPausedState);
+                target.SetPaused(newState);
             }
 
-            return newPausedState;
+            return newState;
         }
     }
 
-    public void Seek(double seconds)
+    public void Seek(double seconds, string? playbackKey = null)
     {
         lock (_sync)
         {
-            _primary?.Seek(seconds);
+            if (string.IsNullOrWhiteSpace(playbackKey))
+            {
+                _primary?.Seek(seconds);
+                return;
+            }
+
+            foreach (var target in FindByKey(playbackKey))
+            {
+                target.Seek(seconds);
+            }
         }
     }
 
-    public void UpdateVolumes(float virtualVolume, float monitorVolume)
+    public void UpdateVolumes(float virtualVolume, float monitorVolume, string? playbackKey = null)
     {
         var clampedVirtual = Math.Clamp(virtualVolume, 0.0f, 2.0f);
         var clampedMonitor = Math.Clamp(monitorVolume, 0.0f, 2.0f);
 
         lock (_sync)
         {
-            _primary?.UpdateVolumes(clampedVirtual, clampedMonitor);
-            foreach (var overlay in _overlays)
+            if (string.IsNullOrWhiteSpace(playbackKey))
             {
-                overlay.UpdateVolumes(clampedVirtual, clampedMonitor);
+                _primary?.UpdateVolumes(clampedVirtual, clampedMonitor);
+                foreach (var overlay in _overlays)
+                {
+                    overlay.UpdateVolumes(clampedVirtual, clampedMonitor);
+                }
+
+                return;
+            }
+
+            foreach (var target in FindByKey(playbackKey))
+            {
+                target.UpdateVolumes(clampedVirtual, clampedMonitor);
             }
         }
     }
 
-    public SoundboardStatus GetStatus()
+    public SoundboardStatus GetStatus(string? playbackKey = null)
     {
         lock (_sync)
         {
@@ -146,6 +197,11 @@ public sealed class SoundboardTransport
             if (_primary is not null && _primary.IsFinished)
             {
                 _primary = null;
+            }
+
+            if (!string.IsNullOrWhiteSpace(playbackKey))
+            {
+                return FindByKey(playbackKey).FirstOrDefault()?.GetStatus() ?? SoundboardStatus.Empty;
             }
 
             return _primary?.GetStatus()
@@ -200,6 +256,32 @@ public sealed class SoundboardTransport
         }
     }
 
+    private IEnumerable<ActiveSound> FindByKey(string playbackKey)
+    {
+        if (_primary is not null && string.Equals(_primary.PlaybackKey, playbackKey, StringComparison.OrdinalIgnoreCase))
+        {
+            yield return _primary;
+        }
+
+        foreach (var overlay in _overlays)
+        {
+            if (string.Equals(overlay.PlaybackKey, playbackKey, StringComparison.OrdinalIgnoreCase))
+            {
+                yield return overlay;
+            }
+        }
+    }
+
+    private void RemoveByKey(string playbackKey)
+    {
+        if (_primary is not null && string.Equals(_primary.PlaybackKey, playbackKey, StringComparison.OrdinalIgnoreCase))
+        {
+            _primary = null;
+        }
+
+        _overlays.RemoveAll(sound => string.Equals(sound.PlaybackKey, playbackKey, StringComparison.OrdinalIgnoreCase));
+    }
+
     private void RemoveFinishedOverlays()
     {
         for (var index = _overlays.Count - 1; index >= 0; index--)
@@ -225,7 +307,7 @@ public sealed class SoundboardTransport
         private bool _virtualFinished;
         private bool _monitorFinished;
 
-        public ActiveSound(float[] samples, int sampleRate, int channels, float virtualVolume, float monitorVolume, int virtualDelaySamples, bool loop)
+        public ActiveSound(float[] samples, int sampleRate, int channels, float virtualVolume, float monitorVolume, int virtualDelaySamples, bool loop, string? playbackKey)
         {
             _samples = samples;
             _sampleRate = sampleRate;
@@ -235,9 +317,11 @@ public sealed class SoundboardTransport
             _initialVirtualDelaySamples = Math.Max(0, virtualDelaySamples);
             _remainingVirtualDelaySamples = _initialVirtualDelaySamples;
             IsLoop = loop;
+            PlaybackKey = playbackKey;
         }
 
         public bool IsLoop { get; }
+        public string? PlaybackKey { get; }
         public bool IsFinished => _samples.Length == 0 || (!IsLoop && _virtualFinished && _monitorFinished);
         public bool IsPaused { get; private set; }
 

@@ -1,1 +1,1 @@
-Gate 7.6 buildfix 1
+Gate 7.7

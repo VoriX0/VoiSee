@@ -1,41 +1,17 @@
-# VoiSe Gate 7.4 — Scene Loop Slot Polish
+# VoiSe Gate 7.7 — Scene single-instance playback and timelines
 
-Gate 7 starts the Scenes feature.
+WinUI 3 starter app for VoiSe with SoundBoard, Voice Changer presets, and Scene Editor.
 
-A scene now captures and restores:
+Gate 7.7 focuses on Scene playback behavior:
 
-- current Voice Changer slider values;
-- last applied voice preset name when available;
-- Voice Monitor On/Off;
-- selected SoundBoard category;
-- selected SoundBoard sound;
-- Virtual Mic Master;
-- SoundBoard → Virtual Mic volume;
-- SoundBoard → Headphones volume;
-- SoundBoard virtual mic delay.
+- active scene state is visible in the scene list;
+- SoundBoard controls are locked while a scene is active;
+- looped scene sound has its own timeline and play/pause control;
+- every scene sound button has its own seekable timeline;
+- each scene sound button can only have one active playback instance;
+- repeated clicks restart that button's sound instead of stacking copies;
+- different scene buttons can still play together over the looped background;
+- scene button volumes remain per-button in the context menu;
+- context menu actions are regrouped and include Stop.
 
-Scenes are stored as separate JSON files in:
-
-```text
-%LOCALAPPDATA%\VoiSe\scenes\
-```
-
-Run:
-
-```powershell
-dotnet run --project src/VoiSe.App
-```
-
-
-## Gate 7.1
-
-See `docs/GATE7_1_SCENE_EDITOR_REDESIGN.md` for the scene editor redesign details.
-
-
-## Gate 7.4
-
-- Raised the scene control buttons in the left scene menu.
-- Reworked the looped sound area as a non-button slot with `No sound` placeholder.
-- Added equal-height loop action icon buttons and `⮏` choose/replace icon.
-- Moved Voice Monitor into the Clear/Create new row.
-- Added SoundBoard overlay playback so normal scene sounds can play over an active loop.
+See `docs/GATE7_7_SCENE_SINGLE_INSTANCE_TIMELINES.md` for details.

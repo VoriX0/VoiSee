@@ -94,29 +94,29 @@ public sealed class Gate2UnifiedAudioEngine : IDisposable
         _capture.StartRecording();
     }
 
-    public void PlaySound(string filePath, float virtualVolume, float monitorVolume, int virtualDelayMs, bool loop = false)
+    public void PlaySound(string filePath, float virtualVolume, float monitorVolume, int virtualDelayMs, bool loop = false, string? playbackKey = null)
     {
-        _soundboard.Play(filePath, virtualVolume, monitorVolume, virtualDelayMs, loop);
+        _soundboard.Play(filePath, virtualVolume, monitorVolume, virtualDelayMs, loop, playbackKey);
     }
 
-    public void StopSound()
+    public void StopSound(string? playbackKey = null)
     {
-        _soundboard.Stop();
+        _soundboard.Stop(playbackKey);
     }
 
-    public void SeekSound(double seconds)
+    public void SeekSound(double seconds, string? playbackKey = null)
     {
-        _soundboard.Seek(seconds);
+        _soundboard.Seek(seconds, playbackKey);
     }
 
-    public bool ToggleSoundPause()
+    public bool ToggleSoundPause(string? playbackKey = null)
     {
-        return _soundboard.TogglePause();
+        return _soundboard.TogglePause(playbackKey);
     }
 
-    public SoundboardStatus GetSoundStatus()
+    public SoundboardStatus GetSoundStatus(string? playbackKey = null)
     {
-        return _soundboard.GetStatus();
+        return _soundboard.GetStatus(playbackKey);
     }
 
     public void UpdateEffectSettings(EffectSettings settings)
@@ -127,9 +127,9 @@ public sealed class Gate2UnifiedAudioEngine : IDisposable
         _monitorProvider?.UpdateSettings(settings);
     }
 
-    public void UpdateSoundVolumes(float virtualVolume, float monitorVolume)
+    public void UpdateSoundVolumes(float virtualVolume, float monitorVolume, string? playbackKey = null)
     {
-        _soundboard.UpdateVolumes(virtualVolume, monitorVolume);
+        _soundboard.UpdateVolumes(virtualVolume, monitorVolume, playbackKey);
     }
 
     public void Stop()

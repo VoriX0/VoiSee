@@ -77,8 +77,11 @@ public sealed partial class MainWindow : Window
     private const double SoundWheelZoneExpandBottomRatio = 1.60;
     private const double VoiceValueMin = -9999.0;
     private const double VoiceValueMax = 9999.0;
-    private const double SceneSoundButtonWidth = 154.0;
-    private const double SceneSoundButtonHeight = 58.0;
+    private const double SceneSoundButtonWidth = 170.0;
+    private const double SceneSoundButtonHeight = 92.0;
+    private const double SceneLoopIconHeight = 42.0;
+    private readonly Dictionary<string, SceneTimelineBinding> _sceneTimelineBindings = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, double> _soundDurationSecondsCache = new(StringComparer.OrdinalIgnoreCase);
     private bool _loadingSceneUi;
 
     public MainWindow()
@@ -117,7 +120,7 @@ public sealed partial class MainWindow : Window
         _timelineTimer.Tick += OnTimelineTimerTick;
         _timelineTimer.Start();
 
-        AppendLog("Gate 7.2 UI started.");
+        AppendLog("Gate 7.7 UI started.");
         AppendLog($"Settings path: {_settingsStore.SettingsPath}");
         StartupLog.Write("MainWindow initialized; waiting for first activation.");
     }
@@ -615,11 +618,11 @@ public sealed partial class MainWindow : Window
             {
                 if (sceneButton.IsLooped)
                 {
-                    PlaySoundBoardSound(sound, true, activeScene.LoopedSoundVirtualMicVolume, activeScene.LoopedSoundHeadphonesVolume, "Scene looped sound");
+                    PlaySceneSound(activeScene, sceneButton, sound, true, "Scene looped sound");
                 }
                 else
                 {
-                    PlaySoundBoardSound(sound, false, sceneButton.VirtualMicVolume, sceneButton.HeadphonesVolume, "Scene sound");
+                    PlaySceneSound(activeScene, sceneButton, sound, false, "Scene sound");
                 }
 
                 AppendLog($"Scene hotkey: {activeScene.Name} / {displayName} [{configured}]");
@@ -632,6 +635,20 @@ public sealed partial class MainWindow : Window
 
     private bool TryHandleSoundHotkey(HotkeyGesture current)
     {
+        if (IsSceneActive)
+        {
+            foreach (var sound in _library.Sounds)
+            {
+                if (HotkeyGesture.TryParse(sound.Hotkey, out var blocked) && blocked.Equals(current))
+                {
+                    DispatcherQueue.TryEnqueue(() => AppendLog("SoundBoard hotkey blocked while a scene is active."));
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
         foreach (var sound in _library.Sounds)
         {
             if (HotkeyGesture.TryParse(sound.Hotkey, out var configured) && configured.Equals(current))
@@ -2207,10 +2224,15 @@ public sealed partial class MainWindow : Window
             : center + (normalized / 100.0) * (max - center);
     }
 
-    private void OnPlaySoundClick(object sender, RoutedEventArgs e) => PlaySelectedSound();
+    private void OnPlaySoundClick(object sender, RoutedEventArgs e)
+    {
+        if (BlockSoundBoardPlaybackIfSceneActive()) return;
+        PlaySelectedSound();
+    }
 
     private void OnPlayPauseSoundClick(object sender, RoutedEventArgs e)
     {
+        if (BlockSoundBoardPlaybackIfSceneActive()) return;
         var status = _engine?.GetSoundStatus() ?? SoundboardStatus.Empty;
         if (!status.IsActive)
         {
@@ -2225,6 +2247,7 @@ public sealed partial class MainWindow : Window
 
     private void PlaySelectedSound(bool loop = false)
     {
+        if (BlockSoundBoardPlaybackIfSceneActive()) return;
         var soundPath = _selectedSound?.FilePath ?? _soundFilePath;
         var displayName = _selectedSound?.DisplayName ?? (string.IsNullOrWhiteSpace(soundPath) ? "Sound" : System.IO.Path.GetFileName(soundPath));
         PlaySoundPath(
@@ -2243,6 +2266,18 @@ public sealed partial class MainWindow : Window
         PlaySoundPath(sound.FilePath, sound, sound.DisplayName, loop, virtualVolume, monitorVolume, sourceLabel);
     }
 
+    private void PlaySceneSound(VoiSeScene scene, SceneSoundButton sceneButton, SoundBoardSound sound, bool loop, string sourceLabel)
+    {
+        var playbackKey = loop
+            ? SceneLoopPlaybackKey(scene.Id, sceneButton.Id)
+            : SceneButtonPlaybackKey(scene.Id, sceneButton.Id);
+        var virtualVolume = loop ? scene.LoopedSoundVirtualMicVolume : sceneButton.VirtualMicVolume;
+        var monitorVolume = loop ? scene.LoopedSoundHeadphonesVolume : sceneButton.HeadphonesVolume;
+        var displayName = string.IsNullOrWhiteSpace(sceneButton.LocalName) ? sound.DisplayName : sceneButton.LocalName!.Trim();
+        PlaySoundPath(sound.FilePath, sound, displayName, loop, virtualVolume, monitorVolume, sourceLabel, playbackKey, updateSoundBoardTransportUi: false);
+        UpdateSceneTimelines();
+    }
+
     private void PlaySoundPath(
         string? soundPath,
         SoundBoardSound? librarySound,
@@ -2250,7 +2285,9 @@ public sealed partial class MainWindow : Window
         bool loop,
         double virtualVolume,
         double monitorVolume,
-        string sourceLabel)
+        string sourceLabel,
+        string? playbackKey = null,
+        bool updateSoundBoardTransportUi = true)
     {
         if (_engine is null)
         {
@@ -2270,16 +2307,21 @@ public sealed partial class MainWindow : Window
             var delayMs = (int)Math.Round(SoundVirtualDelaySlider.Value);
             var virtualRouteVolume = (float)Clamp(virtualVolume, 0, 1.5);
             var monitorRouteVolume = (float)Clamp(monitorVolume, 0, 1.5);
-            _currentSoundDisplayName = string.IsNullOrWhiteSpace(displayName)
+            var normalizedDisplayName = string.IsNullOrWhiteSpace(displayName)
                 ? System.IO.Path.GetFileNameWithoutExtension(soundPath)
                 : displayName!.Trim();
-            _engine.PlaySound(soundPath, virtualRouteVolume, monitorRouteVolume, delayMs, loop);
+            if (updateSoundBoardTransportUi)
+            {
+                _currentSoundDisplayName = normalizedDisplayName;
+            }
+
+            _engine.PlaySound(soundPath, virtualRouteVolume, monitorRouteVolume, delayMs, loop, playbackKey);
             if (librarySound is not null)
             {
                 _libraryStore.IncrementUsage(_library, librarySound);
             }
             UpdateBottomStats();
-            AppendLog($"{sourceLabel} started{(loop ? " in loop" : string.Empty)}: {_currentSoundDisplayName}. HP: {(int)Math.Round(monitorRouteVolume * 100)}%, Mic: {(int)Math.Round(virtualRouteVolume * 100)}%, Virtual delay: {delayMs} ms.");
+            AppendLog($"{sourceLabel} started{(loop ? " in loop" : string.Empty)}: {normalizedDisplayName}. HP: {(int)Math.Round(monitorRouteVolume * 100)}%, Mic: {(int)Math.Round(virtualRouteVolume * 100)}%, Virtual delay: {delayMs} ms.");
         }
         catch (Exception ex)
         {
@@ -2289,6 +2331,7 @@ public sealed partial class MainWindow : Window
 
     private void OnStopSoundClick(object sender, RoutedEventArgs e)
     {
+        if (BlockSoundBoardPlaybackIfSceneActive()) return;
         _engine?.StopSound();
         _currentSoundDisplayName = null;
         UpdateTimeline();
@@ -2298,16 +2341,19 @@ public sealed partial class MainWindow : Window
 
     private void OnPreviousSoundClick(object sender, RoutedEventArgs e)
     {
+        if (BlockSoundBoardPlaybackIfSceneActive()) return;
         SelectRelativeSound(-1, play: true);
     }
 
     private void OnNextSoundClick(object sender, RoutedEventArgs e)
     {
+        if (BlockSoundBoardPlaybackIfSceneActive()) return;
         SelectRelativeSound(1, play: true);
     }
 
     private void SelectRelativeSound(int delta, bool play)
     {
+        if (play && BlockSoundBoardPlaybackIfSceneActive()) return;
         var sounds = FilterSoundsForSelectedCategory().ToList();
         if (sounds.Count == 0) return;
 
@@ -2336,7 +2382,7 @@ public sealed partial class MainWindow : Window
         if (_loadingSettings) return;
 
         SaveCurrentSettings();
-        if (_engine is not null)
+        if (_engine is not null && !IsSceneActive)
         {
             _engine.UpdateSoundVolumes((float)SoundVirtualVolumeSlider.Value, (float)SoundMonitorVolumeSlider.Value);
         }
@@ -2352,6 +2398,14 @@ public sealed partial class MainWindow : Window
 
         _selectedScene.LoopedSoundHeadphonesVolume = SceneLoopHeadphonesVolumeSlider?.Value ?? 1.0;
         _selectedScene.LoopedSoundVirtualMicVolume = SceneLoopVirtualMicVolumeSlider?.Value ?? 1.0;
+        var loopedButton = GetSelectedSceneLoopedButton();
+        if (loopedButton is not null && _engine is not null)
+        {
+            _engine.UpdateSoundVolumes(
+                (float)_selectedScene.LoopedSoundVirtualMicVolume,
+                (float)_selectedScene.LoopedSoundHeadphonesVolume,
+                SceneLoopPlaybackKey(_selectedScene.Id, loopedButton.Id));
+        }
         SaveSelectedSceneVolumeChange();
     }
 
@@ -2458,6 +2512,7 @@ public sealed partial class MainWindow : Window
 
     private void OnTimelineHostPointerPressed(object sender, PointerRoutedEventArgs e)
     {
+        if (BlockSoundBoardPlaybackIfSceneActive()) return;
         var status = _engine?.GetSoundStatus() ?? SoundboardStatus.Empty;
         if (!status.IsActive)
         {
@@ -2509,12 +2564,33 @@ public sealed partial class MainWindow : Window
         CurrentTimeTextBlock.Text = FormatTime(seconds);
     }
 
-    private void OnTimelineTimerTick(object? sender, object e) => UpdateTimeline();
+    private void OnTimelineTimerTick(object? sender, object e)
+    {
+        UpdateTimeline();
+        UpdateSceneTimelines();
+    }
 
     private void UpdateTimeline()
     {
         if (TimelineHost is null)
         {
+            return;
+        }
+
+        UpdateSoundBoardSceneLockState();
+        if (IsSceneActive)
+        {
+            _timelineMaximumSeconds = 1;
+            if (!_timelineUserDragging)
+            {
+                SetTimelineVisual(0, 1);
+                CurrentTimeTextBlock.Text = "00:00";
+            }
+
+            TotalTimeTextBlock.Text = "00:00";
+            TransportStatusTextBlock.Text = "Scene active — SoundBoard locked";
+            PlayPauseButton.Content = "";
+            TimelineHost.Opacity = 0.28;
             return;
         }
 
@@ -2984,14 +3060,14 @@ public sealed partial class MainWindow : Window
             if (scene.AutoStartLoopedSounds)
             {
                 _engine?.StopSound();
-                var loopedSound = scene.SoundButtons
+                var loopedButton = scene.SoundButtons
                     .Where(b => b.IsLooped)
                     .OrderBy(b => b.SortOrder)
-                    .Select(b => PickSound(b.SoundId))
-                    .FirstOrDefault(s => s is not null);
-                if (loopedSound is not null)
+                    .FirstOrDefault();
+                var loopedSound = loopedButton is null ? null : PickSound(loopedButton.SoundId);
+                if (loopedButton is not null && loopedSound is not null)
                 {
-                    PlaySoundBoardSound(loopedSound, true, scene.LoopedSoundVirtualMicVolume, scene.LoopedSoundHeadphonesVolume, "Scene looped sound");
+                    PlaySceneSound(scene, loopedButton, loopedSound, true, "Scene looped sound");
                     AppendLog("Looped sound autostart requested. Scene looped sound started in loop mode.");
                 }
             }
@@ -3045,12 +3121,84 @@ public sealed partial class MainWindow : Window
     }
 
 
+    private bool IsSceneActive => !string.IsNullOrWhiteSpace(_activeSceneId);
+
     private void UpdateSceneActiveFlags()
     {
         foreach (var scene in _scenes)
         {
             scene.IsActive = !string.IsNullOrWhiteSpace(_activeSceneId)
                 && string.Equals(scene.Id, _activeSceneId, StringComparison.OrdinalIgnoreCase);
+        }
+
+        UpdateSoundBoardSceneLockState();
+    }
+
+    private void UpdateSoundBoardSceneLockState()
+    {
+        var locked = IsSceneActive;
+        if (PreviousSoundButton is not null) PreviousSoundButton.IsEnabled = !locked;
+        if (NextSoundButton is not null) NextSoundButton.IsEnabled = !locked;
+        if (StopSoundButton is not null) StopSoundButton.IsEnabled = !locked;
+        if (PlayPauseButton is not null) PlayPauseButton.IsEnabled = !locked;
+        if (TimelineHost is not null) TimelineHost.IsHitTestVisible = !locked;
+        if (SoundVirtualVolumeSlider is not null) SoundVirtualVolumeSlider.IsEnabled = !locked;
+        if (SoundMonitorVolumeSlider is not null) SoundMonitorVolumeSlider.IsEnabled = !locked;
+        if (SoundBoardSceneLockOverlay is not null) SoundBoardSceneLockOverlay.Visibility = locked ? Visibility.Visible : Visibility.Collapsed;
+    }
+
+    private bool BlockSoundBoardPlaybackIfSceneActive()
+    {
+        if (!IsSceneActive)
+        {
+            return false;
+        }
+
+        UpdateSoundBoardSceneLockState();
+        AppendLog("SoundBoard playback is unavailable while a scene is active. Use scene buttons or disable scenes first.");
+        return true;
+    }
+
+    private static string SceneLoopPlaybackKey(string sceneId, string buttonId) => $"scene:{sceneId}:loop:{buttonId}";
+
+    private static string SceneButtonPlaybackKey(string sceneId, string buttonId) => $"scene:{sceneId}:button:{buttonId}";
+
+    private static string FormatDuration(double seconds)
+    {
+        if (double.IsNaN(seconds) || double.IsInfinity(seconds) || seconds <= 0)
+        {
+            return "00:00";
+        }
+
+        var time = TimeSpan.FromSeconds(seconds);
+        return time.TotalHours >= 1
+            ? $"{(int)time.TotalHours:00}:{time.Minutes:00}:{time.Seconds:00}"
+            : $"{time.Minutes:00}:{time.Seconds:00}";
+    }
+
+    private double GetSoundDurationSeconds(SoundBoardSound? sound)
+    {
+        if (sound is null || string.IsNullOrWhiteSpace(sound.FilePath) || !File.Exists(sound.FilePath))
+        {
+            return 0;
+        }
+
+        if (_soundDurationSecondsCache.TryGetValue(sound.FilePath, out var cached))
+        {
+            return cached;
+        }
+
+        try
+        {
+            using var reader = new NAudio.Wave.AudioFileReader(sound.FilePath);
+            var seconds = Math.Max(0, reader.TotalTime.TotalSeconds);
+            _soundDurationSecondsCache[sound.FilePath] = seconds;
+            return seconds;
+        }
+        catch
+        {
+            _soundDurationSecondsCache[sound.FilePath] = 0;
+            return 0;
         }
     }
 
@@ -3080,6 +3228,17 @@ public sealed partial class MainWindow : Window
         };
     }
 
+    private sealed class SceneTimelineBinding
+    {
+        public required string PlaybackKey { get; init; }
+        public required Slider Slider { get; init; }
+        public required TextBlock CurrentText { get; init; }
+        public required TextBlock TotalText { get; init; }
+        public Button? PlayPauseButton { get; init; }
+        public double DurationFallbackSeconds { get; init; }
+        public bool IsDragging { get; set; }
+    }
+
     private sealed class SceneSoundButtonContext
     {
         public required VoiSeScene Scene { get; init; }
@@ -3098,6 +3257,7 @@ public sealed partial class MainWindow : Window
 
         LoopedSceneSoundsPanel.Children.Clear();
         SceneSoundsPanel.Children.Clear();
+        _sceneTimelineBindings.Clear();
 
         if (_selectedScene is null)
         {
@@ -3161,21 +3321,38 @@ public sealed partial class MainWindow : Window
     {
         var displayName = emptyText;
         var opacity = 0.62;
+        SoundBoardSound? sound = null;
+        string? playbackKey = null;
 
         if (sceneButton is not null)
         {
-            var sound = PickSound(sceneButton.SoundId);
+            sound = PickSound(sceneButton.SoundId);
             displayName = string.IsNullOrWhiteSpace(sceneButton.LocalName)
                 ? sound?.DisplayName ?? "Missing SoundBoard sound"
                 : sceneButton.LocalName!.Trim();
             opacity = 1.0;
+            if (_selectedScene is not null)
+            {
+                playbackKey = SceneLoopPlaybackKey(_selectedScene.Id, sceneButton.Id);
+            }
         }
 
-        return new Border
+        var root = new Grid
         {
-            Height = SceneSoundButtonHeight,
-            MinHeight = SceneSoundButtonHeight,
-            Padding = new Thickness(10, 6, 10, 6),
+            Height = 88,
+            MinHeight = 88,
+            RowSpacing = 4,
+            HorizontalAlignment = HorizontalAlignment.Stretch,
+            VerticalAlignment = VerticalAlignment.Top
+        };
+        root.RowDefinitions.Add(new RowDefinition { Height = new GridLength(SceneLoopIconHeight) });
+        root.RowDefinitions.Add(new RowDefinition { Height = new GridLength(38) });
+
+        var label = new Border
+        {
+            Height = SceneLoopIconHeight,
+            MinHeight = SceneLoopIconHeight,
+            Padding = new Thickness(10, 4, 10, 4),
             CornerRadius = new CornerRadius(4),
             Background = new SolidColorBrush(sceneButton is null
                 ? Microsoft.UI.ColorHelper.FromArgb(0x12, 0xFF, 0xFF, 0xFF)
@@ -3193,6 +3370,210 @@ public sealed partial class MainWindow : Window
                 VerticalAlignment = VerticalAlignment.Center
             }
         };
+        Grid.SetRow(label, 0);
+        root.Children.Add(label);
+
+        if (playbackKey is not null)
+        {
+            var timeline = CreateSceneTimeline(playbackKey, GetSoundDurationSeconds(sound), includePlayPauseButton: true);
+            Grid.SetRow(timeline, 1);
+            root.Children.Add(timeline);
+        }
+        else
+        {
+            var placeholder = CreateSceneTimeline($"scene:none:loop:{Guid.NewGuid():N}", 0, includePlayPauseButton: true);
+            placeholder.Opacity = 0.45;
+            placeholder.IsHitTestVisible = false;
+            Grid.SetRow(placeholder, 1);
+            root.Children.Add(placeholder);
+        }
+
+        return root;
+    }
+
+    private FrameworkElement CreateSceneTimeline(string playbackKey, double durationFallbackSeconds, bool includePlayPauseButton)
+    {
+        var root = new Grid
+        {
+            ColumnSpacing = 6,
+            HorizontalAlignment = HorizontalAlignment.Stretch,
+            VerticalAlignment = VerticalAlignment.Center
+        };
+
+        if (includePlayPauseButton)
+        {
+            root.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(32) });
+            root.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        }
+        else
+        {
+            root.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        }
+
+        Button? playPause = null;
+        var timelineColumn = includePlayPauseButton ? 1 : 0;
+        if (includePlayPauseButton)
+        {
+            playPause = new Button
+            {
+                Content = "▶",
+                Width = 30,
+                Height = 28,
+                MinWidth = 0,
+                Padding = new Thickness(0),
+                Tag = playbackKey,
+                HorizontalAlignment = HorizontalAlignment.Left,
+                VerticalAlignment = VerticalAlignment.Center
+            };
+            ToolTipService.SetToolTip(playPause, "Play / pause this scene sound");
+            playPause.Click += OnSceneTimelinePlayPauseClick;
+            Grid.SetColumn(playPause, 0);
+            root.Children.Add(playPause);
+        }
+
+        var timelineGrid = new Grid
+        {
+            RowSpacing = 0,
+            HorizontalAlignment = HorizontalAlignment.Stretch,
+            VerticalAlignment = VerticalAlignment.Center
+        };
+        timelineGrid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(22) });
+        timelineGrid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(14) });
+
+        var slider = new Slider
+        {
+            Minimum = 0,
+            Maximum = Math.Max(1, durationFallbackSeconds),
+            Value = 0,
+            StepFrequency = 0.05,
+            HorizontalAlignment = HorizontalAlignment.Stretch,
+            VerticalAlignment = VerticalAlignment.Center,
+            Padding = new Thickness(0),
+            Margin = new Thickness(0, -3, 0, -3)
+        };
+        Grid.SetRow(slider, 0);
+        timelineGrid.Children.Add(slider);
+
+        var labels = new Grid
+        {
+            HorizontalAlignment = HorizontalAlignment.Stretch
+        };
+        labels.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        labels.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+
+        var currentText = new TextBlock
+        {
+            Text = "00:00",
+            FontSize = 10,
+            Opacity = 0.72,
+            HorizontalAlignment = HorizontalAlignment.Left,
+            VerticalAlignment = VerticalAlignment.Center
+        };
+        labels.Children.Add(currentText);
+
+        var totalText = new TextBlock
+        {
+            Text = FormatDuration(durationFallbackSeconds),
+            FontSize = 10,
+            Opacity = 0.72,
+            HorizontalAlignment = HorizontalAlignment.Right,
+            VerticalAlignment = VerticalAlignment.Center
+        };
+        Grid.SetColumn(totalText, 1);
+        labels.Children.Add(totalText);
+
+        Grid.SetRow(labels, 1);
+        timelineGrid.Children.Add(labels);
+
+        Grid.SetColumn(timelineGrid, timelineColumn);
+        root.Children.Add(timelineGrid);
+
+        var binding = new SceneTimelineBinding
+        {
+            PlaybackKey = playbackKey,
+            Slider = slider,
+            CurrentText = currentText,
+            TotalText = totalText,
+            PlayPauseButton = playPause,
+            DurationFallbackSeconds = durationFallbackSeconds
+        };
+        _sceneTimelineBindings[playbackKey] = binding;
+
+        slider.AddHandler(UIElement.PointerPressedEvent, new PointerEventHandler((_, e) =>
+        {
+            binding.IsDragging = true;
+            e.Handled = true;
+        }), true);
+        slider.AddHandler(UIElement.PointerReleasedEvent, new PointerEventHandler((_, e) =>
+        {
+            binding.IsDragging = false;
+            _engine?.SeekSound(slider.Value, playbackKey);
+            e.Handled = true;
+        }), true);
+        slider.ValueChanged += (_, args) =>
+        {
+            if (binding.IsDragging)
+            {
+                _engine?.SeekSound(args.NewValue, playbackKey);
+                currentText.Text = FormatDuration(args.NewValue);
+            }
+        };
+
+        return root;
+    }
+
+    private void UpdateSceneTimelines()
+    {
+        if (_sceneTimelineBindings.Count == 0)
+        {
+            return;
+        }
+
+        foreach (var binding in _sceneTimelineBindings.Values.ToList())
+        {
+            var status = _engine?.GetSoundStatus(binding.PlaybackKey) ?? SoundboardStatus.Empty;
+            var duration = status.IsActive && status.DurationSeconds > 0
+                ? status.DurationSeconds
+                : binding.DurationFallbackSeconds;
+            duration = Math.Max(0, duration);
+            var sliderMaximum = Math.Max(1, duration);
+
+            if (!binding.IsDragging)
+            {
+                binding.Slider.Maximum = sliderMaximum;
+                binding.Slider.Value = status.IsActive ? Clamp(status.CurrentSeconds, 0, sliderMaximum) : 0;
+            }
+
+            binding.CurrentText.Text = FormatDuration(status.IsActive ? status.CurrentSeconds : 0);
+            binding.TotalText.Text = FormatDuration(duration);
+            binding.Slider.Opacity = status.IsActive ? 1.0 : 0.52;
+            if (binding.PlayPauseButton is not null)
+            {
+                binding.PlayPauseButton.Content = status.IsActive && !status.IsPaused ? "⏸" : "▶";
+            }
+        }
+    }
+
+    private void OnSceneTimelinePlayPauseClick(object sender, RoutedEventArgs e)
+    {
+        if (sender is not FrameworkElement { Tag: string playbackKey })
+        {
+            return;
+        }
+
+        var status = _engine?.GetSoundStatus(playbackKey) ?? SoundboardStatus.Empty;
+        if (status.IsActive)
+        {
+            _engine?.ToggleSoundPause(playbackKey);
+            UpdateSceneTimelines();
+            return;
+        }
+
+        var loopedButton = GetSelectedSceneLoopedButton();
+        if (loopedButton is not null && _selectedScene is not null && playbackKey == SceneLoopPlaybackKey(_selectedScene.Id, loopedButton.Id))
+        {
+            PlaySceneLoopedSound(loop: true);
+        }
     }
 
     private Button CreateSceneSoundButton(SceneSoundButton sceneButton)
@@ -3231,6 +3612,9 @@ public sealed partial class MainWindow : Window
             HorizontalAlignment = HorizontalAlignment.Stretch
         });
 
+        var playbackKey = SceneButtonPlaybackKey(context.Scene.Id, context.Button.Id);
+        stack.Children.Add(CreateSceneTimeline(playbackKey, GetSoundDurationSeconds(context.Sound), includePlayPauseButton: false));
+
         var hotkeyParts = new List<string>();
         if (!string.IsNullOrWhiteSpace(context.Button.SceneHotkey))
         {
@@ -3245,7 +3629,7 @@ public sealed partial class MainWindow : Window
         stack.Children.Add(new TextBlock
         {
             Text = hotkeyParts.Count == 0 ? " " : string.Join("  ", hotkeyParts),
-            FontSize = 11,
+            FontSize = 10,
             Opacity = 0.68,
             TextTrimming = TextTrimming.CharacterEllipsis,
             TextWrapping = TextWrapping.NoWrap,
@@ -3385,7 +3769,7 @@ public sealed partial class MainWindow : Window
 
         var panel = new StackPanel
         {
-            Width = 340,
+            Width = 360,
             Spacing = 8,
             Padding = new Thickness(10)
         };
@@ -3398,51 +3782,84 @@ public sealed partial class MainWindow : Window
             TextWrapping = TextWrapping.NoWrap
         });
 
-        var actions = new StackPanel
+        panel.Children.Add(new TextBlock
         {
-            Orientation = Orientation.Horizontal,
-            Spacing = 8
-        };
+            Text = string.IsNullOrWhiteSpace(context.Button.SceneHotkey)
+                ? "Scene hotkey: none"
+                : $"Scene hotkey: {context.Button.SceneHotkey}",
+            FontSize = 12,
+            Opacity = 0.72,
+            TextTrimming = TextTrimming.CharacterEllipsis,
+            TextWrapping = TextWrapping.NoWrap
+        });
 
-        var rename = new Button { Content = "Rename", MinWidth = 72 };
+        var actions = new Grid
+        {
+            ColumnSpacing = 8,
+            RowSpacing = 8
+        };
+        actions.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        actions.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        actions.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+        actions.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+        actions.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+
+        Button makeAction(string text, int row, int column, int columnSpan = 1)
+        {
+            var button = new Button
+            {
+                Content = text,
+                MinWidth = 0,
+                HorizontalAlignment = HorizontalAlignment.Stretch
+            };
+            Grid.SetRow(button, row);
+            Grid.SetColumn(button, column);
+            if (columnSpan > 1)
+            {
+                Grid.SetColumnSpan(button, columnSpan);
+            }
+
+            actions.Children.Add(button);
+            return button;
+        }
+
+        var rename = makeAction("Rename", 0, 0);
         rename.Click += async (_, _) =>
         {
             flyout.Hide();
             await RenameSceneSoundButtonAsync(context.Button);
         };
-        actions.Children.Add(rename);
 
-        var chooseAnother = new Button { Content = "Choose", MinWidth = 72 };
+        var chooseAnother = makeAction("Choose", 0, 1);
         chooseAnother.Click += async (_, _) =>
         {
             flyout.Hide();
             await ChooseAnotherSceneSoundAsync(context.Button);
         };
-        actions.Children.Add(chooseAnother);
 
-        var delete = new Button { Content = "Delete", MinWidth = 72 };
-        delete.Click += (_, _) =>
-        {
-            flyout.Hide();
-            DeleteSceneSoundButton(context.Button);
-        };
-        actions.Children.Add(delete);
-
-        var hotkeyText = string.IsNullOrWhiteSpace(context.Button.SceneHotkey)
-            ? "Hotkey"
-            : $"Hotkey: {context.Button.SceneHotkey}";
-        var hotkey = new Button
-        {
-            Content = hotkeyText,
-            MinWidth = 72,
-            IsEnabled = context.Sound is not null
-        };
+        var hotkey = makeAction("Hotkey", 1, 0);
+        hotkey.IsEnabled = context.Sound is not null;
+        ToolTipService.SetToolTip(hotkey, string.IsNullOrWhiteSpace(context.Button.SceneHotkey) ? "Set scene hotkey" : $"Scene hotkey: {context.Button.SceneHotkey}");
         hotkey.Click += async (_, _) =>
         {
             flyout.Hide();
             await EditSceneSoundHotkeyAsync(context.Button);
         };
-        actions.Children.Add(hotkey);
+
+        var stop = makeAction("Stop", 1, 1);
+        stop.Click += (_, _) =>
+        {
+            flyout.Hide();
+            StopSceneSoundButton(context.Scene, context.Button);
+        };
+
+        var delete = makeAction("Delete", 2, 0, 2);
+        delete.Click += (_, _) =>
+        {
+            flyout.Hide();
+            DeleteSceneSoundButton(context.Button);
+        };
+
         panel.Children.Add(actions);
 
         panel.Children.Add(new Border
@@ -3528,11 +3945,25 @@ public sealed partial class MainWindow : Window
         {
             _selectedScene.UpdatedAtUtc = DateTime.UtcNow;
             _sceneStore.OverwriteScene(_selectedScene);
+            _engine?.UpdateSoundVolumes(
+                (float)button.VirtualMicVolume,
+                (float)button.HeadphonesVolume,
+                SceneButtonPlaybackKey(_selectedScene.Id, button.Id));
         }
         catch (Exception ex)
         {
             AppendLog($"Scene sound volume save error: {ex.Message}");
         }
+    }
+
+    private void StopSceneSoundButton(VoiSeScene scene, SceneSoundButton button)
+    {
+        var key = button.IsLooped
+            ? SceneLoopPlaybackKey(scene.Id, button.Id)
+            : SceneButtonPlaybackKey(scene.Id, button.Id);
+        _engine?.StopSound(key);
+        UpdateSceneTimelines();
+        AppendLog($"Scene sound stopped: {button.LocalName ?? button.SoundId}");
     }
 
     private void OnSceneSoundButtonClick(object sender, RoutedEventArgs e)
@@ -3548,7 +3979,7 @@ public sealed partial class MainWindow : Window
             return;
         }
 
-        PlaySoundBoardSound(context.Sound, false, context.Button.VirtualMicVolume, context.Button.HeadphonesVolume, "Scene sound");
+        PlaySceneSound(context.Scene, context.Button, context.Sound, false, "Scene sound");
     }
 
     private async Task RenameSceneSoundButtonAsync(SceneSoundButton sceneButton)
@@ -3580,6 +4011,11 @@ public sealed partial class MainWindow : Window
             return;
         }
 
+        if (_selectedScene is not null)
+        {
+            StopSceneSoundButton(_selectedScene, sceneButton);
+        }
+
         sceneButton.SoundId = sound.Id;
         sceneButton.LocalName = sound.DisplayName;
         SaveSelectedSceneEditorChange($"Scene button sound changed: {sound.DisplayName}");
@@ -3593,6 +4029,7 @@ public sealed partial class MainWindow : Window
         }
 
         var soundName = PickSound(sceneButton.SoundId)?.DisplayName ?? sceneButton.LocalName ?? sceneButton.SoundId;
+        StopSceneSoundButton(_selectedScene, sceneButton);
         _selectedScene.SoundButtons.RemoveAll(b => b.Id == sceneButton.Id);
         NormalizeSceneButtonSortOrder(_selectedScene);
         SaveSelectedSceneEditorChange($"Scene button deleted: {soundName}");
@@ -3820,6 +4257,7 @@ public sealed partial class MainWindow : Window
         }
 
         var soundName = PickSound(loopedButton.SoundId)?.DisplayName ?? loopedButton.LocalName ?? loopedButton.SoundId;
+        StopSceneSoundButton(_selectedScene, loopedButton);
         _selectedScene.SoundButtons.RemoveAll(b => b.Id == loopedButton.Id);
         NormalizeSceneButtonSortOrder(_selectedScene);
         SaveSelectedSceneEditorChange($"Scene looped sound removed: {soundName}");
@@ -3856,6 +4294,7 @@ public sealed partial class MainWindow : Window
         }
         else
         {
+            StopSceneSoundButton(_selectedScene, loopedButton);
             loopedButton.SoundId = sound.Id;
             loopedButton.LocalName = sound.DisplayName;
         }
@@ -3880,7 +4319,10 @@ public sealed partial class MainWindow : Window
             return;
         }
 
-        PlaySoundBoardSound(sound, loop, _selectedScene?.LoopedSoundVirtualMicVolume ?? 1.0, _selectedScene?.LoopedSoundHeadphonesVolume ?? 1.0, "Scene looped sound");
+        if (_selectedScene is not null)
+        {
+            PlaySceneSound(_selectedScene, loopedButton, sound, loop, "Scene looped sound");
+        }
     }
 
     private void OnSceneVoicePresetClearClick(object sender, RoutedEventArgs e)

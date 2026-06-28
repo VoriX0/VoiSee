@@ -7,7 +7,7 @@ namespace VoiSe.App;
 
 public sealed class VoiSeScene
 {
-    public int SchemaVersion { get; set; } = 5;
+    public int SchemaVersion { get; set; } = 6;
     public string Id { get; set; } = Guid.NewGuid().ToString("N");
     public string Name { get; set; } = "Scene";
     public string Icon { get; set; } = "🎬";

@@ -6,7 +6,7 @@
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     mc:Ignorable="d"
-    Title="VoiSe Gate 7.4 - Scene Editor">
+    Title="VoiSe Gate 7.7 - Scene Playback">
 
     <Grid x:Name="RootGrid" Padding="20" RowSpacing="14">
         <Grid.RowDefinitions>
@@ -21,8 +21,8 @@
                     <ColumnDefinition Width="Auto" />
                 </Grid.ColumnDefinitions>
                 <StackPanel Grid.Column="0" Spacing="4" VerticalAlignment="Center">
-                    <TextBlock Text="VoiSe Gate 7.2" FontSize="28" FontWeight="SemiBold" />
-                    <TextBlock Text="Scenes: active scene state, voice settings, one looped sound, parallel scene sounds, and scene-local hotkeys" Opacity="0.75" />
+                    <TextBlock Text="VoiSe Gate 7.7" FontSize="28" FontWeight="SemiBold" />
+                    <TextBlock Text="Scenes: single-instance scene sounds, independent timelines, active-scene SoundBoard lock, and scene-local hotkeys" Opacity="0.75" />
                 </StackPanel>
                 <StackPanel Grid.Column="1" Spacing="4" VerticalAlignment="Center" HorizontalAlignment="Right">
                     <StackPanel Orientation="Horizontal" Spacing="8">
@@ -68,9 +68,9 @@
                                             <ColumnDefinition Width="78" />
                                             <ColumnDefinition Width="78" />
                                         </Grid.ColumnDefinitions>
-                                        <Button Grid.Row="0" Grid.Column="0" Content="&#xE892;" FontFamily="Segoe MDL2 Assets" FontSize="18" MinWidth="0" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" Click="OnPreviousSoundClick" ToolTipService.ToolTip="Previous track" />
-                                        <Button Grid.Row="0" Grid.Column="1" Content="&#xE893;" FontFamily="Segoe MDL2 Assets" FontSize="18" MinWidth="0" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" Click="OnNextSoundClick" ToolTipService.ToolTip="Next track" />
-                                        <Button Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="2" Content="Stop" MinWidth="0" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" Click="OnStopSoundClick" ToolTipService.ToolTip="Stop sound" />
+                                        <Button Grid.Row="0" Grid.Column="0" x:Name="PreviousSoundButton" Content="&#xE892;" FontFamily="Segoe MDL2 Assets" FontSize="18" MinWidth="0" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" Click="OnPreviousSoundClick" ToolTipService.ToolTip="Previous track" />
+                                        <Button Grid.Row="0" Grid.Column="1" x:Name="NextSoundButton" Content="&#xE893;" FontFamily="Segoe MDL2 Assets" FontSize="18" MinWidth="0" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" Click="OnNextSoundClick" ToolTipService.ToolTip="Next track" />
+                                        <Button Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="2" x:Name="StopSoundButton" Content="Stop" MinWidth="0" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" Click="OnStopSoundClick" ToolTipService.ToolTip="Stop sound" />
                                     </Grid>
                                 </Border>
 
@@ -237,6 +237,22 @@
                                     </Border>
                                 </Grid>
                             </Grid>
+                        </Border>
+
+                        <Border Grid.Row="0" Grid.RowSpan="2"
+                                x:Name="SoundBoardSceneLockOverlay"
+                                Visibility="Collapsed"
+                                IsHitTestVisible="False"
+                                HorizontalAlignment="Center"
+                                VerticalAlignment="Center"
+                                Padding="18,12"
+                                CornerRadius="10"
+                                Background="#DD202020"
+                                BorderBrush="#55FFFFFF"
+                                BorderThickness="1">
+                            <TextBlock Text="SoundBoard playback is unavailable while a scene is active"
+                                       FontWeight="SemiBold"
+                                       TextAlignment="Center" />
                         </Border>
                     </Grid>
                 </TabViewItem>
@@ -531,12 +547,12 @@
                                                 </Grid.ColumnDefinitions>
                                                 <Grid Grid.Column="0"
                                                       x:Name="LoopedSceneSoundsPanel"
-                                                      Height="58" />
+                                                      Height="88" />
                                                 <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="4" VerticalAlignment="Top">
-                                                    <Button x:Name="SceneLoopPlayLoopButton" Content="∞" Width="42" Height="58" Click="OnSceneLoopPlayLoopClick" ToolTipService.ToolTip="Start loop" />
-                                                    <Button x:Name="SceneLoopPlayOnceButton" Content="▶" Width="42" Height="58" Click="OnSceneLoopPlayOnceClick" ToolTipService.ToolTip="Play once" />
-                                                    <Button x:Name="SceneLoopRemoveButton" Content="✕" Width="42" Height="58" Click="OnSceneLoopRemoveClick" ToolTipService.ToolTip="Remove sound" />
-                                                    <Button x:Name="SceneLoopChooseButton" Content="⮏" Width="42" Height="58" Click="OnSceneLoopChooseClick" ToolTipService.ToolTip="Choose another sound" />
+                                                    <Button x:Name="SceneLoopPlayLoopButton" Content="⟲" Width="42" Height="42" Click="OnSceneLoopPlayLoopClick" ToolTipService.ToolTip="Start loop" />
+                                                    <Button x:Name="SceneLoopPlayOnceButton" Content="▶" Width="42" Height="42" Click="OnSceneLoopPlayOnceClick" ToolTipService.ToolTip="Play once" />
+                                                    <Button x:Name="SceneLoopRemoveButton" Content="✕" Width="42" Height="42" Click="OnSceneLoopRemoveClick" ToolTipService.ToolTip="Remove sound" />
+                                                    <Button x:Name="SceneLoopChooseButton" Content="⮏" Width="42" Height="42" Click="OnSceneLoopChooseClick" ToolTipService.ToolTip="Choose another sound" />
                                                 </StackPanel>
                                             </Grid>
                                             <CheckBox x:Name="SceneAutostartLoopsCheckBox"
