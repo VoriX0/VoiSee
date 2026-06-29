@@ -92,6 +92,8 @@ public sealed partial class MainWindow : Window
     private string? _lastSoundBoardDropSignature;
     private DateTime _lastSoundBoardDropUtc = DateTime.MinValue;
     private bool _suppressMainTabWheelRouting;
+    private ScrollViewer? _activeIconPickerScrollViewer;
+    private FrameworkElement? _activeIconPickerWheelZoneElement;
 
     public MainWindow()
     {
@@ -366,11 +368,6 @@ public sealed partial class MainWindow : Window
 
     private bool TryHandleMainTabWheel(IntPtr lParam)
     {
-        if (_suppressMainTabWheelRouting)
-        {
-            return false;
-        }
-
         if (MainTabView is null || _windowHandleIsUnavailable())
         {
             return false;
@@ -401,6 +398,11 @@ public sealed partial class MainWindow : Window
         if (delta == 0)
         {
             return false;
+        }
+
+        if (_suppressMainTabWheelRouting)
+        {
+            return TryHandleActiveIconPickerWheel(xDip, yDip, delta);
         }
 
         return MainTabView.SelectedIndex switch
@@ -491,6 +493,23 @@ public sealed partial class MainWindow : Window
         {
             return false;
         }
+    }
+
+    private bool TryHandleActiveIconPickerWheel(double xDip, double yDip, int wheelDelta)
+    {
+        var scrollViewer = _activeIconPickerScrollViewer;
+        var wheelZone = _activeIconPickerWheelZoneElement;
+        if (scrollViewer is null || wheelZone is null)
+        {
+            return false;
+        }
+
+        // Gate 8.0 buildfix 4: keep the buildfix2 visual design, but allow the
+        // icon picker to own an extended lower wheel zone. This removes dead
+        // spots under the visible picker without letting the Voice Changer
+        // page steal the wheel while the dialog is open.
+        return IsPointInElementWheelZone(wheelZone, xDip, yDip, extendBottom: false, bottomExtensionRatio: 1.0)
+            && TryScrollViewer(scrollViewer, wheelDelta, 52.0);
     }
 
     private bool IsPointInCompactElementWheelZone(FrameworkElement? element, double yDip, double heightMultiplier)
@@ -5080,10 +5099,9 @@ public sealed partial class MainWindow : Window
         {
             var button = new ToggleButton
             {
-                Width = 52,
-                Height = 52,
+                Width = 44,
+                Height = 44,
                 MinWidth = 0,
-                Padding = new Thickness(0),
                 Tag = choice.Icon,
                 Content = CreateVoicePresetIconTextBlock(choice.Icon, choice.UseMdl2 ? 20 : 22),
                 IsChecked = string.Equals(choice.Icon, selectedIcon, StringComparison.Ordinal)
@@ -5119,31 +5137,19 @@ public sealed partial class MainWindow : Window
         {
             Content = iconGrid,
             MaxHeight = 260,
-            MinWidth = 416,
-            Background = new SolidColorBrush(Microsoft.UI.ColorHelper.FromArgb(0x00, 0x00, 0x00, 0x00)),
             VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
             VerticalScrollMode = ScrollMode.Enabled,
             HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled,
             HorizontalScrollMode = ScrollMode.Disabled,
             ZoomMode = ZoomMode.Disabled
         };
-
-        var iconWheelHost = new Border
-        {
-            Child = iconScrollViewer,
-            MinWidth = 416,
-            MaxHeight = 260,
-            Background = new SolidColorBrush(Microsoft.UI.ColorHelper.FromArgb(0x00, 0x00, 0x00, 0x00))
-        };
-
-        AttachIconPickerWheelRouting(iconWheelHost, iconScrollViewer);
         AttachIconPickerWheelRouting(iconScrollViewer, iconScrollViewer);
         foreach (var button in buttons)
         {
             AttachIconPickerWheelRouting(button, iconScrollViewer);
         }
 
-        panel.Children.Add(iconWheelHost);
+        panel.Children.Add(iconScrollViewer);
 
         var dialog = new ContentDialog
         {
@@ -5157,12 +5163,16 @@ public sealed partial class MainWindow : Window
 
         ContentDialogResult result;
         _suppressMainTabWheelRouting = true;
+        _activeIconPickerScrollViewer = iconScrollViewer;
+        _activeIconPickerWheelZoneElement = iconScrollViewer;
         try
         {
             result = await dialog.ShowAsync();
         }
         finally
         {
+            _activeIconPickerScrollViewer = null;
+            _activeIconPickerWheelZoneElement = null;
             _suppressMainTabWheelRouting = false;
         }
 
