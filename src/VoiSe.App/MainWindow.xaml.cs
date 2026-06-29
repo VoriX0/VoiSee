@@ -78,13 +78,6 @@ public sealed partial class MainWindow : Window
     private const double SoundWheelZoneExpandRightRatio = 2.00;
     private const double SoundWheelZoneExpandBottomRatio = 1.60;
     private const double SceneListWheelZoneExpandDownRatio = 0.65;
-    private const double ModalWheelZoneExpandLeftRatio = 0.50;
-    private const double ModalWheelZoneExpandRightRatio = 0.50;
-    private const double ModalWheelZoneExpandBottomRatio = 1.00;
-    private const double SettingsWheelZoneExpandRightRatio = 0.50;
-    private const double SceneSoundButtonsWheelZoneExpandRightRatio = 0.50;
-    private const double SceneListWheelZoneExpandRightRatio = 0.15;
-    private const double IconPickerWheelZoneShiftRightRatio = 0.15;
     private const double VoiceValueMin = -9999.0;
     private const double VoiceValueMax = 9999.0;
     private const double SceneSoundButtonWidth = 252.0;
@@ -99,11 +92,6 @@ public sealed partial class MainWindow : Window
     private string? _lastSoundBoardDropSignature;
     private DateTime _lastSoundBoardDropUtc = DateTime.MinValue;
     private bool _suppressMainTabWheelRouting;
-    private ScrollViewer? _activeIconPickerScrollViewer;
-    private FrameworkElement? _activeIconPickerWheelZoneElement;
-    private double _activeModalWheelZoneLeftExtensionRatio;
-    private double _activeModalWheelZoneRightExtensionRatio;
-    private double _activeModalWheelZoneHorizontalShiftRatio;
 
     public MainWindow()
     {
@@ -142,7 +130,7 @@ public sealed partial class MainWindow : Window
         _timelineTimer.Tick += OnTimelineTimerTick;
         _timelineTimer.Start();
 
-        AppendLog("VoiSe Version 8.1.5 UI started.");
+        AppendLog("Gate 8 UI started.");
         AppendLog($"Settings path: {_settingsStore.SettingsPath}");
         StartupLog.Write("MainWindow initialized; waiting for first activation.");
     }
@@ -174,12 +162,6 @@ public sealed partial class MainWindow : Window
             titleBar.ButtonPressedForegroundColor = white;
             titleBar.ButtonInactiveBackgroundColor = black;
             titleBar.ButtonInactiveForegroundColor = muted;
-
-            var iconPath = Path.Combine(AppContext.BaseDirectory, "Assets", "AppIcon.ico");
-            if (File.Exists(iconPath))
-            {
-                AppWindow.SetIcon(iconPath);
-            }
         }
         catch (Exception ex)
         {
@@ -248,40 +230,6 @@ public sealed partial class MainWindow : Window
         {
             AppendLog("Engine auto-start skipped. Check selected audio devices in Settings, then use manual Start Engine if needed.");
         }
-    }
-
-    private void WarmSoundCacheInBackground(IEnumerable<string>? paths = null)
-    {
-        var engine = _engine;
-        if (engine is null)
-        {
-            return;
-        }
-
-        var soundPaths = (paths ?? _library.Sounds.Select(sound => sound.FilePath))
-            .Where(path => !string.IsNullOrWhiteSpace(path) && File.Exists(path))
-            .Distinct(StringComparer.OrdinalIgnoreCase)
-            .ToList();
-
-        if (soundPaths.Count == 0)
-        {
-            return;
-        }
-
-        _ = Task.Run(() =>
-        {
-            foreach (var path in soundPaths)
-            {
-                try
-                {
-                    engine.PreloadSoundAsync(path).GetAwaiter().GetResult();
-                }
-                catch
-                {
-                    // Best-effort warmup only. Playback reports real errors.
-                }
-            }
-        });
     }
 
     private void ApplyStoredScalarSettingsToControls()
@@ -418,6 +366,11 @@ public sealed partial class MainWindow : Window
 
     private bool TryHandleMainTabWheel(IntPtr lParam)
     {
+        if (_suppressMainTabWheelRouting)
+        {
+            return false;
+        }
+
         if (MainTabView is null || _windowHandleIsUnavailable())
         {
             return false;
@@ -448,11 +401,6 @@ public sealed partial class MainWindow : Window
         if (delta == 0)
         {
             return false;
-        }
-
-        if (_suppressMainTabWheelRouting)
-        {
-            return TryHandleActiveIconPickerWheel(xDip, yDip, delta);
         }
 
         return MainTabView.SelectedIndex switch
@@ -508,7 +456,7 @@ public sealed partial class MainWindow : Window
         return yDip >= top && yDip <= bottom;
     }
 
-    private bool IsPointInElementWheelZone(FrameworkElement? element, double xDip, double yDip, bool extendBottom, double bottomExtensionRatio = 0.0, double leftExtensionRatio = 0.0, double rightExtensionRatio = 0.0, double horizontalShiftRatio = 0.0)
+    private bool IsPointInElementWheelZone(FrameworkElement? element, double xDip, double yDip, bool extendBottom, double bottomExtensionRatio = 0.0)
     {
         if (RootGrid is null || element is null)
         {
@@ -519,23 +467,12 @@ public sealed partial class MainWindow : Window
         {
             var topLeft = element.TransformToVisual(RootGrid)
                 .TransformPoint(new Windows.Foundation.Point(0, 0));
+            var left = topLeft.X;
+            var top = topLeft.Y;
             var width = Math.Max(1.0, element.ActualWidth);
             var height = Math.Max(1.0, element.ActualHeight);
-            var horizontalShift = width * horizontalShiftRatio;
-            var left = topLeft.X + horizontalShift;
-            var top = topLeft.Y;
             var right = left + width;
             var bottom = top + height;
-
-            if (leftExtensionRatio > 0.0)
-            {
-                left -= width * leftExtensionRatio;
-            }
-
-            if (rightExtensionRatio > 0.0)
-            {
-                right += width * rightExtensionRatio;
-            }
 
             if (bottomExtensionRatio > 0.0)
             {
@@ -554,31 +491,6 @@ public sealed partial class MainWindow : Window
         {
             return false;
         }
-    }
-
-    private bool TryHandleActiveIconPickerWheel(double xDip, double yDip, int wheelDelta)
-    {
-        var scrollViewer = _activeIconPickerScrollViewer;
-        var wheelZone = _activeIconPickerWheelZoneElement;
-        if (scrollViewer is null || wheelZone is null)
-        {
-            return false;
-        }
-
-        // Gate 8.1 buildfix 2: modal wheel zones are configurable per popup.
-        // Logs keep the left/down expansion from buildfix 1. The icon picker
-        // uses right/down expansion so the wheel works in the area where the
-        // picker visually opens without stealing the left side unnecessarily.
-        return IsPointInElementWheelZone(
-                wheelZone,
-                xDip,
-                yDip,
-                extendBottom: false,
-                bottomExtensionRatio: ModalWheelZoneExpandBottomRatio,
-                leftExtensionRatio: _activeModalWheelZoneLeftExtensionRatio,
-                rightExtensionRatio: _activeModalWheelZoneRightExtensionRatio,
-                horizontalShiftRatio: _activeModalWheelZoneHorizontalShiftRatio)
-            && TryScrollViewer(scrollViewer, wheelDelta, 52.0);
     }
 
     private bool IsPointInCompactElementWheelZone(FrameworkElement? element, double yDip, double heightMultiplier)
@@ -623,7 +535,7 @@ public sealed partial class MainWindow : Window
         // Gate 7.10 buildfix 3: the scene list and scene sound buttons must own
         // separate horizontal zones, but the left scene list lower wheel zone
         // is extended by 65% so scrolling still works near the bottom controls.
-        if (IsPointInElementWheelZone(ScenesListView, xDip, yDip, extendBottom: false, bottomExtensionRatio: SceneListWheelZoneExpandDownRatio, rightExtensionRatio: SceneListWheelZoneExpandRightRatio))
+        if (IsPointInElementWheelZone(ScenesListView, xDip, yDip, extendBottom: false, bottomExtensionRatio: SceneListWheelZoneExpandDownRatio))
         {
             var sceneListScrollViewer = FindDescendantScrollViewer(ScenesListView);
             return sceneListScrollViewer is not null
@@ -631,7 +543,7 @@ public sealed partial class MainWindow : Window
                 : false;
         }
 
-        if (IsPointInElementWheelZone(SceneSoundButtonsScrollViewer, xDip, yDip, extendBottom: true, rightExtensionRatio: SceneSoundButtonsWheelZoneExpandRightRatio))
+        if (IsPointInElementWheelZone(SceneSoundButtonsScrollViewer, xDip, yDip, extendBottom: true))
         {
             return TryScrollViewer(SceneSoundButtonsScrollViewer, wheelDelta, 42.0);
         }
@@ -641,7 +553,7 @@ public sealed partial class MainWindow : Window
 
     private bool TryHandleSettingsWheel(double xDip, double yDip, int wheelDelta)
     {
-        if (IsPointInElementWheelZone(SettingsScrollViewer, xDip, yDip, extendBottom: true, rightExtensionRatio: SettingsWheelZoneExpandRightRatio))
+        if (IsPointInElementWheelZone(SettingsScrollViewer, xDip, yDip, extendBottom: true))
         {
             return TryScrollViewer(SettingsScrollViewer, wheelDelta, 42.0);
         }
@@ -687,16 +599,13 @@ public sealed partial class MainWindow : Window
             {
                 Content = textBlock,
                 Width = Math.Max(900, RootGrid?.ActualWidth * 0.82 ?? 900),
-                Height = Math.Max(420, Math.Min(560, RootGrid?.ActualHeight * 0.62 ?? 520)),
+                Height = Math.Max(560, RootGrid?.ActualHeight * 0.78 ?? 560),
                 VerticalScrollBarVisibility = ScrollBarVisibility.Visible,
                 VerticalScrollMode = ScrollMode.Enabled,
                 HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled,
                 HorizontalScrollMode = ScrollMode.Disabled,
                 ZoomMode = ZoomMode.Disabled
             };
-            scrollViewer.Loaded += (_, _) => DispatcherQueue.TryEnqueue(() => scrollViewer.ChangeView(null, scrollViewer.ScrollableHeight, null, disableAnimation: true));
-            AttachIconPickerWheelRouting(scrollViewer, scrollViewer);
-            AttachIconPickerWheelRouting(textBlock, scrollViewer);
 
             var dialog = new ContentDialog
             {
@@ -707,25 +616,7 @@ public sealed partial class MainWindow : Window
                 XamlRoot = ((FrameworkElement)Content).XamlRoot
             };
 
-            _suppressMainTabWheelRouting = true;
-            _activeIconPickerScrollViewer = scrollViewer;
-            _activeIconPickerWheelZoneElement = scrollViewer;
-            _activeModalWheelZoneLeftExtensionRatio = ModalWheelZoneExpandLeftRatio;
-            _activeModalWheelZoneRightExtensionRatio = 0.0;
-            _activeModalWheelZoneHorizontalShiftRatio = 0.0;
-            try
-            {
-                await dialog.ShowAsync();
-            }
-            finally
-            {
-                _activeIconPickerScrollViewer = null;
-                _activeIconPickerWheelZoneElement = null;
-                _activeModalWheelZoneLeftExtensionRatio = 0.0;
-                _activeModalWheelZoneRightExtensionRatio = 0.0;
-                _activeModalWheelZoneHorizontalShiftRatio = 0.0;
-                _suppressMainTabWheelRouting = false;
-            }
+            await dialog.ShowAsync();
         }
         catch (Exception ex)
         {
@@ -1156,7 +1047,7 @@ public sealed partial class MainWindow : Window
         var panel = new StackPanel { Spacing = 10 };
         panel.Children.Add(new TextBlock
         {
-            Text = "Click a hotkey button, then press a key or Ctrl/Alt/Shift combination. Esc cancels capture. Plain A-Z and < > { } are local-only; NumPad keys and Ctrl/Alt/Shift combinations remain global.",
+            Text = "Click a hotkey button, then press a key or Ctrl/Alt/Shift combination. Esc cancels capture. Plain A-Z and < > { } are local-only; Ctrl/Alt/Shift combinations remain global.",
             TextWrapping = TextWrapping.Wrap,
             Opacity = 0.78
         });
@@ -1511,13 +1402,6 @@ public sealed partial class MainWindow : Window
                 }
             }
 
-            if ((upper.StartsWith("NUMPAD") && int.TryParse(upper[6..], out var numpadLong) && numpadLong is >= 0 and <= 9)
-                || (upper.StartsWith("NUM") && int.TryParse(upper[3..], out numpadLong) && numpadLong is >= 0 and <= 9))
-            {
-                keyCode = 0x60 + numpadLong;
-                return true;
-            }
-
             if (upper.StartsWith("F") && int.TryParse(upper[1..], out var fn) && fn is >= 1 and <= 24)
             {
                 keyCode = 0x70 + fn - 1;
@@ -1526,11 +1410,6 @@ public sealed partial class MainWindow : Window
 
             keyCode = upper switch
             {
-                "NUMPADMULTIPLY" or "NUMMULTIPLY" or "NUM*" => 0x6A,
-                "NUMPADADD" or "NUMADD" or "NUM+" => 0x6B,
-                "NUMPADSUBTRACT" or "NUMSUBTRACT" or "NUM-" => 0x6D,
-                "NUMPADDECIMAL" or "NUMDECIMAL" or "NUM." => 0x6E,
-                "NUMPADDIVIDE" or "NUMDIVIDE" or "NUM/" => 0x6F,
                 "SPACE" => 0x20,
                 "ENTER" or "RETURN" => 0x0D,
                 "ESC" or "ESCAPE" => 0x1B,
@@ -1566,26 +1445,6 @@ public sealed partial class MainWindow : Window
                 0xBE => ">",
                 0xDB => "{",
                 0xDD => "}",
-                _ => string.Empty
-            };
-            if (keyName.Length > 0)
-            {
-                return true;
-            }
-
-            if (keyCode is >= 0x60 and <= 0x69)
-            {
-                keyName = "Num" + (keyCode - 0x60);
-                return true;
-            }
-
-            keyName = keyCode switch
-            {
-                0x6A => "Num*",
-                0x6B => "Num+",
-                0x6D => "Num-",
-                0x6E => "Num.",
-                0x6F => "Num/",
                 _ => string.Empty
             };
             if (keyName.Length > 0)
@@ -1902,7 +1761,6 @@ public sealed partial class MainWindow : Window
             RebuildSceneSoundButtons();
             AppendLog($"SoundBoard library loaded: {_library.Categories.Count} categories, {_library.Sounds.Count} sounds.");
             AppendLog($"SoundBoard data: {_libraryStore.LibraryPath}");
-            WarmSoundCacheInBackground();
         }
         catch (Exception ex)
         {
@@ -2107,7 +1965,6 @@ public sealed partial class MainWindow : Window
             _settings.LastSoundFilePath = sound.FilePath;
             RefreshSoundList();
             SelectSound(sound);
-            WarmSoundCacheInBackground(new[] { sound.FilePath });
             AppendLog($"Track added to {category.Name}: {sound.DisplayName}");
         }
         catch (Exception ex)
@@ -2201,12 +2058,10 @@ public sealed partial class MainWindow : Window
             _lastSoundBoardDropUtc = now;
 
             var added = 0;
-            var addedSoundPaths = new List<string>();
             SoundBoardSound? lastSound = null;
             foreach (var path in uniquePaths)
             {
                 lastSound = _libraryStore.AddSound(_library, path, category);
-                addedSoundPaths.Add(lastSound.FilePath);
                 added++;
             }
 
@@ -2219,7 +2074,6 @@ public sealed partial class MainWindow : Window
             _settings.LastSoundCategoryId = category.Id;
             RefreshSoundList();
             SelectSound(lastSound);
-            WarmSoundCacheInBackground(addedSoundPaths);
             AppendLog($"Dropped {added} track(s) into {category.Name}.");
         }
         catch (Exception ex)
@@ -2478,7 +2332,7 @@ public sealed partial class MainWindow : Window
         if (_selectedSound is null) return;
         var hotkey = await CaptureHotkeyDialogAsync(
             "Assign sound hotkey",
-            "Click the hotkey button, then press a key or Ctrl/Alt/Shift combination. Esc cancels capture. Plain A-Z and < > { } are local-only; NumPad keys and Ctrl/Alt/Shift combinations remain global.",
+            "Click the hotkey button, then press a key or Ctrl/Alt/Shift combination. Esc cancels capture. Plain A-Z and < > { } are local-only; Ctrl/Alt/Shift combinations remain global.",
             _selectedSound.Hotkey);
         if (hotkey is null) return;
         var normalized = NormalizeOptionalHotkey(hotkey);
@@ -2570,7 +2424,6 @@ public sealed partial class MainWindow : Window
             AppendLog($"Engine started. Input: {input.FriendlyName}");
             AppendLog($"Virtual output: {virtualOutput.FriendlyName}");
             AppendLog($"Monitor: {(monitor is null ? "disabled" : monitor.FriendlyName)}");
-            WarmSoundCacheInBackground();
             return true;
         }
         catch (Exception ex)
@@ -2701,15 +2554,11 @@ public sealed partial class MainWindow : Window
 
     private void OnSoundLoopToggleChanged(object sender, RoutedEventArgs e)
     {
-        if (IsSceneActive)
-        {
-            UpdateSoundBoardSceneLockState();
-            AppendLog("SoundBoard loop toggle is unavailable while a scene is active.");
-            return;
-        }
-
         _soundBoardLoopEnabled = SoundLoopToggleButton?.IsChecked == true;
-        _engine?.UpdateSoundLoop(_soundBoardLoopEnabled);
+        if (!IsSceneActive)
+        {
+            _engine?.UpdateSoundLoop(_soundBoardLoopEnabled);
+        }
 
         AppendLog(_soundBoardLoopEnabled
             ? "SoundBoard loop enabled for the current track."
@@ -2810,32 +2659,13 @@ public sealed partial class MainWindow : Window
                 _currentSoundDisplayName = normalizedDisplayName;
             }
 
-            var engine = _engine;
-            var logMessage = $"{sourceLabel} started{(loop ? " in loop" : string.Empty)}: {normalizedDisplayName}. HP: {(int)Math.Round(monitorRouteVolume * 100)}%, Mic: {(int)Math.Round(virtualRouteVolume * 100)}%, Virtual delay: {delayMs} ms.";
-
-            // Decoding/resampling can be expensive and used to freeze the pointer/UI for
-            // ~0.5-1s on larger files. Keep the UI thread free; the transport is thread-safe
-            // and SoundFileLoader caches the decoded PCM for future starts.
-            _ = Task.Run(() => engine.PlaySound(soundPath, virtualRouteVolume, monitorRouteVolume, delayMs, loop, playbackKey))
-                .ContinueWith(task =>
-                {
-                    DispatcherQueue.TryEnqueue(() =>
-                    {
-                        if (task.Exception is not null)
-                        {
-                            AppendLog($"Sound playback error: {task.Exception.GetBaseException().Message}");
-                            return;
-                        }
-
-                        if (librarySound is not null)
-                        {
-                            _libraryStore.IncrementUsage(_library, librarySound);
-                        }
-
-                        UpdateBottomStats();
-                        AppendLog(logMessage);
-                    });
-                }, TaskScheduler.Default);
+            _engine.PlaySound(soundPath, virtualRouteVolume, monitorRouteVolume, delayMs, loop, playbackKey);
+            if (librarySound is not null)
+            {
+                _libraryStore.IncrementUsage(_library, librarySound);
+            }
+            UpdateBottomStats();
+            AppendLog($"{sourceLabel} started{(loop ? " in loop" : string.Empty)}: {normalizedDisplayName}. HP: {(int)Math.Round(monitorRouteVolume * 100)}%, Mic: {(int)Math.Round(virtualRouteVolume * 100)}%, Virtual delay: {delayMs} ms.");
         }
         catch (Exception ex)
         {
@@ -3705,7 +3535,6 @@ public sealed partial class MainWindow : Window
         if (PreviousSoundButton is not null) PreviousSoundButton.IsEnabled = !locked;
         if (NextSoundButton is not null) NextSoundButton.IsEnabled = !locked;
         if (StopSoundButton is not null) StopSoundButton.IsEnabled = !locked;
-        if (SoundLoopToggleButton is not null) SoundLoopToggleButton.IsEnabled = !locked;
         if (PlayPauseButton is not null) PlayPauseButton.IsEnabled = !locked;
         if (TimelineHost is not null) TimelineHost.IsHitTestVisible = !locked;
         if (SoundVirtualVolumeSlider is not null) SoundVirtualVolumeSlider.IsEnabled = !locked;
@@ -5212,21 +5041,6 @@ public sealed partial class MainWindow : Window
         };
     }
 
-    private static void AttachIconPickerWheelRouting(UIElement source, ScrollViewer targetScrollViewer)
-    {
-        source.AddHandler(UIElement.PointerWheelChangedEvent, new PointerEventHandler((_, args) =>
-        {
-            var delta = args.GetCurrentPoint(targetScrollViewer).Properties.MouseWheelDelta;
-            if (delta == 0)
-            {
-                return;
-            }
-
-            TryScrollViewer(targetScrollViewer, delta, 52.0);
-            args.Handled = true;
-        }), true);
-    }
-
     private async Task<(string Name, string Icon)?> ShowVoicePresetNameAndIconDialogAsync(string title, string initialName, string? initialIcon)
     {
         var selectedIcon = NormalizeVoicePresetIcon(initialIcon);
@@ -5295,12 +5109,14 @@ public sealed partial class MainWindow : Window
             HorizontalScrollMode = ScrollMode.Disabled,
             ZoomMode = ZoomMode.Disabled
         };
-        AttachIconPickerWheelRouting(iconScrollViewer, iconScrollViewer);
-        foreach (var button in buttons)
+        iconScrollViewer.AddHandler(UIElement.PointerWheelChangedEvent, new PointerEventHandler((_, args) =>
         {
-            AttachIconPickerWheelRouting(button, iconScrollViewer);
-        }
-
+            var delta = args.GetCurrentPoint(iconScrollViewer).Properties.MouseWheelDelta;
+            if (TryScrollViewer(iconScrollViewer, delta, 52.0))
+            {
+                args.Handled = true;
+            }
+        }), true);
         panel.Children.Add(iconScrollViewer);
 
         var dialog = new ContentDialog
@@ -5315,22 +5131,12 @@ public sealed partial class MainWindow : Window
 
         ContentDialogResult result;
         _suppressMainTabWheelRouting = true;
-        _activeIconPickerScrollViewer = iconScrollViewer;
-        _activeIconPickerWheelZoneElement = iconScrollViewer;
-        _activeModalWheelZoneLeftExtensionRatio = 0.0;
-        _activeModalWheelZoneRightExtensionRatio = ModalWheelZoneExpandRightRatio;
-        _activeModalWheelZoneHorizontalShiftRatio = IconPickerWheelZoneShiftRightRatio;
         try
         {
             result = await dialog.ShowAsync();
         }
         finally
         {
-            _activeIconPickerScrollViewer = null;
-            _activeIconPickerWheelZoneElement = null;
-            _activeModalWheelZoneLeftExtensionRatio = 0.0;
-            _activeModalWheelZoneRightExtensionRatio = 0.0;
-            _activeModalWheelZoneHorizontalShiftRatio = 0.0;
             _suppressMainTabWheelRouting = false;
         }
 
@@ -5497,7 +5303,7 @@ public sealed partial class MainWindow : Window
         };
         panel.Children.Add(new TextBlock
         {
-            Text = "Click a hotkey button, then press a key or Ctrl/Alt/Shift combination. Esc cancels capture. Plain A-Z and < > { } are local-only; NumPad keys and Ctrl/Alt/Shift combinations remain global.",
+            Text = "Click a hotkey button, then press a key or Ctrl/Alt/Shift combination. Esc cancels capture. Plain A-Z and < > { } are local-only; Ctrl/Alt/Shift combinations remain global.",
             TextWrapping = TextWrapping.Wrap,
             Opacity = 0.78
         });

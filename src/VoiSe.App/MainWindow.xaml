@@ -6,7 +6,7 @@
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     mc:Ignorable="d"
-    Title="VoiSe Version 8.1.5">
+    Title="VoiSe Gate 8 - Polish">
 
     <Grid x:Name="RootGrid" Background="#000000">
         <Grid.RowDefinitions>
@@ -20,8 +20,10 @@
                 <ColumnDefinition Width="138" />
             </Grid.ColumnDefinitions>
             <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center" Margin="10,0,0,0">
-                <Image Source="ms-appx:///Assets/AppIcon_24.png" Width="16" Height="16" VerticalAlignment="Center" />
-                <TextBlock Text="VoiSe Version 8.1.5" FontSize="12" Foreground="White" VerticalAlignment="Center" />
+                <Border Width="16" Height="16" Background="#202020" BorderBrush="#66FFFFFF" BorderThickness="1">
+                    <TextBlock Text="V" FontSize="10" FontWeight="SemiBold" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                </Border>
+                <TextBlock Text="VoiSe Gate 8 - Polish" FontSize="12" Foreground="White" VerticalAlignment="Center" />
             </StackPanel>
         </Grid>
 
@@ -37,9 +39,9 @@
                     <ColumnDefinition Width="*" />
                     <ColumnDefinition Width="Auto" />
                 </Grid.ColumnDefinitions>
-                <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
-                    <Image Source="ms-appx:///Assets/AppIcon_48.png" Width="34" Height="34" VerticalAlignment="Center" />
-                    <TextBlock Text="VoiSe Version 8.1.5" FontSize="28" FontWeight="SemiBold" VerticalAlignment="Center" />
+                <StackPanel Grid.Column="0" Spacing="4" VerticalAlignment="Center">
+                    <TextBlock Text="VoiSe Gate 8" FontSize="28" FontWeight="SemiBold" />
+                    <TextBlock Text="Polish: auto engine, SoundBoard loop/drop, faster scrolling, category safety, and voice preset icons" Opacity="0.75" />
                 </StackPanel>
                 <StackPanel Grid.Column="1" Spacing="4" VerticalAlignment="Center" HorizontalAlignment="Right">
                     <TextBlock Text="Engine" HorizontalAlignment="Right" Opacity="0.62" />
@@ -644,94 +646,65 @@
 
                 <TabViewItem Header="Settings" IsClosable="False">
                     <ScrollViewer x:Name="SettingsScrollViewer" VerticalScrollBarVisibility="Auto" VerticalScrollMode="Enabled" HorizontalScrollBarVisibility="Disabled" HorizontalScrollMode="Disabled" ZoomMode="Disabled">
-                        <Grid Padding="0,16,48,24" ColumnSpacing="28">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="680" />
-                                <ColumnDefinition Width="320" />
-                            </Grid.ColumnDefinitions>
+                        <StackPanel Spacing="18" Padding="0,16,48,24">
+                            <TextBlock Text="Audio devices" FontSize="18" FontWeight="SemiBold" />
 
-                            <StackPanel Grid.Column="0" Spacing="18">
-                                <TextBlock Text="Audio devices" FontSize="18" FontWeight="SemiBold" />
+                            <Grid Width="640" HorizontalAlignment="Left" ColumnSpacing="18">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+                                <Button Grid.Column="0" Content="Refresh Devices" Click="OnRefreshDevicesClick" VerticalAlignment="Center" />
+                                <StackPanel Grid.Column="1" Spacing="6" VerticalAlignment="Center">
+                                    <TextBlock x:Name="VirtualOutputVolumeLabel" Text="Virtual Mic Master: 100%" FontWeight="SemiBold" />
+                                    <Slider x:Name="VirtualOutputVolumeSlider" Minimum="0" Maximum="1.5" Value="1" StepFrequency="0.01" ValueChanged="OnOutputVolumeChanged" />
+                                </StackPanel>
+                            </Grid>
 
-                                <Grid Width="640" HorizontalAlignment="Left" ColumnSpacing="18">
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="Auto" />
-                                        <ColumnDefinition Width="*" />
-                                    </Grid.ColumnDefinitions>
-                                    <Button Grid.Column="0" Content="Refresh Devices" Click="OnRefreshDevicesClick" VerticalAlignment="Center" />
-                                    <StackPanel Grid.Column="1" Spacing="6" VerticalAlignment="Center">
-                                        <TextBlock x:Name="VirtualOutputVolumeLabel" Text="Virtual Mic Master: 100%" FontWeight="SemiBold" />
-                                        <Slider x:Name="VirtualOutputVolumeSlider" Minimum="0" Maximum="1.5" Value="1" StepFrequency="0.01" ValueChanged="OnOutputVolumeChanged" />
-                                    </StackPanel>
-                                </Grid>
-
-                                <StackPanel Spacing="6">
-                                    <TextBlock Text="Input Microphone" />
-                                    <ComboBox x:Name="InputDeviceComboBox" PlaceholderText="Choose microphone" DisplayMemberPath="FriendlyName" Width="640" SelectionChanged="OnRouteSettingChanged" />
-                                </StackPanel>
-                                <StackPanel Spacing="6">
-                                    <TextBlock Text="Virtual Output" />
-                                    <ComboBox x:Name="VirtualOutputComboBox" PlaceholderText="Choose CABLE Input" DisplayMemberPath="FriendlyName" Width="640" SelectionChanged="OnRouteSettingChanged" />
-                                </StackPanel>
-                                <StackPanel Spacing="6">
-                                    <TextBlock Text="Monitor Output" />
-                                    <ComboBox x:Name="MonitorOutputComboBox" PlaceholderText="Choose headphones" DisplayMemberPath="FriendlyName" Width="640" SelectionChanged="OnRouteSettingChanged" />
-                                </StackPanel>
-
-                                <TextBlock Text="Output" FontSize="18" FontWeight="SemiBold" />
-                                <StackPanel x:Name="SettingsLogArea" Orientation="Horizontal" Spacing="10" Background="Transparent">
-                                    <Button Content="Open logs" Padding="14,6" MinHeight="32" Click="OnOpenLogFullscreenClick" />
-                                    <TextBlock Text="Application log opens in a separate window." VerticalAlignment="Center" Opacity="0.7" />
-                                </StackPanel>
-
-                                <TextBlock Text="Hotkeys" FontSize="18" FontWeight="SemiBold" />
-                                <StackPanel Spacing="8" Background="Transparent">
-                                    <StackPanel Orientation="Horizontal" Spacing="10">
-                                        <Button Content="Hotkeys" Padding="14,6" MinHeight="32" Click="OnConfigureTransportHotkeysClick" />
-                                        <TextBlock Text="Transport hotkeys. While a scene is active, Play/Pause and Stop control only scene one-shot sounds." VerticalAlignment="Center" Opacity="0.7" />
-                                    </StackPanel>
-                                    <TextBlock x:Name="TransportHotkeysSummaryTextBlock" Text="Transport hotkeys: not configured" Opacity="0.72" TextWrapping="Wrap" />
-                                </StackPanel>
-
-                                <TextBlock Text="SoundBoard" FontSize="18" FontWeight="SemiBold" />
-                                <StackPanel Spacing="8">
-                                    <TextBlock x:Name="DelayLabel" Text="SoundBoard Virtual Mic Delay: 85 ms" FontWeight="SemiBold" />
-                                    <Slider x:Name="SoundVirtualDelaySlider" Minimum="0" Maximum="300" Value="85" StepFrequency="1" ValueChanged="OnDelayChanged" />
-                                    <TextBlock Text="SoundBoard plays in headphones immediately, then reaches CABLE Input after this delay. Changes apply on next Play Sound." Opacity="0.7" TextWrapping="Wrap" />
-                                </StackPanel>
-
-                                <TextBlock Text="Engine manual control" FontSize="18" FontWeight="SemiBold" />
-                                <StackPanel Spacing="8">
-                                    <TextBlock Text="The engine starts automatically when VoiSe opens. Use these buttons only for manual troubleshooting." Opacity="0.7" TextWrapping="Wrap" />
-                                    <StackPanel Orientation="Horizontal" Spacing="10">
-                                        <Button Content="Start Engine" MinWidth="154" Height="42" Padding="18,8" Click="OnStartEngineClick" />
-                                        <Button Content="Stop Engine" MinWidth="154" Height="42" Padding="18,8" Click="OnStopEngineClick" />
-                                    </StackPanel>
-                                </StackPanel>
+                            <StackPanel Spacing="6">
+                                <TextBlock Text="Input Microphone" />
+                                <ComboBox x:Name="InputDeviceComboBox" PlaceholderText="Choose microphone" DisplayMemberPath="FriendlyName" Width="640" SelectionChanged="OnRouteSettingChanged" />
+                            </StackPanel>
+                            <StackPanel Spacing="6">
+                                <TextBlock Text="Virtual Output" />
+                                <ComboBox x:Name="VirtualOutputComboBox" PlaceholderText="Choose CABLE Input" DisplayMemberPath="FriendlyName" Width="640" SelectionChanged="OnRouteSettingChanged" />
+                            </StackPanel>
+                            <StackPanel Spacing="6">
+                                <TextBlock Text="Monitor Output" />
+                                <ComboBox x:Name="MonitorOutputComboBox" PlaceholderText="Choose headphones" DisplayMemberPath="FriendlyName" Width="640" SelectionChanged="OnRouteSettingChanged" />
                             </StackPanel>
 
-                            <Border Grid.Column="1" Background="#08000000" BorderBrush="#22FFFFFF" BorderThickness="1" CornerRadius="12" Padding="18" VerticalAlignment="Top">
-                                <StackPanel Spacing="14">
-                                    <TextBlock Text="About me" FontSize="18" FontWeight="SemiBold" />
-                                    <TextBlock Text="Links" Opacity="0.72" />
+                            <TextBlock Text="Output" FontSize="18" FontWeight="SemiBold" />
+                            <StackPanel x:Name="SettingsLogArea" Orientation="Horizontal" Spacing="10" Background="Transparent">
+                                <Button Content="Open logs" Padding="14,6" MinHeight="32" Click="OnOpenLogFullscreenClick" />
+                                <TextBlock Text="Application log opens in a separate window." VerticalAlignment="Center" Opacity="0.7" />
+                            </StackPanel>
 
-                                    <StackPanel Spacing="8">
-                                        <TextBlock Text="Telegram" FontWeight="SemiBold" />
-                                        <HyperlinkButton Content="t.me/VoriXq" NavigateUri="https://t.me/VoriXq" HorizontalAlignment="Left" />
-                                    </StackPanel>
-
-                                    <StackPanel Spacing="8">
-                                        <TextBlock Text="GitHub" FontWeight="SemiBold" />
-                                        <HyperlinkButton Content="github.com/VoriX0/VoiSe" NavigateUri="https://github.com/VoriX0/VoiSe" HorizontalAlignment="Left" />
-                                    </StackPanel>
-
-                                    <StackPanel Spacing="8">
-                                        <TextBlock Text="CloudTips" FontWeight="SemiBold" />
-                                        <HyperlinkButton Content="pay.cloudtips.ru/p/00d81ea7" NavigateUri="https://pay.cloudtips.ru/p/00d81ea7" HorizontalAlignment="Left" />
-                                    </StackPanel>
+                            <TextBlock Text="Hotkeys" FontSize="18" FontWeight="SemiBold" />
+                            <StackPanel Spacing="8" Background="Transparent">
+                                <StackPanel Orientation="Horizontal" Spacing="10">
+                                    <Button Content="Hotkeys" Padding="14,6" MinHeight="32" Click="OnConfigureTransportHotkeysClick" />
+                                    <TextBlock Text="Transport hotkeys. While a scene is active, Play/Pause and Stop control only scene one-shot sounds." VerticalAlignment="Center" Opacity="0.7" />
                                 </StackPanel>
-                            </Border>
-                        </Grid>
+                                <TextBlock x:Name="TransportHotkeysSummaryTextBlock" Text="Transport hotkeys: not configured" Opacity="0.72" TextWrapping="Wrap" />
+                            </StackPanel>
+
+                            <TextBlock Text="SoundBoard" FontSize="18" FontWeight="SemiBold" />
+                            <StackPanel Spacing="8">
+                                <TextBlock x:Name="DelayLabel" Text="SoundBoard Virtual Mic Delay: 85 ms" FontWeight="SemiBold" />
+                                <Slider x:Name="SoundVirtualDelaySlider" Minimum="0" Maximum="300" Value="85" StepFrequency="1" ValueChanged="OnDelayChanged" />
+                                <TextBlock Text="SoundBoard plays in headphones immediately, then reaches CABLE Input after this delay. Changes apply on next Play Sound." Opacity="0.7" TextWrapping="Wrap" />
+                            </StackPanel>
+
+                            <TextBlock Text="Engine manual control" FontSize="18" FontWeight="SemiBold" />
+                            <StackPanel Spacing="8">
+                                <TextBlock Text="The engine starts automatically when VoiSe opens. Use these buttons only for manual troubleshooting." Opacity="0.7" TextWrapping="Wrap" />
+                                <StackPanel Orientation="Horizontal" Spacing="10">
+                                    <Button Content="Start Engine" MinWidth="154" Height="42" Padding="18,8" Click="OnStartEngineClick" />
+                                    <Button Content="Stop Engine" MinWidth="154" Height="42" Padding="18,8" Click="OnStopEngineClick" />
+                                </StackPanel>
+                            </StackPanel>
+                        </StackPanel>
                     </ScrollViewer>
                 </TabViewItem>
                 </TabView>

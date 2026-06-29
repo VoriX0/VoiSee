@@ -1,16 +1,11 @@
 using NAudio.Vorbis;
 using NAudio.Wave;
 using NAudio.Wave.SampleProviders;
-using System.Collections.Concurrent;
-using System.Threading;
-using System.Threading.Tasks;
 
 namespace VoiSe.Audio;
 
 public static class SoundFileLoader
 {
-    private static readonly ConcurrentDictionary<SoundCacheKey, Lazy<float[]>> Cache = new();
-
     public static float[] LoadToFormat(string filePath, WaveFormat targetFormat)
     {
         if (!File.Exists(filePath))
@@ -18,45 +13,6 @@ public static class SoundFileLoader
             throw new FileNotFoundException("Sound file was not found.", filePath);
         }
 
-        var fullPath = Path.GetFullPath(filePath);
-        var key = new SoundCacheKey(
-            fullPath,
-            File.GetLastWriteTimeUtc(fullPath).Ticks,
-            targetFormat.SampleRate,
-            targetFormat.Channels);
-
-        // Decoding/resampling can take hundreds of milliseconds for larger files.
-        // Cache immutable PCM float buffers so repeated SoundBoard/Scene starts do not
-        // hit the UI thread or disk again. Multiple simultaneous requests share the
-        // same Lazy value, so a double-click/hotkey burst does not decode twice.
-        var lazy = Cache.GetOrAdd(key, cacheKey => new Lazy<float[]>(
-            () => LoadToFormatUncached(cacheKey.FilePath, targetFormat),
-            LazyThreadSafetyMode.ExecutionAndPublication));
-        return lazy.Value;
-    }
-
-    public static Task PreloadToFormatAsync(string filePath, WaveFormat targetFormat)
-    {
-        if (string.IsNullOrWhiteSpace(filePath) || !File.Exists(filePath))
-        {
-            return Task.CompletedTask;
-        }
-
-        return Task.Run(() =>
-        {
-            try
-            {
-                _ = LoadToFormat(filePath, targetFormat);
-            }
-            catch
-            {
-                // Preload is best-effort. Normal playback will report errors.
-            }
-        });
-    }
-
-    private static float[] LoadToFormatUncached(string filePath, WaveFormat targetFormat)
-    {
         using var reader = CreateReader(filePath);
         ISampleProvider provider = reader.ToSampleProvider();
 
@@ -138,6 +94,3 @@ public static class SoundFileLoader
         }
     }
 }
-
-
-internal readonly record struct SoundCacheKey(string FilePath, long LastWriteTimeUtcTicks, int SampleRate, int Channels);
