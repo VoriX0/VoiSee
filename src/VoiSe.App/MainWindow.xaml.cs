@@ -84,11 +84,13 @@ public sealed partial class MainWindow : Window
     private const double SceneSoundButtonHeight = 112.0;
     private const double SceneLoopIconHeight = 42.0;
     private const string DefaultVoicePresetIcon = "\uE720";
-    private const double SoundBoardWheelPixelsPerNotch = 72.0;
+    private const double SoundBoardWheelPixelsPerNotch = 56.0;
     private readonly Dictionary<string, SceneTimelineBinding> _sceneTimelineBindings = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, double> _soundDurationSecondsCache = new(StringComparer.OrdinalIgnoreCase);
     private bool _loadingSceneUi;
     private bool _soundBoardLoopEnabled;
+    private string? _lastSoundBoardDropSignature;
+    private DateTime _lastSoundBoardDropUtc = DateTime.MinValue;
 
     public MainWindow()
     {
@@ -137,6 +139,9 @@ public sealed partial class MainWindow : Window
     {
         try
         {
+            ExtendsContentIntoTitleBar = true;
+            SetTitleBar(CustomTitleBar);
+
             var titleBar = AppWindow.TitleBar;
             var black = Microsoft.UI.ColorHelper.FromArgb(0xFF, 0x00, 0x00, 0x00);
             var darkHover = Microsoft.UI.ColorHelper.FromArgb(0xFF, 0x20, 0x20, 0x20);
@@ -1973,6 +1978,7 @@ public sealed partial class MainWindow : Window
 
     private void OnSoundBoardDragOver(object sender, DragEventArgs e)
     {
+        e.Handled = true;
         if (e.DataView.Contains(StandardDataFormats.StorageItems))
         {
             e.AcceptedOperation = DataPackageOperation.Copy;
@@ -1989,6 +1995,7 @@ public sealed partial class MainWindow : Window
 
     private void OnSoundBoardDragLeave(object sender, DragEventArgs e)
     {
+        e.Handled = true;
         if (SoundBoardDropOverlay is not null)
         {
             SoundBoardDropOverlay.Visibility = Visibility.Collapsed;
@@ -1997,6 +2004,7 @@ public sealed partial class MainWindow : Window
 
     private async void OnSoundBoardDrop(object sender, DragEventArgs e)
     {
+        e.Handled = true;
         if (SoundBoardDropOverlay is not null)
         {
             SoundBoardDropOverlay.Visibility = Visibility.Collapsed;
@@ -2017,16 +2025,37 @@ public sealed partial class MainWindow : Window
         try
         {
             var items = await e.DataView.GetStorageItemsAsync();
+            var uniquePaths = items
+                .OfType<Windows.Storage.StorageFile>()
+                .Select(file => file.Path)
+                .Where(path => !string.IsNullOrWhiteSpace(path) && IsSupportedSoundFile(path))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .OrderBy(path => path, StringComparer.OrdinalIgnoreCase)
+                .ToList();
+
+            if (uniquePaths.Count == 0)
+            {
+                AppendLog("No supported sound files were dropped. Supported: wav, mp3, ogg.");
+                return;
+            }
+
+            var signature = category.Id + "|" + string.Join("|", uniquePaths);
+            var now = DateTime.UtcNow;
+            if (string.Equals(signature, _lastSoundBoardDropSignature, StringComparison.Ordinal)
+                && (now - _lastSoundBoardDropUtc).TotalMilliseconds < 1500)
+            {
+                AppendLog("Duplicate drop event ignored.");
+                return;
+            }
+
+            _lastSoundBoardDropSignature = signature;
+            _lastSoundBoardDropUtc = now;
+
             var added = 0;
             SoundBoardSound? lastSound = null;
-            foreach (var item in items)
+            foreach (var path in uniquePaths)
             {
-                if (item is not Windows.Storage.StorageFile file || string.IsNullOrWhiteSpace(file.Path) || !IsSupportedSoundFile(file.Path))
-                {
-                    continue;
-                }
-
-                lastSound = _libraryStore.AddSound(_library, file.Path, category);
+                lastSound = _libraryStore.AddSound(_library, path, category);
                 added++;
             }
 
@@ -4904,13 +4933,55 @@ public sealed partial class MainWindow : Window
         new("Speaker", "\uE767", true),
         new("Music", "\uE8D6", true),
         new("Radio", "\uE789", true),
-        new("Robot", "\uE99A", true),
+        new("Headphones", "\uE7F6", true),
+        new("Audio", "\uE8D6", true),
+        new("Megaphone", "\uE789", true),
+        new("Robot", "🤖", false),
         new("Alien", "👽", false),
         new("Monster", "👾", false),
+        new("Ghost", "👻", false),
+        new("Skull", "💀", false),
         new("Fire", "🔥", false),
         new("Snow", "❄️", false),
         new("Storm", "⚡", false),
-        new("Star", "⭐", false)
+        new("Star", "⭐", false),
+        new("Moon", "🌙", false),
+        new("Sun", "☀️", false),
+        new("Cloud", "☁️", false),
+        new("Rain", "🌧️", false),
+        new("Wind", "💨", false),
+        new("Water", "💧", false),
+        new("Wave", "🌊", false),
+        new("Leaf", "🍃", false),
+        new("Tree", "🌲", false),
+        new("Cat", "🐱", false),
+        new("Dog", "🐶", false),
+        new("Wolf", "🐺", false),
+        new("Dragon", "🐉", false),
+        new("Owl", "🦉", false),
+        new("Frog", "🐸", false),
+        new("Laugh", "😄", false),
+        new("Cool", "😎", false),
+        new("Sad", "😢", false),
+        new("Angry", "😡", false),
+        new("Demon", "😈", false),
+        new("Clown", "🤡", false),
+        new("Wizard", "🧙", false),
+        new("Ninja", "🥷", false),
+        new("Knight", "🛡️", false),
+        new("Crown", "👑", false),
+        new("Gem", "💎", false),
+        new("Dice", "🎲", false),
+        new("Game", "🎮", false),
+        new("Drama", "🎭", false),
+        new("Piano", "🎹", false),
+        new("Guitar", "🎸", false),
+        new("Drum", "🥁", false),
+        new("Bell", "🔔", false),
+        new("Alarm", "⏰", false),
+        new("Rocket", "🚀", false),
+        new("Car", "🚗", false),
+        new("Train", "🚂", false)
     };
 
     private static string NormalizeVoicePresetIcon(string? icon)
@@ -4955,10 +5026,11 @@ public sealed partial class MainWindow : Window
 
         var iconGrid = new VariableSizedWrapGrid
         {
-            Orientation = Orientation.Horizontal,
+            Orientation = Orientation.Vertical,
             ItemWidth = 52,
             ItemHeight = 52,
-            MaximumRowsOrColumns = 6
+            MaximumRowsOrColumns = 8,
+            MinWidth = 416
         };
 
         var buttons = new List<ToggleButton>();
@@ -5000,7 +5072,13 @@ public sealed partial class MainWindow : Window
             Opacity = 0.78,
             FontWeight = Microsoft.UI.Text.FontWeights.SemiBold
         });
-        panel.Children.Add(iconGrid);
+        panel.Children.Add(new ScrollViewer
+        {
+            Content = iconGrid,
+            MaxHeight = 260,
+            VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
+            VerticalScrollMode = ScrollMode.Enabled
+        });
 
         var dialog = new ContentDialog
         {
