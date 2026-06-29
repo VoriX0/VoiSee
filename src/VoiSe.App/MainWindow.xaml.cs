@@ -36,6 +36,8 @@ public sealed partial class MainWindow : Window
     private VoiSeScene? _selectedScene;
     private string? _activeSceneId;
     private string? _lastAppliedVoicePresetName;
+    private VoicePreset? _voicePresetBeforeActiveScene;
+    private string? _lastAppliedVoicePresetNameBeforeActiveScene;
     private bool _loadingVoicePreset;
     private bool _syncingVoiceControls;
     private readonly StringBuilder _logBuffer = new();
@@ -2967,6 +2969,7 @@ public sealed partial class MainWindow : Window
         UpdateSceneActiveFlags();
         RefreshSceneListBinding();
         TransportStop();
+        RestoreVoiceChangerStateBeforeScene();
         AppendLog(logMessage);
     }
 
@@ -3077,6 +3080,7 @@ public sealed partial class MainWindow : Window
             if (string.Equals(_activeSceneId, scene.Id, StringComparison.OrdinalIgnoreCase))
             {
                 _activeSceneId = null;
+                RestoreVoiceChangerStateBeforeScene();
             }
 
             _selectedScene = null;
@@ -3151,6 +3155,7 @@ public sealed partial class MainWindow : Window
     {
         try
         {
+            CaptureVoiceChangerStateBeforeSceneIfNeeded();
             VirtualOutputVolumeSlider.Value = Clamp(scene.VirtualMicMasterVolume, 0, 1.5);
             SoundVirtualVolumeSlider.Value = Clamp(scene.SoundBoardVirtualMicVolume, 0, 1.5);
             SoundMonitorVolumeSlider.Value = Clamp(scene.SoundBoardHeadphonesVolume, 0, 1.5);
@@ -3202,6 +3207,35 @@ public sealed partial class MainWindow : Window
         {
             AppendLog($"Scene apply error: {ex.Message}");
         }
+    }
+
+    private void CaptureVoiceChangerStateBeforeSceneIfNeeded()
+    {
+        if (!string.IsNullOrWhiteSpace(_activeSceneId) || _voicePresetBeforeActiveScene is not null)
+        {
+            return;
+        }
+
+        _voicePresetBeforeActiveScene = CaptureCurrentVoicePreset("Before active scene");
+        _lastAppliedVoicePresetNameBeforeActiveScene = _lastAppliedVoicePresetName;
+    }
+
+    private void RestoreVoiceChangerStateBeforeScene()
+    {
+        if (_voicePresetBeforeActiveScene is null)
+        {
+            return;
+        }
+
+        var previous = _voicePresetBeforeActiveScene;
+        var previousPresetName = _lastAppliedVoicePresetNameBeforeActiveScene;
+        _voicePresetBeforeActiveScene = null;
+        _lastAppliedVoicePresetNameBeforeActiveScene = null;
+
+        ApplyVoiceSliderDictionary(previous.Sliders);
+        UpdateVoiceSettingLabels();
+        _lastAppliedVoicePresetName = previousPresetName;
+        ApplyLiveSettings("voice settings restored after scene disabled");
     }
 
     private void ApplyVoiceSliderDictionary(IReadOnlyDictionary<string, double>? sliders)
