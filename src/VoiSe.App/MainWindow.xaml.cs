@@ -78,6 +78,8 @@ public sealed partial class MainWindow : Window
     private const double SoundWheelZoneExpandRightRatio = 2.00;
     private const double SoundWheelZoneExpandBottomRatio = 1.60;
     private const double SceneListWheelZoneExpandDownRatio = 0.65;
+    private const double ModalWheelZoneExpandLeftRatio = 0.50;
+    private const double ModalWheelZoneExpandBottomRatio = 1.00;
     private const double VoiceValueMin = -9999.0;
     private const double VoiceValueMax = 9999.0;
     private const double SceneSoundButtonWidth = 252.0;
@@ -232,6 +234,40 @@ public sealed partial class MainWindow : Window
         {
             AppendLog("Engine auto-start skipped. Check selected audio devices in Settings, then use manual Start Engine if needed.");
         }
+    }
+
+    private void WarmSoundCacheInBackground(IEnumerable<string>? paths = null)
+    {
+        var engine = _engine;
+        if (engine is null)
+        {
+            return;
+        }
+
+        var soundPaths = (paths ?? _library.Sounds.Select(sound => sound.FilePath))
+            .Where(path => !string.IsNullOrWhiteSpace(path) && File.Exists(path))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        if (soundPaths.Count == 0)
+        {
+            return;
+        }
+
+        _ = Task.Run(() =>
+        {
+            foreach (var path in soundPaths)
+            {
+                try
+                {
+                    engine.PreloadSoundAsync(path).GetAwaiter().GetResult();
+                }
+                catch
+                {
+                    // Best-effort warmup only. Playback reports real errors.
+                }
+            }
+        });
     }
 
     private void ApplyStoredScalarSettingsToControls()
@@ -458,7 +494,7 @@ public sealed partial class MainWindow : Window
         return yDip >= top && yDip <= bottom;
     }
 
-    private bool IsPointInElementWheelZone(FrameworkElement? element, double xDip, double yDip, bool extendBottom, double bottomExtensionRatio = 0.0)
+    private bool IsPointInElementWheelZone(FrameworkElement? element, double xDip, double yDip, bool extendBottom, double bottomExtensionRatio = 0.0, double leftExtensionRatio = 0.0)
     {
         if (RootGrid is null || element is null)
         {
@@ -475,6 +511,11 @@ public sealed partial class MainWindow : Window
             var height = Math.Max(1.0, element.ActualHeight);
             var right = left + width;
             var bottom = top + height;
+
+            if (leftExtensionRatio > 0.0)
+            {
+                left -= width * leftExtensionRatio;
+            }
 
             if (bottomExtensionRatio > 0.0)
             {
@@ -504,11 +545,17 @@ public sealed partial class MainWindow : Window
             return false;
         }
 
-        // Gate 8.0 buildfix 4: keep the buildfix2 visual design, but allow the
-        // icon picker to own an extended lower wheel zone. This removes dead
-        // spots under the visible picker without letting the Voice Changer
-        // page steal the wheel while the dialog is open.
-        return IsPointInElementWheelZone(wheelZone, xDip, yDip, extendBottom: false, bottomExtensionRatio: 1.0)
+        // Gate 8.1 buildfix 1: modal scroll pickers/logs own an enlarged wheel
+        // zone. The zone extends down and to the left, matching the Voice
+        // Changer preset icon picker calibration and preventing the parent page
+        // from stealing wheel input while the modal is open.
+        return IsPointInElementWheelZone(
+                wheelZone,
+                xDip,
+                yDip,
+                extendBottom: false,
+                bottomExtensionRatio: ModalWheelZoneExpandBottomRatio,
+                leftExtensionRatio: ModalWheelZoneExpandLeftRatio)
             && TryScrollViewer(scrollViewer, wheelDelta, 52.0);
     }
 
@@ -625,6 +672,8 @@ public sealed partial class MainWindow : Window
                 HorizontalScrollMode = ScrollMode.Disabled,
                 ZoomMode = ZoomMode.Disabled
             };
+            AttachIconPickerWheelRouting(scrollViewer, scrollViewer);
+            AttachIconPickerWheelRouting(textBlock, scrollViewer);
 
             var dialog = new ContentDialog
             {
@@ -635,7 +684,19 @@ public sealed partial class MainWindow : Window
                 XamlRoot = ((FrameworkElement)Content).XamlRoot
             };
 
-            await dialog.ShowAsync();
+            _suppressMainTabWheelRouting = true;
+            _activeIconPickerScrollViewer = scrollViewer;
+            _activeIconPickerWheelZoneElement = scrollViewer;
+            try
+            {
+                await dialog.ShowAsync();
+            }
+            finally
+            {
+                _activeIconPickerScrollViewer = null;
+                _activeIconPickerWheelZoneElement = null;
+                _suppressMainTabWheelRouting = false;
+            }
         }
         catch (Exception ex)
         {
@@ -1066,7 +1127,7 @@ public sealed partial class MainWindow : Window
         var panel = new StackPanel { Spacing = 10 };
         panel.Children.Add(new TextBlock
         {
-            Text = "Click a hotkey button, then press a key or Ctrl/Alt/Shift combination. Esc cancels capture. Plain A-Z and < > { } are local-only; Ctrl/Alt/Shift combinations remain global.",
+            Text = "Click a hotkey button, then press a key or Ctrl/Alt/Shift combination. Esc cancels capture. Plain A-Z and < > { } are local-only; NumPad keys and Ctrl/Alt/Shift combinations remain global.",
             TextWrapping = TextWrapping.Wrap,
             Opacity = 0.78
         });
@@ -1421,6 +1482,13 @@ public sealed partial class MainWindow : Window
                 }
             }
 
+            if ((upper.StartsWith("NUMPAD") && int.TryParse(upper[6..], out var numpadLong) && numpadLong is >= 0 and <= 9)
+                || (upper.StartsWith("NUM") && int.TryParse(upper[3..], out numpadLong) && numpadLong is >= 0 and <= 9))
+            {
+                keyCode = 0x60 + numpadLong;
+                return true;
+            }
+
             if (upper.StartsWith("F") && int.TryParse(upper[1..], out var fn) && fn is >= 1 and <= 24)
             {
                 keyCode = 0x70 + fn - 1;
@@ -1429,6 +1497,11 @@ public sealed partial class MainWindow : Window
 
             keyCode = upper switch
             {
+                "NUMPADMULTIPLY" or "NUMMULTIPLY" or "NUM*" => 0x6A,
+                "NUMPADADD" or "NUMADD" or "NUM+" => 0x6B,
+                "NUMPADSUBTRACT" or "NUMSUBTRACT" or "NUM-" => 0x6D,
+                "NUMPADDECIMAL" or "NUMDECIMAL" or "NUM." => 0x6E,
+                "NUMPADDIVIDE" or "NUMDIVIDE" or "NUM/" => 0x6F,
                 "SPACE" => 0x20,
                 "ENTER" or "RETURN" => 0x0D,
                 "ESC" or "ESCAPE" => 0x1B,
@@ -1464,6 +1537,26 @@ public sealed partial class MainWindow : Window
                 0xBE => ">",
                 0xDB => "{",
                 0xDD => "}",
+                _ => string.Empty
+            };
+            if (keyName.Length > 0)
+            {
+                return true;
+            }
+
+            if (keyCode is >= 0x60 and <= 0x69)
+            {
+                keyName = "Num" + (keyCode - 0x60);
+                return true;
+            }
+
+            keyName = keyCode switch
+            {
+                0x6A => "Num*",
+                0x6B => "Num+",
+                0x6D => "Num-",
+                0x6E => "Num.",
+                0x6F => "Num/",
                 _ => string.Empty
             };
             if (keyName.Length > 0)
@@ -1780,6 +1873,7 @@ public sealed partial class MainWindow : Window
             RebuildSceneSoundButtons();
             AppendLog($"SoundBoard library loaded: {_library.Categories.Count} categories, {_library.Sounds.Count} sounds.");
             AppendLog($"SoundBoard data: {_libraryStore.LibraryPath}");
+            WarmSoundCacheInBackground();
         }
         catch (Exception ex)
         {
@@ -1984,6 +2078,7 @@ public sealed partial class MainWindow : Window
             _settings.LastSoundFilePath = sound.FilePath;
             RefreshSoundList();
             SelectSound(sound);
+            WarmSoundCacheInBackground(new[] { sound.FilePath });
             AppendLog($"Track added to {category.Name}: {sound.DisplayName}");
         }
         catch (Exception ex)
@@ -2077,10 +2172,12 @@ public sealed partial class MainWindow : Window
             _lastSoundBoardDropUtc = now;
 
             var added = 0;
+            var addedSoundPaths = new List<string>();
             SoundBoardSound? lastSound = null;
             foreach (var path in uniquePaths)
             {
                 lastSound = _libraryStore.AddSound(_library, path, category);
+                addedSoundPaths.Add(lastSound.FilePath);
                 added++;
             }
 
@@ -2093,6 +2190,7 @@ public sealed partial class MainWindow : Window
             _settings.LastSoundCategoryId = category.Id;
             RefreshSoundList();
             SelectSound(lastSound);
+            WarmSoundCacheInBackground(addedSoundPaths);
             AppendLog($"Dropped {added} track(s) into {category.Name}.");
         }
         catch (Exception ex)
@@ -2351,7 +2449,7 @@ public sealed partial class MainWindow : Window
         if (_selectedSound is null) return;
         var hotkey = await CaptureHotkeyDialogAsync(
             "Assign sound hotkey",
-            "Click the hotkey button, then press a key or Ctrl/Alt/Shift combination. Esc cancels capture. Plain A-Z and < > { } are local-only; Ctrl/Alt/Shift combinations remain global.",
+            "Click the hotkey button, then press a key or Ctrl/Alt/Shift combination. Esc cancels capture. Plain A-Z and < > { } are local-only; NumPad keys and Ctrl/Alt/Shift combinations remain global.",
             _selectedSound.Hotkey);
         if (hotkey is null) return;
         var normalized = NormalizeOptionalHotkey(hotkey);
@@ -2443,6 +2541,7 @@ public sealed partial class MainWindow : Window
             AppendLog($"Engine started. Input: {input.FriendlyName}");
             AppendLog($"Virtual output: {virtualOutput.FriendlyName}");
             AppendLog($"Monitor: {(monitor is null ? "disabled" : monitor.FriendlyName)}");
+            WarmSoundCacheInBackground();
             return true;
         }
         catch (Exception ex)
@@ -2573,11 +2672,15 @@ public sealed partial class MainWindow : Window
 
     private void OnSoundLoopToggleChanged(object sender, RoutedEventArgs e)
     {
-        _soundBoardLoopEnabled = SoundLoopToggleButton?.IsChecked == true;
-        if (!IsSceneActive)
+        if (IsSceneActive)
         {
-            _engine?.UpdateSoundLoop(_soundBoardLoopEnabled);
+            UpdateSoundBoardSceneLockState();
+            AppendLog("SoundBoard loop toggle is unavailable while a scene is active.");
+            return;
         }
+
+        _soundBoardLoopEnabled = SoundLoopToggleButton?.IsChecked == true;
+        _engine?.UpdateSoundLoop(_soundBoardLoopEnabled);
 
         AppendLog(_soundBoardLoopEnabled
             ? "SoundBoard loop enabled for the current track."
@@ -2678,13 +2781,32 @@ public sealed partial class MainWindow : Window
                 _currentSoundDisplayName = normalizedDisplayName;
             }
 
-            _engine.PlaySound(soundPath, virtualRouteVolume, monitorRouteVolume, delayMs, loop, playbackKey);
-            if (librarySound is not null)
-            {
-                _libraryStore.IncrementUsage(_library, librarySound);
-            }
-            UpdateBottomStats();
-            AppendLog($"{sourceLabel} started{(loop ? " in loop" : string.Empty)}: {normalizedDisplayName}. HP: {(int)Math.Round(monitorRouteVolume * 100)}%, Mic: {(int)Math.Round(virtualRouteVolume * 100)}%, Virtual delay: {delayMs} ms.");
+            var engine = _engine;
+            var logMessage = $"{sourceLabel} started{(loop ? " in loop" : string.Empty)}: {normalizedDisplayName}. HP: {(int)Math.Round(monitorRouteVolume * 100)}%, Mic: {(int)Math.Round(virtualRouteVolume * 100)}%, Virtual delay: {delayMs} ms.";
+
+            // Decoding/resampling can be expensive and used to freeze the pointer/UI for
+            // ~0.5-1s on larger files. Keep the UI thread free; the transport is thread-safe
+            // and SoundFileLoader caches the decoded PCM for future starts.
+            _ = Task.Run(() => engine.PlaySound(soundPath, virtualRouteVolume, monitorRouteVolume, delayMs, loop, playbackKey))
+                .ContinueWith(task =>
+                {
+                    DispatcherQueue.TryEnqueue(() =>
+                    {
+                        if (task.Exception is not null)
+                        {
+                            AppendLog($"Sound playback error: {task.Exception.GetBaseException().Message}");
+                            return;
+                        }
+
+                        if (librarySound is not null)
+                        {
+                            _libraryStore.IncrementUsage(_library, librarySound);
+                        }
+
+                        UpdateBottomStats();
+                        AppendLog(logMessage);
+                    });
+                }, TaskScheduler.Default);
         }
         catch (Exception ex)
         {
@@ -3554,6 +3676,7 @@ public sealed partial class MainWindow : Window
         if (PreviousSoundButton is not null) PreviousSoundButton.IsEnabled = !locked;
         if (NextSoundButton is not null) NextSoundButton.IsEnabled = !locked;
         if (StopSoundButton is not null) StopSoundButton.IsEnabled = !locked;
+        if (SoundLoopToggleButton is not null) SoundLoopToggleButton.IsEnabled = !locked;
         if (PlayPauseButton is not null) PlayPauseButton.IsEnabled = !locked;
         if (TimelineHost is not null) TimelineHost.IsHitTestVisible = !locked;
         if (SoundVirtualVolumeSlider is not null) SoundVirtualVolumeSlider.IsEnabled = !locked;
@@ -5339,7 +5462,7 @@ public sealed partial class MainWindow : Window
         };
         panel.Children.Add(new TextBlock
         {
-            Text = "Click a hotkey button, then press a key or Ctrl/Alt/Shift combination. Esc cancels capture. Plain A-Z and < > { } are local-only; Ctrl/Alt/Shift combinations remain global.",
+            Text = "Click a hotkey button, then press a key or Ctrl/Alt/Shift combination. Esc cancels capture. Plain A-Z and < > { } are local-only; NumPad keys and Ctrl/Alt/Shift combinations remain global.",
             TextWrapping = TextWrapping.Wrap,
             Opacity = 0.78
         });

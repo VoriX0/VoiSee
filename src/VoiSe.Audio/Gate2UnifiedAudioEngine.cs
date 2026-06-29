@@ -99,6 +99,11 @@ public sealed class Gate2UnifiedAudioEngine : IDisposable
         _soundboard.Play(filePath, virtualVolume, monitorVolume, virtualDelayMs, loop, playbackKey);
     }
 
+    public Task PreloadSoundAsync(string filePath)
+    {
+        return SoundFileLoader.PreloadToFormatAsync(filePath, _mixFormat);
+    }
+
     public void StopSound(string? playbackKey = null)
     {
         _soundboard.Stop(playbackKey);
