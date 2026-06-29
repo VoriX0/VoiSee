@@ -91,6 +91,7 @@ public sealed partial class MainWindow : Window
     private bool _soundBoardLoopEnabled;
     private string? _lastSoundBoardDropSignature;
     private DateTime _lastSoundBoardDropUtc = DateTime.MinValue;
+    private bool _suppressMainTabWheelRouting;
 
     public MainWindow()
     {
@@ -365,6 +366,11 @@ public sealed partial class MainWindow : Window
 
     private bool TryHandleMainTabWheel(IntPtr lParam)
     {
+        if (_suppressMainTabWheelRouting)
+        {
+            return false;
+        }
+
         if (MainTabView is null || _windowHandleIsUnavailable())
         {
             return false;
@@ -4929,13 +4935,10 @@ public sealed partial class MainWindow : Window
     private static readonly VoicePresetIconChoice[] VoicePresetIconChoices =
     {
         new("Microphone", "\uE720", true),
-        new("Voice", "\uE8D6", true),
         new("Speaker", "\uE767", true),
+        new("Headphones", "\uE7F6", true),
         new("Music", "\uE8D6", true),
         new("Radio", "\uE789", true),
-        new("Headphones", "\uE7F6", true),
-        new("Audio", "\uE8D6", true),
-        new("Megaphone", "\uE789", true),
         new("Robot", "🤖", false),
         new("Alien", "👽", false),
         new("Monster", "👾", false),
@@ -4949,17 +4952,23 @@ public sealed partial class MainWindow : Window
         new("Sun", "☀️", false),
         new("Cloud", "☁️", false),
         new("Rain", "🌧️", false),
+        new("Rainbow", "🌈", false),
         new("Wind", "💨", false),
         new("Water", "💧", false),
         new("Wave", "🌊", false),
         new("Leaf", "🍃", false),
         new("Tree", "🌲", false),
+        new("Mushroom", "🍄", false),
         new("Cat", "🐱", false),
         new("Dog", "🐶", false),
         new("Wolf", "🐺", false),
         new("Dragon", "🐉", false),
         new("Owl", "🦉", false),
         new("Frog", "🐸", false),
+        new("Bat", "🦇", false),
+        new("Snake", "🐍", false),
+        new("Fox", "🦊", false),
+        new("Bear", "🐻", false),
         new("Laugh", "😄", false),
         new("Cool", "😎", false),
         new("Sad", "😢", false),
@@ -4968,20 +4977,38 @@ public sealed partial class MainWindow : Window
         new("Clown", "🤡", false),
         new("Wizard", "🧙", false),
         new("Ninja", "🥷", false),
-        new("Knight", "🛡️", false),
         new("Crown", "👑", false),
         new("Gem", "💎", false),
+        new("Crystal Ball", "🔮", false),
         new("Dice", "🎲", false),
         new("Game", "🎮", false),
         new("Drama", "🎭", false),
         new("Piano", "🎹", false),
         new("Guitar", "🎸", false),
         new("Drum", "🥁", false),
+        new("Saxophone", "🎷", false),
+        new("Trumpet", "🎺", false),
         new("Bell", "🔔", false),
         new("Alarm", "⏰", false),
+        new("Hourglass", "⏳", false),
         new("Rocket", "🚀", false),
+        new("UFO", "🛸", false),
         new("Car", "🚗", false),
-        new("Train", "🚂", false)
+        new("Train", "🚂", false),
+        new("Ship", "🚢", false),
+        new("Plane", "✈️", false),
+        new("Sword", "⚔️", false),
+        new("Shield", "🛡️", false),
+        new("Bomb", "💣", false),
+        new("Magic", "✨", false),
+        new("Sparkles", "💫", false),
+        new("Heart", "❤️", false),
+        new("Broken Heart", "💔", false),
+        new("Mask", "😷", false),
+        new("Microphone Emoji", "🎙️", false),
+        new("Headphones Emoji", "🎧", false),
+        new("Speaker Emoji", "🔊", false),
+        new("Muted", "🔇", false)
     };
 
     private static string NormalizeVoicePresetIcon(string? icon)
@@ -5026,7 +5053,7 @@ public sealed partial class MainWindow : Window
 
         var iconGrid = new VariableSizedWrapGrid
         {
-            Orientation = Orientation.Vertical,
+            Orientation = Orientation.Horizontal,
             ItemWidth = 52,
             ItemHeight = 52,
             MaximumRowsOrColumns = 8,
@@ -5072,13 +5099,25 @@ public sealed partial class MainWindow : Window
             Opacity = 0.78,
             FontWeight = Microsoft.UI.Text.FontWeights.SemiBold
         });
-        panel.Children.Add(new ScrollViewer
+        var iconScrollViewer = new ScrollViewer
         {
             Content = iconGrid,
             MaxHeight = 260,
             VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
-            VerticalScrollMode = ScrollMode.Enabled
-        });
+            VerticalScrollMode = ScrollMode.Enabled,
+            HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled,
+            HorizontalScrollMode = ScrollMode.Disabled,
+            ZoomMode = ZoomMode.Disabled
+        };
+        iconScrollViewer.AddHandler(UIElement.PointerWheelChangedEvent, new PointerEventHandler((_, args) =>
+        {
+            var delta = args.GetCurrentPoint(iconScrollViewer).Properties.MouseWheelDelta;
+            if (TryScrollViewer(iconScrollViewer, delta, 52.0))
+            {
+                args.Handled = true;
+            }
+        }), true);
+        panel.Children.Add(iconScrollViewer);
 
         var dialog = new ContentDialog
         {
@@ -5090,7 +5129,17 @@ public sealed partial class MainWindow : Window
             XamlRoot = ((FrameworkElement)Content).XamlRoot
         };
 
-        var result = await dialog.ShowAsync();
+        ContentDialogResult result;
+        _suppressMainTabWheelRouting = true;
+        try
+        {
+            result = await dialog.ShowAsync();
+        }
+        finally
+        {
+            _suppressMainTabWheelRouting = false;
+        }
+
         return result == ContentDialogResult.Primary
             ? (nameBox.Text.Trim(), selectedIcon)
             : null;
