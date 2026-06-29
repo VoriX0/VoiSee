@@ -81,6 +81,10 @@ public sealed partial class MainWindow : Window
     private const double ModalWheelZoneExpandLeftRatio = 0.50;
     private const double ModalWheelZoneExpandRightRatio = 0.50;
     private const double ModalWheelZoneExpandBottomRatio = 1.00;
+    private const double SettingsWheelZoneExpandRightRatio = 0.50;
+    private const double SceneSoundButtonsWheelZoneExpandRightRatio = 0.50;
+    private const double SceneListWheelZoneExpandRightRatio = 0.15;
+    private const double IconPickerWheelZoneShiftRightRatio = 0.15;
     private const double VoiceValueMin = -9999.0;
     private const double VoiceValueMax = 9999.0;
     private const double SceneSoundButtonWidth = 252.0;
@@ -99,6 +103,7 @@ public sealed partial class MainWindow : Window
     private FrameworkElement? _activeIconPickerWheelZoneElement;
     private double _activeModalWheelZoneLeftExtensionRatio;
     private double _activeModalWheelZoneRightExtensionRatio;
+    private double _activeModalWheelZoneHorizontalShiftRatio;
 
     public MainWindow()
     {
@@ -497,7 +502,7 @@ public sealed partial class MainWindow : Window
         return yDip >= top && yDip <= bottom;
     }
 
-    private bool IsPointInElementWheelZone(FrameworkElement? element, double xDip, double yDip, bool extendBottom, double bottomExtensionRatio = 0.0, double leftExtensionRatio = 0.0, double rightExtensionRatio = 0.0)
+    private bool IsPointInElementWheelZone(FrameworkElement? element, double xDip, double yDip, bool extendBottom, double bottomExtensionRatio = 0.0, double leftExtensionRatio = 0.0, double rightExtensionRatio = 0.0, double horizontalShiftRatio = 0.0)
     {
         if (RootGrid is null || element is null)
         {
@@ -508,10 +513,11 @@ public sealed partial class MainWindow : Window
         {
             var topLeft = element.TransformToVisual(RootGrid)
                 .TransformPoint(new Windows.Foundation.Point(0, 0));
-            var left = topLeft.X;
-            var top = topLeft.Y;
             var width = Math.Max(1.0, element.ActualWidth);
             var height = Math.Max(1.0, element.ActualHeight);
+            var horizontalShift = width * horizontalShiftRatio;
+            var left = topLeft.X + horizontalShift;
+            var top = topLeft.Y;
             var right = left + width;
             var bottom = top + height;
 
@@ -564,7 +570,8 @@ public sealed partial class MainWindow : Window
                 extendBottom: false,
                 bottomExtensionRatio: ModalWheelZoneExpandBottomRatio,
                 leftExtensionRatio: _activeModalWheelZoneLeftExtensionRatio,
-                rightExtensionRatio: _activeModalWheelZoneRightExtensionRatio)
+                rightExtensionRatio: _activeModalWheelZoneRightExtensionRatio,
+                horizontalShiftRatio: _activeModalWheelZoneHorizontalShiftRatio)
             && TryScrollViewer(scrollViewer, wheelDelta, 52.0);
     }
 
@@ -610,7 +617,7 @@ public sealed partial class MainWindow : Window
         // Gate 7.10 buildfix 3: the scene list and scene sound buttons must own
         // separate horizontal zones, but the left scene list lower wheel zone
         // is extended by 65% so scrolling still works near the bottom controls.
-        if (IsPointInElementWheelZone(ScenesListView, xDip, yDip, extendBottom: false, bottomExtensionRatio: SceneListWheelZoneExpandDownRatio))
+        if (IsPointInElementWheelZone(ScenesListView, xDip, yDip, extendBottom: false, bottomExtensionRatio: SceneListWheelZoneExpandDownRatio, rightExtensionRatio: SceneListWheelZoneExpandRightRatio))
         {
             var sceneListScrollViewer = FindDescendantScrollViewer(ScenesListView);
             return sceneListScrollViewer is not null
@@ -618,7 +625,7 @@ public sealed partial class MainWindow : Window
                 : false;
         }
 
-        if (IsPointInElementWheelZone(SceneSoundButtonsScrollViewer, xDip, yDip, extendBottom: true))
+        if (IsPointInElementWheelZone(SceneSoundButtonsScrollViewer, xDip, yDip, extendBottom: true, rightExtensionRatio: SceneSoundButtonsWheelZoneExpandRightRatio))
         {
             return TryScrollViewer(SceneSoundButtonsScrollViewer, wheelDelta, 42.0);
         }
@@ -628,7 +635,7 @@ public sealed partial class MainWindow : Window
 
     private bool TryHandleSettingsWheel(double xDip, double yDip, int wheelDelta)
     {
-        if (IsPointInElementWheelZone(SettingsScrollViewer, xDip, yDip, extendBottom: true))
+        if (IsPointInElementWheelZone(SettingsScrollViewer, xDip, yDip, extendBottom: true, rightExtensionRatio: SettingsWheelZoneExpandRightRatio))
         {
             return TryScrollViewer(SettingsScrollViewer, wheelDelta, 42.0);
         }
@@ -674,13 +681,14 @@ public sealed partial class MainWindow : Window
             {
                 Content = textBlock,
                 Width = Math.Max(900, RootGrid?.ActualWidth * 0.82 ?? 900),
-                Height = Math.Max(560, RootGrid?.ActualHeight * 0.78 ?? 560),
+                Height = Math.Max(420, Math.Min(560, RootGrid?.ActualHeight * 0.62 ?? 520)),
                 VerticalScrollBarVisibility = ScrollBarVisibility.Visible,
                 VerticalScrollMode = ScrollMode.Enabled,
                 HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled,
                 HorizontalScrollMode = ScrollMode.Disabled,
                 ZoomMode = ZoomMode.Disabled
             };
+            scrollViewer.Loaded += (_, _) => DispatcherQueue.TryEnqueue(() => scrollViewer.ChangeView(null, scrollViewer.ScrollableHeight, null, disableAnimation: true));
             AttachIconPickerWheelRouting(scrollViewer, scrollViewer);
             AttachIconPickerWheelRouting(textBlock, scrollViewer);
 
@@ -698,6 +706,7 @@ public sealed partial class MainWindow : Window
             _activeIconPickerWheelZoneElement = scrollViewer;
             _activeModalWheelZoneLeftExtensionRatio = ModalWheelZoneExpandLeftRatio;
             _activeModalWheelZoneRightExtensionRatio = 0.0;
+            _activeModalWheelZoneHorizontalShiftRatio = 0.0;
             try
             {
                 await dialog.ShowAsync();
@@ -708,6 +717,7 @@ public sealed partial class MainWindow : Window
                 _activeIconPickerWheelZoneElement = null;
                 _activeModalWheelZoneLeftExtensionRatio = 0.0;
                 _activeModalWheelZoneRightExtensionRatio = 0.0;
+                _activeModalWheelZoneHorizontalShiftRatio = 0.0;
                 _suppressMainTabWheelRouting = false;
             }
         }
@@ -5303,6 +5313,7 @@ public sealed partial class MainWindow : Window
         _activeIconPickerWheelZoneElement = iconScrollViewer;
         _activeModalWheelZoneLeftExtensionRatio = 0.0;
         _activeModalWheelZoneRightExtensionRatio = ModalWheelZoneExpandRightRatio;
+        _activeModalWheelZoneHorizontalShiftRatio = IconPickerWheelZoneShiftRightRatio;
         try
         {
             result = await dialog.ShowAsync();
@@ -5313,6 +5324,7 @@ public sealed partial class MainWindow : Window
             _activeIconPickerWheelZoneElement = null;
             _activeModalWheelZoneLeftExtensionRatio = 0.0;
             _activeModalWheelZoneRightExtensionRatio = 0.0;
+            _activeModalWheelZoneHorizontalShiftRatio = 0.0;
             _suppressMainTabWheelRouting = false;
         }
 
