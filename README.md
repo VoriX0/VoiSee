@@ -1,7 +1,7 @@
 # VoiSee 8.2.0 — VB-CABLE bundle support
 
 Installer-ready source archive for VoiSee Version 8.2.0.
-You can install VoiSee from archives/installer/.exe
+You can install VoiSee from /artifacts/installer/.exe
 Included:
 - optional Inno Setup checkbox for bundled VB-CABLE installation
 - manual `Install VB-CABLE` button in Settings
@@ -15,7 +15,6 @@ To bundle VB-CABLE, place the official package in:
 ```text
 third_party\VB-CABLE\
 ```
-
 Then run:
 
 ```powershell
