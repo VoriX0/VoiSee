@@ -8,6 +8,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.IO.Compression;
 using System.Linq;
 using System.Runtime.InteropServices;
 using System.Text;
@@ -143,7 +144,7 @@ public sealed partial class MainWindow : Window
         _timelineTimer.Tick += OnTimelineTimerTick;
         _timelineTimer.Start();
 
-        AppendLog("VoiSe Version 8.2.0 UI started.");
+        AppendLog("VoiSee Version 8.2.0 UI started.");
         AppendLog($"Settings path: {_settingsStore.SettingsPath}");
         StartupLog.Write("MainWindow initialized; waiting for first activation.");
     }
@@ -288,8 +289,13 @@ public sealed partial class MainWindow : Window
         if (VBCableStatusTextBlock is not null)
         {
             VBCableStatusTextBlock.Text = hasCable
-                ? "VB-CABLE detected. Audio engine can be started."
-                : "VB-CABLE was not detected. Install VB-CABLE and click Refresh Devices. The audio engine will stay disabled until CABLE Input is available.";
+                ? "VB-CABLE is detected. CABLE Input is ready and the audio engine can be started safely."
+                : "VB-CABLE is not installed. Install VB-CABLE and click Refresh Devices. The audio engine will stay disabled until CABLE Input is available.";
+        }
+
+        if (InstallVBCableButton is not null)
+        {
+            InstallVBCableButton.IsEnabled = !hasCable;
         }
 
         if (StartEngineButton is not null)
@@ -305,6 +311,97 @@ public sealed partial class MainWindow : Window
         {
             EngineStatusTextBlock.Text = "Stopped";
         }
+    }
+
+    private void OnInstallVBCableClick(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            var installerPath = PrepareBundledVBCableInstaller();
+            if (installerPath is null)
+            {
+                AppendLog("Bundled VB-CABLE installer was not found. Opening VB-CABLE download page.");
+                Process.Start(new ProcessStartInfo(VBCableDownloadUrl) { UseShellExecute = true });
+                return;
+            }
+
+            AppendLog($"Starting VB-CABLE installer: {installerPath}");
+            Process.Start(new ProcessStartInfo(installerPath)
+            {
+                UseShellExecute = true,
+                Verb = "runas",
+                WorkingDirectory = Path.GetDirectoryName(installerPath) ?? AppContext.BaseDirectory
+            });
+        }
+        catch (Exception ex)
+        {
+            AppendLog($"VB-CABLE installer start error: {ex.Message}");
+        }
+    }
+
+    private static string? PrepareBundledVBCableInstaller()
+    {
+        var bundleDir = Path.Combine(AppContext.BaseDirectory, "ThirdParty", "VB-CABLE");
+        var direct = FindVBCableSetupExecutable(bundleDir);
+        if (direct is not null)
+        {
+            return direct;
+        }
+
+        if (!Directory.Exists(bundleDir))
+        {
+            return null;
+        }
+
+        var zip = Directory.EnumerateFiles(bundleDir, "*.zip", SearchOption.TopDirectoryOnly)
+            .OrderBy(path => path, StringComparer.OrdinalIgnoreCase)
+            .FirstOrDefault();
+        if (zip is null)
+        {
+            return null;
+        }
+
+        var extractDir = Path.Combine(
+            Path.GetTempPath(),
+            "VoiSee",
+            "VB-CABLE",
+            Path.GetFileNameWithoutExtension(zip));
+
+        if (Directory.Exists(extractDir))
+        {
+            Directory.Delete(extractDir, recursive: true);
+        }
+
+        Directory.CreateDirectory(extractDir);
+        ZipFile.ExtractToDirectory(zip, extractDir);
+        return FindVBCableSetupExecutable(extractDir);
+    }
+
+    private static string? FindVBCableSetupExecutable(string root)
+    {
+        if (string.IsNullOrWhiteSpace(root) || !Directory.Exists(root))
+        {
+            return null;
+        }
+
+        var preferredNames = new[]
+        {
+            "VBCABLE_Setup_x64.exe",
+            "VBCABLE_Setup.exe"
+        };
+
+        foreach (var name in preferredNames)
+        {
+            var path = Directory.EnumerateFiles(root, name, SearchOption.AllDirectories).FirstOrDefault();
+            if (path is not null)
+            {
+                return path;
+            }
+        }
+
+        return Directory.EnumerateFiles(root, "*Setup*x64*.exe", SearchOption.AllDirectories)
+            .Concat(Directory.EnumerateFiles(root, "*Setup*.exe", SearchOption.AllDirectories))
+            .FirstOrDefault();
     }
 
     private void WarmSoundCacheInBackground(IEnumerable<string>? paths = null)

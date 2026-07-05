@@ -19,6 +19,66 @@ function Remove-IfExists([string]$Path) {
     }
 }
 
+function Find-VBCableSetup([string]$Path) {
+    if (-not (Test-Path $Path)) { return $null }
+
+    $preferred = @(
+        "VBCABLE_Setup_x64.exe",
+        "VBCABLE_Setup.exe"
+    )
+
+    foreach ($name in $preferred) {
+        $match = Get-ChildItem -Path $Path -Recurse -Force -File -Filter $name -ErrorAction SilentlyContinue | Select-Object -First 1
+        if ($match) { return $match.FullName }
+    }
+
+    $match = Get-ChildItem -Path $Path -Recurse -Force -File -Filter "*Setup*x64*.exe" -ErrorAction SilentlyContinue | Select-Object -First 1
+    if ($match) { return $match.FullName }
+
+    $match = Get-ChildItem -Path $Path -Recurse -Force -File -Filter "*Setup*.exe" -ErrorAction SilentlyContinue | Select-Object -First 1
+    if ($match) { return $match.FullName }
+
+    return $null
+}
+
+function Prepare-VBCableSourceBundle([string]$Root) {
+    $RepoBundleDir = Join-Path $Root "third_party\VB-CABLE"
+    $AppBundleDir = Join-Path $Root "src\VoiSe.App\ThirdParty\VB-CABLE"
+
+    if (Test-Path $RepoBundleDir) {
+        New-Item -ItemType Directory -Force -Path $AppBundleDir | Out-Null
+        Copy-Item -Path (Join-Path $RepoBundleDir "*") -Destination $AppBundleDir -Recurse -Force -ErrorAction SilentlyContinue
+    }
+}
+
+function Prepare-VBCablePublishBundle([string]$PublishDir) {
+    $BundleDir = Join-Path $PublishDir "ThirdParty\VB-CABLE"
+    if (-not (Test-Path $BundleDir)) { return $false }
+
+    $setup = Find-VBCableSetup $BundleDir
+    if ($setup) {
+        Write-Host "VB-CABLE setup detected: $setup" -ForegroundColor Green
+        return $true
+    }
+
+    $zip = Get-ChildItem -Path $BundleDir -Force -File -Filter "*.zip" -ErrorAction SilentlyContinue | Select-Object -First 1
+    if ($zip) {
+        $ExtractDir = Join-Path $BundleDir "_extracted"
+        Remove-IfExists $ExtractDir
+        New-Item -ItemType Directory -Force -Path $ExtractDir | Out-Null
+        Write-Host "Extracting bundled VB-CABLE archive for installer checkbox: $($zip.FullName)" -ForegroundColor Cyan
+        Expand-Archive -Path $zip.FullName -DestinationPath $ExtractDir -Force
+        $setup = Find-VBCableSetup $BundleDir
+        if ($setup) {
+            Write-Host "VB-CABLE setup detected after extraction: $setup" -ForegroundColor Green
+            return $true
+        }
+    }
+
+    Write-Host "VB-CABLE bundle was not found. Installer will be built without the optional VB-CABLE checkbox." -ForegroundColor Yellow
+    return $false
+}
+
 function Assert-NoUserDataInPublish([string]$Path) {
     $blockedFileNames = @(
         "settings.json",
@@ -57,7 +117,7 @@ function Assert-NoUserDataInPublish([string]$Path) {
     }
 }
 
-Write-Host "== VoiSe release build ==" -ForegroundColor Cyan
+Write-Host "== VoiSee release build ==" -ForegroundColor Cyan
 Write-Host "Root: $Root"
 Write-Host "Version: $Version"
 Write-Host "Configuration: $Configuration"
@@ -72,6 +132,8 @@ Remove-IfExists $InstallerDir
 
 New-Item -ItemType Directory -Force -Path $PublishDir | Out-Null
 New-Item -ItemType Directory -Force -Path $InstallerDir | Out-Null
+
+Prepare-VBCableSourceBundle $Root
 
 Write-Host "Publishing unpackaged self-contained WinUI app..." -ForegroundColor Cyan
 dotnet publish $Project `
@@ -95,9 +157,11 @@ if (-not (Test-Path $Exe)) {
 Write-Host "Sanitizing publish payload: user categories, presets, scenes, settings, and sounds are excluded." -ForegroundColor Cyan
 Assert-NoUserDataInPublish $PublishDir
 
+$VBCableBundled = Prepare-VBCablePublishBundle $PublishDir
+
 Write-Host "Published to: $PublishDir" -ForegroundColor Green
 
-$PortableZip = Join-Path $InstallerDir "VoiSe-Portable-$Version-x64.zip"
+$PortableZip = Join-Path $InstallerDir "VoiSee-Portable-$Version-x64.zip"
 Remove-IfExists $PortableZip
 
 Write-Host "Creating portable ZIP..." -ForegroundColor Cyan
@@ -121,9 +185,13 @@ if (-not $CandidateISCC) {
 }
 
 Write-Host "Building installer with Inno Setup..." -ForegroundColor Cyan
-& $CandidateISCC $Iss
+if ($VBCableBundled) {
+    & $CandidateISCC "/DVBCABLE_BUNDLED" $Iss
+} else {
+    & $CandidateISCC $Iss
+}
 
-$SetupExe = Join-Path $InstallerDir "VoiSe-Setup-$Version-x64.exe"
+$SetupExe = Join-Path $InstallerDir "VoiSee-Setup-$Version-x64.exe"
 if (Test-Path $SetupExe) {
     Write-Host "Installer: $SetupExe" -ForegroundColor Green
 } else {

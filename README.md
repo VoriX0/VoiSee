@@ -1,12 +1,30 @@
-# VoiSe 8.2.0 installer-ready buildfix 2
+# VoiSee 8.2.0 — VB-CABLE bundle support
 
-Installer-ready source archive for VoiSe Version 8.2.0.
+Installer-ready source archive for VoiSee Version 8.2.0.
 
 Included:
-- build fix for WinUI XAML compiler error in buildfix 1
-- dark theme enforcement on other PCs
-- VB-CABLE required notice and download link
-- audio engine auto-start blocked until VB-CABLE is detected
-- ordinary speakers no longer auto-selected as virtual output fallback
-- user data excluded from installer output
-- WinExe output to avoid console window
+- optional Inno Setup checkbox for bundled VB-CABLE installation
+- manual `Install VB-CABLE` button in Settings
+- support for extracted VB-CABLE setup or original ZIP package
+- safe audio-engine block until VB-CABLE / CABLE Input is detected
+- dark UI fix on light Windows theme
+- user-generated sounds, categories, presets, scenes, and settings excluded from installer payload
+
+To bundle VB-CABLE, place the official package in:
+
+```text
+third_party\VB-CABLE\
+```
+
+Then run:
+
+```powershell
+Set-ExecutionPolicy -Scope Process Bypass
+.\scripts\build-installer.ps1
+```
+
+Expected installer output:
+
+```text
+artifacts\installer\VoiSee-Setup-8.2.0-x64.exe
+```
