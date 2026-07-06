@@ -1,1 +1,1 @@
-VoiSe Version 8.2.0
+VoiSee Version 8.2.6

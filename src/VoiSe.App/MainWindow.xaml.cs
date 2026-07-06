@@ -144,7 +144,7 @@ public sealed partial class MainWindow : Window
         _timelineTimer.Tick += OnTimelineTimerTick;
         _timelineTimer.Start();
 
-        AppendLog("VoiSee Version 8.2.0 UI started.");
+        AppendLog("VoiSee Version 8.2.6 UI started.");
         AppendLog($"Settings path: {_settingsStore.SettingsPath}");
         StartupLog.Write("MainWindow initialized; waiting for first activation.");
     }
@@ -283,19 +283,30 @@ public sealed partial class MainWindow : Window
 
         if (VBCableNoticeBorder is not null)
         {
-            VBCableNoticeBorder.Visibility = hasCable ? Visibility.Collapsed : Visibility.Visible;
+            VBCableNoticeBorder.Visibility = Visibility.Visible;
+            VBCableNoticeBorder.BorderBrush = new SolidColorBrush(hasCable
+                ? Microsoft.UI.ColorHelper.FromArgb(0x88, 0x32, 0xD7, 0x4B)
+                : Microsoft.UI.ColorHelper.FromArgb(0x88, 0xD6, 0x8B, 0x00));
         }
 
         if (VBCableStatusTextBlock is not null)
         {
             VBCableStatusTextBlock.Text = hasCable
-                ? "VB-CABLE is detected. CABLE Input is ready and the audio engine can be started safely."
-                : "VB-CABLE is not installed. Install VB-CABLE and click Refresh Devices. The audio engine will stay disabled until CABLE Input is available.";
+                ? "VB-CABLE is detected. Everything is working normally."
+                : "VB-CABLE is not installed.";
+        }
+
+        if (VBCableBridgeInfoTextBlock is not null)
+        {
+            VBCableBridgeInfoTextBlock.Text = hasCable
+                ? "Use the VB-CABLE virtual microphone in Discord, OBS, Telegram, games, and other apps. In many apps it is shown as CABLE Output / VB-Audio Virtual Cable. VoiSee sends audio to CABLE Input automatically."
+                : "Install VB-CABLE to create the virtual microphone bridge. After installation, restart Windows if VoiSee still does not detect CABLE Input, then click Refresh Devices.";
         }
 
         if (InstallVBCableButton is not null)
         {
             InstallVBCableButton.IsEnabled = !hasCable;
+            InstallVBCableButton.Visibility = hasCable ? Visibility.Collapsed : Visibility.Visible;
         }
 
         if (StartEngineButton is not null)
@@ -325,13 +336,15 @@ public sealed partial class MainWindow : Window
                 return;
             }
 
-            AppendLog($"Starting VB-CABLE installer: {installerPath}");
+            AppendLog($"Starting VB-CABLE installer from full package folder: {installerPath}");
             Process.Start(new ProcessStartInfo(installerPath)
             {
                 UseShellExecute = true,
                 Verb = "runas",
                 WorkingDirectory = Path.GetDirectoryName(installerPath) ?? AppContext.BaseDirectory
             });
+
+            AppendLog("After VB-CABLE installation, restart Windows or click Refresh Devices if the device appears without reboot.");
         }
         catch (Exception ex)
         {
@@ -342,42 +355,49 @@ public sealed partial class MainWindow : Window
     private static string? PrepareBundledVBCableInstaller()
     {
         var bundleDir = Path.Combine(AppContext.BaseDirectory, "ThirdParty", "VB-CABLE");
-        var direct = FindVBCableSetupExecutable(bundleDir);
-        if (direct is not null)
-        {
-            return direct;
-        }
-
         if (!Directory.Exists(bundleDir))
         {
             return null;
         }
 
+        // Prefer an already extracted full package. Running a copied setup EXE alone fails,
+        // because VB-CABLE setup needs INF/CAT/SYS files next to it.
+        var extractedDir = Path.Combine(bundleDir, "_extracted");
+        var extractedSetup = FindVBCableSetupExecutable(extractedDir, requireDriverPackage: true);
+        if (extractedSetup is not null)
+        {
+            return extractedSetup;
+        }
+
+        // If the original ZIP is bundled, extract it to a temp folder and run setup from that
+        // complete unzipped package.
         var zip = Directory.EnumerateFiles(bundleDir, "*.zip", SearchOption.TopDirectoryOnly)
             .OrderBy(path => path, StringComparer.OrdinalIgnoreCase)
             .FirstOrDefault();
-        if (zip is null)
+
+        if (zip is not null)
         {
-            return null;
+            var extractDir = Path.Combine(
+                Path.GetTempPath(),
+                "VoiSee",
+                "VB-CABLE",
+                Path.GetFileNameWithoutExtension(zip));
+
+            if (Directory.Exists(extractDir))
+            {
+                Directory.Delete(extractDir, recursive: true);
+            }
+
+            Directory.CreateDirectory(extractDir);
+            ZipFile.ExtractToDirectory(zip, extractDir);
+            return FindVBCableSetupExecutable(extractDir, requireDriverPackage: true);
         }
 
-        var extractDir = Path.Combine(
-            Path.GetTempPath(),
-            "VoiSee",
-            "VB-CABLE",
-            Path.GetFileNameWithoutExtension(zip));
-
-        if (Directory.Exists(extractDir))
-        {
-            Directory.Delete(extractDir, recursive: true);
-        }
-
-        Directory.CreateDirectory(extractDir);
-        ZipFile.ExtractToDirectory(zip, extractDir);
-        return FindVBCableSetupExecutable(extractDir);
+        // Last fallback: support a manually placed fully extracted VB-CABLE package.
+        return FindVBCableSetupExecutable(bundleDir, requireDriverPackage: true);
     }
 
-    private static string? FindVBCableSetupExecutable(string root)
+    private static string? FindVBCableSetupExecutable(string root, bool requireDriverPackage = false)
     {
         if (string.IsNullOrWhiteSpace(root) || !Directory.Exists(root))
         {
@@ -392,7 +412,8 @@ public sealed partial class MainWindow : Window
 
         foreach (var name in preferredNames)
         {
-            var path = Directory.EnumerateFiles(root, name, SearchOption.AllDirectories).FirstOrDefault();
+            var path = Directory.EnumerateFiles(root, name, SearchOption.AllDirectories)
+                .FirstOrDefault(candidate => !requireDriverPackage || HasVBCableDriverPackageNearSetup(candidate));
             if (path is not null)
             {
                 return path;
@@ -401,7 +422,23 @@ public sealed partial class MainWindow : Window
 
         return Directory.EnumerateFiles(root, "*Setup*x64*.exe", SearchOption.AllDirectories)
             .Concat(Directory.EnumerateFiles(root, "*Setup*.exe", SearchOption.AllDirectories))
-            .FirstOrDefault();
+            .FirstOrDefault(candidate => !requireDriverPackage || HasVBCableDriverPackageNearSetup(candidate));
+    }
+
+    private static bool HasVBCableDriverPackageNearSetup(string setupPath)
+    {
+        var setupDir = Path.GetDirectoryName(setupPath);
+        if (string.IsNullOrWhiteSpace(setupDir) || !Directory.Exists(setupDir))
+        {
+            return false;
+        }
+
+        // Official VB-CABLE setup expects the INF/CAT/SYS package to be available from
+        // the same unzipped folder. Checking recursively is intentionally permissive for
+        // future package layouts.
+        return Directory.EnumerateFiles(setupDir, "*.inf", SearchOption.AllDirectories).Any()
+            && Directory.EnumerateFiles(setupDir, "*.cat", SearchOption.AllDirectories).Any()
+            && Directory.EnumerateFiles(setupDir, "*.sys", SearchOption.AllDirectories).Any();
     }
 
     private void WarmSoundCacheInBackground(IEnumerable<string>? paths = null)
@@ -2716,7 +2753,7 @@ public sealed partial class MainWindow : Window
 
         if (!IsLikelyVBCableDevice(virtualInfo))
         {
-            AppendLog("VB-CABLE was not detected. Install VB-CABLE and select CABLE Input before starting the engine.");
+            AppendLog("VB-CABLE was not detected. Install VB-CABLE before starting the engine.");
             UpdateVBCableUiState();
             return false;
         }

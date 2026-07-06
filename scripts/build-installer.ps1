@@ -6,7 +6,7 @@ param(
 
 $ErrorActionPreference = "Stop"
 
-$Version = "8.2.0"
+$Version = "8.2.6"
 $Root = Resolve-Path (Join-Path $PSScriptRoot "..")
 $PublishDir = Join-Path $Root "artifacts\publish\VoiSe"
 $InstallerDir = Join-Path $Root "artifacts\installer"
@@ -55,12 +55,9 @@ function Prepare-VBCablePublishBundle([string]$PublishDir) {
     $BundleDir = Join-Path $PublishDir "ThirdParty\VB-CABLE"
     if (-not (Test-Path $BundleDir)) { return $false }
 
-    $setup = Find-VBCableSetup $BundleDir
-    if ($setup) {
-        Write-Host "VB-CABLE setup detected: $setup" -ForegroundColor Green
-        return $true
-    }
-
+    # Important: VB-CABLE setup must be launched from a full unzipped package folder.
+    # A copied VBCABLE_Setup_x64.exe without INF/CAT/SYS next to it shows:
+    # "Missing 'inf' file or Driver package corrupted".
     $zip = Get-ChildItem -Path $BundleDir -Force -File -Filter "*.zip" -ErrorAction SilentlyContinue | Select-Object -First 1
     if ($zip) {
         $ExtractDir = Join-Path $BundleDir "_extracted"
@@ -68,11 +65,28 @@ function Prepare-VBCablePublishBundle([string]$PublishDir) {
         New-Item -ItemType Directory -Force -Path $ExtractDir | Out-Null
         Write-Host "Extracting bundled VB-CABLE archive for installer checkbox: $($zip.FullName)" -ForegroundColor Cyan
         Expand-Archive -Path $zip.FullName -DestinationPath $ExtractDir -Force
-        $setup = Find-VBCableSetup $BundleDir
+
+        $setup = Find-VBCableSetup $ExtractDir
         if ($setup) {
-            Write-Host "VB-CABLE setup detected after extraction: $setup" -ForegroundColor Green
+            Write-Host "VB-CABLE setup detected in full extracted package: $setup" -ForegroundColor Green
             return $true
         }
+    }
+
+    # Fallback for a developer who manually placed the whole extracted VB-CABLE package
+    # into third_party\VB-CABLE rather than putting the original ZIP there.
+    $setup = Find-VBCableSetup $BundleDir
+    if ($setup) {
+        $setupDir = Split-Path $setup -Parent
+        $hasInf = Get-ChildItem -Path $setupDir -Recurse -Force -File -Filter "*.inf" -ErrorAction SilentlyContinue | Select-Object -First 1
+        $hasCat = Get-ChildItem -Path $setupDir -Recurse -Force -File -Filter "*.cat" -ErrorAction SilentlyContinue | Select-Object -First 1
+        $hasSys = Get-ChildItem -Path $setupDir -Recurse -Force -File -Filter "*.sys" -ErrorAction SilentlyContinue | Select-Object -First 1
+        if ($hasInf -and $hasCat -and $hasSys) {
+            Write-Host "VB-CABLE setup detected in full package folder: $setup" -ForegroundColor Green
+            return $true
+        }
+
+        Write-Host "VB-CABLE setup EXE was found, but INF/CAT/SYS package files were not found next to it. It will not be bundled." -ForegroundColor Yellow
     }
 
     Write-Host "VB-CABLE bundle was not found. Installer will be built without the optional VB-CABLE checkbox." -ForegroundColor Yellow
@@ -144,8 +158,8 @@ dotnet publish $Project `
     -p:PublishSingleFile=false `
     -p:EnableCompressionInSingleFile=false `
     -p:Version=$Version `
-    -p:AssemblyVersion=8.2.0.0 `
-    -p:FileVersion=8.2.0.0 `
+    -p:AssemblyVersion=8.2.6.0 `
+    -p:FileVersion=8.2.6.0 `
     -p:InformationalVersion=$Version `
     -o $PublishDir
 
