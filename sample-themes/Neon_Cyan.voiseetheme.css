@@ -1,4 +1,4 @@
-/* VoiSee sample theme: Neon Cyan 9.1.5. Tests var(), gradients, aliases and states. */
+/* VoiSee sample theme: Neon Cyan 9.1.6. Tests var(), gradients, aliases and states. */
 :root {
   --app-background: #05070A;
   --titlebar-background: #05070A;
@@ -19,12 +19,12 @@
 
 #RootGrid { background: linear-gradient(135deg, #05070A, #071B22, #05070A); }
 #CustomTitleBar { background: var(--titlebar-background); }
-.Pn { background: var(--panel-background); border-color: var(--panel-border); border-thickness: 1; border-radius: var(--radius-panel); }
-.Bt { background: var(--button-background); foreground: var(--text-primary); border-color: var(--button-border); border-thickness: 1; border-radius: var(--radius-button); }
+.Pn { background: var(--panel-background); border: solid var(--panel-border) 1; border-radius: var(--radius-panel); }
+.Bt { background: var(--button-background); foreground: var(--text-primary); border: solid var(--button-border) 1; border-radius: var(--radius-button); }
 .Bt:hover { background: var(--button-hover); }
 .Bt:pressed { background: var(--button-pressed); border-color: var(--accent); }
 .Bt:on { background: linear-gradient(90deg, #003A44, #00E5FF); foreground: #001014; }
-.Cb { background: #CC10161D; foreground: var(--text-primary); border-color: var(--button-border); border-thickness: 1; border-radius: var(--radius-input); }
+.Cb { background: #CC10161D; foreground: var(--text-primary); border: solid var(--button-border) 1; border-radius: var(--radius-input); }
 .Sl { foreground: var(--accent); height: 32; min-height: 32; }
 .Txt { foreground: var(--text-primary); }
 .link-button { foreground: var(--accent); }

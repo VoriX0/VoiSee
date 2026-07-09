@@ -1,0 +1,19 @@
+/* VoiSee sample theme: Padding Stress Test 9.1.6. Not intended as a pretty daily theme.
+   Use it to verify that .Bt padding and tab reapply survive tab switching. */
+:root {
+  --app-background: #050505;
+  --text-primary: #FFFFFF;
+  --accent: #FFEE00;
+}
+#RootGrid { background: #050505; }
+.Pn { background: #101010; border: solid #66FFEE00 2; border-radius: 18; }
+.Bt { background: #201A00; foreground: var(--text-primary); border: solid var(--accent) 2; border-radius: 16; padding: 100; }
+.Bt:hover { background: #403600; }
+.Bt:pressed { background: #665500; }
+.Cb { background: #111827; foreground: var(--text-primary); border: solid #889CA3AF 2; border-radius: 16; padding: 18 8; }
+.Sl { foreground: var(--accent); height: 52; min-height: 52; margin: 16 0 16 0; }
+.Txt { foreground: var(--text-primary); }
+#SlSettingsVirtualMicMaster { height: 60; min-height: 60; margin: 22 0 22 0; }
+#PnVBCable { background: #1A2400; border: solid #AA22C55E 2; }
+#PnThemes { background: #241A00; border: dashed #AAFFEE00 2; }
+#PnAboutMe { background: #181818; border: dotted #88FFFFFF 2; }

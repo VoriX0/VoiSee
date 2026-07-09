@@ -19,10 +19,10 @@
 }
 
 #RootGrid { background: linear-gradient(120deg, #0C0904, #1A1008); }
-#MainHeaderBorder { background: linear-gradient(90deg, #AA171009, #AA2A1A0D); border-color: var(--panel-border); border-thickness: 1;; border-radius: var(--radius-panel); }
-.panel { background: var(--panel-background); border-color: var(--panel-border); border-thickness: 1; border-radius: var(--radius-panel); }
+#MainHeaderBorder { background: linear-gradient(90deg, #AA171009, #AA2A1A0D); border: solid var(--panel-border) 1; border-radius: var(--radius-panel); }
+.panel { background: var(--panel-background); border: solid var(--panel-border) 1; border-radius: var(--radius-panel); }
 .text { foreground: var(--text-primary); }
-.button { background: var(--button-background); foreground: var(--text-primary); border-color: var(--button-border); border-thickness: 1; border-radius: var(--radius-button); }
+.button { background: var(--button-background); foreground: var(--text-primary); border: solid var(--button-border) 1; border-radius: var(--radius-button); }
 .button:hover { background: var(--button-hover); }
 .button:pressed { background: var(--button-pressed); }
 .soundboard-button:hover { background: #4A2E12; }
@@ -30,12 +30,12 @@
 .scenes-button:hover { background: #4A2E12; }
 .settings-button:hover { background: #4A2E12; }
 .toggle-button:on { background: var(--accent); foreground: #1A1008; }
-.combo-box { background: #CC21150B; foreground: var(--text-primary); border-color: #66FFB347; border-thickness: 1; border-radius: var(--radius-button); }
+.combo-box { background: #CC21150B; foreground: var(--text-primary); border: solid #66FFB347 1; border-radius: var(--radius-button); }
 .slider { foreground: var(--accent); }
-#SoundboardTimeline { background: linear-gradient(90deg, #2A1A0D, #FFB347);; border-radius: var(--radius-small); }
-#VBCableNoticeBorder { background: #332A1A0D; border-color: #88FFB347;; border-radius: var(--radius-panel); }
-#VirtualMicMutedBanner { background: #55301008; border-color: #AAFF5A47;; border-radius: var(--radius-panel); }
-#MainThemes { background: #CC171009;; border-radius: var(--radius-panel); }
-#AboutMePanel { background: #CC171009;; border-radius: var(--radius-panel); }
+#SoundboardTimeline { background: linear-gradient(90deg, #2A1A0D, #FFB347); border-radius: var(--radius-small); }
+#VBCableNoticeBorder { background: #332A1A0D; border-color: #88FFB347; border-radius: var(--radius-panel); }
+#VirtualMicMutedBanner { background: #55301008; border-color: #AAFF5A47; border-radius: var(--radius-panel); }
+#MainThemes { background: #CC171009; border-radius: var(--radius-panel); }
+#AboutMePanel { background: #CC171009; border-radius: var(--radius-panel); }
 
 .soundboard-sound { border-radius: var(--radius-small); }

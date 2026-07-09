@@ -74,6 +74,7 @@ public sealed partial class MainWindow : Window
     private bool _loadingThemeChoices;
     private FileSystemWatcher? _themeFileWatcher;
     private string? _watchedThemePath;
+    private int _themeReapplyGeneration;
     private const int WhMouseLl = 14;
     private const int WhKeyboardLl = 13;
     private const int WmMouseWheel = 0x020A;
@@ -160,7 +161,7 @@ public sealed partial class MainWindow : Window
         _timelineTimer.Tick += OnTimelineTimerTick;
         _timelineTimer.Start();
 
-        AppendLog("VoiSee Version 9.1.5 UI started.");
+        AppendLog("VoiSee Version 9.1.6 UI started.");
         AppendLog($"Settings path: {_settingsStore.SettingsPath}");
         StartupLog.Write("MainWindow initialized; waiting for first activation.");
     }
@@ -288,6 +289,14 @@ public sealed partial class MainWindow : Window
     {
         try
         {
+            if (!string.IsNullOrWhiteSpace(_settings.ThemeFilePath) && !File.Exists(_settings.ThemeFilePath))
+            {
+                _settings.ThemeFilePath = null;
+                _settingsStore.Save(_settings);
+                PopulateThemeComboBox();
+                WatchActiveThemeFile();
+            }
+
             var theme = _themeManager.LoadTheme(_settings.ThemeFilePath);
             var applied = _themeManager.ApplyTheme(RootGrid, theme);
             ApplyTitleBarTheme(theme);
@@ -323,18 +332,21 @@ public sealed partial class MainWindow : Window
             var hover = Microsoft.UI.ColorHelper.FromArgb(0xFF, 0x20, 0x20, 0x20);
             var pressed = Microsoft.UI.ColorHelper.FromArgb(0xFF, 0x10, 0x10, 0x10);
 
-            if (theme.TryGetVariableColor("--titlebar-background", out var titleColor))
+            if (theme.Rules.Count > 0)
             {
-                background = titleColor;
-            }
-            else if (theme.TryGetVariableColor("--app-background", out var appColor))
-            {
-                background = appColor;
-            }
+                if (theme.TryGetVariableColor("--titlebar-background", out var titleColor))
+                {
+                    background = titleColor;
+                }
+                else if (theme.TryGetVariableColor("--app-background", out var appColor))
+                {
+                    background = appColor;
+                }
 
-            if (theme.TryGetVariableColor("--text-primary", out var textColor))
-            {
-                foreground = textColor;
+                if (theme.TryGetVariableColor("--text-primary", out var textColor))
+                {
+                    foreground = textColor;
+                }
             }
 
             titleBar.BackgroundColor = background;
@@ -413,13 +425,20 @@ public sealed partial class MainWindow : Window
     }
 
 
-    private void ReapplyThemeAfterVisualTreeChange()
+    private async void ReapplyThemeAfterVisualTreeChange()
     {
-        DispatcherQueue.TryEnqueue(() =>
+        var generation = ++_themeReapplyGeneration;
+
+        foreach (var delayMs in new[] { 40, 160, 420 })
         {
-            ApplyThemeFromSettings(log: false);
+            await Task.Delay(delayMs);
+            if (generation != _themeReapplyGeneration)
+            {
+                return;
+            }
+
             DispatcherQueue.TryEnqueue(() => ApplyThemeFromSettings(log: false));
-        });
+        }
     }
 
     private void OnMainTabViewSelectionChanged(object sender, SelectionChangedEventArgs e)

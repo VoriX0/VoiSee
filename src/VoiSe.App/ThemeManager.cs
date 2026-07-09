@@ -180,6 +180,16 @@ public sealed class ThemeManager
         RestoreAllThemedElements();
         _interactiveStates.Clear();
 
+        // A theme with no active rules is intentionally non-destructive. Restore
+        // everything and clear captured snapshots, so the next non-empty theme
+        // captures a clean XAML baseline instead of a previously themed baseline.
+        if (theme.Rules.Count == 0)
+        {
+            _snapshots.Clear();
+            _styledByLastApply.Clear();
+            return 0;
+        }
+
         var applied = 0;
         var styledThisApply = new HashSet<FrameworkElement>();
         var elements = EnumerateVisualTree(root).OfType<FrameworkElement>().ToArray();
@@ -700,11 +710,15 @@ public sealed class ThemeManager
                 case "foreground":
                 case "color":
                     return ApplyForeground(element, value);
-                case "border-color":
                 case "border":
+                    return ApplyBorderShorthand(element, value);
+                case "border-color":
                     return ApplyBorderBrush(element, value);
                 case "border-thickness":
+                case "border-width":
                     return ApplyBorderThickness(element, value);
+                case "border-style":
+                    return true;
                 case "corner-radius":
                 case "border-radius":
                 case "radius":
@@ -784,9 +798,77 @@ public sealed class ThemeManager
         }
     }
 
-    private static bool ApplyBorderBrush(FrameworkElement element, string value)
+    private static bool ApplyBorderShorthand(FrameworkElement element, string value)
     {
-        if (!TryParseBrush(value, out var brush)) return false;
+        var normalized = value.Trim();
+        if (normalized.Equals("none", StringComparison.OrdinalIgnoreCase) || normalized.Equals("0", StringComparison.OrdinalIgnoreCase))
+        {
+            var appliedNone = ApplyBorderThickness(element, "0");
+            appliedNone |= ApplyBorderBrush(element, "transparent");
+            return appliedNone;
+        }
+
+        var tokens = SplitCssValueTokens(normalized);
+        Brush? brush = null;
+        Thickness? thickness = null;
+
+        foreach (var token in tokens)
+        {
+            if (IsBorderStyleToken(token))
+            {
+                continue;
+            }
+
+            if (brush is null && TryParseBrush(token, out var parsedBrush))
+            {
+                brush = parsedBrush;
+                continue;
+            }
+
+            if (thickness is null && TryParseThickness(token, out var parsedThickness))
+            {
+                thickness = parsedThickness;
+                continue;
+            }
+        }
+
+        // Also allow the compact forms: border: #44FFFFFF; and border: 1;
+        if (tokens.Count == 1)
+        {
+            if (brush is null && TryParseBrush(normalized, out var singleBrush))
+            {
+                brush = singleBrush;
+            }
+            else if (thickness is null && TryParseThickness(normalized, out var singleThickness))
+            {
+                thickness = singleThickness;
+            }
+        }
+
+        var applied = false;
+        if (brush is not null)
+        {
+            applied |= SetBorderBrush(element, brush);
+        }
+        if (thickness.HasValue)
+        {
+            applied |= SetBorderThickness(element, thickness.Value);
+        }
+
+        return applied;
+    }
+
+    private static bool IsBorderStyleToken(string token)
+    {
+        return token.Trim().ToLowerInvariant() switch
+        {
+            "solid" or "dashed" or "dotted" or "double" or "groove" or "ridge" or "inset" or "outset" or "hidden" => true,
+            _ => false
+        };
+    }
+
+    private static bool SetBorderBrush(FrameworkElement element, Brush brush)
+    {
         switch (element)
         {
             case Border border:
@@ -800,9 +882,8 @@ public sealed class ThemeManager
         }
     }
 
-    private static bool ApplyBorderThickness(FrameworkElement element, string value)
+    private static bool SetBorderThickness(FrameworkElement element, Thickness thickness)
     {
-        if (!TryParseThickness(value, out var thickness)) return false;
         switch (element)
         {
             case Border border:
@@ -814,6 +895,18 @@ public sealed class ThemeManager
             default:
                 return false;
         }
+    }
+
+    private static bool ApplyBorderBrush(FrameworkElement element, string value)
+    {
+        if (!TryParseBrush(value, out var brush)) return false;
+        return SetBorderBrush(element, brush);
+    }
+
+    private static bool ApplyBorderThickness(FrameworkElement element, string value)
+    {
+        if (!TryParseThickness(value, out var thickness)) return false;
+        return SetBorderThickness(element, thickness);
     }
 
     private static bool ApplyCornerRadius(FrameworkElement element, string value)
@@ -1186,6 +1279,42 @@ public sealed class ThemeManager
         brush.EndPoint = new Point(0.5 + dx / 2.0, 0.5 + dy / 2.0);
     }
 
+    private static List<string> SplitCssValueTokens(string value)
+    {
+        var result = new List<string>();
+        var depth = 0;
+        var start = 0;
+        for (var i = 0; i < value.Length; i++)
+        {
+            var c = value[i];
+            if (c == '(') depth++;
+            else if (c == ')') depth = Math.Max(0, depth - 1);
+            else if (char.IsWhiteSpace(c) && depth == 0)
+            {
+                if (i > start)
+                {
+                    var token = value[start..i].Trim();
+                    if (!string.IsNullOrWhiteSpace(token))
+                    {
+                        result.Add(token);
+                    }
+                }
+                start = i + 1;
+            }
+        }
+
+        if (start < value.Length)
+        {
+            var token = value[start..].Trim();
+            if (!string.IsNullOrWhiteSpace(token))
+            {
+                result.Add(token);
+            }
+        }
+
+        return result;
+    }
+
     private static List<string> SplitFunctionArgs(string value)
     {
         var result = new List<string>();
@@ -1299,8 +1428,13 @@ public sealed class ThemeManager
   Uncomment what you want. Saving this file reloads the theme live.
 
   Supported properties include:
-    background, foreground/color, border-color, border-thickness, border-radius/corner-radius/radius,
+    background, foreground/color, border, border-color, border-thickness/border-width, border-radius/corner-radius/radius,
     opacity, font-size, font-weight, padding, margin, width, height, min-width, min-height, max-width, max-height, spacing/gap.
+
+  Border shorthand examples:
+    border: solid var(--panel-border) 1;
+    border: dashed #66FFFFFF 2;
+    border: none;
 */
 
 :root {
@@ -1325,12 +1459,12 @@ public sealed class ThemeManager
 
 /* Global */
 #RootGrid { /* background: var(--app-background); */ }
-.Pn { /* background: var(--panel-background); border-color: var(--panel-border); border-thickness: 1; border-radius: var(--radius-panel); */ }
-.Bt { /* background: var(--button-background); foreground: var(--text-primary); border-color: var(--button-border); border-thickness: 1; border-radius: var(--radius-button); padding: 14 7; */ }
+.Pn { /* background: var(--panel-background); border: solid var(--panel-border) 1; border-radius: var(--radius-panel); */ }
+.Bt { /* background: var(--button-background); foreground: var(--text-primary); border: solid var(--button-border) 1; border-radius: var(--radius-button); padding: 14 7; */ }
 .Bt:hover { /* background: var(--button-hover); */ }
 .Bt:pressed { /* background: var(--button-pressed); */ }
 .Bt:on { /* background: var(--accent); foreground: #001018; */ }
-.Cb { /* background: #0D1420; foreground: var(--text-primary); border-color: var(--button-border); border-thickness: 1; border-radius: var(--radius-input); padding: 12 6; */ }
+.Cb { /* background: #0D1420; foreground: var(--text-primary); border: solid var(--button-border) 1; border-radius: var(--radius-input); padding: 12 6; */ }
 .Sl { /* foreground: var(--accent); height: 32; min-height: 32; margin: 0 4 0 4; */ }
 .Txt { /* foreground: var(--text-primary); */ }
 .link-button { /* foreground: var(--accent); */ }

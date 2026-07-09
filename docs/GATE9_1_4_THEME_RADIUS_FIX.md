@@ -1,4 +1,4 @@
-# VoiSee 9.1.5 — Theme radius fix and rounded sample themes
+# VoiSee 9.1.6 — Theme radius fix and rounded sample themes
 
 ## Purpose
 

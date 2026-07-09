@@ -1,4 +1,4 @@
-# VoiSee 9.1.5 — Theme stability and selector aliases
+# VoiSee 9.1.6 — Theme stability and selector aliases
 
 ## Why this build exists
 

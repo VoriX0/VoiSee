@@ -19,20 +19,20 @@
 }
 
 #RootGrid { background: #020702; }
-#MainHeaderBorder { background: #CC061206; border-color: #7748FF70; border-thickness: 1;; border-radius: var(--radius-panel); }
-.panel { background: var(--panel-background); border-color: var(--panel-border); border-thickness: 1; border-radius: var(--radius-panel); }
+#MainHeaderBorder { background: #CC061206; border: solid #7748FF70 1; border-radius: var(--radius-panel); }
+.panel { background: var(--panel-background); border: solid var(--panel-border) 1; border-radius: var(--radius-panel); }
 .text { foreground: var(--text-primary); }
-.button { background: var(--button-background); foreground: var(--text-primary); border-color: var(--button-border); border-thickness: 1; font-weight: semibold; border-radius: var(--radius-button); }
+.button { background: var(--button-background); foreground: var(--text-primary); border: solid var(--button-border) 1; font-weight: semibold; border-radius: var(--radius-button); }
 .button:hover { background: var(--button-hover); border-color: var(--accent); }
 .button:pressed { background: var(--button-pressed); }
-.combo-box { background: #CC061206; foreground: var(--text-primary); border-color: var(--button-border); border-thickness: 1; border-radius: var(--radius-button); }
+.combo-box { background: #CC061206; foreground: var(--text-primary); border: solid var(--button-border) 1; border-radius: var(--radius-button); }
 .slider { foreground: var(--accent); }
 #VirtualMicMuteStatusTextBlock { foreground: var(--accent); font-weight: bold; }
-#SoundboardTimeline { background: linear-gradient(90deg, #061206, #123812);; border-radius: var(--radius-small); }
-#SoundboardSoundList { background: rgba(0, 10, 0, 0.5);; border-radius: var(--radius-panel); }
+#SoundboardTimeline { background: linear-gradient(90deg, #061206, #123812); border-radius: var(--radius-small); }
+#SoundboardSoundList { background: rgba(0, 10, 0, 0.5); border-radius: var(--radius-panel); }
 .soundboard-sound:hover { background: rgba(72, 255, 112, 0.16); }
 #ScenesApply:pressed { background: var(--success); foreground: black; }
 #ScenesDelete:pressed, #SettingsStopEngine:pressed { background: var(--danger); foreground: black; }
-#AboutMePanel { background: #CC061206;; border-radius: var(--radius-panel); }
+#AboutMePanel { background: #CC061206; border-radius: var(--radius-panel); }
 
 .soundboard-sound { border-radius: var(--radius-small); }

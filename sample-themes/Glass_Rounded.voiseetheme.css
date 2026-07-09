@@ -1,4 +1,4 @@
-/* VoiSee sample theme: Glass Rounded 9.1.5. Uses Pn/Bt/Sl/Cb aliases. */
+/* VoiSee sample theme: Glass Rounded 9.1.6. Uses Pn/Bt/Sl/Cb aliases. */
 :root {
   --app-background: #05070C;
   --panel-background: rgba(12, 18, 28, 0.72);
@@ -17,12 +17,12 @@
 }
 
 #RootGrid { background: linear-gradient(135deg, #05070C, #0A1B2A, #05070C); }
-.Pn { background: var(--panel-background); border-color: var(--panel-border); border-thickness: 1; border-radius: var(--radius-panel); }
-.Bt { background: var(--button-background); foreground: var(--text-primary); border-color: var(--button-border); border-thickness: 1; border-radius: var(--radius-button); padding: 14 7; }
+.Pn { background: var(--panel-background); border: solid var(--panel-border) 1; border-radius: var(--radius-panel); }
+.Bt { background: var(--button-background); foreground: var(--text-primary); border: solid var(--button-border) 1; border-radius: var(--radius-button); padding: 14 7; }
 .Bt:hover { background: var(--button-hover); border-color: var(--accent); }
 .Bt:pressed { background: var(--button-pressed); }
 .Bt:on { background: linear-gradient(90deg, #8BD7FF, #7DFFB2); foreground: #061018; }
-.Cb { background: rgba(12, 18, 28, 0.85); foreground: var(--text-primary); border-color: var(--button-border); border-thickness: 1; border-radius: var(--radius-input); }
+.Cb { background: rgba(12, 18, 28, 0.85); foreground: var(--text-primary); border: solid var(--button-border) 1; border-radius: var(--radius-input); }
 .Sl { foreground: var(--accent); height: 32; min-height: 32; margin: 2 0 2 0; }
 .Txt { foreground: var(--text-primary); }
 

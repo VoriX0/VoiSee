@@ -4,12 +4,12 @@
   --text-primary: #FFFFFF;
 }
 #RootGrid { background: #080808; }
-.Pn { background: #16161F; border-color: #775C7CFA; border-thickness: 1; border-radius: 16; }
-.Bt { background: #1E293B; foreground: #FFFFFF; border-color: #7DD3FC; border-thickness: 1; border-radius: 12; padding: 14 7; }
+.Pn { background: #16161F; border: solid #775C7CFA 1; border-radius: 16; }
+.Bt { background: #1E293B; foreground: #FFFFFF; border: solid #7DD3FC 1; border-radius: 12; padding: 14 7; }
 .Bt:hover { background: #334155; }
 .Bt:pressed { background: #0F766E; }
 .Bt:on { background: #BE123C; foreground: #FFFFFF; }
-.Cb { background: #111827; foreground: #FFFFFF; border-color: #FBBF24; border-thickness: 1; border-radius: 14; }
+.Cb { background: #111827; foreground: #FFFFFF; border: solid #FBBF24 1; border-radius: 14; }
 .Sl { foreground: #22C55E; height: 36; min-height: 36; margin: 6 0 6 0; }
 .Txt { foreground: #E5E7EB; }
 #PnMainHeader { background: #172554; }
