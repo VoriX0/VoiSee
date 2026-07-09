@@ -22,6 +22,7 @@ public sealed class Gate2UnifiedAudioEngine : IDisposable
     private SimpleVoiceProcessor? _processor;
     private RouteMixSampleProvider? _virtualProvider;
     private RouteMixSampleProvider? _monitorProvider;
+    private bool _virtualMicMuted;
     private bool _disposed;
 
     public Gate2UnifiedAudioEngine(
@@ -72,6 +73,7 @@ public sealed class Gate2UnifiedAudioEngine : IDisposable
             _virtualMicQueue,
             _soundboard,
             _settings);
+        _virtualProvider.SetVirtualMicMuted(_virtualMicMuted);
 
         _virtualOutput = new WasapiOut(_virtualOutputDevice, AudioClientShareMode.Shared, true, 50);
         _virtualOutput.Init(new SampleToWaveProvider(_virtualProvider));
@@ -135,6 +137,12 @@ public sealed class Gate2UnifiedAudioEngine : IDisposable
     public void UpdateSoundVolumes(float virtualVolume, float monitorVolume, string? playbackKey = null)
     {
         _soundboard.UpdateVolumes(virtualVolume, monitorVolume, playbackKey);
+    }
+
+    public void SetVirtualMicMuted(bool muted)
+    {
+        _virtualMicMuted = muted;
+        _virtualProvider?.SetVirtualMicMuted(muted);
     }
 
     public void UpdateSoundLoop(bool loop, string? playbackKey = null)

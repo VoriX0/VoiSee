@@ -51,6 +51,7 @@ public sealed partial class MainWindow : Window
     private bool _manualStopRequested;
     private string _pendingRestartReason = "settings changed";
     private bool _voiceMonitorEnabled;
+    private bool _virtualMicMuted;
     private bool _loadingSettings = true;
     private bool _loadedOnce;
     private bool _timelineUserDragging;
@@ -94,6 +95,8 @@ public sealed partial class MainWindow : Window
     private const string DefaultVoicePresetIcon = "\uE720";
     private const double SoundBoardWheelPixelsPerNotch = 56.0;
     private const string VBCableDownloadUrl = "https://vb-audio.com/Cable/";
+    private const string MuteOnCueRelativePath = "Assets\\Audio\\mute_on.wav";
+    private const string MuteOffCueRelativePath = "Assets\\Audio\\mute_off.wav";
     private readonly Dictionary<string, SceneTimelineBinding> _sceneTimelineBindings = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, double> _soundDurationSecondsCache = new(StringComparer.OrdinalIgnoreCase);
     private bool _loadingSceneUi;
@@ -144,7 +147,7 @@ public sealed partial class MainWindow : Window
         _timelineTimer.Tick += OnTimelineTimerTick;
         _timelineTimer.Start();
 
-        AppendLog("VoiSee Version 8.2.6 UI started.");
+        AppendLog("VoiSee Version 9.0 UI started.");
         AppendLog($"Settings path: {_settingsStore.SettingsPath}");
         StartupLog.Write("MainWindow initialized; waiting for first activation.");
     }
@@ -229,6 +232,7 @@ public sealed partial class MainWindow : Window
             _loadingSettings = false;
             UpdateAllLabels();
             UpdateTransportHotkeySummary();
+            UpdateVirtualMicMuteUi();
             AutoStartEngineAfterRestore();
         }
     }
@@ -1012,6 +1016,7 @@ public sealed partial class MainWindow : Window
             }
         }
 
+        if (TryHandleVirtualMicMuteHotkey(current)) return true;
         if (TryHandleTransportHotkey(current)) return true;
         if (TryHandleSceneHotkey(current)) return true;
         if (TryHandleSoundHotkey(current)) return true;
@@ -1025,6 +1030,17 @@ public sealed partial class MainWindow : Window
         return string.IsNullOrWhiteSpace(_activeSceneId)
             ? null
             : _scenes.FirstOrDefault(scene => string.Equals(scene.Id, _activeSceneId, StringComparison.OrdinalIgnoreCase));
+    }
+
+    private bool TryHandleVirtualMicMuteHotkey(HotkeyGesture current)
+    {
+        if (!HotkeyGesture.TryParse(_settings.VirtualMicMuteHotkey, out var muteHotkey) || !muteHotkey.Equals(current))
+        {
+            return false;
+        }
+
+        DispatcherQueue.TryEnqueue(() => ToggleVirtualMicMute("Hotkey"));
+        return true;
     }
 
     private bool TryHandleSceneHotkey(HotkeyGesture current)
@@ -1357,6 +1373,7 @@ public sealed partial class MainWindow : Window
         panel.Children.Add(CreateHotkeyCaptureRow("Next", _settings.SoundBoardNextHotkey, out var nextButton));
         panel.Children.Add(CreateHotkeyCaptureRow("Previous", _settings.SoundBoardPreviousHotkey, out var previousButton));
         panel.Children.Add(CreateHotkeyCaptureRow("Disable scene", _settings.DisableSceneHotkey, out var disableSceneButton));
+        panel.Children.Add(CreateHotkeyCaptureRow("Virtual Mic Mute", _settings.VirtualMicMuteHotkey, out var virtualMicMuteButton));
 
         var dialog = new ContentDialog
         {
@@ -1388,6 +1405,7 @@ public sealed partial class MainWindow : Window
         _settings.SoundBoardNextHotkey = NormalizeOptionalHotkey(GetHotkeyButtonValue(nextButton));
         _settings.SoundBoardPreviousHotkey = NormalizeOptionalHotkey(GetHotkeyButtonValue(previousButton));
         _settings.DisableSceneHotkey = NormalizeOptionalHotkey(GetHotkeyButtonValue(disableSceneButton));
+        _settings.VirtualMicMuteHotkey = NormalizeOptionalHotkey(GetHotkeyButtonValue(virtualMicMuteButton));
         _settingsStore.Save(_settings);
         UpdateTransportHotkeySummary();
         AppendLog("Hotkeys updated.");
@@ -1593,7 +1611,8 @@ public sealed partial class MainWindow : Window
             $"Stop: {(_settings.SoundBoardStopHotkey ?? "—")}",
             $"Next: {(_settings.SoundBoardNextHotkey ?? "—")}",
             $"Prev: {(_settings.SoundBoardPreviousHotkey ?? "—")}",
-            $"Disable scene: {(_settings.DisableSceneHotkey ?? "—")}"
+            $"Disable scene: {(_settings.DisableSceneHotkey ?? "—")}",
+            $"Virtual Mic Mute: {(_settings.VirtualMicMuteHotkey ?? "—")}"
         };
         TransportHotkeysSummaryTextBlock.Text = "Hotkeys: " + string.Join("    ", parts);
     }
@@ -2773,6 +2792,7 @@ public sealed partial class MainWindow : Window
             SaveCurrentSettings();
             _engine = new Gate2UnifiedAudioEngine(input, virtualOutput, monitor, CreateEffectSettings());
             _engine.Start();
+            _engine.SetVirtualMicMuted(_virtualMicMuted);
             EngineStatusTextBlock.Text = "Running";
             AppendLog($"Engine started. Input: {input.FriendlyName}");
             AppendLog($"Virtual output: {virtualOutput.FriendlyName}");
@@ -2809,6 +2829,78 @@ public sealed partial class MainWindow : Window
             EngineStatusTextBlock.Text = "Stopped";
             UpdateVBCableUiState();
         }
+    }
+
+    private void OnVirtualMicMuteToggleClick(object sender, RoutedEventArgs e)
+    {
+        ToggleVirtualMicMute("UI");
+    }
+
+    private void ToggleVirtualMicMute(string source)
+    {
+        _virtualMicMuted = !_virtualMicMuted;
+        ApplyVirtualMicMuteState(playCue: true);
+        AppendLog($"Virtual mic output {(_virtualMicMuted ? "muted" : "live")} ({source}).");
+    }
+
+    private void ApplyVirtualMicMuteState(bool playCue)
+    {
+        _engine?.SetVirtualMicMuted(_virtualMicMuted);
+        UpdateVirtualMicMuteUi();
+
+        if (playCue)
+        {
+            PlayVirtualMicMuteCue(_virtualMicMuted);
+        }
+    }
+
+    private void UpdateVirtualMicMuteUi()
+    {
+        if (VirtualMicMuteStatusTextBlock is not null)
+        {
+            VirtualMicMuteStatusTextBlock.Text = _virtualMicMuted ? "Muted" : "Live";
+            VirtualMicMuteStatusTextBlock.Foreground = new SolidColorBrush(_virtualMicMuted
+                ? Microsoft.UI.ColorHelper.FromArgb(0xFF, 0xFF, 0x4D, 0x4D)
+                : Microsoft.UI.ColorHelper.FromArgb(0xFF, 0x37, 0xD6, 0x7A));
+        }
+
+        if (VirtualMicMuteToggleButton is not null)
+        {
+            VirtualMicMuteToggleButton.Content = _virtualMicMuted ? "Unmute" : "Mute";
+        }
+
+        if (VirtualMicMutedBanner is not null)
+        {
+            VirtualMicMutedBanner.Visibility = _virtualMicMuted ? Visibility.Visible : Visibility.Collapsed;
+        }
+    }
+
+    private void PlayVirtualMicMuteCue(bool muted)
+    {
+        var engine = _engine;
+        if (engine is null)
+        {
+            return;
+        }
+
+        var cuePath = Path.Combine(AppContext.BaseDirectory, muted ? MuteOnCueRelativePath : MuteOffCueRelativePath);
+        if (!File.Exists(cuePath))
+        {
+            AppendLog($"Virtual mic mute cue not found: {cuePath}");
+            return;
+        }
+
+        _ = Task.Run(() =>
+        {
+            try
+            {
+                engine.PlaySound(cuePath, 0.0f, 0.45f, 0, loop: false, playbackKey: "__voisee_virtual_mic_mute_cue");
+            }
+            catch (Exception ex)
+            {
+                DispatcherQueue.TryEnqueue(() => AppendLog($"Virtual mic mute cue error: {ex.Message}"));
+            }
+        });
     }
 
     private void RestartEngine(string reason)

@@ -13,6 +13,7 @@ internal sealed class RouteMixSampleProvider : ISampleProvider
     private float _limiterCeiling;
     private float _virtualMasterGain;
     private float _voiceMonitorGain;
+    private bool _virtualMicMuted;
     private float[] _micScratch = Array.Empty<float>();
     private float[] _soundScratch = Array.Empty<float>();
 
@@ -43,6 +44,14 @@ internal sealed class RouteMixSampleProvider : ISampleProvider
         }
     }
 
+    public void SetVirtualMicMuted(bool muted)
+    {
+        lock (_settingsSync)
+        {
+            _virtualMicMuted = muted;
+        }
+    }
+
     public int Read(float[] buffer, int offset, int count)
     {
         EnsureScratch(count);
@@ -54,18 +63,20 @@ internal sealed class RouteMixSampleProvider : ISampleProvider
         float limiterCeiling;
         float virtualMasterGain;
         float voiceMonitorGain;
+        bool virtualMicMuted;
         lock (_settingsSync)
         {
             limiterEnabled = _limiterEnabled;
             limiterCeiling = _limiterCeiling;
             virtualMasterGain = _virtualMasterGain;
             voiceMonitorGain = _voiceMonitorGain;
+            virtualMicMuted = _virtualMicMuted;
         }
 
         for (var i = 0; i < count; i++)
         {
             var mixed = _route == AudioRoute.VirtualMicrophone
-                ? (_micScratch[i] + _soundScratch[i]) * virtualMasterGain
+                ? (virtualMicMuted ? 0.0f : (_micScratch[i] + _soundScratch[i]) * virtualMasterGain)
                 : (_micScratch[i] * voiceMonitorGain) + _soundScratch[i];
 
             buffer[offset + i] = limiterEnabled

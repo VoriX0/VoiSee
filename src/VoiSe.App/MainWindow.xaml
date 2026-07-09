@@ -6,7 +6,7 @@
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     mc:Ignorable="d"
-    Title="VoiSee Version 8.2.6">
+    Title="VoiSee Version 9.0">
 
     <Grid x:Name="RootGrid" RequestedTheme="Dark" Background="#000000">
         <Grid.RowDefinitions>
@@ -21,7 +21,7 @@
             </Grid.ColumnDefinitions>
             <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center" Margin="10,0,0,0">
                 <Image Source="ms-appx:///Assets/AppIcon_24.png" Width="16" Height="16" VerticalAlignment="Center" />
-                <TextBlock Text="VoiSee Version 8.2.6" FontSize="12" Foreground="White" VerticalAlignment="Center" />
+                <TextBlock Text="VoiSee Version 9.0" FontSize="12" Foreground="White" VerticalAlignment="Center" />
             </StackPanel>
         </Grid>
 
@@ -39,17 +39,27 @@
                 </Grid.ColumnDefinitions>
                 <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
                     <Image Source="ms-appx:///Assets/AppIcon_48.png" Width="34" Height="34" VerticalAlignment="Center" />
-                    <TextBlock Text="VoiSee Version 8.2.6" FontSize="28" FontWeight="SemiBold" Foreground="White" VerticalAlignment="Center" />
+                    <TextBlock Text="VoiSee Version 9.0" FontSize="28" FontWeight="SemiBold" Foreground="White" VerticalAlignment="Center" />
                 </StackPanel>
                 <StackPanel Grid.Column="1" Spacing="4" VerticalAlignment="Center" HorizontalAlignment="Right">
                     <TextBlock Text="Engine" HorizontalAlignment="Right" Foreground="White" Opacity="0.62" />
                     <TextBlock x:Name="EngineStatusTextBlock" Text="Stopped" HorizontalAlignment="Right" Foreground="White" Opacity="0.9" FontWeight="SemiBold" />
+                    <TextBlock Text="Mic Output" HorizontalAlignment="Right" Foreground="White" Opacity="0.62" Margin="0,6,0,0" />
+                    <TextBlock x:Name="VirtualMicMuteStatusTextBlock" Text="Live" HorizontalAlignment="Right" Foreground="#FF37D67A" Opacity="0.95" FontWeight="SemiBold" />
+                    <Button x:Name="VirtualMicMuteToggleButton" Content="Mute" MinWidth="92" Padding="10,4" HorizontalAlignment="Right" Click="OnVirtualMicMuteToggleClick" />
                 </StackPanel>
             </Grid>
         </Border>
 
-        <Grid Grid.Row="1" x:Name="MainContentHost">
-            <Border Padding="4">
+        <Grid Grid.Row="1" x:Name="MainContentHost" RowSpacing="8">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="*" />
+            </Grid.RowDefinitions>
+            <Border x:Name="VirtualMicMutedBanner" Grid.Row="0" Background="#44220000" BorderBrush="#88FF4D4D" BorderThickness="1" CornerRadius="10" Padding="12,8" Visibility="Collapsed">
+                <TextBlock Text="Virtual mic output is muted. You can still hear VoiSee in headphones, but Discord/OBS/games receive silence." Foreground="White" FontWeight="SemiBold" TextWrapping="WrapWholeWords" />
+            </Border>
+            <Border Grid.Row="1" Padding="4">
                 <TabView x:Name="MainTabView" IsAddTabButtonVisible="False" TabWidthMode="Equal" RequestedTheme="Dark">
                 <TabViewItem Header="SoundBoard" IsClosable="False">
                     <Grid x:Name="SoundBoardTabRoot" Background="Transparent" Padding="0,16,0,0" RowSpacing="4" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" AllowDrop="True" DragOver="OnSoundBoardDragOver" DragLeave="OnSoundBoardDragLeave" Drop="OnSoundBoardDrop">
@@ -697,7 +707,7 @@
                                 <StackPanel Spacing="8" Background="Transparent">
                                     <StackPanel Orientation="Horizontal" Spacing="10">
                                         <Button Content="Hotkeys" Padding="14,6" MinHeight="32" Click="OnConfigureTransportHotkeysClick" />
-                                        <TextBlock Text="Transport hotkeys. While a scene is active, Play/Pause and Stop control only scene one-shot sounds." VerticalAlignment="Center" Opacity="0.7" />
+                                        <TextBlock Text="Transport and Virtual Mic Mute hotkeys. While a scene is active, Play/Pause and Stop control only scene one-shot sounds." VerticalAlignment="Center" Opacity="0.7" />
                                     </StackPanel>
                                     <TextBlock x:Name="TransportHotkeysSummaryTextBlock" Text="Transport hotkeys: not configured" Opacity="0.72" TextWrapping="Wrap" />
                                 </StackPanel>

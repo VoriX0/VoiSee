@@ -1,30 +1,9 @@
 # VoiSee 8.2.6
 
-Installer-ready source archive for VoiSee Version 8.2.0.
+Installer-ready source archive.
 
-Included:
-- optional Inno Setup checkbox for bundled VB-CABLE installation
-- manual `Install VB-CABLE` button in Settings
-- support for extracted VB-CABLE setup or original ZIP package
-- safe audio-engine block until VB-CABLE / CABLE Input is detected
-- dark UI fix on light Windows theme
-- user-generated sounds, categories, presets, scenes, and settings excluded from installer payload
-
-To bundle VB-CABLE, place the official package in:
-
-```text
-third_party\VB-CABLE\
-```
-
-Then run:
-
-```powershell
-Set-ExecutionPolicy -Scope Process Bypass
-.\scripts\build-installer.ps1
-```
-
-Expected installer output:
-
-```text
-artifacts\installer\VoiSee-Setup-8.2.0-x64.exe
-```
+Changes in this build:
+- fixes manual VB-CABLE install from Settings by launching setup from the full extracted package
+- fixes bundled VB-CABLE installer flow so setup has INF/CAT/SYS files next to it
+- skips auto-launching VoiSee after VB-CABLE install because a Windows restart is usually required
+- keeps simplified Settings without user-facing Virtual Output selection

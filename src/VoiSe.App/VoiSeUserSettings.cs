@@ -61,4 +61,5 @@ public sealed class VoiSeUserSettings
     public string? SoundBoardNextHotkey { get; set; }
     public string? SoundBoardPreviousHotkey { get; set; }
     public string? DisableSceneHotkey { get; set; }
+    public string? VirtualMicMuteHotkey { get; set; }
 }
