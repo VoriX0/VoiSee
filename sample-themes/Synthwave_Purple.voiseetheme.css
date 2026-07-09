@@ -1,0 +1,41 @@
+/* VoiSee sample theme: Synthwave Purple. Tests area classes and bright hover/pressed states. */
+:root {
+  --app-background: #110719;
+  --titlebar-background: #110719;
+  --panel-background: #D0150C22;
+  --panel-border: #80FF4FD8;
+  --text-primary: #FFF4FF;
+  --text-secondary: #B8FFD6F7;
+  --accent: #FF4FD8;
+  --danger: #FF3860;
+  --success: #41FFB6;
+  --button-background: #2A1238;
+  --button-hover: #43205A;
+  --button-pressed: #6B2070;
+  --radius-panel: 18;
+  --radius-button: 12;
+  --radius-small: 8;
+  --button-border: #88FF4FD8;
+}
+
+#RootGrid { background: linear-gradient(160deg, #110719, #211038, #0B0926); }
+#MainHeaderBorder { background: linear-gradient(90deg, #662A1238, #66220F4A); border-color: var(--panel-border); border-thickness: 1;; border-radius: var(--radius-panel); }
+.panel { background: var(--panel-background); border-color: var(--panel-border); border-thickness: 1; border-radius: var(--radius-panel); }
+.text { foreground: var(--text-primary); }
+.button { background: linear-gradient(90deg, #2A1238, #351944); foreground: var(--text-primary); border-color: var(--button-border); border-thickness: 1; border-radius: var(--radius-button); }
+.button:hover { background: var(--button-hover); }
+.button:pressed { background: var(--button-pressed); }
+.toggle-button:on { background: linear-gradient(90deg, #FF4FD8, #7A5CFF); foreground: #120015; }
+.combo-box { background: #CC1B1028; foreground: var(--text-primary); border-color: var(--button-border); border-thickness: 1; border-radius: var(--radius-button); }
+.slider { foreground: #FF4FD8; }
+.soundboard-panel { background: #AA13091D; }
+.soundboard-button:hover { background: #4A2666; }
+.voicechanger-button:hover { background: #4A2666; }
+.scenes-button:hover { background: #4A2666; }
+.settings-button:hover { background: #4A2666; }
+#SoundboardTimeline { background: linear-gradient(90deg, #251033, #FF4FD8, #7A5CFF);; border-radius: var(--radius-small); }
+#VBCableNoticeBorder { background: #332A1238; border-color: #88FFB347;; border-radius: var(--radius-panel); }
+#VirtualMicMutedBanner { background: #552A0015; border-color: #BBFF3860;; border-radius: var(--radius-panel); }
+#SettingsMute:on { background: #FF3860; foreground: white; }
+
+.soundboard-sound { border-radius: var(--radius-small); }

@@ -160,7 +160,7 @@ public sealed partial class MainWindow : Window
         _timelineTimer.Tick += OnTimelineTimerTick;
         _timelineTimer.Start();
 
-        AppendLog("VoiSee Version 9.1.2 UI started.");
+        AppendLog("VoiSee Version 9.1.5 UI started.");
         AppendLog($"Settings path: {_settingsStore.SettingsPath}");
         StartupLog.Write("MainWindow initialized; waiting for first activation.");
     }
@@ -248,6 +248,18 @@ public sealed partial class MainWindow : Window
         finally
         {
             _loadingThemeChoices = false;
+            UpdateThemeControls();
+        }
+    }
+
+    private void UpdateThemeControls()
+    {
+        if (DeleteThemeButton is not null)
+        {
+            DeleteThemeButton.IsEnabled = ThemeComboBox?.SelectedItem is ThemeComboItem item
+                && !item.IsDefault
+                && !string.IsNullOrWhiteSpace(item.FilePath)
+                && File.Exists(item.FilePath);
         }
     }
 
@@ -400,6 +412,21 @@ public sealed partial class MainWindow : Window
         ApplyThemeFromSettings();
     }
 
+
+    private void ReapplyThemeAfterVisualTreeChange()
+    {
+        DispatcherQueue.TryEnqueue(() =>
+        {
+            ApplyThemeFromSettings(log: false);
+            DispatcherQueue.TryEnqueue(() => ApplyThemeFromSettings(log: false));
+        });
+    }
+
+    private void OnMainTabViewSelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        ReapplyThemeAfterVisualTreeChange();
+    }
+
     private void OnThemeComboBoxDropDownOpened(object sender, object e)
     {
         PopulateThemeComboBox();
@@ -416,6 +443,8 @@ public sealed partial class MainWindow : Window
         {
             return;
         }
+
+        UpdateThemeControls();
 
         _settings.ThemeFilePath = item.IsDefault ? null : item.FilePath;
         _settingsStore.Save(_settings);
@@ -480,6 +509,75 @@ public sealed partial class MainWindow : Window
         catch (Exception ex)
         {
             AppendLog($"Open theme folder error: {ex.Message}");
+            await ShowMessageDialogAsync("Theme error", ex.Message);
+        }
+    }
+
+    private async void OnDeleteThemeClick(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            if (ThemeComboBox?.SelectedItem is not ThemeComboItem item || item.IsDefault || string.IsNullOrWhiteSpace(item.FilePath))
+            {
+                await ShowMessageDialogAsync("Delete theme", "Select a user theme first. The built-in Default Dark theme cannot be deleted.");
+                return;
+            }
+
+            var path = item.FilePath;
+            if (!File.Exists(path))
+            {
+                await ShowMessageDialogAsync("Delete theme", "The selected theme file does not exist anymore. The theme list will be refreshed.");
+                PopulateThemeComboBox();
+                return;
+            }
+
+            var fullPath = Path.GetFullPath(path);
+            var themesDirectory = Path.GetFullPath(_themeManager.ThemesDirectory).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar) + Path.DirectorySeparatorChar;
+            if (!fullPath.StartsWith(themesDirectory, StringComparison.OrdinalIgnoreCase))
+            {
+                await ShowMessageDialogAsync("Delete theme", "Only themes from the VoiSee themes folder can be deleted here.");
+                return;
+            }
+
+            var fileName = Path.GetFileName(path);
+            var dialog = new ContentDialog
+            {
+                Title = "Delete theme?",
+                Content = $"Delete '{fileName}'?\n\nThis will remove the .voiseetheme.css file from the VoiSee themes folder.",
+                PrimaryButtonText = "Delete",
+                CloseButtonText = "Cancel",
+                DefaultButton = ContentDialogButton.Close,
+                XamlRoot = ((FrameworkElement)Content).XamlRoot
+            };
+
+            var result = await dialog.ShowAsync();
+            if (result != ContentDialogResult.Primary)
+            {
+                return;
+            }
+
+            var activeThemePath = _settings.ThemeFilePath;
+            var wasActive = !string.IsNullOrWhiteSpace(activeThemePath)
+                && Path.GetFullPath(activeThemePath).Equals(fullPath, StringComparison.OrdinalIgnoreCase);
+
+            if (wasActive)
+            {
+                _settings.ThemeFilePath = null;
+                _settingsStore.Save(_settings);
+                _themeFileWatcher?.Dispose();
+                _themeFileWatcher = null;
+                _watchedThemePath = null;
+            }
+
+            File.Delete(fullPath);
+            PopulateThemeComboBox();
+            ApplyThemeFromSettings();
+            WatchActiveThemeFile();
+            AppendLog($"Theme deleted: {fullPath}");
+        }
+        catch (Exception ex)
+        {
+            AppendLog($"Delete theme error: {ex.Message}");
             await ShowMessageDialogAsync("Theme error", ex.Message);
         }
     }

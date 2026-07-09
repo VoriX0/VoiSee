@@ -6,7 +6,7 @@
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     mc:Ignorable="d"
-    Title="VoiSee Version 9.1.2">
+    Title="VoiSee Version 9.1.5">
 
     <Grid x:Name="RootGrid" RequestedTheme="Dark" Background="#000000">
         <Grid.RowDefinitions>
@@ -21,7 +21,7 @@
             </Grid.ColumnDefinitions>
             <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center" Margin="10,0,0,0">
                 <Image Source="ms-appx:///Assets/AppIcon_24.png" Width="16" Height="16" VerticalAlignment="Center" />
-                <TextBlock x:Name="TitleBarVersionTextBlock" Text="VoiSee Version 9.1.2" FontSize="12" Foreground="White" VerticalAlignment="Center" />
+                <TextBlock x:Name="TitleBarVersionTextBlock" Text="VoiSee Version 9.1.5" FontSize="12" Foreground="White" VerticalAlignment="Center" />
             </StackPanel>
         </Grid>
 
@@ -39,7 +39,7 @@
                 </Grid.ColumnDefinitions>
                 <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
                     <Image Source="ms-appx:///Assets/AppIcon_48.png" Width="34" Height="34" VerticalAlignment="Center" />
-                    <TextBlock x:Name="MainTitle" Text="VoiSee Version 9.1.2" FontSize="28" FontWeight="SemiBold" Foreground="White" VerticalAlignment="Center" />
+                    <TextBlock x:Name="MainTitle" Text="VoiSee Version 9.1.5" FontSize="28" FontWeight="SemiBold" Foreground="White" VerticalAlignment="Center" />
                 </StackPanel>
                 <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center" HorizontalAlignment="Right">
                     <TextBlock Text="Mic Output" Foreground="White" Opacity="0.62" VerticalAlignment="Center" />
@@ -58,7 +58,7 @@
                 <TextBlock Text="Virtual mic output is muted. You can still hear VoiSee in headphones, but Discord/OBS/games receive silence." Foreground="White" FontWeight="SemiBold" TextWrapping="WrapWholeWords" />
             </Border>
             <Border x:Name="MainTabHostBorder" Grid.Row="1" Padding="4">
-                <TabView x:Name="MainTabView" IsAddTabButtonVisible="False" TabWidthMode="Equal" RequestedTheme="Dark">
+                <TabView x:Name="MainTabView" IsAddTabButtonVisible="False" TabWidthMode="Equal" RequestedTheme="Dark" SelectionChanged="OnMainTabViewSelectionChanged">
                 <TabViewItem Header="SoundBoard" IsClosable="False">
                     <Grid x:Name="SoundBoardTabRoot" Background="Transparent" Padding="0,16,0,0" RowSpacing="4" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" AllowDrop="True" DragOver="OnSoundBoardDragOver" DragLeave="OnSoundBoardDragLeave" Drop="OnSoundBoardDrop">
                         <Grid.RowDefinitions>
@@ -748,9 +748,12 @@
                                         <Button Content="Create New Theme" Padding="14,6" MinHeight="32" Click="OnCreateNewThemeClick" />
                                         <Button Content="Open Theme File" Padding="14,6" MinHeight="32" Click="OnOpenThemeFileClick" />
                                     </StackPanel>
-                                    <Button Content="Open Theme Folder" Padding="14,6" MinHeight="32" HorizontalAlignment="Left" Click="OnOpenThemeFolderClick" />
+                                    <StackPanel Orientation="Horizontal" Spacing="10">
+                                        <Button Content="Open Theme Folder" Padding="14,6" MinHeight="32" Click="OnOpenThemeFolderClick" />
+                                        <Button x:Name="DeleteThemeButton" Content="Delete Theme" Padding="14,6" MinHeight="32" IsEnabled="False" Click="OnDeleteThemeClick" />
+                                    </StackPanel>
                                     <TextBlock x:Name="ThemeStatusTextBlock" Text="Theme: Default Dark" TextWrapping="WrapWholeWords" Opacity="0.72" />
-                                    <TextBlock Text="Supported selectors include global classes like .button, .panel, tab classes like .soundboard-button, .settings-panel, and friendly ids like #SoundboardNext, #SettingsMute, #ScenesApply, #VoicechangerPreset." TextWrapping="WrapWholeWords" Opacity="0.62" />
+                                    <TextBlock Text="Selector prefixes: Pn = panels, Bt = buttons, Sl = sliders, Cb = combo boxes, Txt = text. Examples: #PnMainHeader, .Bt, #BtSettingsMute, #SlSettingsVirtualMicMaster, #CbTheme. For sliders use height/min-height/margin; padding may be ignored by WinUI Slider." TextWrapping="WrapWholeWords" Opacity="0.62" />
                                 </StackPanel>
                             </Border>
 

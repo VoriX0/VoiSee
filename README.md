@@ -1,22 +1,41 @@
-# VoiSee 9.1.2 — Theme Engine build fix
+# VoiSee 9.1.5 — Theme stability and selector aliases
 
-Gate 9.1.2 fixes the Gate 9.1.1 theme system compile error and keeps Gate 9.0 Global Virtual Mic Mute.
+Gate 9.1.5 refines the CSS-like theme system from 9.1.x.
 
 ## Version
 
-- `VoiSee Version 9.1.2`
-- Installer output: `VoiSee-Setup-9.1.2-x64.exe`
-- Portable output: `VoiSee-Portable-9.1.2-x64.zip`
+- Display version: `VoiSee Version 9.1.5`
+- Installer output: `VoiSee-Setup-9.1.5-x64.exe`
+- Portable output: `VoiSee-Portable-9.1.5-x64.zip`
 
-## Changes
+## Main changes
 
-- Settings tab is now a 3-column layout: settings, themes, About me.
-- Theme panel actions are simplified: Create New Theme, Open Theme File, Open Theme Folder.
-- New theme template is non-destructive: creating the first theme no longer restyles the app until the CSS declarations are edited.
-- Theme engine can address global panels, tab-specific classes, friendly ids, buttons, sliders, combo boxes, and sound rows.
-- Added pseudo-state support: `:hover`, `:pressed`/`:onclick`, `:checked`/`:on`.
-- Added CSS-like brush functions: `rgb()`, `rgba()`, and `linear-gradient()`.
-- Header is more compact: engine status moved to Settings next to Start/Stop Engine, mute remains in the header.
+- Fixes stale theme parameters after creating a new blank theme.
+- Reapplies the active theme after TabView visual tree changes, so styles are less likely to disappear after switching tabs.
+- Adds selector aliases by element type:
+  - `Pn` — panels/containers;
+  - `Bt` — buttons/toggle buttons/link buttons;
+  - `Sl` — sliders;
+  - `Cb` — combo boxes/drop-down lists;
+  - `Txt` — text;
+  - `Tb` — tabs;
+  - `Mn` — menu/context menu elements where available.
+- Adds friendly IDs such as `#PnMainHeader`, `#BtSettingsMute`, `#SlSettingsVirtualMicMaster`, `#CbTheme`.
+- Adds theme properties for element size/layout hints:
+  - `width`, `height`, `min-width`, `min-height`, `max-width`, `max-height`, `spacing` / `gap`.
+- Updates the generated theme template with the new naming convention.
+
+## Slider note
+
+WinUI Slider does not use `padding` the same way a normal button does. To make a slider larger, use:
+
+```css
+#SlSettingsVirtualMicMaster {
+  height: 40;
+  min-height: 40;
+  margin: 8 0;
+}
+```
 
 ## Build
 

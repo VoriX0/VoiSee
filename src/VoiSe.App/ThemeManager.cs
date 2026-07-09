@@ -173,7 +173,11 @@ public sealed class ThemeManager
 
     public int ApplyTheme(FrameworkElement root, VoiSeeCssTheme theme)
     {
-        RestorePreviouslyStyledElements();
+        // Restore every element ever touched by the theme engine, not only the
+        // elements from the previous visible tab. This prevents a newly-created
+        // blank theme from inheriting colors/radius from the previously selected
+        // theme and avoids stale styles when TabView virtualizes/unloads content.
+        RestoreAllThemedElements();
         _interactiveStates.Clear();
 
         var applied = 0;
@@ -203,13 +207,18 @@ public sealed class ThemeManager
         return applied;
     }
 
-    private void RestorePreviouslyStyledElements()
+    private void RestoreAllThemedElements()
     {
-        foreach (var element in _styledByLastApply.ToArray())
+        foreach (var pair in _snapshots.ToArray())
         {
-            if (_snapshots.TryGetValue(element, out var snapshot))
+            try
             {
-                snapshot.Restore(element);
+                pair.Value.Restore(pair.Key);
+            }
+            catch
+            {
+                // Themed elements can be virtualized/recreated by WinUI while switching tabs.
+                // A failed restore should never break theme application.
             }
         }
 
@@ -329,49 +338,89 @@ public sealed class ThemeManager
         var name = element.Name ?? string.Empty;
         switch (name)
         {
-            case "SoundBoardTabRoot": yield return "MainSoundboard"; break;
-            case "VoiceChangerScrollViewer": yield return "MainVoiceChanger"; break;
-            case "ScenesTabRoot": yield return "MainScenes"; break;
-            case "MainSettings": yield return "MainSettings"; break;
-            case "SettingsThemesPanel": yield return "MainThemes"; yield return "ThemesPanel"; break;
-            case "AboutMePanel": yield return "AboutMePanel"; break;
-            case "VBCableNoticeBorder": yield return "VBCableNoticeBorder"; yield return "SettingsVBCable"; break;
-            case "MainHeaderBorder": yield return "MainHeaderBorder"; yield return "HeaderPanel"; break;
-            case "MainTabHostBorder": yield return "MainTabs"; break;
-            case "TimelineHost": yield return "SoundboardTimeline"; yield return "SoungboardTimeline"; break;
-            case "SoundListArea": yield return "SoundboardSoundList"; break;
-            case "CategoryComboBox": yield return "SoundboardCategoryList"; break;
-            case "NextSoundButton": yield return "SoundboardNext"; break;
-            case "PreviousSoundButton": yield return "SoundboardPrevious"; break;
-            case "PlayPauseButton": yield return "SoundboardPlayPause"; break;
-            case "StopSoundButton": yield return "SoundboardStop"; break;
-            case "SoundLoopToggleButton": yield return "SoundboardLoop"; break;
-            case "SoundVirtualVolumeSlider": yield return "SoundboardVirtualMic"; break;
-            case "SoundMonitorVolumeSlider": yield return "SoundboardHeadphones"; break;
-            case "SoundVirtualDelaySlider": yield return "SoundboardDelay"; break;
-            case "VirtualOutputVolumeSlider": yield return "SettingsVirtualMicMaster"; break;
-            case "VirtualMicMuteToggleButton": yield return "SettingsMute"; yield return "GlobalMute"; break;
-            case "StartEngineButton": yield return "SettingsStartEngine"; break;
-            case "StopEngineButton": yield return "SettingsStopEngine"; break;
-            case "VoiceMonitorButton": yield return "VoicechangerMonitor"; break;
-            case "VoicePresetsPanel": yield return "VoiceChangerPresets"; yield return "VoicechangerPresets"; break;
-            case "SceneApplyButton": yield return "ScenesApply"; break;
-            case "SceneDisableButton": yield return "ScenesDisable"; break;
-            case "SceneDeleteButton": yield return "ScenesDelete"; break;
-            case "SceneRenameButton": yield return "ScenesRename"; break;
-            case "SceneCreateNewButton": yield return "ScenesCreate"; break;
-            case "SceneVoicePresetComboBox": yield return "ScenesVoicePreset"; break;
-            case "SceneVoiceMonitorButton": yield return "ScenesVoiceMonitor"; break;
-            case "SceneLoopPlayLoopButton": yield return "ScenesLoopPlayLoop"; break;
-            case "SceneLoopPlayOnceButton": yield return "ScenesLoopPlayOnce"; break;
-            case "SceneLoopRemoveButton": yield return "ScenesLoopRemove"; break;
-            case "SceneLoopChooseButton": yield return "ScenesLoopChoose"; break;
+            // Global panels / areas (Pn = panel/container)
+            case "RootGrid": yield return "PnRoot"; break;
+            case "CustomTitleBar": yield return "PnTitleBar"; break;
+            case "MainHeaderBorder": yield return "MainHeaderBorder"; yield return "HeaderPanel"; yield return "PnMainHeader"; yield return "PnHeader"; break;
+            case "MainContentHost": yield return "PnMainContent"; break;
+            case "MainTabHostBorder": yield return "MainTabs"; yield return "PnMainTabs"; break;
+            case "SoundBoardTabRoot": yield return "MainSoundboard"; yield return "PnMainSoundboard"; break;
+            case "VoiceChangerScrollViewer": yield return "MainVoiceChanger"; yield return "PnMainVoiceChanger"; break;
+            case "VoicePresetsPanel": yield return "VoiceChangerPresets"; yield return "VoicechangerPresets"; yield return "PnVoiceChangerPresets"; break;
+            case "ScenesTabRoot": yield return "MainScenes"; yield return "PnMainScenes"; break;
+            case "MainSettings": yield return "MainSettings"; yield return "PnMainSettings"; break;
+            case "SettingsThemesPanel": yield return "MainThemes"; yield return "ThemesPanel"; yield return "PnThemes"; yield return "PnMainThemes"; break;
+            case "AboutMePanel": yield return "AboutMePanel"; yield return "PnAboutMe"; break;
+            case "VBCableNoticeBorder": yield return "VBCableNoticeBorder"; yield return "SettingsVBCable"; yield return "PnVBCable"; break;
+            case "VirtualMicMutedBanner": yield return "PnMuteBanner"; break;
+            case "SettingsLogArea": yield return "PnSettingsLog"; break;
+            case "SoundListArea": yield return "SoundboardSoundList"; yield return "PnSoundboardSoundList"; break;
+            case "TimelineHost": yield return "SoundboardTimeline"; yield return "SoungboardTimeline"; yield return "PnSoundboardTimeline"; break;
+            case "LoopedSceneSoundsPanel": yield return "PnScenesLoopedSounds"; break;
+            case "SceneSoundsPanel": yield return "PnScenesSoundButtons"; break;
+
+            // Buttons (Bt = button)
+            case "VirtualMicMuteToggleButton": yield return "SettingsMute"; yield return "GlobalMute"; yield return "BtSettingsMute"; yield return "BtGlobalMute"; break;
+            case "NextSoundButton": yield return "SoundboardNext"; yield return "BtSoundboardNext"; break;
+            case "PreviousSoundButton": yield return "SoundboardPrevious"; yield return "BtSoundboardPrevious"; break;
+            case "PlayPauseButton": yield return "SoundboardPlayPause"; yield return "BtSoundboardPlayPause"; break;
+            case "StopSoundButton": yield return "SoundboardStop"; yield return "BtSoundboardStop"; break;
+            case "SoundLoopToggleButton": yield return "SoundboardLoop"; yield return "BtSoundboardLoop"; break;
+            case "InstallVBCableButton": yield return "BtInstallVBCable"; yield return "BtSettingsInstallVBCable"; break;
+            case "StartEngineButton": yield return "SettingsStartEngine"; yield return "BtSettingsStartEngine"; break;
+            case "StopEngineButton": yield return "SettingsStopEngine"; yield return "BtSettingsStopEngine"; break;
+            case "VoiceMonitorButton": yield return "VoicechangerMonitor"; yield return "BtVoicechangerMonitor"; break;
+            case "SceneApplyButton": yield return "ScenesApply"; yield return "BtScenesApply"; break;
+            case "SceneDisableButton": yield return "ScenesDisable"; yield return "BtScenesDisable"; break;
+            case "SceneDeleteButton": yield return "ScenesDelete"; yield return "BtScenesDelete"; break;
+            case "SceneRenameButton": yield return "ScenesRename"; yield return "BtScenesRename"; break;
+            case "SceneCreateNewButton": yield return "ScenesCreate"; yield return "BtScenesCreate"; break;
+            case "SceneVoicePresetClearButton": yield return "BtScenesVoicePresetClear"; break;
+            case "SceneVoicePresetCreateButton": yield return "BtScenesVoicePresetCreate"; break;
+            case "SceneVoiceMonitorButton": yield return "ScenesVoiceMonitor"; yield return "BtScenesVoiceMonitor"; break;
+            case "SceneLoopPlayLoopButton": yield return "ScenesLoopPlayLoop"; yield return "BtScenesLoopPlayLoop"; break;
+            case "SceneLoopPlayOnceButton": yield return "ScenesLoopPlayOnce"; yield return "BtScenesLoopPlayOnce"; break;
+            case "SceneLoopRemoveButton": yield return "ScenesLoopRemove"; yield return "BtScenesLoopRemove"; break;
+            case "SceneLoopChooseButton": yield return "ScenesLoopChoose"; yield return "BtScenesLoopChoose"; break;
+            case "DeleteThemeButton": yield return "BtThemeDelete"; yield return "BtSettingsThemeDelete"; break;
+
+            // Sliders (Sl = slider). Use height/min-height/margin for visual size; WinUI Slider ignores most padding changes.
+            case "SoundVirtualVolumeSlider": yield return "SoundboardVirtualMic"; yield return "SlSoundboardVirtualMic"; break;
+            case "SoundMonitorVolumeSlider": yield return "SoundboardHeadphones"; yield return "SlSoundboardHeadphones"; break;
+            case "SoundVirtualDelaySlider": yield return "SoundboardDelay"; yield return "SlSoundboardDelay"; break;
+            case "VirtualOutputVolumeSlider": yield return "SettingsVirtualMicMaster"; yield return "SlSettingsVirtualMicMaster"; break;
+            case "VoiceGainSlider": yield return "SlVoiceGain"; break;
+            case "GateThresholdSlider": yield return "SlVoiceGateThreshold"; break;
+            case "CompressorThresholdSlider": yield return "SlVoiceCompressorThreshold"; break;
+            case "PitchSlider": yield return "SlVoicePitch"; break;
+            case "FormantSlider": yield return "SlVoiceFormant"; break;
+            case "BassSlider": yield return "SlVoiceBass"; break;
+            case "TrebleSlider": yield return "SlVoiceTreble"; break;
+            case "DistortionSlider": yield return "SlVoiceDistortion"; break;
+            case "RobotSlider": yield return "SlVoiceRobot"; break;
+            case "TremoloSlider": yield return "SlVoiceTremolo"; break;
+            case "EchoSlider": yield return "SlVoiceEcho"; break;
+            case "ReverbSlider": yield return "SlVoiceReverb"; break;
+            case "RadioSlider": yield return "SlVoiceRadio"; break;
+            case "BitCrusherSlider": yield return "SlVoiceBitCrusher"; break;
+            case "AlienSlider": yield return "SlVoiceAlien"; break;
+            case "SceneLoopHeadphonesVolumeSlider": yield return "SlScenesLoopHeadphones"; break;
+            case "SceneLoopVirtualMicVolumeSlider": yield return "SlScenesLoopVirtualMic"; break;
+
+            // Combo boxes / drop-downs (Cb = combo box)
+            case "CategoryComboBox": yield return "SoundboardCategoryList"; yield return "CbSoundboardCategory"; break;
+            case "InputDeviceComboBox": yield return "CbSettingsInputMicrophone"; break;
+            case "MonitorOutputComboBox": yield return "CbSettingsMonitorOutput"; break;
+            case "VirtualOutputComboBox": yield return "CbSettingsVirtualOutput"; break;
+            case "ThemeComboBox": yield return "CbTheme"; yield return "CbSettingsTheme"; break;
+            case "SceneVoicePresetComboBox": yield return "ScenesVoicePreset"; yield return "CbScenesVoicePreset"; break;
         }
     }
 
     private static IEnumerable<string> GetElementClasses(FrameworkElement element)
     {
         yield return "all";
+        yield return "El";
 
         var area = DetectArea(element);
         if (!string.IsNullOrWhiteSpace(area))
@@ -382,24 +431,28 @@ public sealed class ThemeManager
         if (element is Grid or StackPanel or ScrollViewer or VariableSizedWrapGrid)
         {
             yield return "layout";
+            yield return "PnLayout";
             if (!string.IsNullOrWhiteSpace(area)) yield return $"{area}-layout";
         }
 
         if (element is Border)
         {
             yield return "panel";
+            yield return "Pn";
             if (!string.IsNullOrWhiteSpace(area)) yield return $"{area}-panel";
         }
 
         if (element is TextBlock)
         {
             yield return "text";
+            yield return "Txt";
             if (!string.IsNullOrWhiteSpace(area)) yield return $"{area}-text";
         }
 
         if (element is Button)
         {
             yield return "button";
+            yield return "Bt";
             yield return "primary-button";
             if (!string.IsNullOrWhiteSpace(area)) yield return $"{area}-button";
         }
@@ -407,6 +460,7 @@ public sealed class ThemeManager
         if (element is ToggleButton)
         {
             yield return "button";
+            yield return "Bt";
             yield return "toggle-button";
             if (!string.IsNullOrWhiteSpace(area)) yield return $"{area}-button";
             if (!string.IsNullOrWhiteSpace(area)) yield return $"{area}-toggle-button";
@@ -415,6 +469,7 @@ public sealed class ThemeManager
         if (element is HyperlinkButton)
         {
             yield return "link-button";
+            yield return "Bt";
             yield return "button";
             if (!string.IsNullOrWhiteSpace(area)) yield return $"{area}-button";
         }
@@ -422,35 +477,48 @@ public sealed class ThemeManager
         if (element is ComboBox)
         {
             yield return "combo-box";
+            yield return "Cb";
             if (!string.IsNullOrWhiteSpace(area)) yield return $"{area}-combo-box";
         }
 
         if (element is Slider)
         {
             yield return "slider";
+            yield return "Sl";
             if (!string.IsNullOrWhiteSpace(area)) yield return $"{area}-slider";
         }
 
         if (element is TextBox)
         {
             yield return "text-box";
+            yield return "Tx";
             if (!string.IsNullOrWhiteSpace(area)) yield return $"{area}-text-box";
         }
 
         if (element is TabView)
         {
             yield return "tab-view";
+            yield return "Tb";
         }
 
         if (element is TabViewItem)
         {
             yield return "tab-item";
+            yield return "TbItem";
         }
 
         if (element is ListView)
         {
             yield return "list-view";
+            yield return "Lv";
             if (!string.IsNullOrWhiteSpace(area)) yield return $"{area}-list-view";
+        }
+
+        var typeName = element.GetType().Name;
+        if (typeName.Contains("MenuFlyout", StringComparison.OrdinalIgnoreCase) || typeName.Contains("MenuItem", StringComparison.OrdinalIgnoreCase))
+        {
+            yield return "Mn";
+            yield return "menu";
         }
 
         if (element.Name.Contains("Banner", StringComparison.OrdinalIgnoreCase))
@@ -639,6 +707,7 @@ public sealed class ThemeManager
                     return ApplyBorderThickness(element, value);
                 case "corner-radius":
                 case "border-radius":
+                case "radius":
                     return ApplyCornerRadius(element, value);
                 case "opacity":
                     if (TryParseDouble(value, out var opacity))
@@ -655,6 +724,21 @@ public sealed class ThemeManager
                     return ApplyPadding(element, value);
                 case "margin":
                     return ApplyMargin(element, value);
+                case "width":
+                    return ApplyWidth(element, value);
+                case "height":
+                    return ApplyHeight(element, value);
+                case "min-width":
+                    return ApplyMinWidth(element, value);
+                case "min-height":
+                    return ApplyMinHeight(element, value);
+                case "max-width":
+                    return ApplyMaxWidth(element, value);
+                case "max-height":
+                    return ApplyMaxHeight(element, value);
+                case "spacing":
+                case "gap":
+                    return ApplySpacing(element, value);
                 default:
                     return false;
             }
@@ -741,6 +825,41 @@ public sealed class ThemeManager
             return true;
         }
 
+        // Many WinUI controls such as Button/ToggleButton/ComboBox expose CornerRadius,
+        // but not all of them share a compile-time interface. Reflection keeps the theme
+        // engine safe and lets border-radius work for controls where WinUI supports it.
+        return TrySetCornerRadiusProperty(element, radius);
+    }
+
+    private static bool TrySetCornerRadiusProperty(FrameworkElement element, CornerRadius radius)
+    {
+        var property = element.GetType().GetProperty("CornerRadius");
+        if (property is null || !property.CanWrite || property.PropertyType != typeof(CornerRadius))
+        {
+            return false;
+        }
+
+        property.SetValue(element, radius);
+        return true;
+    }
+
+    private static bool TryGetCornerRadiusProperty(FrameworkElement element, out CornerRadius radius)
+    {
+        var property = element.GetType().GetProperty("CornerRadius");
+        if (property is null || !property.CanRead || property.PropertyType != typeof(CornerRadius))
+        {
+            radius = default;
+            return false;
+        }
+
+        var value = property.GetValue(element);
+        if (value is CornerRadius cornerRadius)
+        {
+            radius = cornerRadius;
+            return true;
+        }
+
+        radius = default;
         return false;
     }
 
@@ -765,6 +884,66 @@ public sealed class ThemeManager
         if (!TryParseThickness(value, out var margin)) return false;
         element.Margin = margin;
         return true;
+    }
+
+
+    private static bool ApplyWidth(FrameworkElement element, string value)
+    {
+        if (!TryParseDouble(value, out var width) || width < 0) return false;
+        element.Width = width;
+        return true;
+    }
+
+    private static bool ApplyHeight(FrameworkElement element, string value)
+    {
+        if (!TryParseDouble(value, out var height) || height < 0) return false;
+        element.Height = height;
+        return true;
+    }
+
+    private static bool ApplyMinWidth(FrameworkElement element, string value)
+    {
+        if (!TryParseDouble(value, out var width) || width < 0) return false;
+        element.MinWidth = width;
+        return true;
+    }
+
+    private static bool ApplyMinHeight(FrameworkElement element, string value)
+    {
+        if (!TryParseDouble(value, out var height) || height < 0) return false;
+        element.MinHeight = height;
+        return true;
+    }
+
+    private static bool ApplyMaxWidth(FrameworkElement element, string value)
+    {
+        if (!TryParseDouble(value, out var width) || width < 0) return false;
+        element.MaxWidth = width;
+        return true;
+    }
+
+    private static bool ApplyMaxHeight(FrameworkElement element, string value)
+    {
+        if (!TryParseDouble(value, out var height) || height < 0) return false;
+        element.MaxHeight = height;
+        return true;
+    }
+
+    private static bool ApplySpacing(FrameworkElement element, string value)
+    {
+        if (!TryParseDouble(value, out var spacing) || spacing < 0) return false;
+        switch (element)
+        {
+            case StackPanel stackPanel:
+                stackPanel.Spacing = spacing;
+                return true;
+            case Grid grid:
+                grid.ColumnSpacing = spacing;
+                grid.RowSpacing = spacing;
+                return true;
+            default:
+                return false;
+        }
     }
 
     private static bool ApplyFontSize(FrameworkElement element, string value)
@@ -1057,9 +1236,28 @@ public sealed class ThemeManager
 
     private static bool TryParseCornerRadius(string value, out CornerRadius radius)
     {
-        if (TryParseDouble(value, out var all))
+        var parts = value.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        if (parts.Length == 1 && TryParseDouble(parts[0], out var all))
         {
             radius = new CornerRadius(all);
+            return true;
+        }
+
+        if (parts.Length == 2
+            && TryParseDouble(parts[0], out var topBottom)
+            && TryParseDouble(parts[1], out var leftRight))
+        {
+            radius = new CornerRadius(leftRight, topBottom, leftRight, topBottom);
+            return true;
+        }
+
+        if (parts.Length == 4
+            && TryParseDouble(parts[0], out var topLeft)
+            && TryParseDouble(parts[1], out var topRight)
+            && TryParseDouble(parts[2], out var bottomRight)
+            && TryParseDouble(parts[3], out var bottomLeft))
+        {
+            radius = new CornerRadius(topLeft, topRight, bottomRight, bottomLeft);
             return true;
         }
 
@@ -1088,121 +1286,101 @@ public sealed class ThemeManager
   VoiSee Theme CSS
   Theme: {{themeName}}
 
-  This template is intentionally non-destructive: selector blocks are written for you,
-  but visual declarations are commented out. Uncomment or add declarations and save the
-  file; VoiSee reloads it automatically.
+  Naming guide:
+    Pn = panel/container: #PnMainHeader, #PnAboutMe, #PnVBCable, .Pn
+    Bt = button/toggle/link button: #BtSettingsMute, #BtSoundboardNext, .Bt
+    Sl = slider: #SlSettingsVirtualMicMaster, #SlSoundboardVirtualMic, .Sl
+    Cb = combo box/drop-down: #CbTheme, #CbSettingsInputMicrophone, .Cb
+    Txt = text: .Txt
+    Tb = tabs: .Tb, .TbItem
+    Mn = context/menu flyout elements where available: .Mn
 
-  Supported selectors:
-    #ElementId, #FriendlyId, .class, Button, Border, TextBlock, Slider, ComboBox
+  The new file is intentionally non-destructive: all example declarations are commented.
+  Uncomment what you want. Saving this file reloads the theme live.
 
-  Useful classes:
-    .panel, .button, .toggle-button, .slider, .combo-box, .text, .tab-view, .tab-item
-    .soundboard-button, .soundboard-panel, .soundboard-slider, .soundboard-sound
-    .voicechanger-button, .voicechanger-panel, .voicechanger-slider
-    .scenes-button, .scenes-panel, .scenes-slider
-    .settings-button, .settings-panel, .settings-slider, .settings-combo-box
-
-  Pseudo states:
-    :hover, :pressed / :onclick, :checked / :on
-
-  Supported properties:
-    background, foreground/color, border-color, border-thickness, corner-radius/border-radius,
-    opacity, font-size, font-weight, padding, margin
-
-  Supported color functions:
-    #RRGGBB, #AARRGGBB, rgb(r,g,b), rgba(r,g,b,a), transparent, black, white,
-    linear-gradient(90deg, #111111, #333333)
-
-  Blocked by design: scripts, url(), external files, arbitrary code, and full layout CSS.
+  Supported properties include:
+    background, foreground/color, border-color, border-thickness, border-radius/corner-radius/radius,
+    opacity, font-size, font-weight, padding, margin, width, height, min-width, min-height, max-width, max-height, spacing/gap.
 */
 
 :root {
   --app-background: #000000;
   --titlebar-background: #000000;
-  --panel-background: #08000000;
-  --panel-border: #22FFFFFF;
-  --text-primary: #FFFFFF;
-  --text-secondary: #B8FFFFFF;
-  --accent: #00D5FF;
-  --danger: #FF4D4D;
-  --warning: #D68B00;
+  --panel-background: #10151D;
+  --panel-border: #44546A82;
+  --text-primary: #F3F7FF;
+  --text-secondary: #B6C0D0;
+  --accent: #7DD3FC;
+  --danger: #FF5D5D;
+  --warning: #F59E0B;
   --success: #37D67A;
-  --button-background: #202020;
-  --button-hover: #303030;
-  --button-pressed: #101010;
-  --button-border: #44FFFFFF;
-  --corner-radius: 12;
+  --button-background: #182232;
+  --button-hover: #223149;
+  --button-pressed: #2B405F;
+  --button-border: #52647D;
+  --radius-panel: 18;
+  --radius-button: 12;
+  --radius-input: 14;
 }
 
-/* Global app areas */
+/* Global */
 #RootGrid { /* background: var(--app-background); */ }
-#CustomTitleBar { /* background: var(--titlebar-background); */ }
-#MainHeaderBorder { /* background: var(--panel-background); border-color: var(--panel-border); border-thickness: 1; corner-radius: var(--corner-radius); */ }
-#MainTabs { /* background: transparent; */ }
-#VirtualMicMutedBanner { /* background: #44220000; border-color: #88FF4D4D; */ }
-
-/* Main tab panels */
-#MainSoundboard { /* background: transparent; */ }
-#MainVoiceChanger { /* background: transparent; */ }
-#MainScenes { /* background: transparent; */ }
-#MainSettings { /* background: transparent; */ }
-#MainThemes, #ThemesPanel { /* background: var(--panel-background); border-color: var(--panel-border); border-thickness: 1; corner-radius: var(--corner-radius); */ }
-#AboutMePanel { /* background: var(--panel-background); border-color: var(--panel-border); border-thickness: 1; corner-radius: var(--corner-radius); */ }
-#VBCableNoticeBorder, #SettingsVBCable { /* background: #22141414; border-color: #55D68B00; */ }
-
-/* Global controls */
-.text { /* foreground: var(--text-primary); */ }
-.button { /* background: var(--button-background); foreground: var(--text-primary); border-color: var(--button-border); corner-radius: 8; */ }
-.button:hover { /* background: var(--button-hover); */ }
-.button:pressed { /* background: var(--button-pressed); */ }
-.toggle-button:on { /* background: var(--accent); foreground: #000000; */ }
-.slider { /* foreground: var(--accent); */ }
-.combo-box { /* background: #181818; foreground: var(--text-primary); border-color: var(--button-border); corner-radius: 8; */ }
+.Pn { /* background: var(--panel-background); border-color: var(--panel-border); border-thickness: 1; border-radius: var(--radius-panel); */ }
+.Bt { /* background: var(--button-background); foreground: var(--text-primary); border-color: var(--button-border); border-thickness: 1; border-radius: var(--radius-button); padding: 14 7; */ }
+.Bt:hover { /* background: var(--button-hover); */ }
+.Bt:pressed { /* background: var(--button-pressed); */ }
+.Bt:on { /* background: var(--accent); foreground: #001018; */ }
+.Cb { /* background: #0D1420; foreground: var(--text-primary); border-color: var(--button-border); border-thickness: 1; border-radius: var(--radius-input); padding: 12 6; */ }
+.Sl { /* foreground: var(--accent); height: 32; min-height: 32; margin: 0 4 0 4; */ }
+.Txt { /* foreground: var(--text-primary); */ }
 .link-button { /* foreground: var(--accent); */ }
 
+/* Main panels */
+#PnMainHeader { /* background: linear-gradient(90deg, #101827, #071018); border-radius: 18; padding: 8; */ }
+#PnMainTabs { /* background: #08111B; border-color: #314155; border-thickness: 1; border-radius: 18; padding: 6; */ }
+#PnMainSoundboard { /* background: transparent; */ }
+#PnMainVoiceChanger { /* background: transparent; */ }
+#PnMainScenes { /* background: transparent; */ }
+#PnMainSettings { /* background: transparent; */ }
+#PnThemes { /* background: var(--panel-background); border-color: var(--panel-border); border-radius: var(--radius-panel); */ }
+#PnAboutMe { /* background: var(--panel-background); border-color: var(--panel-border); border-radius: var(--radius-panel); */ }
+#PnVBCable { /* background: #111F1B; border-color: #3369D38B; border-radius: var(--radius-panel); */ }
+
 /* Header / mute */
-#SettingsMute, #GlobalMute { /* background: var(--button-background); */ }
-#SettingsMute:hover { /* background: var(--button-hover); */ }
-#SettingsMute:pressed { /* background: var(--danger); */ }
+#BtSettingsMute, #BtGlobalMute { /* border-radius: 14; padding: 16 6; */ }
 #VirtualMicMuteStatusTextBlock { /* foreground: var(--success); */ }
+#PnMuteBanner { /* background: #44220000; border-color: #88FF4D4D; border-radius: 12; */ }
 
 /* SoundBoard */
-#SoundboardTimeline { /* background: linear-gradient(90deg, #252525, #111111); */ }
-#SoundboardSoundList { /* background: transparent; */ }
-#SoundboardCategoryList { /* background: #181818; */ }
-#SoundboardNext, #SoundboardPrevious, #SoundboardPlayPause, #SoundboardStop, #SoundboardLoop { /* background: var(--button-background); */ }
-.soundboard-button { /* background: var(--button-background); */ }
-.soundboard-button:hover { /* background: var(--button-hover); */ }
-.soundboard-button:pressed { /* background: var(--button-pressed); */ }
-.soundboard-sound { /* background: transparent; corner-radius: 6; */ }
+#PnSoundboardTimeline { /* background: linear-gradient(90deg, #0B1624, #0F243A); border-radius: 16; */ }
+#PnSoundboardSoundList { /* background: #080D14; border-radius: 16; */ }
+#BtSoundboardNext, #BtSoundboardPrevious, #BtSoundboardPlayPause, #BtSoundboardStop, #BtSoundboardLoop { /* border-radius: var(--radius-button); */ }
+#SlSoundboardVirtualMic, #SlSoundboardHeadphones, #SlSoundboardDelay { /* height: 34; min-height: 34; margin: 4 0 4 0; */ }
+.soundboard-sound { /* background: transparent; border-radius: 10; */ }
 .soundboard-sound:hover { /* background: #18FFFFFF; */ }
-#SoundboardVirtualMic, #SoundboardHeadphones, #SoundboardDelay { /* foreground: var(--accent); */ }
 
 /* Voice Changer */
-#VoiceChangerPresets, #VoicechangerPresets { /* background: transparent; */ }
-#VoicechangerMonitor { /* background: var(--button-background); */ }
-.voicechanger-button { /* background: var(--button-background); */ }
-.voicechanger-button:hover { /* background: var(--button-hover); */ }
-.voicechanger-slider { /* foreground: var(--accent); */ }
+#PnVoiceChangerPresets { /* background: #080D14; border-radius: 16; */ }
+#BtVoicechangerMonitor { /* border-radius: var(--radius-button); */ }
+.voicechanger-slider, #SlVoiceGain, #SlVoicePitch, #SlVoiceFormant { /* height: 32; min-height: 32; */ }
 
 /* Scenes */
-#ScenesApply, #ScenesDisable, #ScenesDelete, #ScenesRename, #ScenesCreate { /* background: var(--button-background); */ }
-#ScenesApply:hover, #ScenesDisable:hover, #ScenesCreate:hover { /* background: var(--button-hover); */ }
-#ScenesApply:pressed { /* background: var(--success); */ }
-#ScenesDisable:pressed, #ScenesDelete:pressed { /* background: var(--danger); */ }
-.scenes-button { /* background: var(--button-background); */ }
-.scenes-button:hover { /* background: var(--button-hover); */ }
-#ScenesVoicePreset { /* background: #181818; */ }
-#ScenesLoopPlayLoop, #ScenesLoopPlayOnce, #ScenesLoopRemove, #ScenesLoopChoose { /* background: var(--button-background); */ }
+#BtScenesApply:pressed { /* background: var(--success); */ }
+#BtScenesDisable:pressed, #BtScenesDelete:pressed { /* background: var(--danger); */ }
+#SlScenesLoopHeadphones, #SlScenesLoopVirtualMic { /* height: 30; min-height: 30; */ }
 
 /* Settings */
-#SettingsStartEngine, #SettingsStopEngine { /* background: var(--button-background); */ }
-#SettingsStartEngine:pressed { /* background: var(--success); */ }
-#SettingsStopEngine:pressed { /* background: var(--danger); */ }
-#SettingsVirtualMicMaster { /* foreground: var(--accent); */ }
-.settings-button { /* background: var(--button-background); */ }
-.settings-button:hover { /* background: var(--button-hover); */ }
-.settings-panel { /* background: var(--panel-background); */ }
+#SlSettingsVirtualMicMaster { /* height: 36; min-height: 36; margin: 8 0 8 0; */ }
+#BtSettingsStartEngine:pressed { /* background: var(--success); */ }
+#BtSettingsStopEngine:pressed { /* background: var(--danger); */ }
+#CbSettingsInputMicrophone, #CbSettingsMonitorOutput, #CbTheme { /* border-radius: var(--radius-input); */ }
+#BtThemeDelete { /* border-color: #66505050; */ }
+
+/* Notes:
+   Padding on Slider is limited by WinUI's internal Slider template.
+   To make a slider easier to hit or visually larger, use height/min-height/margin:
+   #SlSettingsVirtualMicMaster { height: 40; min-height: 40; margin: 8 0; }
+*/
 """;
     }
 
@@ -1225,6 +1403,12 @@ public sealed class ThemeManager
         private CornerRadius? CornerRadius { get; set; }
         private Thickness? Padding { get; set; }
         private Thickness Margin { get; set; }
+        private double Width { get; set; }
+        private double Height { get; set; }
+        private double MinWidth { get; set; }
+        private double MinHeight { get; set; }
+        private double MaxWidth { get; set; }
+        private double MaxHeight { get; set; }
         private double Opacity { get; set; }
         private double? FontSize { get; set; }
         private Windows.UI.Text.FontWeight? FontWeight { get; set; }
@@ -1234,6 +1418,12 @@ public sealed class ThemeManager
             var snapshot = new ElementStyleSnapshot
             {
                 Margin = element.Margin,
+                Width = element.Width,
+                Height = element.Height,
+                MinWidth = element.MinWidth,
+                MinHeight = element.MinHeight,
+                MaxWidth = element.MaxWidth,
+                MaxHeight = element.MaxHeight,
                 Opacity = element.Opacity
             };
 
@@ -1254,6 +1444,7 @@ public sealed class ThemeManager
                     snapshot.Foreground = control.Foreground;
                     snapshot.BorderBrush = control.BorderBrush;
                     snapshot.BorderThickness = control.BorderThickness;
+                    if (TryGetCornerRadiusProperty(control, out var controlCornerRadius)) snapshot.CornerRadius = controlCornerRadius;
                     snapshot.Padding = control.Padding;
                     snapshot.FontSize = control.FontSize;
                     snapshot.FontWeight = control.FontWeight;
@@ -1271,6 +1462,12 @@ public sealed class ThemeManager
         public void Restore(FrameworkElement element)
         {
             element.Margin = Margin;
+            element.Width = Width;
+            element.Height = Height;
+            element.MinWidth = MinWidth;
+            element.MinHeight = MinHeight;
+            element.MaxWidth = MaxWidth;
+            element.MaxHeight = MaxHeight;
             element.Opacity = Opacity;
             switch (element)
             {
@@ -1289,6 +1486,7 @@ public sealed class ThemeManager
                     control.Foreground = Foreground;
                     control.BorderBrush = BorderBrush;
                     if (BorderThickness.HasValue) control.BorderThickness = BorderThickness.Value;
+                    if (CornerRadius.HasValue) TrySetCornerRadiusProperty(control, CornerRadius.Value);
                     if (Padding.HasValue) control.Padding = Padding.Value;
                     if (FontSize.HasValue) control.FontSize = FontSize.Value;
                     if (FontWeight.HasValue) control.FontWeight = FontWeight.Value;
