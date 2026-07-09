@@ -6,7 +6,7 @@
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     mc:Ignorable="d"
-    Title="VoiSee Version 9.1">
+    Title="VoiSee Version 9.1.2">
 
     <Grid x:Name="RootGrid" RequestedTheme="Dark" Background="#000000">
         <Grid.RowDefinitions>
@@ -21,7 +21,7 @@
             </Grid.ColumnDefinitions>
             <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center" Margin="10,0,0,0">
                 <Image Source="ms-appx:///Assets/AppIcon_24.png" Width="16" Height="16" VerticalAlignment="Center" />
-                <TextBlock x:Name="TitleBarVersionTextBlock" Text="VoiSee Version 9.1" FontSize="12" Foreground="White" VerticalAlignment="Center" />
+                <TextBlock x:Name="TitleBarVersionTextBlock" Text="VoiSee Version 9.1.2" FontSize="12" Foreground="White" VerticalAlignment="Center" />
             </StackPanel>
         </Grid>
 
@@ -31,7 +31,7 @@
                 <RowDefinition Height="*" />
             </Grid.RowDefinitions>
 
-        <Border x:Name="MainHeaderBorder" Grid.Row="0" Padding="6">
+        <Border x:Name="MainHeaderBorder" Grid.Row="0" Padding="6" MinHeight="46">
             <Grid ColumnSpacing="16">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*" />
@@ -39,14 +39,12 @@
                 </Grid.ColumnDefinitions>
                 <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
                     <Image Source="ms-appx:///Assets/AppIcon_48.png" Width="34" Height="34" VerticalAlignment="Center" />
-                    <TextBlock x:Name="MainTitle" Text="VoiSee Version 9.1" FontSize="28" FontWeight="SemiBold" Foreground="White" VerticalAlignment="Center" />
+                    <TextBlock x:Name="MainTitle" Text="VoiSee Version 9.1.2" FontSize="28" FontWeight="SemiBold" Foreground="White" VerticalAlignment="Center" />
                 </StackPanel>
-                <StackPanel Grid.Column="1" Spacing="4" VerticalAlignment="Center" HorizontalAlignment="Right">
-                    <TextBlock Text="Engine" HorizontalAlignment="Right" Foreground="White" Opacity="0.62" />
-                    <TextBlock x:Name="EngineStatusTextBlock" Text="Stopped" HorizontalAlignment="Right" Foreground="White" Opacity="0.9" FontWeight="SemiBold" />
-                    <TextBlock Text="Mic Output" HorizontalAlignment="Right" Foreground="White" Opacity="0.62" Margin="0,6,0,0" />
-                    <TextBlock x:Name="VirtualMicMuteStatusTextBlock" Text="Live" HorizontalAlignment="Right" Foreground="#FF37D67A" Opacity="0.95" FontWeight="SemiBold" />
-                    <Button x:Name="VirtualMicMuteToggleButton" Content="Mute" MinWidth="92" Padding="10,4" HorizontalAlignment="Right" Click="OnVirtualMicMuteToggleClick" />
+                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center" HorizontalAlignment="Right">
+                    <TextBlock Text="Mic Output" Foreground="White" Opacity="0.62" VerticalAlignment="Center" />
+                    <TextBlock x:Name="VirtualMicMuteStatusTextBlock" Text="Live" Foreground="#FF37D67A" Opacity="0.95" FontWeight="SemiBold" VerticalAlignment="Center" />
+                    <Button x:Name="VirtualMicMuteToggleButton" Content="Mute" MinWidth="92" Padding="10,4" Click="OnVirtualMicMuteToggleClick" />
                 </StackPanel>
             </Grid>
         </Border>
@@ -654,13 +652,14 @@
 
                 <TabViewItem Header="Settings" IsClosable="False">
                     <ScrollViewer x:Name="SettingsScrollViewer" VerticalScrollBarVisibility="Auto" VerticalScrollMode="Enabled" HorizontalScrollBarVisibility="Disabled" HorizontalScrollMode="Disabled" ZoomMode="Disabled">
-                        <Grid Padding="0,16,48,24" ColumnSpacing="28">
+                        <Grid x:Name="SettingsTabRoot" Padding="0,16,24,24" ColumnSpacing="20">
                             <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="680" />
-                                <ColumnDefinition Width="320" />
+                                <ColumnDefinition Width="5*" MinWidth="360" />
+                                <ColumnDefinition Width="4*" MinWidth="320" />
+                                <ColumnDefinition Width="3*" MinWidth="260" />
                             </Grid.ColumnDefinitions>
 
-                            <StackPanel Grid.Column="0" Spacing="18">
+                            <StackPanel x:Name="MainSettings" Grid.Column="0" Spacing="18">
                                 <Border x:Name="VBCableNoticeBorder" Background="#22141414" BorderBrush="#55D68B00" BorderThickness="1" CornerRadius="12" Padding="14">
                                     <StackPanel Spacing="8">
                                         <TextBlock Text="Virtual microphone bridge" FontSize="18" FontWeight="SemiBold" />
@@ -673,28 +672,9 @@
                                     </StackPanel>
                                 </Border>
 
-                                <Border x:Name="SettingsAppearancePanel" Background="#08000000" BorderBrush="#22FFFFFF" BorderThickness="1" CornerRadius="12" Padding="14">
-                                    <StackPanel Spacing="10">
-                                        <TextBlock Text="Appearance / Themes" FontSize="18" FontWeight="SemiBold" />
-                                        <TextBlock Text="VoiSee themes use a safe CSS-like .voiseetheme.css file. Create a theme, edit the file, save it, and the app will reload the theme automatically." TextWrapping="WrapWholeWords" Opacity="0.72" />
-                                        <StackPanel Spacing="6">
-                                            <TextBlock Text="Current theme" Opacity="0.72" />
-                                            <ComboBox x:Name="ThemeComboBox" Width="640" SelectionChanged="OnThemeSelectionChanged" />
-                                        </StackPanel>
-                                        <StackPanel Orientation="Horizontal" Spacing="10">
-                                            <Button Content="Create New Theme" Padding="14,6" MinHeight="32" Click="OnCreateNewThemeClick" />
-                                            <Button Content="Open Theme File" Padding="14,6" MinHeight="32" Click="OnOpenThemeFileClick" />
-                                            <Button Content="Import Theme" Padding="14,6" MinHeight="32" Click="OnImportThemeClick" />
-                                            <Button Content="Export Current Theme" Padding="14,6" MinHeight="32" Click="OnExportThemeClick" />
-                                            <Button Content="Reset" Padding="14,6" MinHeight="32" Click="OnResetThemeClick" />
-                                        </StackPanel>
-                                        <TextBlock x:Name="ThemeStatusTextBlock" Text="Theme: Default Dark" TextWrapping="WrapWholeWords" Opacity="0.72" />
-                                    </StackPanel>
-                                </Border>
-
                                 <TextBlock Text="Audio devices" FontSize="18" FontWeight="SemiBold" />
 
-                                <Grid Width="640" HorizontalAlignment="Left" ColumnSpacing="18">
+                                <Grid HorizontalAlignment="Stretch" ColumnSpacing="18">
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="Auto" />
                                         <ColumnDefinition Width="*" />
@@ -708,12 +688,12 @@
 
                                 <StackPanel Spacing="6">
                                     <TextBlock Text="Input Microphone" />
-                                    <ComboBox x:Name="InputDeviceComboBox" PlaceholderText="Choose microphone" DisplayMemberPath="FriendlyName" Width="640" SelectionChanged="OnRouteSettingChanged" />
+                                    <ComboBox x:Name="InputDeviceComboBox" PlaceholderText="Choose microphone" DisplayMemberPath="FriendlyName" HorizontalAlignment="Stretch" SelectionChanged="OnRouteSettingChanged" />
                                 </StackPanel>
-                                <ComboBox x:Name="VirtualOutputComboBox" PlaceholderText="Choose CABLE Input" DisplayMemberPath="FriendlyName" Width="640" SelectionChanged="OnRouteSettingChanged" Visibility="Collapsed" />
+                                <ComboBox x:Name="VirtualOutputComboBox" PlaceholderText="Choose CABLE Input" DisplayMemberPath="FriendlyName" HorizontalAlignment="Stretch" SelectionChanged="OnRouteSettingChanged" Visibility="Collapsed" />
                                 <StackPanel Spacing="6">
                                     <TextBlock Text="Monitor Output" />
-                                    <ComboBox x:Name="MonitorOutputComboBox" PlaceholderText="Choose headphones" DisplayMemberPath="FriendlyName" Width="640" SelectionChanged="OnRouteSettingChanged" />
+                                    <ComboBox x:Name="MonitorOutputComboBox" PlaceholderText="Choose headphones" DisplayMemberPath="FriendlyName" HorizontalAlignment="Stretch" SelectionChanged="OnRouteSettingChanged" />
                                 </StackPanel>
 
                                 <TextBlock Text="Output" FontSize="18" FontWeight="SemiBold" />
@@ -726,7 +706,7 @@
                                 <StackPanel Spacing="8" Background="Transparent">
                                     <StackPanel Orientation="Horizontal" Spacing="10">
                                         <Button Content="Hotkeys" Padding="14,6" MinHeight="32" Click="OnConfigureTransportHotkeysClick" />
-                                        <TextBlock Text="Transport and Virtual Mic Mute hotkeys. While a scene is active, Play/Pause and Stop control only scene one-shot sounds." VerticalAlignment="Center" Opacity="0.7" />
+                                        <TextBlock Text="Transport and Virtual Mic Mute hotkeys. While a scene is active, Play/Pause and Stop control only scene one-shot sounds." VerticalAlignment="Center" Opacity="0.7" TextWrapping="WrapWholeWords" />
                                     </StackPanel>
                                     <TextBlock x:Name="TransportHotkeysSummaryTextBlock" Text="Transport hotkeys: not configured" Opacity="0.72" TextWrapping="Wrap" />
                                 </StackPanel>
@@ -740,6 +720,14 @@
 
                                 <TextBlock Text="Engine manual control" FontSize="18" FontWeight="SemiBold" />
                                 <StackPanel Spacing="8">
+                                    <Grid ColumnSpacing="10" VerticalAlignment="Center">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto" />
+                                            <ColumnDefinition Width="*" />
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Text="Engine status" Opacity="0.72" VerticalAlignment="Center" />
+                                        <TextBlock Grid.Column="1" x:Name="EngineStatusTextBlock" Text="Stopped" Opacity="0.9" FontWeight="SemiBold" VerticalAlignment="Center" />
+                                    </Grid>
                                     <TextBlock Text="The engine starts automatically when VoiSee opens. Use these buttons only for manual troubleshooting." Opacity="0.7" TextWrapping="Wrap" />
                                     <StackPanel Orientation="Horizontal" Spacing="10">
                                         <Button x:Name="StartEngineButton" Content="Start Engine" MinWidth="154" Height="42" Padding="18,8" Click="OnStartEngineClick" />
@@ -748,7 +736,25 @@
                                 </StackPanel>
                             </StackPanel>
 
-                            <Border x:Name="AboutMePanel" Grid.Column="1" Background="#08000000" BorderBrush="#22FFFFFF" BorderThickness="1" CornerRadius="12" Padding="18" VerticalAlignment="Top">
+                            <Border x:Name="SettingsThemesPanel" Grid.Column="1" Background="#08000000" BorderBrush="#22FFFFFF" BorderThickness="1" CornerRadius="12" Padding="18" VerticalAlignment="Top">
+                                <StackPanel Spacing="12">
+                                    <TextBlock Text="Appearance / Themes" FontSize="18" FontWeight="SemiBold" />
+                                    <TextBlock Text="Create a .voiseetheme.css file, edit it, save it, and VoiSee will apply it automatically. New theme files start as a non-destructive template, so the current design does not change until you edit active declarations." TextWrapping="WrapWholeWords" Opacity="0.72" />
+                                    <StackPanel Spacing="6">
+                                        <TextBlock Text="Current theme" Opacity="0.72" />
+                                        <ComboBox x:Name="ThemeComboBox" HorizontalAlignment="Stretch" SelectionChanged="OnThemeSelectionChanged" DropDownOpened="OnThemeComboBoxDropDownOpened" />
+                                    </StackPanel>
+                                    <StackPanel Orientation="Horizontal" Spacing="10">
+                                        <Button Content="Create New Theme" Padding="14,6" MinHeight="32" Click="OnCreateNewThemeClick" />
+                                        <Button Content="Open Theme File" Padding="14,6" MinHeight="32" Click="OnOpenThemeFileClick" />
+                                    </StackPanel>
+                                    <Button Content="Open Theme Folder" Padding="14,6" MinHeight="32" HorizontalAlignment="Left" Click="OnOpenThemeFolderClick" />
+                                    <TextBlock x:Name="ThemeStatusTextBlock" Text="Theme: Default Dark" TextWrapping="WrapWholeWords" Opacity="0.72" />
+                                    <TextBlock Text="Supported selectors include global classes like .button, .panel, tab classes like .soundboard-button, .settings-panel, and friendly ids like #SoundboardNext, #SettingsMute, #ScenesApply, #VoicechangerPreset." TextWrapping="WrapWholeWords" Opacity="0.62" />
+                                </StackPanel>
+                            </Border>
+
+                            <Border x:Name="AboutMePanel" Grid.Column="2" Background="#08000000" BorderBrush="#22FFFFFF" BorderThickness="1" CornerRadius="12" Padding="18" VerticalAlignment="Top">
                                 <StackPanel Spacing="14">
                                     <TextBlock Text="About me" FontSize="18" FontWeight="SemiBold" />
                                     <TextBlock Text="Links" Opacity="0.72" />

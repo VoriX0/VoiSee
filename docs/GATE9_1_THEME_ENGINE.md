@@ -4,7 +4,7 @@ Gate 9.1 adds a safe CSS-like theme system for VoiSee.
 
 ## Version
 
-- App display version: `VoiSee Version 9.1`
+- App display version: `VoiSee Version 9.1.1`
 - Installer output: `VoiSee-Setup-9.1-x64.exe`
 - Portable output: `VoiSee-Portable-9.1-x64.zip`
 

@@ -160,7 +160,7 @@ public sealed partial class MainWindow : Window
         _timelineTimer.Tick += OnTimelineTimerTick;
         _timelineTimer.Start();
 
-        AppendLog("VoiSee Version 9.1 UI started.");
+        AppendLog("VoiSee Version 9.1.2 UI started.");
         AppendLog($"Settings path: {_settingsStore.SettingsPath}");
         StartupLog.Write("MainWindow initialized; waiting for first activation.");
     }
@@ -400,6 +400,11 @@ public sealed partial class MainWindow : Window
         ApplyThemeFromSettings();
     }
 
+    private void OnThemeComboBoxDropDownOpened(object sender, object e)
+    {
+        PopulateThemeComboBox();
+    }
+
     private void OnThemeSelectionChanged(object sender, SelectionChangedEventArgs e)
     {
         if (_loadingThemeChoices)
@@ -460,6 +465,21 @@ public sealed partial class MainWindow : Window
         catch (Exception ex)
         {
             AppendLog($"Open theme file error: {ex.Message}");
+            await ShowMessageDialogAsync("Theme error", ex.Message);
+        }
+    }
+
+    private async void OnOpenThemeFolderClick(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            _themeManager.EnsureThemesDirectory();
+            OpenFolderWithShell(_themeManager.ThemesDirectory);
+            AppendLog($"Theme folder opened: {_themeManager.ThemesDirectory}");
+        }
+        catch (Exception ex)
+        {
+            AppendLog($"Open theme folder error: {ex.Message}");
             await ShowMessageDialogAsync("Theme error", ex.Message);
         }
     }
@@ -536,6 +556,17 @@ public sealed partial class MainWindow : Window
         Process.Start(new ProcessStartInfo
         {
             FileName = path,
+            UseShellExecute = true
+        });
+    }
+
+
+    private static void OpenFolderWithShell(string path)
+    {
+        Process.Start(new ProcessStartInfo
+        {
+            FileName = "explorer.exe",
+            Arguments = $"\"{path}\"",
             UseShellExecute = true
         });
     }
