@@ -2,7 +2,7 @@ namespace VoiSe.App;
 
 public sealed class VoiSeUserSettings
 {
-    public int SchemaVersion { get; set; } = 4;
+    public int SchemaVersion { get; set; } = 5;
 
     public string? InputDeviceId { get; set; }
     public string? InputDeviceName { get; set; }
@@ -62,4 +62,8 @@ public sealed class VoiSeUserSettings
     public string? SoundBoardPreviousHotkey { get; set; }
     public string? DisableSceneHotkey { get; set; }
     public string? VirtualMicMuteHotkey { get; set; }
+
+    // Gate 9.1 CSS-like user theme file. Null means built-in Default Dark.
+    public string? ThemeFilePath { get; set; }
 }
+

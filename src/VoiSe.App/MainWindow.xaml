@@ -6,7 +6,7 @@
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     mc:Ignorable="d"
-    Title="VoiSee Version 9.0">
+    Title="VoiSee Version 9.1">
 
     <Grid x:Name="RootGrid" RequestedTheme="Dark" Background="#000000">
         <Grid.RowDefinitions>
@@ -21,7 +21,7 @@
             </Grid.ColumnDefinitions>
             <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center" Margin="10,0,0,0">
                 <Image Source="ms-appx:///Assets/AppIcon_24.png" Width="16" Height="16" VerticalAlignment="Center" />
-                <TextBlock Text="VoiSee Version 9.0" FontSize="12" Foreground="White" VerticalAlignment="Center" />
+                <TextBlock x:Name="TitleBarVersionTextBlock" Text="VoiSee Version 9.1" FontSize="12" Foreground="White" VerticalAlignment="Center" />
             </StackPanel>
         </Grid>
 
@@ -31,7 +31,7 @@
                 <RowDefinition Height="*" />
             </Grid.RowDefinitions>
 
-        <Border Grid.Row="0" Padding="6">
+        <Border x:Name="MainHeaderBorder" Grid.Row="0" Padding="6">
             <Grid ColumnSpacing="16">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*" />
@@ -39,7 +39,7 @@
                 </Grid.ColumnDefinitions>
                 <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
                     <Image Source="ms-appx:///Assets/AppIcon_48.png" Width="34" Height="34" VerticalAlignment="Center" />
-                    <TextBlock Text="VoiSee Version 9.0" FontSize="28" FontWeight="SemiBold" Foreground="White" VerticalAlignment="Center" />
+                    <TextBlock x:Name="MainTitle" Text="VoiSee Version 9.1" FontSize="28" FontWeight="SemiBold" Foreground="White" VerticalAlignment="Center" />
                 </StackPanel>
                 <StackPanel Grid.Column="1" Spacing="4" VerticalAlignment="Center" HorizontalAlignment="Right">
                     <TextBlock Text="Engine" HorizontalAlignment="Right" Foreground="White" Opacity="0.62" />
@@ -59,7 +59,7 @@
             <Border x:Name="VirtualMicMutedBanner" Grid.Row="0" Background="#44220000" BorderBrush="#88FF4D4D" BorderThickness="1" CornerRadius="10" Padding="12,8" Visibility="Collapsed">
                 <TextBlock Text="Virtual mic output is muted. You can still hear VoiSee in headphones, but Discord/OBS/games receive silence." Foreground="White" FontWeight="SemiBold" TextWrapping="WrapWholeWords" />
             </Border>
-            <Border Grid.Row="1" Padding="4">
+            <Border x:Name="MainTabHostBorder" Grid.Row="1" Padding="4">
                 <TabView x:Name="MainTabView" IsAddTabButtonVisible="False" TabWidthMode="Equal" RequestedTheme="Dark">
                 <TabViewItem Header="SoundBoard" IsClosable="False">
                     <Grid x:Name="SoundBoardTabRoot" Background="Transparent" Padding="0,16,0,0" RowSpacing="4" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" AllowDrop="True" DragOver="OnSoundBoardDragOver" DragLeave="OnSoundBoardDragLeave" Drop="OnSoundBoardDrop">
@@ -673,6 +673,25 @@
                                     </StackPanel>
                                 </Border>
 
+                                <Border x:Name="SettingsAppearancePanel" Background="#08000000" BorderBrush="#22FFFFFF" BorderThickness="1" CornerRadius="12" Padding="14">
+                                    <StackPanel Spacing="10">
+                                        <TextBlock Text="Appearance / Themes" FontSize="18" FontWeight="SemiBold" />
+                                        <TextBlock Text="VoiSee themes use a safe CSS-like .voiseetheme.css file. Create a theme, edit the file, save it, and the app will reload the theme automatically." TextWrapping="WrapWholeWords" Opacity="0.72" />
+                                        <StackPanel Spacing="6">
+                                            <TextBlock Text="Current theme" Opacity="0.72" />
+                                            <ComboBox x:Name="ThemeComboBox" Width="640" SelectionChanged="OnThemeSelectionChanged" />
+                                        </StackPanel>
+                                        <StackPanel Orientation="Horizontal" Spacing="10">
+                                            <Button Content="Create New Theme" Padding="14,6" MinHeight="32" Click="OnCreateNewThemeClick" />
+                                            <Button Content="Open Theme File" Padding="14,6" MinHeight="32" Click="OnOpenThemeFileClick" />
+                                            <Button Content="Import Theme" Padding="14,6" MinHeight="32" Click="OnImportThemeClick" />
+                                            <Button Content="Export Current Theme" Padding="14,6" MinHeight="32" Click="OnExportThemeClick" />
+                                            <Button Content="Reset" Padding="14,6" MinHeight="32" Click="OnResetThemeClick" />
+                                        </StackPanel>
+                                        <TextBlock x:Name="ThemeStatusTextBlock" Text="Theme: Default Dark" TextWrapping="WrapWholeWords" Opacity="0.72" />
+                                    </StackPanel>
+                                </Border>
+
                                 <TextBlock Text="Audio devices" FontSize="18" FontWeight="SemiBold" />
 
                                 <Grid Width="640" HorizontalAlignment="Left" ColumnSpacing="18">
@@ -729,7 +748,7 @@
                                 </StackPanel>
                             </StackPanel>
 
-                            <Border Grid.Column="1" Background="#08000000" BorderBrush="#22FFFFFF" BorderThickness="1" CornerRadius="12" Padding="18" VerticalAlignment="Top">
+                            <Border x:Name="AboutMePanel" Grid.Column="1" Background="#08000000" BorderBrush="#22FFFFFF" BorderThickness="1" CornerRadius="12" Padding="18" VerticalAlignment="Top">
                                 <StackPanel Spacing="14">
                                     <TextBlock Text="About me" FontSize="18" FontWeight="SemiBold" />
                                     <TextBlock Text="Links" Opacity="0.72" />

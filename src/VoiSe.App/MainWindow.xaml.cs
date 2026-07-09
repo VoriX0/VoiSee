@@ -30,6 +30,8 @@ public sealed partial class MainWindow : Window
     private readonly SoundBoardLibraryStore _libraryStore;
     private readonly VoicePresetStore _voicePresetStore;
     private readonly SceneStore _sceneStore;
+    private readonly ThemeManager _themeManager;
+    private readonly DispatcherTimer _themeReloadTimer;
     private VoiSeUserSettings _settings;
     private SoundBoardLibrary _library;
     private IReadOnlyList<VoicePreset> _voicePresets = Array.Empty<VoicePreset>();
@@ -69,6 +71,9 @@ public sealed partial class MainWindow : Window
     private VoicePreset? _pushToTalkPreviousVoicePreset;
     private HotkeyGesture? _activePushToTalkGesture;
     private bool _capturingHotkey;
+    private bool _loadingThemeChoices;
+    private FileSystemWatcher? _themeFileWatcher;
+    private string? _watchedThemePath;
     private const int WhMouseLl = 14;
     private const int WhKeyboardLl = 13;
     private const int WmMouseWheel = 0x020A;
@@ -117,10 +122,18 @@ public sealed partial class MainWindow : Window
         _libraryStore = new SoundBoardLibraryStore(_settingsStore.DataDirectory);
         _voicePresetStore = new VoicePresetStore(_settingsStore.DataDirectory);
         _sceneStore = new SceneStore(_settingsStore.DataDirectory);
+        _themeManager = new ThemeManager(_settingsStore.DataDirectory);
         _library = _libraryStore.Load();
         InitializeComponent();
         _windowHandle = WindowNative.GetWindowHandle(this);
         ConfigureTitleBar();
+
+        _themeReloadTimer = new DispatcherTimer
+        {
+            Interval = TimeSpan.FromMilliseconds(180)
+        };
+        _themeReloadTimer.Tick += OnThemeReloadTimerTick;
+        InitializeThemeSystem();
         MainTabView.SelectionChanged += OnMainTabSelectionChanged;
         SoundInputOverlay.AddHandler(UIElement.PointerWheelChangedEvent, new PointerEventHandler(OnSoundInputOverlayPointerWheelChanged), true);
         InstallSoundBoardWheelHook();
@@ -147,7 +160,7 @@ public sealed partial class MainWindow : Window
         _timelineTimer.Tick += OnTimelineTimerTick;
         _timelineTimer.Start();
 
-        AppendLog("VoiSee Version 9.0 UI started.");
+        AppendLog("VoiSee Version 9.1 UI started.");
         AppendLog($"Settings path: {_settingsStore.SettingsPath}");
         StartupLog.Write("MainWindow initialized; waiting for first activation.");
     }
@@ -190,6 +203,341 @@ public sealed partial class MainWindow : Window
         {
             AppendLog($"Title bar color setup skipped: {ex.Message}");
         }
+    }
+
+
+
+    private void InitializeThemeSystem()
+    {
+        try
+        {
+            _themeManager.EnsureThemesDirectory();
+            PopulateThemeComboBox();
+            ApplyThemeFromSettings(log: false);
+            RootGrid.Loaded += (_, _) => ApplyThemeFromSettings(log: false);
+            WatchActiveThemeFile();
+        }
+        catch (Exception ex)
+        {
+            AppendLog($"Theme system init skipped: {ex.Message}");
+        }
+    }
+
+    private void PopulateThemeComboBox()
+    {
+        if (ThemeComboBox is null)
+        {
+            return;
+        }
+
+        _loadingThemeChoices = true;
+        try
+        {
+            ThemeComboBox.DisplayMemberPath = nameof(ThemeComboItem.DisplayName);
+            ThemeComboBox.Items.Clear();
+            ThemeComboBox.Items.Add(new ThemeComboItem("Default Dark", null, true));
+
+            foreach (var path in _themeManager.GetThemeFiles())
+            {
+                var name = Path.GetFileNameWithoutExtension(Path.GetFileNameWithoutExtension(path));
+                ThemeComboBox.Items.Add(new ThemeComboItem(name, path, false));
+            }
+
+            SelectThemeComboItem(_settings.ThemeFilePath);
+        }
+        finally
+        {
+            _loadingThemeChoices = false;
+        }
+    }
+
+    private void SelectThemeComboItem(string? themePath)
+    {
+        if (ThemeComboBox is null)
+        {
+            return;
+        }
+
+        var normalized = string.IsNullOrWhiteSpace(themePath) ? null : Path.GetFullPath(themePath);
+        foreach (var item in ThemeComboBox.Items.OfType<ThemeComboItem>())
+        {
+            if ((normalized is null && item.IsDefault) ||
+                (normalized is not null && item.FilePath is not null && Path.GetFullPath(item.FilePath).Equals(normalized, StringComparison.OrdinalIgnoreCase)))
+            {
+                ThemeComboBox.SelectedItem = item;
+                return;
+            }
+        }
+
+        ThemeComboBox.SelectedIndex = 0;
+    }
+
+    private void ApplyThemeFromSettings(bool log = true)
+    {
+        try
+        {
+            var theme = _themeManager.LoadTheme(_settings.ThemeFilePath);
+            var applied = _themeManager.ApplyTheme(RootGrid, theme);
+            ApplyTitleBarTheme(theme);
+            if (ThemeStatusTextBlock is not null)
+            {
+                ThemeStatusTextBlock.Text = string.IsNullOrWhiteSpace(theme.SourcePath)
+                    ? "Theme: Default Dark"
+                    : $"Theme: {theme.Name} ({theme.SourcePath})";
+            }
+
+            if (log)
+            {
+                AppendLog($"Theme applied: {theme.Name}; declarations applied: {applied}.");
+            }
+        }
+        catch (Exception ex)
+        {
+            if (ThemeStatusTextBlock is not null)
+            {
+                ThemeStatusTextBlock.Text = $"Theme error: {ex.Message}";
+            }
+            AppendLog($"Theme apply error: {ex.Message}");
+        }
+    }
+
+    private void ApplyTitleBarTheme(VoiSeeCssTheme theme)
+    {
+        try
+        {
+            var titleBar = AppWindow.TitleBar;
+            var background = Microsoft.UI.ColorHelper.FromArgb(0xFF, 0x00, 0x00, 0x00);
+            var foreground = Microsoft.UI.ColorHelper.FromArgb(0xFF, 0xFF, 0xFF, 0xFF);
+            var hover = Microsoft.UI.ColorHelper.FromArgb(0xFF, 0x20, 0x20, 0x20);
+            var pressed = Microsoft.UI.ColorHelper.FromArgb(0xFF, 0x10, 0x10, 0x10);
+
+            if (theme.TryGetVariableColor("--titlebar-background", out var titleColor))
+            {
+                background = titleColor;
+            }
+            else if (theme.TryGetVariableColor("--app-background", out var appColor))
+            {
+                background = appColor;
+            }
+
+            if (theme.TryGetVariableColor("--text-primary", out var textColor))
+            {
+                foreground = textColor;
+            }
+
+            titleBar.BackgroundColor = background;
+            titleBar.ForegroundColor = foreground;
+            titleBar.InactiveBackgroundColor = background;
+            titleBar.InactiveForegroundColor = foreground;
+            titleBar.ButtonBackgroundColor = background;
+            titleBar.ButtonForegroundColor = foreground;
+            titleBar.ButtonHoverBackgroundColor = hover;
+            titleBar.ButtonHoverForegroundColor = foreground;
+            titleBar.ButtonPressedBackgroundColor = pressed;
+            titleBar.ButtonPressedForegroundColor = foreground;
+            titleBar.ButtonInactiveBackgroundColor = background;
+            titleBar.ButtonInactiveForegroundColor = foreground;
+        }
+        catch (Exception ex)
+        {
+            AppendLog($"Theme title bar apply skipped: {ex.Message}");
+        }
+    }
+
+    private void WatchActiveThemeFile()
+    {
+        _themeFileWatcher?.Dispose();
+        _themeFileWatcher = null;
+        _watchedThemePath = null;
+
+        var path = _settings.ThemeFilePath;
+        if (string.IsNullOrWhiteSpace(path) || !File.Exists(path))
+        {
+            return;
+        }
+
+        try
+        {
+            _watchedThemePath = Path.GetFullPath(path);
+            _themeFileWatcher = new FileSystemWatcher(Path.GetDirectoryName(_watchedThemePath)!, Path.GetFileName(_watchedThemePath))
+            {
+                NotifyFilter = NotifyFilters.LastWrite | NotifyFilters.Size | NotifyFilters.FileName
+            };
+            _themeFileWatcher.Changed += OnThemeFileChanged;
+            _themeFileWatcher.Created += OnThemeFileChanged;
+            _themeFileWatcher.Renamed += OnThemeFileChanged;
+            _themeFileWatcher.EnableRaisingEvents = true;
+        }
+        catch (Exception ex)
+        {
+            AppendLog($"Theme live reload watcher error: {ex.Message}");
+        }
+    }
+
+    private void OnThemeFileChanged(object sender, FileSystemEventArgs e)
+    {
+        if (_watchedThemePath is null)
+        {
+            return;
+        }
+
+        var changedPath = e is RenamedEventArgs renamed ? renamed.FullPath : e.FullPath;
+        if (!Path.GetFullPath(changedPath).Equals(_watchedThemePath, StringComparison.OrdinalIgnoreCase))
+        {
+            return;
+        }
+
+        DispatcherQueue.TryEnqueue(() =>
+        {
+            _themeReloadTimer.Stop();
+            _themeReloadTimer.Start();
+        });
+    }
+
+    private void OnThemeReloadTimerTick(object? sender, object e)
+    {
+        _themeReloadTimer.Stop();
+        ApplyThemeFromSettings();
+    }
+
+    private void OnThemeSelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (_loadingThemeChoices)
+        {
+            return;
+        }
+
+        if (ThemeComboBox.SelectedItem is not ThemeComboItem item)
+        {
+            return;
+        }
+
+        _settings.ThemeFilePath = item.IsDefault ? null : item.FilePath;
+        _settingsStore.Save(_settings);
+        ApplyThemeFromSettings();
+        WatchActiveThemeFile();
+    }
+
+    private async void OnCreateNewThemeClick(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            var path = _themeManager.CreateNewThemeFile();
+            _settings.ThemeFilePath = path;
+            _settingsStore.Save(_settings);
+            PopulateThemeComboBox();
+            ApplyThemeFromSettings();
+            WatchActiveThemeFile();
+            OpenFileWithShell(path);
+            AppendLog($"Theme created: {path}");
+        }
+        catch (Exception ex)
+        {
+            AppendLog($"Create theme error: {ex.Message}");
+            await ShowMessageDialogAsync("Theme error", ex.Message);
+        }
+    }
+
+    private async void OnOpenThemeFileClick(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            var path = _settings.ThemeFilePath;
+            if (string.IsNullOrWhiteSpace(path) || !File.Exists(path))
+            {
+                var newPath = _themeManager.CreateNewThemeFile();
+                _settings.ThemeFilePath = newPath;
+                _settingsStore.Save(_settings);
+                PopulateThemeComboBox();
+                ApplyThemeFromSettings();
+                WatchActiveThemeFile();
+                path = newPath;
+            }
+
+            OpenFileWithShell(path);
+            AppendLog($"Theme file opened: {path}");
+        }
+        catch (Exception ex)
+        {
+            AppendLog($"Open theme file error: {ex.Message}");
+            await ShowMessageDialogAsync("Theme error", ex.Message);
+        }
+    }
+
+    private async void OnImportThemeClick(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            var picker = new FileOpenPicker();
+            picker.FileTypeFilter.Add(".css");
+            InitializeWithWindow.Initialize(picker, WindowNative.GetWindowHandle(this));
+            var file = await picker.PickSingleFileAsync();
+            if (file is null)
+            {
+                return;
+            }
+
+            var path = _themeManager.ImportTheme(file.Path);
+            _settings.ThemeFilePath = path;
+            _settingsStore.Save(_settings);
+            PopulateThemeComboBox();
+            ApplyThemeFromSettings();
+            WatchActiveThemeFile();
+            AppendLog($"Theme imported: {path}");
+        }
+        catch (Exception ex)
+        {
+            AppendLog($"Import theme error: {ex.Message}");
+            await ShowMessageDialogAsync("Theme error", ex.Message);
+        }
+    }
+
+    private async void OnExportThemeClick(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            var picker = new FileSavePicker
+            {
+                SuggestedStartLocation = PickerLocationId.DocumentsLibrary,
+                SuggestedFileName = string.IsNullOrWhiteSpace(_settings.ThemeFilePath)
+                    ? "DefaultDark.voiseetheme.css"
+                    : Path.GetFileName(_settings.ThemeFilePath)
+            };
+            picker.FileTypeChoices.Add("VoiSee theme", new List<string> { ".css" });
+            InitializeWithWindow.Initialize(picker, WindowNative.GetWindowHandle(this));
+            var file = await picker.PickSaveFileAsync();
+            if (file is null)
+            {
+                return;
+            }
+
+            _themeManager.ExportTheme(_settings.ThemeFilePath, file.Path);
+            AppendLog($"Theme exported: {file.Path}");
+        }
+        catch (Exception ex)
+        {
+            AppendLog($"Export theme error: {ex.Message}");
+            await ShowMessageDialogAsync("Theme error", ex.Message);
+        }
+    }
+
+    private void OnResetThemeClick(object sender, RoutedEventArgs e)
+    {
+        _settings.ThemeFilePath = null;
+        _settingsStore.Save(_settings);
+        PopulateThemeComboBox();
+        ApplyThemeFromSettings();
+        WatchActiveThemeFile();
+        AppendLog("Theme reset to Default Dark.");
+    }
+
+    private static void OpenFileWithShell(string path)
+    {
+        Process.Start(new ProcessStartInfo
+        {
+            FileName = path,
+            UseShellExecute = true
+        });
     }
 
     private void OnActivated(object sender, WindowActivatedEventArgs args)
@@ -519,6 +867,7 @@ public sealed partial class MainWindow : Window
     private void OnMainTabSelectionChanged(object sender, SelectionChangedEventArgs e)
     {
         UpdateSoundInputOverlayBounds();
+        ApplyThemeFromSettings(log: false);
     }
 
     private void InstallSoundBoardWheelHook()
@@ -1977,6 +2326,9 @@ public sealed partial class MainWindow : Window
         SaveCurrentSettings();
         StopEngine(log: false);
         _timelineTimer.Stop();
+        _themeReloadTimer.Stop();
+        _themeFileWatcher?.Dispose();
+        _themeFileWatcher = null;
         if (_mouseHookHandle != IntPtr.Zero)
         {
             UnhookWindowsHookEx(_mouseHookHandle);
@@ -6369,6 +6721,20 @@ public sealed partial class MainWindow : Window
         _settingsStore.Save(_settings);
     }
 
+
+
+    private async Task ShowMessageDialogAsync(string title, string message)
+    {
+        var dialog = new ContentDialog
+        {
+            Title = title,
+            Content = message,
+            CloseButtonText = "OK",
+            XamlRoot = ((FrameworkElement)Content).XamlRoot
+        };
+        await dialog.ShowAsync();
+    }
+
     private void AppendLog(string message)
     {
         var line = $"[{DateTime.Now:HH:mm:ss}] {message}";
@@ -6380,4 +6746,7 @@ public sealed partial class MainWindow : Window
         _logBuffer.Append(line);
     }
     private readonly record struct VoicePresetIconChoice(string Name, string Icon, bool UseMdl2);
+
+    private sealed record ThemeComboItem(string DisplayName, string? FilePath, bool IsDefault);
 }
+
