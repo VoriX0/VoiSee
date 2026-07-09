@@ -1,9 +1,3 @@
-# VoiSee 8.2.6
+# VoiSee 9.0 — Global Virtual Mic Mute
 
-Installer-ready source archive.
-
-Changes in this build:
-- fixes manual VB-CABLE install from Settings by launching setup from the full extracted package
-- fixes bundled VB-CABLE installer flow so setup has INF/CAT/SYS files next to it
-- skips auto-launching VoiSee after VB-CABLE install because a Windows restart is usually required
-- keeps simplified Settings without user-facing Virtual Output selection
+Gate 9.0 adds global Virtual Mic Mute. Mute affects only the virtual microphone output; the user still hears VoiSee in headphones.
