@@ -1,20 +1,13 @@
-# VoiSee 9.1.6 — Theme reapply stability and border shorthand
+# VoiSee 9.1.10 — Theme empty reset startup fix
 
-- Display version: `VoiSee Version 9.1.6`
-- Installer output: `VoiSee-Setup-9.1.6-x64.exe`
-- Portable output: `VoiSee-Portable-9.1.6-x64.zip`
+- Display version: `VoiSee Version 9.1.10`
+- Installer output: `VoiSee-Setup-9.1.10-x64.exe`
+- Portable output: `VoiSee-Portable-9.1.10-x64.zip`
 
-## Main changes
+## Fix
 
-- Fixes theme styles disappearing after switching tabs.
-- If the active theme file is deleted outside VoiSee, the app resets to `Default Dark` and updates the theme list.
-- Empty new themes are now truly non-destructive and clear previous themed styling.
-- Adds CSS-like `border` shorthand: `border: solid #66FFFFFF 1;`.
-- Adds `Padding_Stress_Test.voiseetheme.css` for checking tab reapply behavior.
+This build fixes the remaining theme reset problem when VoiSee starts with one theme selected and then switches to an empty/reset theme.
 
-Build with:
+Previously, empty declarations could accidentally capture the already-themed value as the default. That left ComboBox controls such as Input Microphone, Monitor Output and the SoundBoard category selector painted with colors from the previous theme.
 
-```powershell
-Set-ExecutionPolicy -Scope Process Bypass
-.\scripts\build-installer.ps1
-```
+Now empty values restore the original snapshot when available, and otherwise clear the local themed value so the control can return to its real default style.

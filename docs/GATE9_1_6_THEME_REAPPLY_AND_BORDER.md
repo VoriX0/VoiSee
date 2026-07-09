@@ -1,6 +1,6 @@
-# VoiSee 9.1.6 — Theme reapply stability and border shorthand
+# VoiSee 9.1.7 — Theme reapply stability and border shorthand
 
-Gate 9.1.6 fixes CSS-like theme stability after tab switching and improves authoring ergonomics.
+Gate 9.1.7 fixes CSS-like theme stability after tab switching and improves authoring ergonomics.
 
 ## Fixed
 

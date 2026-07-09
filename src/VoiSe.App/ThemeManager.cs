@@ -20,6 +20,12 @@ public sealed class ThemeManager
     private static readonly Regex CommentRegex = new(@"/\*.*?\*/", RegexOptions.Compiled | RegexOptions.Singleline);
     private static readonly Regex VarRegex = new(@"var\((?<name>--[A-Za-z0-9_-]+)\)", RegexOptions.Compiled | RegexOptions.IgnoreCase);
 
+    // Original visual values captured before a theme paints an element.
+    // Empty CSS values must restore these values, never whatever theme happened
+    // to be active during the previous run. This is especially important for
+    // WinUI controls such as ComboBox and ListView, which otherwise can keep
+    // stale local values from the last selected theme.
+    private readonly Dictionary<FrameworkElement, ElementStyleSnapshot> _originalSnapshots = new();
     private readonly Dictionary<FrameworkElement, ElementStyleSnapshot> _snapshots = new();
     private readonly HashSet<FrameworkElement> _styledByLastApply = new();
     private readonly Dictionary<FrameworkElement, InteractiveThemeState> _interactiveStates = new();
@@ -155,15 +161,19 @@ public sealed class ThemeManager
         foreach (var rawDeclaration in body.Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
         {
             var separator = rawDeclaration.IndexOf(':');
-            if (separator <= 0 || separator >= rawDeclaration.Length - 1)
+            if (separator <= 0)
             {
                 continue;
             }
 
             var name = rawDeclaration[..separator].Trim();
-            var value = rawDeclaration[(separator + 1)..].Trim();
-            if (!string.IsNullOrWhiteSpace(name) && !string.IsNullOrWhiteSpace(value))
+            var value = separator >= rawDeclaration.Length - 1
+                ? string.Empty
+                : rawDeclaration[(separator + 1)..].Trim();
+            if (!string.IsNullOrWhiteSpace(name))
             {
+                // Empty values are intentional in VoiSee themes. They mean:
+                // "reset this property to the original XAML/default value".
                 result[name] = value;
             }
         }
@@ -173,18 +183,23 @@ public sealed class ThemeManager
 
     public int ApplyTheme(FrameworkElement root, VoiSeeCssTheme theme)
     {
-        // Restore every element ever touched by the theme engine, not only the
-        // elements from the previous visible tab. This prevents a newly-created
-        // blank theme from inheriting colors/radius from the previously selected
-        // theme and avoids stale styles when TabView virtualizes/unloads content.
+        // First restore all controls that were touched by the previous theme,
+        // then capture original values for any newly materialized tab elements.
+        // The capture happens while the visual tree is back in the real XAML
+        // state, so an empty declaration can restore the initial VoiSee design
+        // instead of preserving the previous theme color.
         RestoreAllThemedElements();
         _interactiveStates.Clear();
 
-        // A theme with no active rules is intentionally non-destructive. Restore
-        // everything and clear captured snapshots, so the next non-empty theme
-        // captures a clean XAML baseline instead of a previously themed baseline.
+        var elements = EnumerateVisualTree(root).OfType<FrameworkElement>().ToArray();
+        CaptureOriginalSnapshots(elements);
+
+        // A theme with no active rules means "return to the original VoiSee XAML
+        // design". Do not paint a hard-coded fallback here: the real default
+        // appearance already lives in MainWindow.xaml.
         if (theme.Rules.Count == 0)
         {
+            RestoreOriginalSnapshots(elements);
             _snapshots.Clear();
             _styledByLastApply.Clear();
             return 0;
@@ -192,7 +207,6 @@ public sealed class ThemeManager
 
         var applied = 0;
         var styledThisApply = new HashSet<FrameworkElement>();
-        var elements = EnumerateVisualTree(root).OfType<FrameworkElement>().ToArray();
 
         foreach (var element in elements)
         {
@@ -219,11 +233,18 @@ public sealed class ThemeManager
 
     private void RestoreAllThemedElements()
     {
-        foreach (var pair in _snapshots.ToArray())
+        foreach (var element in _snapshots.Keys.ToArray())
         {
             try
             {
-                pair.Value.Restore(pair.Key);
+                if (_originalSnapshots.TryGetValue(element, out var original))
+                {
+                    original.Restore(element);
+                }
+                else if (_snapshots.TryGetValue(element, out var snapshot))
+                {
+                    snapshot.Restore(element);
+                }
             }
             catch
             {
@@ -234,6 +255,135 @@ public sealed class ThemeManager
 
         _styledByLastApply.Clear();
     }
+
+    private void CaptureOriginalSnapshots(IEnumerable<FrameworkElement> elements)
+    {
+        foreach (var element in elements)
+        {
+            if (!_originalSnapshots.ContainsKey(element))
+            {
+                _originalSnapshots[element] = ElementStyleSnapshot.Capture(element);
+            }
+        }
+    }
+
+    private void RestoreOriginalSnapshots(IEnumerable<FrameworkElement> elements)
+    {
+        foreach (var element in elements)
+        {
+            try
+            {
+                if (_originalSnapshots.TryGetValue(element, out var original))
+                {
+                    original.Restore(element);
+                }
+                else
+                {
+                    ResetKnownThemeProperties(element);
+                }
+            }
+            catch
+            {
+            }
+        }
+    }
+
+    private static void ResetKnownThemeProperties(FrameworkElement element)
+    {
+        foreach (var property in new[]
+        {
+            "background", "foreground", "border", "border-radius", "padding",
+            "margin", "opacity", "font-size", "font-weight", "width", "height",
+            "min-width", "min-height", "max-width", "max-height"
+        })
+        {
+            ResetLocalProperty(element, property);
+        }
+    }
+
+    private static void ApplyDefaultDarkVisualReset(FrameworkElement root)
+    {
+        foreach (var element in EnumerateVisualTree(root).OfType<FrameworkElement>())
+        {
+            ApplyDefaultDarkVisualResetToElement(element);
+        }
+    }
+
+    private static void ApplyDefaultDarkVisualResetToElement(FrameworkElement element)
+    {
+        var white = new SolidColorBrush(Color.FromArgb(0xFF, 0xF3, 0xF7, 0xFF));
+        var secondary = new SolidColorBrush(Color.FromArgb(0xFF, 0xB6, 0xC0, 0xD0));
+        var transparent = new SolidColorBrush(Color.FromArgb(0x00, 0x00, 0x00, 0x00));
+        var buttonBackground = new SolidColorBrush(Color.FromArgb(0xFF, 0x1A, 0x1A, 0x1A));
+        var inputBackground = new SolidColorBrush(Color.FromArgb(0xFF, 0x09, 0x0E, 0x16));
+        var inputBorder = new SolidColorBrush(Color.FromArgb(0x55, 0xFF, 0xFF, 0xFF));
+
+        switch (element)
+        {
+            case ComboBox comboBox:
+                comboBox.Background = inputBackground;
+                comboBox.Foreground = white;
+                comboBox.BorderBrush = inputBorder;
+                comboBox.BorderThickness = new Thickness(1);
+                TrySetCornerRadiusProperty(comboBox, new CornerRadius(8));
+                comboBox.Padding = new Thickness(10, 3, 10, 3);
+                break;
+
+            case ListView listView:
+                listView.Background = transparent;
+                listView.BorderBrush = transparent;
+                listView.BorderThickness = new Thickness(0);
+                listView.Padding = new Thickness(0);
+                break;
+
+            case ToggleButton toggleButton:
+                toggleButton.Background = buttonBackground;
+                toggleButton.Foreground = white;
+                toggleButton.BorderBrush = transparent;
+                toggleButton.BorderThickness = new Thickness(0);
+                TrySetCornerRadiusProperty(toggleButton, new CornerRadius(4));
+                toggleButton.Padding = new Thickness(10, 4, 10, 4);
+                break;
+
+            case Button button:
+                button.Background = buttonBackground;
+                button.Foreground = white;
+                button.BorderBrush = transparent;
+                button.BorderThickness = new Thickness(0);
+                TrySetCornerRadiusProperty(button, new CornerRadius(4));
+                button.Padding = new Thickness(10, 4, 10, 4);
+                break;
+
+            case HyperlinkButton hyperlinkButton:
+                hyperlinkButton.Background = transparent;
+                hyperlinkButton.BorderBrush = transparent;
+                hyperlinkButton.BorderThickness = new Thickness(0);
+                hyperlinkButton.Foreground = new SolidColorBrush(Color.FromArgb(0xFF, 0x00, 0xD5, 0xFF));
+                hyperlinkButton.Padding = new Thickness(0);
+                break;
+
+            case Slider slider:
+                slider.Background = transparent;
+                slider.Foreground = secondary;
+                slider.BorderBrush = transparent;
+                slider.BorderThickness = new Thickness(0);
+                slider.Padding = new Thickness(0);
+                slider.Height = double.NaN;
+                slider.MinHeight = 0;
+                slider.Margin = new Thickness(0);
+                break;
+
+            case TextBox textBox:
+                textBox.Background = inputBackground;
+                textBox.Foreground = white;
+                textBox.BorderBrush = inputBorder;
+                textBox.BorderThickness = new Thickness(1);
+                TrySetCornerRadiusProperty(textBox, new CornerRadius(8));
+                textBox.Padding = new Thickness(10, 4, 10, 4);
+                break;
+        }
+    }
+
 
     private int ApplyRulesToElement(FrameworkElement element, VoiSeeCssTheme theme, HashSet<FrameworkElement> styledThisApply)
     {
@@ -266,7 +416,30 @@ public sealed class ThemeManager
 
             foreach (var declaration in resolved)
             {
+                if (string.IsNullOrWhiteSpace(declaration.Value))
+                {
+                    // Empty values mean "reset this property". Do not capture a
+                    // snapshot here: after restart the previous active theme might
+                    // already have painted this control. Capturing at this point
+                    // would store the stale theme color as the "default" and the
+                    // reset would appear to do nothing. Prefer the original snapshot
+                    // when it exists; otherwise clear the local themed value so WinUI
+                    // can fall back to the real XAML/control default.
+                    var restored = _originalSnapshots.TryGetValue(element, out var snapshot)
+                        ? snapshot.RestoreProperty(element, declaration.Key)
+                        : ResetLocalProperty(element, declaration.Key);
+
+                    if (restored)
+                    {
+                        applied++;
+                        styledThisApply.Add(element);
+                        GetInteractiveState(element).BaseDeclarations[declaration.Key] = declaration.Value;
+                    }
+                    continue;
+                }
+
                 CaptureSnapshotIfNeeded(element);
+
                 if (ApplyDeclaration(element, declaration.Key, declaration.Value))
                 {
                     applied++;
@@ -574,9 +747,14 @@ public sealed class ThemeManager
 
     private void CaptureSnapshotIfNeeded(FrameworkElement element)
     {
+        if (!_originalSnapshots.ContainsKey(element))
+        {
+            _originalSnapshots[element] = ElementStyleSnapshot.Capture(element);
+        }
+
         if (!_snapshots.ContainsKey(element))
         {
-            _snapshots[element] = ElementStyleSnapshot.Capture(element);
+            _snapshots[element] = _originalSnapshots[element];
         }
     }
 
@@ -665,9 +843,13 @@ public sealed class ThemeManager
             return;
         }
 
-        if (_snapshots.TryGetValue(element, out var snapshot))
+        if (_originalSnapshots.TryGetValue(element, out var snapshot))
         {
             snapshot.Restore(element);
+        }
+        else if (_snapshots.TryGetValue(element, out var fallbackSnapshot))
+        {
+            fallbackSnapshot.Restore(element);
         }
 
         ApplyDeclarations(element, state.BaseDeclarations);
@@ -695,6 +877,198 @@ public sealed class ThemeManager
         {
             ApplyDeclaration(element, declaration.Key, declaration.Value);
         }
+    }
+
+    private static bool ResetLocalProperty(FrameworkElement element, string property)
+    {
+        try
+        {
+            switch (property.Trim().ToLowerInvariant())
+            {
+                case "background":
+                case "background-color":
+                case "background-image":
+                    switch (element)
+                    {
+                        case Panel panel:
+                            panel.ClearValue(Panel.BackgroundProperty);
+                            return true;
+                        case Border border:
+                            border.ClearValue(Border.BackgroundProperty);
+                            return true;
+                        case Control control:
+                            control.ClearValue(Control.BackgroundProperty);
+                            return true;
+                    }
+                    return false;
+
+                case "foreground":
+                case "color":
+                    switch (element)
+                    {
+                        case TextBlock textBlock:
+                            textBlock.ClearValue(TextBlock.ForegroundProperty);
+                            return true;
+                        case Control control:
+                            control.ClearValue(Control.ForegroundProperty);
+                            return true;
+                    }
+                    return false;
+
+                case "border":
+                    return ResetLocalProperty(element, "border-color") | ResetLocalProperty(element, "border-thickness");
+
+                case "border-color":
+                    switch (element)
+                    {
+                        case Border border:
+                            border.ClearValue(Border.BorderBrushProperty);
+                            return true;
+                        case Control control:
+                            control.ClearValue(Control.BorderBrushProperty);
+                            return true;
+                    }
+                    return false;
+
+                case "border-thickness":
+                case "border-width":
+                    switch (element)
+                    {
+                        case Border border:
+                            border.ClearValue(Border.BorderThicknessProperty);
+                            return true;
+                        case Control control:
+                            control.ClearValue(Control.BorderThicknessProperty);
+                            return true;
+                    }
+                    return false;
+
+                case "corner-radius":
+                case "border-radius":
+                case "radius":
+                    if (element is Border borderForRadius)
+                    {
+                        borderForRadius.ClearValue(Border.CornerRadiusProperty);
+                        return true;
+                    }
+                    return ClearCornerRadiusProperty(element);
+
+                case "padding":
+                    switch (element)
+                    {
+                        case Border border:
+                            border.ClearValue(Border.PaddingProperty);
+                            return true;
+                        case Control control:
+                            control.ClearValue(Control.PaddingProperty);
+                            return true;
+                    }
+                    return false;
+
+                case "margin":
+                    element.ClearValue(FrameworkElement.MarginProperty);
+                    return true;
+                case "width":
+                    element.ClearValue(FrameworkElement.WidthProperty);
+                    return true;
+                case "height":
+                    element.ClearValue(FrameworkElement.HeightProperty);
+                    return true;
+                case "min-width":
+                    element.ClearValue(FrameworkElement.MinWidthProperty);
+                    return true;
+                case "min-height":
+                    element.ClearValue(FrameworkElement.MinHeightProperty);
+                    return true;
+                case "max-width":
+                    element.ClearValue(FrameworkElement.MaxWidthProperty);
+                    return true;
+                case "max-height":
+                    element.ClearValue(FrameworkElement.MaxHeightProperty);
+                    return true;
+                case "opacity":
+                    element.ClearValue(UIElement.OpacityProperty);
+                    return true;
+
+                case "font-size":
+                    switch (element)
+                    {
+                        case TextBlock textBlock:
+                            textBlock.ClearValue(TextBlock.FontSizeProperty);
+                            return true;
+                        case Control control:
+                            control.ClearValue(Control.FontSizeProperty);
+                            return true;
+                    }
+                    return false;
+
+                case "font-weight":
+                    switch (element)
+                    {
+                        case TextBlock textBlock:
+                            textBlock.ClearValue(TextBlock.FontWeightProperty);
+                            return true;
+                        case Control control:
+                            control.ClearValue(Control.FontWeightProperty);
+                            return true;
+                    }
+                    return false;
+
+                case "spacing":
+                case "gap":
+                    switch (element)
+                    {
+                        case StackPanel stackPanel:
+                            stackPanel.ClearValue(StackPanel.SpacingProperty);
+                            return true;
+                        case Grid grid:
+                            grid.ClearValue(Grid.ColumnSpacingProperty);
+                            grid.ClearValue(Grid.RowSpacingProperty);
+                            return true;
+                    }
+                    return false;
+
+                default:
+                    return false;
+            }
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    private static bool ClearCornerRadiusProperty(FrameworkElement element)
+    {
+        var property = element.GetType().GetProperty("CornerRadius");
+        if (property is null || property.PropertyType != typeof(CornerRadius))
+        {
+            return false;
+        }
+
+        try
+        {
+            // DependencyObject.ClearValue needs the static DependencyProperty field.
+            // Most WinUI controls expose it as CornerRadiusProperty.
+            var dpField = element.GetType().GetField("CornerRadiusProperty");
+            if (dpField?.GetValue(null) is DependencyProperty dp)
+            {
+                element.ClearValue(dp);
+                return true;
+            }
+        }
+        catch
+        {
+        }
+
+        // Fallback for rare non-DP wrappers.
+        if (property.CanWrite)
+        {
+            property.SetValue(element, default(CornerRadius));
+            return true;
+        }
+
+        return false;
     }
 
     private static bool ApplyDeclaration(FrameworkElement element, string property, string value)
@@ -1424,12 +1798,17 @@ public sealed class ThemeManager
     Tb = tabs: .Tb, .TbItem
     Mn = context/menu flyout elements where available: .Mn
 
-  The new file is intentionally non-destructive: all example declarations are commented.
-  Uncomment what you want. Saving this file reloads the theme live.
+  Empty value means: reset this property to the original VoiSee/XAML default, not to the previous theme.
+  Example:
+    .Bt { background:; padding:; }
+  This is useful when you remove a value while editing a theme live.
 
-  Supported properties include:
-    background, foreground/color, border, border-color, border-thickness/border-width, border-radius/corner-radius/radius,
-    opacity, font-size, font-weight, padding, margin, width, height, min-width, min-height, max-width, max-height, spacing/gap.
+  Fill only the values you want to change. Save the file and VoiSee reloads it live.
+
+  Supported properties:
+    background, foreground/color, border, border-color, border-thickness/border-width,
+    border-radius/corner-radius/radius, opacity, font-size, font-weight,
+    padding, margin, width, height, min-width, min-height, max-width, max-height, spacing/gap.
 
   Border shorthand examples:
     border: solid var(--panel-border) 1;
@@ -1457,58 +1836,73 @@ public sealed class ThemeManager
   --radius-input: 14;
 }
 
-/* Global */
-#RootGrid { /* background: var(--app-background); */ }
-.Pn { /* background: var(--panel-background); border: solid var(--panel-border) 1; border-radius: var(--radius-panel); */ }
-.Bt { /* background: var(--button-background); foreground: var(--text-primary); border: solid var(--button-border) 1; border-radius: var(--radius-button); padding: 14 7; */ }
-.Bt:hover { /* background: var(--button-hover); */ }
-.Bt:pressed { /* background: var(--button-pressed); */ }
-.Bt:on { /* background: var(--accent); foreground: #001018; */ }
-.Cb { /* background: #0D1420; foreground: var(--text-primary); border: solid var(--button-border) 1; border-radius: var(--radius-input); padding: 12 6; */ }
-.Sl { /* foreground: var(--accent); height: 32; min-height: 32; margin: 0 4 0 4; */ }
-.Txt { /* foreground: var(--text-primary); */ }
-.link-button { /* foreground: var(--accent); */ }
+/* Global reset-ready selectors. Blank declarations restore defaults. */
+#RootGrid { background:; }
+.Pn { background:; border:; border-radius:; padding:; margin:; opacity:; }
+.Bt { background:; foreground:; border:; border-radius:; padding:; margin:; font-size:; font-weight:; }
+.Bt:hover { background:; foreground:; border:; }
+.Bt:pressed { background:; foreground:; border:; }
+.Bt:on { background:; foreground:; border:; }
+.Cb { background:; foreground:; border:; border-radius:; padding:; margin:; font-size:; }
+.Sl { background:; foreground:; border:; padding:; margin:; height:; min-height:; }
+.Txt { foreground:; font-size:; font-weight:; margin:; opacity:; }
+.Tb, .TbItem { background:; foreground:; border:; border-radius:; padding:; }
+.Lv, .list-view { background:; border:; padding:; margin:; }
+.link-button { background:; foreground:; border:; padding:; }
 
 /* Main panels */
-#PnMainHeader { /* background: linear-gradient(90deg, #101827, #071018); border-radius: 18; padding: 8; */ }
-#PnMainTabs { /* background: #08111B; border-color: #314155; border-thickness: 1; border-radius: 18; padding: 6; */ }
-#PnMainSoundboard { /* background: transparent; */ }
-#PnMainVoiceChanger { /* background: transparent; */ }
-#PnMainScenes { /* background: transparent; */ }
-#PnMainSettings { /* background: transparent; */ }
-#PnThemes { /* background: var(--panel-background); border-color: var(--panel-border); border-radius: var(--radius-panel); */ }
-#PnAboutMe { /* background: var(--panel-background); border-color: var(--panel-border); border-radius: var(--radius-panel); */ }
-#PnVBCable { /* background: #111F1B; border-color: #3369D38B; border-radius: var(--radius-panel); */ }
+#PnMainHeader { background:; border:; border-radius:; padding:; margin:; }
+#PnMainTabs { background:; border:; border-radius:; padding:; margin:; }
+#PnMainSoundboard { background:; }
+#PnMainVoiceChanger { background:; }
+#PnMainScenes { background:; }
+#PnMainSettings { background:; }
+#PnThemes { background:; border:; border-radius:; padding:; }
+#PnAboutMe { background:; border:; border-radius:; padding:; }
+#PnVBCable { background:; border:; border-radius:; padding:; }
 
 /* Header / mute */
-#BtSettingsMute, #BtGlobalMute { /* border-radius: 14; padding: 16 6; */ }
-#VirtualMicMuteStatusTextBlock { /* foreground: var(--success); */ }
-#PnMuteBanner { /* background: #44220000; border-color: #88FF4D4D; border-radius: 12; */ }
+#BtSettingsMute, #BtGlobalMute { background:; foreground:; border:; border-radius:; padding:; }
+#VirtualMicMuteStatusTextBlock { foreground:; }
+#PnMuteBanner { background:; border:; border-radius:; padding:; }
 
 /* SoundBoard */
-#PnSoundboardTimeline { /* background: linear-gradient(90deg, #0B1624, #0F243A); border-radius: 16; */ }
-#PnSoundboardSoundList { /* background: #080D14; border-radius: 16; */ }
-#BtSoundboardNext, #BtSoundboardPrevious, #BtSoundboardPlayPause, #BtSoundboardStop, #BtSoundboardLoop { /* border-radius: var(--radius-button); */ }
-#SlSoundboardVirtualMic, #SlSoundboardHeadphones, #SlSoundboardDelay { /* height: 34; min-height: 34; margin: 4 0 4 0; */ }
-.soundboard-sound { /* background: transparent; border-radius: 10; */ }
-.soundboard-sound:hover { /* background: #18FFFFFF; */ }
+#PnSoundboardTimeline { background:; border:; border-radius:; padding:; }
+#PnSoundboardSoundList { background:; border:; border-radius:; padding:; }
+#BtSoundboardNext, #BtSoundboardPrevious, #BtSoundboardPlayPause, #BtSoundboardStop, #BtSoundboardLoop { background:; foreground:; border:; border-radius:; padding:; }
+#SlSoundboardVirtualMic, #SlSoundboardHeadphones, #SlSoundboardDelay { foreground:; height:; min-height:; margin:; }
+#CbSoundboardCategory, #SoundboardCategoryList { background:; foreground:; border:; border-radius:; padding:; }
+.soundboard-sound, .soundboard-row { background:; foreground:; border:; border-radius:; padding:; margin:; }
+.soundboard-sound:hover, .soundboard-row:hover { background:; foreground:; border:; }
 
 /* Voice Changer */
-#PnVoiceChangerPresets { /* background: #080D14; border-radius: 16; */ }
-#BtVoicechangerMonitor { /* border-radius: var(--radius-button); */ }
-.voicechanger-slider, #SlVoiceGain, #SlVoicePitch, #SlVoiceFormant { /* height: 32; min-height: 32; */ }
+#PnVoiceChangerPresets { background:; border:; border-radius:; padding:; }
+#BtVoicechangerMonitor { background:; foreground:; border:; border-radius:; padding:; }
+.voicechanger-slider, #SlVoiceGain, #SlVoicePitch, #SlVoiceFormant { foreground:; height:; min-height:; margin:; }
 
 /* Scenes */
-#BtScenesApply:pressed { /* background: var(--success); */ }
-#BtScenesDisable:pressed, #BtScenesDelete:pressed { /* background: var(--danger); */ }
-#SlScenesLoopHeadphones, #SlScenesLoopVirtualMic { /* height: 30; min-height: 30; */ }
+#BtScenesApply, #BtScenesDisable, #BtScenesDelete, #BtScenesRename, #BtScenesCreate { background:; foreground:; border:; border-radius:; padding:; }
+#BtScenesApply:pressed { background:; foreground:; }
+#BtScenesDisable:pressed, #BtScenesDelete:pressed { background:; foreground:; }
+#SlScenesLoopHeadphones, #SlScenesLoopVirtualMic { foreground:; height:; min-height:; margin:; }
+#CbScenesVoicePreset { background:; foreground:; border:; border-radius:; padding:; }
 
 /* Settings */
-#SlSettingsVirtualMicMaster { /* height: 36; min-height: 36; margin: 8 0 8 0; */ }
-#BtSettingsStartEngine:pressed { /* background: var(--success); */ }
-#BtSettingsStopEngine:pressed { /* background: var(--danger); */ }
-#CbSettingsInputMicrophone, #CbSettingsMonitorOutput, #CbTheme { /* border-radius: var(--radius-input); */ }
-#BtThemeDelete { /* border-color: #66505050; */ }
+#SlSettingsVirtualMicMaster { foreground:; height:; min-height:; margin:; padding:; }
+#BtSettingsStartEngine, #BtSettingsStopEngine, #BtInstallVBCable, #BtThemeDelete { background:; foreground:; border:; border-radius:; padding:; }
+#BtSettingsStartEngine:pressed { background:; foreground:; }
+#BtSettingsStopEngine:pressed { background:; foreground:; }
+#CbSettingsInputMicrophone, #CbSettingsMonitorOutput, #CbTheme { background:; foreground:; border:; border-radius:; padding:; }
+
+/* Examples: uncomment or copy into selectors above.
+.Pn { background: var(--panel-background); border: solid var(--panel-border) 1; border-radius: var(--radius-panel); }
+.Bt { background: var(--button-background); foreground: var(--text-primary); border: solid var(--button-border) 1; border-radius: var(--radius-button); padding: 14 7; }
+.Bt:hover { background: var(--button-hover); }
+.Bt:pressed { background: var(--button-pressed); }
+.Cb { background: #0D1420; foreground: var(--text-primary); border: solid var(--button-border) 1; border-radius: var(--radius-input); padding: 12 6; }
+.Sl { foreground: var(--accent); height: 32; min-height: 32; margin: 0 4 0 4; }
+#PnMainHeader { background: linear-gradient(90deg, #101827, #071018); border-radius: 18; padding: 8; }
+*/
 
 /* Notes:
    Padding on Slider is limited by WinUI's internal Slider template.
@@ -1591,6 +1985,186 @@ public sealed class ThemeManager
             }
 
             return snapshot;
+        }
+
+        public bool RestoreProperty(FrameworkElement element, string property)
+        {
+            switch (property.Trim().ToLowerInvariant())
+            {
+                case "background":
+                case "background-color":
+                case "background-image":
+                    return RestoreBackground(element);
+                case "foreground":
+                case "color":
+                    return RestoreForeground(element);
+                case "border":
+                    return RestoreBorderBrush(element) | RestoreBorderThickness(element);
+                case "border-color":
+                    return RestoreBorderBrush(element);
+                case "border-thickness":
+                case "border-width":
+                    return RestoreBorderThickness(element);
+                case "corner-radius":
+                case "border-radius":
+                case "radius":
+                    return RestoreCornerRadius(element);
+                case "padding":
+                    return RestorePadding(element);
+                case "margin":
+                    element.Margin = Margin;
+                    return true;
+                case "width":
+                    element.Width = Width;
+                    return true;
+                case "height":
+                    element.Height = Height;
+                    return true;
+                case "min-width":
+                    element.MinWidth = MinWidth;
+                    return true;
+                case "min-height":
+                    element.MinHeight = MinHeight;
+                    return true;
+                case "max-width":
+                    element.MaxWidth = MaxWidth;
+                    return true;
+                case "max-height":
+                    element.MaxHeight = MaxHeight;
+                    return true;
+                case "opacity":
+                    element.Opacity = Opacity;
+                    return true;
+                case "font-size":
+                    return RestoreFontSize(element);
+                case "font-weight":
+                    return RestoreFontWeight(element);
+                default:
+                    return false;
+            }
+        }
+
+        private bool RestoreBackground(FrameworkElement element)
+        {
+            switch (element)
+            {
+                case Panel panel:
+                    panel.Background = Background;
+                    return true;
+                case Border border:
+                    border.Background = Background;
+                    return true;
+                case Control control:
+                    control.Background = Background;
+                    return true;
+                default:
+                    return false;
+            }
+        }
+
+        private bool RestoreForeground(FrameworkElement element)
+        {
+            switch (element)
+            {
+                case TextBlock textBlock:
+                    textBlock.Foreground = Foreground;
+                    return true;
+                case Control control:
+                    control.Foreground = Foreground;
+                    return true;
+                default:
+                    return false;
+            }
+        }
+
+        private bool RestoreBorderBrush(FrameworkElement element)
+        {
+            switch (element)
+            {
+                case Border border:
+                    border.BorderBrush = BorderBrush;
+                    return true;
+                case Control control:
+                    control.BorderBrush = BorderBrush;
+                    return true;
+                default:
+                    return false;
+            }
+        }
+
+        private bool RestoreBorderThickness(FrameworkElement element)
+        {
+            if (!BorderThickness.HasValue) return false;
+            switch (element)
+            {
+                case Border border:
+                    border.BorderThickness = BorderThickness.Value;
+                    return true;
+                case Control control:
+                    control.BorderThickness = BorderThickness.Value;
+                    return true;
+                default:
+                    return false;
+            }
+        }
+
+        private bool RestoreCornerRadius(FrameworkElement element)
+        {
+            if (!CornerRadius.HasValue) return false;
+            if (element is Border border)
+            {
+                border.CornerRadius = CornerRadius.Value;
+                return true;
+            }
+            return TrySetCornerRadiusProperty(element, CornerRadius.Value);
+        }
+
+        private bool RestorePadding(FrameworkElement element)
+        {
+            if (!Padding.HasValue) return false;
+            switch (element)
+            {
+                case Border border:
+                    border.Padding = Padding.Value;
+                    return true;
+                case Control control:
+                    control.Padding = Padding.Value;
+                    return true;
+                default:
+                    return false;
+            }
+        }
+
+        private bool RestoreFontSize(FrameworkElement element)
+        {
+            if (!FontSize.HasValue) return false;
+            switch (element)
+            {
+                case TextBlock textBlock:
+                    textBlock.FontSize = FontSize.Value;
+                    return true;
+                case Control control:
+                    control.FontSize = FontSize.Value;
+                    return true;
+                default:
+                    return false;
+            }
+        }
+
+        private bool RestoreFontWeight(FrameworkElement element)
+        {
+            if (!FontWeight.HasValue) return false;
+            switch (element)
+            {
+                case TextBlock textBlock:
+                    textBlock.FontWeight = FontWeight.Value;
+                    return true;
+                case Control control:
+                    control.FontWeight = FontWeight.Value;
+                    return true;
+                default:
+                    return false;
+            }
         }
 
         public void Restore(FrameworkElement element)

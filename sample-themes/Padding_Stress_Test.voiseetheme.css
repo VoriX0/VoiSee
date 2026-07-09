@@ -1,4 +1,4 @@
-/* VoiSee sample theme: Padding Stress Test 9.1.6. Not intended as a pretty daily theme.
+/* VoiSee sample theme: Padding Stress Test 9.1.9. Not intended as a pretty daily theme.
    Use it to verify that .Bt padding and tab reapply survive tab switching. */
 :root {
   --app-background: #050505;

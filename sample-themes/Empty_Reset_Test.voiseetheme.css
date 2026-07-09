@@ -1,0 +1,17 @@
+/* VoiSee sample theme: Empty Reset Test 9.1.9
+   This file contains active selectors with empty values.
+   Empty value means: reset this property to the original VoiSee/XAML value.
+   Use it after applying a bright/debug theme to verify that controls return to the real default design.
+*/
+
+.Pn { background:; border:; border-radius:; padding:; margin:; }
+.Bt { background:; foreground:; border:; border-radius:; padding:; margin:; }
+.Cb { background:; foreground:; border:; border-radius:; padding:; margin:; }
+.Sl { background:; foreground:; border:; padding:; margin:; height:; min-height:; }
+.Txt { foreground:; font-size:; font-weight:; }
+.Lv, .list-view { background:; border:; padding:; margin:; }
+.soundboard-sound, .soundboard-row { background:; foreground:; border:; border-radius:; padding:; margin:; }
+#RootGrid { background:; }
+#PnMainHeader { background:; border:; border-radius:; padding:; margin:; }
+#PnMainTabs { background:; border:; border-radius:; padding:; margin:; }
+#CbSettingsInputMicrophone, #CbSettingsMonitorOutput, #CbTheme, #CbSoundboardCategory { background:; foreground:; border:; border-radius:; padding:; }
