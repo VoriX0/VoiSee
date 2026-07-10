@@ -183,11 +183,11 @@ public sealed class ThemeManager
 
     public int ApplyTheme(FrameworkElement root, VoiSeeCssTheme theme)
     {
-        // First restore all controls that were touched by the previous theme,
-        // then capture original values for any newly materialized tab elements.
-        // The capture happens while the visual tree is back in the real XAML
-        // state, so an empty declaration can restore the initial VoiSee design
-        // instead of preserving the previous theme color.
+        // Full apply is used only when the selected theme changes or when the
+        // active CSS file is saved. It may restore and repaint the whole visual
+        // tree because the rules themselves may have changed. Do not use this
+        // path for ordinary tab switching: repainting the whole tree there makes
+        // the original XAML design flash briefly and can stall the UI.
         RestoreAllThemedElements();
         _interactiveStates.Clear();
 
@@ -205,6 +205,28 @@ public sealed class ThemeManager
             return 0;
         }
 
+        return ApplyThemeRulesWithoutGlobalRestore(elements, theme, replaceLastStyledSet: true);
+    }
+
+    public int ApplyThemeIncremental(FrameworkElement root, VoiSeeCssTheme theme)
+    {
+        // Fast path for tab switches / lazy WinUI materialization. The currently
+        // selected theme did not change, so we only paint controls that are
+        // currently present. We intentionally avoid RestoreAllThemedElements()
+        // here: it is the source of the half-second Default Dark flash and the
+        // small freeze during frequent tab swipes.
+        if (theme.Rules.Count == 0)
+        {
+            return 0;
+        }
+
+        var elements = EnumerateVisualTree(root).OfType<FrameworkElement>().ToArray();
+        CaptureOriginalSnapshots(elements);
+        return ApplyThemeRulesWithoutGlobalRestore(elements, theme, replaceLastStyledSet: false);
+    }
+
+    private int ApplyThemeRulesWithoutGlobalRestore(IReadOnlyList<FrameworkElement> elements, VoiSeeCssTheme theme, bool replaceLastStyledSet)
+    {
         var applied = 0;
         var styledThisApply = new HashSet<FrameworkElement>();
 
@@ -213,7 +235,11 @@ public sealed class ThemeManager
             applied += ApplyRulesToElement(element, theme, styledThisApply);
         }
 
-        _styledByLastApply.Clear();
+        if (replaceLastStyledSet)
+        {
+            _styledByLastApply.Clear();
+        }
+
         foreach (var element in styledThisApply)
         {
             _styledByLastApply.Add(element);

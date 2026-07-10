@@ -75,6 +75,7 @@ public sealed partial class MainWindow : Window
     private FileSystemWatcher? _themeFileWatcher;
     private string? _watchedThemePath;
     private int _themeReapplyGeneration;
+    private VoiSeeCssTheme? _activeTheme;
     private const int WhMouseLl = 14;
     private const int WhKeyboardLl = 13;
     private const int WmMouseWheel = 0x020A;
@@ -161,7 +162,7 @@ public sealed partial class MainWindow : Window
         _timelineTimer.Tick += OnTimelineTimerTick;
         _timelineTimer.Start();
 
-        AppendLog("VoiSee Version 9.1.10 UI started.");
+        AppendLog("VoiSee Version 9.1.12 UI started.");
         AppendLog($"Settings path: {_settingsStore.SettingsPath}");
         StartupLog.Write("MainWindow initialized; waiting for first activation.");
     }
@@ -255,12 +256,19 @@ public sealed partial class MainWindow : Window
 
     private void UpdateThemeControls()
     {
+        var userThemeSelected = ThemeComboBox?.SelectedItem is ThemeComboItem item
+            && !item.IsDefault
+            && !string.IsNullOrWhiteSpace(item.FilePath)
+            && File.Exists(item.FilePath);
+
+        if (RenameThemeButton is not null)
+        {
+            RenameThemeButton.IsEnabled = userThemeSelected;
+        }
+
         if (DeleteThemeButton is not null)
         {
-            DeleteThemeButton.IsEnabled = ThemeComboBox?.SelectedItem is ThemeComboItem item
-                && !item.IsDefault
-                && !string.IsNullOrWhiteSpace(item.FilePath)
-                && File.Exists(item.FilePath);
+            DeleteThemeButton.IsEnabled = userThemeSelected;
         }
     }
 
@@ -298,6 +306,7 @@ public sealed partial class MainWindow : Window
             }
 
             var theme = _themeManager.LoadTheme(_settings.ThemeFilePath);
+            _activeTheme = theme;
             var applied = _themeManager.ApplyTheme(RootGrid, theme);
             ApplyTitleBarTheme(theme);
             if (ThemeStatusTextBlock is not null)
@@ -429,15 +438,42 @@ public sealed partial class MainWindow : Window
     {
         var generation = ++_themeReapplyGeneration;
 
-        foreach (var delayMs in new[] { 40, 160, 420 })
+        // Paint the newly selected tab immediately without globally restoring the
+        // old theme first. This avoids the visible Default Dark flash.
+        ApplyActiveThemeIncremental();
+
+        // One deferred lightweight pass catches WinUI controls whose templates are
+        // materialized just after SelectionChanged. The old 40/160/420 ms full
+        // reapply loop was intentionally removed because it caused tab-switch lag.
+        await Task.Delay(16);
+        if (generation != _themeReapplyGeneration)
         {
-            await Task.Delay(delayMs);
-            if (generation != _themeReapplyGeneration)
+            return;
+        }
+
+        DispatcherQueue.TryEnqueue(() =>
+        {
+            if (generation == _themeReapplyGeneration)
+            {
+                ApplyActiveThemeIncremental();
+            }
+        });
+    }
+
+    private void ApplyActiveThemeIncremental()
+    {
+        try
+        {
+            if (_activeTheme is null || _activeTheme.Rules.Count == 0)
             {
                 return;
             }
 
-            DispatcherQueue.TryEnqueue(() => ApplyThemeFromSettings(log: false));
+            _themeManager.ApplyThemeIncremental(RootGrid, _activeTheme);
+        }
+        catch (Exception ex)
+        {
+            AppendLog($"Theme incremental apply error: {ex.Message}");
         }
     }
 
@@ -530,6 +566,135 @@ public sealed partial class MainWindow : Window
             AppendLog($"Open theme folder error: {ex.Message}");
             await ShowMessageDialogAsync("Theme error", ex.Message);
         }
+    }
+
+    private async void OnRenameThemeClick(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            if (ThemeComboBox?.SelectedItem is not ThemeComboItem item || item.IsDefault || string.IsNullOrWhiteSpace(item.FilePath))
+            {
+                await ShowMessageDialogAsync("Rename theme", "Select a user theme first. The built-in Default Dark theme cannot be renamed.");
+                return;
+            }
+
+            var oldPath = item.FilePath;
+            if (!File.Exists(oldPath))
+            {
+                await ShowMessageDialogAsync("Rename theme", "The selected theme file does not exist anymore. The theme list will be refreshed.");
+                PopulateThemeComboBox();
+                return;
+            }
+
+            var fullOldPath = Path.GetFullPath(oldPath);
+            var themesDirectory = Path.GetFullPath(_themeManager.ThemesDirectory).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar) + Path.DirectorySeparatorChar;
+            if (!fullOldPath.StartsWith(themesDirectory, StringComparison.OrdinalIgnoreCase))
+            {
+                await ShowMessageDialogAsync("Rename theme", "Only themes from the VoiSee themes folder can be renamed here.");
+                return;
+            }
+
+            var currentName = Path.GetFileNameWithoutExtension(Path.GetFileNameWithoutExtension(oldPath));
+            var nameBox = new TextBox
+            {
+                Text = currentName,
+                PlaceholderText = "Theme name",
+                MinWidth = 320,
+                SelectionStart = 0,
+                SelectionLength = currentName.Length
+            };
+
+            var dialog = new ContentDialog
+            {
+                Title = "Rename theme",
+                Content = nameBox,
+                PrimaryButtonText = "Rename",
+                CloseButtonText = "Cancel",
+                DefaultButton = ContentDialogButton.Primary,
+                XamlRoot = ((FrameworkElement)Content).XamlRoot
+            };
+
+            var result = await dialog.ShowAsync();
+            if (result != ContentDialogResult.Primary)
+            {
+                return;
+            }
+
+            var requestedName = SanitizeThemeFileName(nameBox.Text);
+            if (string.IsNullOrWhiteSpace(requestedName))
+            {
+                await ShowMessageDialogAsync("Rename theme", "Enter a theme name.");
+                return;
+            }
+
+            var newPath = Path.Combine(_themeManager.ThemesDirectory, requestedName + ".voiseetheme.css");
+            if (Path.GetFullPath(newPath).Equals(fullOldPath, StringComparison.OrdinalIgnoreCase))
+            {
+                return;
+            }
+
+            if (File.Exists(newPath))
+            {
+                await ShowMessageDialogAsync("Rename theme", $"A theme named '{requestedName}' already exists.");
+                return;
+            }
+
+            var activeThemePath = _settings.ThemeFilePath;
+            var wasActive = !string.IsNullOrWhiteSpace(activeThemePath)
+                && Path.GetFullPath(activeThemePath).Equals(fullOldPath, StringComparison.OrdinalIgnoreCase);
+
+            if (wasActive)
+            {
+                _themeFileWatcher?.Dispose();
+                _themeFileWatcher = null;
+                _watchedThemePath = null;
+            }
+
+            File.Move(fullOldPath, newPath);
+
+            if (wasActive)
+            {
+                _settings.ThemeFilePath = newPath;
+                _settingsStore.Save(_settings);
+            }
+
+            PopulateThemeComboBox();
+            SelectThemeComboItem(wasActive ? newPath : _settings.ThemeFilePath);
+            ApplyThemeFromSettings();
+            WatchActiveThemeFile();
+            AppendLog($"Theme renamed: {fullOldPath} -> {newPath}");
+        }
+        catch (Exception ex)
+        {
+            AppendLog($"Rename theme error: {ex.Message}");
+            await ShowMessageDialogAsync("Theme error", ex.Message);
+        }
+    }
+
+    private static string SanitizeThemeFileName(string? value)
+    {
+        var name = (value ?? string.Empty).Trim();
+        if (name.EndsWith(".voiseetheme.css", StringComparison.OrdinalIgnoreCase))
+        {
+            name = name[..^".voiseetheme.css".Length];
+        }
+        else if (name.EndsWith(".css", StringComparison.OrdinalIgnoreCase))
+        {
+            name = name[..^".css".Length];
+        }
+
+        name = name.Trim();
+        foreach (var invalid in Path.GetInvalidFileNameChars())
+        {
+            name = name.Replace(invalid, '_');
+        }
+
+        while (name.Contains("..", StringComparison.Ordinal))
+        {
+            name = name.Replace("..", ".", StringComparison.Ordinal);
+        }
+
+        return name.Trim(' ', '.');
     }
 
     private async void OnDeleteThemeClick(object sender, RoutedEventArgs e)
@@ -1015,7 +1180,6 @@ public sealed partial class MainWindow : Window
     private void OnMainTabSelectionChanged(object sender, SelectionChangedEventArgs e)
     {
         UpdateSoundInputOverlayBounds();
-        ApplyThemeFromSettings(log: false);
     }
 
     private void InstallSoundBoardWheelHook()
