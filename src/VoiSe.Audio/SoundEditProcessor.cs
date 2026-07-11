@@ -13,6 +13,17 @@ public sealed class SoundEditRequest
     public int Channels { get; init; } = 2;
 }
 
+public sealed class SoundCutRequest
+{
+    public required string SourcePath { get; init; }
+    public required string TargetPath { get; init; }
+    public double CutStartSeconds { get; init; }
+    public double CutEndSeconds { get; init; }
+    public double GainDb { get; init; }
+    public int SampleRate { get; init; } = 48_000;
+    public int Channels { get; init; } = 2;
+}
+
 public sealed class SoundEditResult
 {
     public required string TargetPath { get; init; }
@@ -116,6 +127,104 @@ public static class SoundEditProcessor
             DurationSeconds = sampleCount / (double)channels / sampleRate,
             SampleCount = sampleCount
         };
+    }
+
+    public static SoundEditResult RenderCutToWav(SoundCutRequest request)
+    {
+        if (!File.Exists(request.SourcePath))
+        {
+            throw new FileNotFoundException("Source sound file was not found.", request.SourcePath);
+        }
+
+        Directory.CreateDirectory(Path.GetDirectoryName(request.TargetPath) ?? AppContext.BaseDirectory);
+
+        var format = WaveFormat.CreateIeeeFloatWaveFormat(
+            Math.Clamp(request.SampleRate, 8_000, 192_000),
+            Math.Clamp(request.Channels, 1, 2));
+
+        var source = SoundFileLoader.LoadToFormat(request.SourcePath, format);
+        var channels = format.Channels;
+        var sampleRate = format.SampleRate;
+        var totalFrames = source.Length / channels;
+        var totalSeconds = totalFrames / (double)sampleRate;
+
+        var cutStartSeconds = Math.Clamp(request.CutStartSeconds, 0, totalSeconds);
+        var cutEndSeconds = Math.Clamp(request.CutEndSeconds, cutStartSeconds, totalSeconds);
+        if (cutEndSeconds <= cutStartSeconds)
+        {
+            throw new InvalidOperationException("The cut selection is empty.");
+        }
+
+        var cutStartFrame = (int)Math.Clamp(Math.Round(cutStartSeconds * sampleRate), 0, totalFrames);
+        var cutEndFrame = (int)Math.Clamp(Math.Round(cutEndSeconds * sampleRate), cutStartFrame, totalFrames);
+        var beforeSampleCount = cutStartFrame * channels;
+        var afterStartSample = cutEndFrame * channels;
+        var afterSampleCount = Math.Max(0, source.Length - afterStartSample);
+        var sampleCount = beforeSampleCount + afterSampleCount;
+        if (sampleCount <= 0)
+        {
+            throw new InvalidOperationException("Cutting this selection would remove the entire sound.");
+        }
+
+        var gain = DbToLinear(request.GainDb);
+        var tempPath = request.TargetPath + ".tmp";
+        if (File.Exists(tempPath))
+        {
+            File.Delete(tempPath);
+        }
+
+        using (var writer = new WaveFileWriter(tempPath, format))
+        {
+            WriteRange(writer, source, 0, beforeSampleCount, gain, channels);
+            WriteRange(writer, source, afterStartSample, afterSampleCount, gain, channels);
+        }
+
+        if (File.Exists(request.TargetPath))
+        {
+            File.Delete(request.TargetPath);
+        }
+
+        File.Move(tempPath, request.TargetPath);
+        SoundFileLoader.Invalidate(request.TargetPath);
+
+        return new SoundEditResult
+        {
+            TargetPath = request.TargetPath,
+            DurationSeconds = sampleCount / (double)channels / sampleRate,
+            SampleCount = sampleCount
+        };
+    }
+
+    private static void WriteRange(
+        WaveFileWriter writer,
+        IReadOnlyList<float> source,
+        int startSample,
+        int sampleCount,
+        float gain,
+        int channels)
+    {
+        if (sampleCount <= 0)
+        {
+            return;
+        }
+
+        const int chunkSize = 16_384;
+        var buffer = new float[Math.Min(chunkSize, Math.Max(channels, sampleCount))];
+        var remaining = sampleCount;
+        var position = startSample;
+
+        while (remaining > 0)
+        {
+            var count = Math.Min(buffer.Length, remaining);
+            for (var i = 0; i < count; i++)
+            {
+                buffer[i] = Math.Clamp(source[position + i] * gain, -1.0f, 1.0f);
+            }
+
+            writer.WriteSamples(buffer, 0, count);
+            position += count;
+            remaining -= count;
+        }
     }
 
     private static float DbToLinear(double db)

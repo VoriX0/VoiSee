@@ -1,6 +1,6 @@
-# VoiSee 9.2
+# VoiSee 9.2.2
 
-Gate 9.2 adds the first SoundBoard sound editor.
+Gate 9.2.2 refines the SoundBoard editor with a centered timeline UI, safe trim limits, isolated hotkeys, and a full preview transport state machine.
 
 ## Highlights
 
@@ -23,5 +23,5 @@ Set-ExecutionPolicy -Scope Process Bypass
 Expected installer:
 
 ```text
-artifacts\installer\VoiSee-Setup-9.2-x64.exe
+artifacts\installer\VoiSee-Setup-9.2.2-x64.exe
 ```
