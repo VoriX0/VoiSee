@@ -170,7 +170,7 @@ public sealed partial class MainWindow : Window
         _timelineTimer.Tick += OnTimelineTimerTick;
         _timelineTimer.Start();
 
-        AppendLog("VoiSee Version 9.2.3 UI started.");
+        AppendLog("VoiSee Version 9.2.4 UI started.");
         AppendLog($"Settings path: {_settingsStore.SettingsPath}");
         StartupLog.Write("MainWindow initialized; waiting for first activation.");
     }
@@ -1674,7 +1674,7 @@ public sealed partial class MainWindow : Window
 
         var current = currentMaybe.Value;
 
-        // Gate 9.2.3: while the modal Sound Editor is open, all normal VoiSee
+        // Gate 9.2.4: while the modal Sound Editor is open, all normal VoiSee
         // hotkeys are disabled. Only the configured Play/Pause and Stop keys
         // are redirected to the editor preview state machine.
         if (_soundEditorActive)
@@ -3555,16 +3555,16 @@ public sealed partial class MainWindow : Window
             new SymbolIcon(Symbol.Play),
             "Play from the beginning with the current SoundBoard headphones volume");
         var playSelectionButton = CreateToolbarButton(
-            new SymbolIcon(Symbol.Forward),
-            "Play from the beginning of the selected fragment with the current SoundBoard headphones volume");
+            CreateGlyph("[▷]", 17),
+            "Play only the selected fragment from its beginning with the current SoundBoard headphones volume");
         var stopButton = CreateToolbarButton(
             new SymbolIcon(Symbol.Stop),
             "Stop preview and return the playhead to the preview start");
         var trimOutsideButton = CreateToolbarButton(
-            CreateGlyph("↔", 23),
+            CreateGlyph("⛶", 21),
             "Trim outside: keep the selected fragment and remove everything outside it");
         var cutSelectionButton = CreateToolbarButton(
-            CreateGlyph("✂", 21),
+            CreateGlyph("✀", 22),
             "Cut selection: remove the selected fragment and join the remaining parts");
         var resetButton = CreateToolbarButton(
             new SymbolIcon(Symbol.Refresh),
@@ -3577,8 +3577,8 @@ public sealed partial class MainWindow : Window
             HorizontalAlignment = HorizontalAlignment.Left,
             Children =
             {
-                playFromStartButton,
                 playSelectionButton,
+                playFromStartButton,
                 stopButton,
                 trimOutsideButton,
                 cutSelectionButton,
@@ -3668,7 +3668,7 @@ public sealed partial class MainWindow : Window
             SmallChange = 0.5,
             LargeChange = 3,
             HorizontalAlignment = HorizontalAlignment.Stretch,
-            MinWidth = 260
+            MinWidth = 190
         };
 
         var gainValueText = new TextBlock
@@ -3680,7 +3680,13 @@ public sealed partial class MainWindow : Window
             FontWeight = Microsoft.UI.Text.FontWeights.SemiBold
         };
 
-        var gainGrid = new Grid { ColumnSpacing = 12 };
+        var gainGrid = new Grid
+        {
+            ColumnSpacing = 10,
+            MinWidth = 300,
+            HorizontalAlignment = HorizontalAlignment.Stretch,
+            VerticalAlignment = VerticalAlignment.Center
+        };
         gainGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         gainGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
         gainGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
@@ -3690,6 +3696,18 @@ public sealed partial class MainWindow : Window
         gainGrid.Children.Add(gainLabel);
         gainGrid.Children.Add(gainSlider);
         gainGrid.Children.Add(gainValueText);
+
+        var toolbarAndGainRow = new Grid
+        {
+            ColumnSpacing = 18,
+            HorizontalAlignment = HorizontalAlignment.Stretch
+        };
+        toolbarAndGainRow.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        toolbarAndGainRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        Grid.SetColumn(toolbar, 0);
+        Grid.SetColumn(gainGrid, 1);
+        toolbarAndGainRow.Children.Add(toolbar);
+        toolbarAndGainRow.Children.Add(gainGrid);
 
         var editorStatusText = new TextBlock
         {
@@ -3708,11 +3726,10 @@ public sealed partial class MainWindow : Window
             {
                 title,
                 durationRow,
-                toolbar,
+                toolbarAndGainRow,
                 waveformBorder,
                 selectionTimesRow,
                 selectionHintText,
-                gainGrid,
                 editorStatusText
             }
         };
@@ -3734,6 +3751,7 @@ public sealed partial class MainWindow : Window
         var pointerPressX = 0.0;
         var selectionAnchorSeconds = 0.0;
         var pointerMoved = false;
+        var playheadDragStoppedPreview = false;
 
         double GetWaveformWidth()
             => Math.Max(1, waveformCanvas.ActualWidth > 1 ? waveformCanvas.ActualWidth : waveformCanvas.Width);
@@ -4135,7 +4153,6 @@ public sealed partial class MainWindow : Window
 
         waveformCanvas.PointerPressed += (_, e) =>
         {
-            StopPreviewCore(resetPlayhead: false);
             var x = e.GetCurrentPoint(waveformCanvas).Position.X;
             var playheadX = TimeToX(previewPositionSeconds);
             const double playheadHitWidth = 9.0;
@@ -4143,6 +4160,7 @@ public sealed partial class MainWindow : Window
             pointerPressX = x;
             selectionAnchorSeconds = ClampToEditor(XToTime(x));
             pointerMoved = false;
+            playheadDragStoppedPreview = false;
             pointerMode = Math.Abs(x - playheadX) <= playheadHitWidth ? "playhead" : "pending";
             waveformCanvas.CapturePointer(e.Pointer);
             e.Handled = true;
@@ -4160,6 +4178,12 @@ public sealed partial class MainWindow : Window
 
             if (pointerMode == "playhead")
             {
+                if (!playheadDragStoppedPreview)
+                {
+                    StopPreviewCore(resetPlayhead: false);
+                    playheadDragStoppedPreview = true;
+                }
+
                 pointerMoved = true;
                 previewPositionSeconds = ClampPlayhead(seconds);
                 RenderWaveform();
@@ -4191,14 +4215,14 @@ public sealed partial class MainWindow : Window
             var releaseSeconds = ClampToEditor(XToTime(e.GetCurrentPoint(waveformCanvas).Position.X));
             if (pointerMode == "pending" && !pointerMoved)
             {
+                StopPreviewCore(resetPlayhead: false);
                 previewPositionSeconds = ClampPlayhead(releaseSeconds);
                 editorStatusText.Text = $"Preview position: {FormatEditorTime(previewPositionSeconds)}.";
             }
             else if (pointerMode == "selection")
             {
                 ApplySelectionDrag(releaseSeconds);
-                previewPositionSeconds = ClampPlayhead(SelectionStart());
-                editorStatusText.Text = $"Selected {FormatEditorTime(SelectionLength())}.";
+                editorStatusText.Text = $"Selected {FormatEditorTime(SelectionLength())}. The playhead position was preserved.";
             }
             else if (pointerMode == "playhead")
             {
@@ -4348,7 +4372,7 @@ public sealed partial class MainWindow : Window
 
             await StartPreviewAsync(
                 SelectionStart(),
-                editorDuration,
+                SelectionEnd(),
                 SelectionStart(),
                 $"Preview started from the selection start at SoundBoard headphones volume ({CurrentBoardMonitorVolume():P0}).");
         };
@@ -4413,11 +4437,31 @@ public sealed partial class MainWindow : Window
         UpdateToolbarState();
         dialog.Resources["ContentDialogMinWidth"] = 940d;
         dialog.Resources["ContentDialogMaxWidth"] = 940d;
-        dialog.Loaded += (_, _) =>
+        void CenterEditorDialog()
         {
-            dialog.HorizontalAlignment = HorizontalAlignment.Center;
-            dialog.VerticalAlignment = VerticalAlignment.Center;
-        };
+            if (dialog.XamlRoot?.Content is not FrameworkElement rootElement
+                || rootElement.ActualWidth <= 0
+                || rootElement.ActualHeight <= 0
+                || dialog.ActualWidth <= 0
+                || dialog.ActualHeight <= 0)
+            {
+                return;
+            }
+
+            dialog.RenderTransform = null;
+            var currentTopLeft = dialog.TransformToVisual(rootElement)
+                .TransformPoint(new Windows.Foundation.Point(0, 0));
+            var targetX = Math.Max(0, (rootElement.ActualWidth - dialog.ActualWidth) / 2.0);
+            var targetY = Math.Max(0, (rootElement.ActualHeight - dialog.ActualHeight) / 2.0);
+            dialog.RenderTransform = new TranslateTransform
+            {
+                X = targetX - currentTopLeft.X,
+                Y = targetY - currentTopLeft.Y
+            };
+        }
+
+        dialog.Loaded += (_, _) => dialog.DispatcherQueue.TryEnqueue(CenterEditorDialog);
+        dialog.SizeChanged += (_, _) => dialog.DispatcherQueue.TryEnqueue(CenterEditorDialog);
 
         async Task<string> RenderSavedOutputAsync(string prefix)
         {
