@@ -3,7 +3,10 @@ using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Controls.Primitives;
 using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
+using XamlLine = Microsoft.UI.Xaml.Shapes.Line;
+using XamlRectangle = Microsoft.UI.Xaml.Shapes.Rectangle;
 using NAudio.CoreAudioApi;
+using NAudio.Wave;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -104,6 +107,7 @@ public sealed partial class MainWindow : Window
     private const string VBCableDownloadUrl = "https://vb-audio.com/Cable/";
     private const string MuteOnCueRelativePath = "Assets\\Audio\\mute_on.wav";
     private const string MuteOffCueRelativePath = "Assets\\Audio\\mute_off.wav";
+    private const string SoundEditorPreviewPlaybackKey = "__voisee_sound_editor_preview";
     private readonly Dictionary<string, SceneTimelineBinding> _sceneTimelineBindings = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, double> _soundDurationSecondsCache = new(StringComparer.OrdinalIgnoreCase);
     private bool _loadingSceneUi;
@@ -162,7 +166,7 @@ public sealed partial class MainWindow : Window
         _timelineTimer.Tick += OnTimelineTimerTick;
         _timelineTimer.Start();
 
-        AppendLog("VoiSee Version 9.1.12 UI started.");
+        AppendLog("VoiSee Version 9.2 UI started.");
         AppendLog($"Settings path: {_settingsStore.SettingsPath}");
         StartupLog.Write("MainWindow initialized; waiting for first activation.");
     }
@@ -2876,6 +2880,8 @@ public sealed partial class MainWindow : Window
         hotkey.Click += OnSoundContextAssignHotkeyClick;
         var rename = new MenuFlyoutItem { Text = "Rename" };
         rename.Click += OnSoundContextRenameClick;
+        var edit = new MenuFlyoutItem { Text = "Edit Sound" };
+        edit.Click += OnSoundContextEditClick;
         var replace = new MenuFlyoutItem { Text = "Choose Another File" };
         replace.Click += OnSoundContextReplaceFileClick;
         var delete = new MenuFlyoutItem { Text = "Delete From Category" };
@@ -2884,6 +2890,7 @@ public sealed partial class MainWindow : Window
         flyout.Items.Add(play);
         flyout.Items.Add(hotkey);
         flyout.Items.Add(rename);
+        flyout.Items.Add(edit);
         flyout.Items.Add(replace);
         flyout.Items.Add(new MenuFlyoutSeparator());
         flyout.Items.Add(delete);
@@ -3380,6 +3387,978 @@ public sealed partial class MainWindow : Window
         RebuildSceneSoundButtons();
         SaveCurrentSettings();
         AppendLog($"Track renamed: {name}");
+    }
+
+
+    private async void OnEditSoundClick(object sender, RoutedEventArgs e)
+    {
+        await ShowSoundEditorDialogAsync();
+    }
+
+    private async void OnSoundContextEditClick(object sender, RoutedEventArgs e)
+    {
+        await ShowSoundEditorDialogAsync();
+    }
+
+
+
+    private async Task ShowSoundEditorDialogAsync()
+    {
+        var sound = _selectedSound;
+        if (sound is null)
+        {
+            AppendLog("Select a track to edit.");
+            return;
+        }
+
+        if (!File.Exists(sound.FilePath))
+        {
+            AppendLog("Selected track file was not found.");
+            return;
+        }
+
+        var duration = SoundEditProcessor.GetDurationSeconds(sound.FilePath);
+        if (duration <= 0.05)
+        {
+            AppendLog("Sound editor cannot read this track duration.");
+            return;
+        }
+
+        var waveformPeaks = await Task.Run(() => BuildSoundEditorWaveform(sound.FilePath));
+
+        var title = new TextBlock
+        {
+            Text = sound.DisplayName,
+            FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
+            TextWrapping = TextWrapping.WrapWholeWords
+        };
+
+        var durationText = new TextBlock
+        {
+            Text = $"Original duration: {FormatDuration(duration)}",
+            Opacity = 0.72,
+            VerticalAlignment = VerticalAlignment.Center
+        };
+
+        var trimmedDurationText = new TextBlock
+        {
+            HorizontalAlignment = HorizontalAlignment.Right,
+            TextAlignment = TextAlignment.Right,
+            Opacity = 0.85,
+            VerticalAlignment = VerticalAlignment.Center
+        };
+
+        var durationRow = new Grid
+        {
+            ColumnSpacing = 16
+        };
+        durationRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        durationRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Auto) });
+        Grid.SetColumn(durationText, 0);
+        Grid.SetColumn(trimmedDurationText, 1);
+        durationRow.Children.Add(durationText);
+        durationRow.Children.Add(trimmedDurationText);
+
+        var selectionHintText = new TextBlock
+        {
+            Text = "Drag the selection handles on the waveform. Click the time ruler to set preview start position.",
+            TextWrapping = TextWrapping.WrapWholeWords,
+            Opacity = 0.80,
+            MaxWidth = 860
+        };
+
+        var startSlider = new Slider
+        {
+            Minimum = 0,
+            Maximum = duration,
+            Value = 0,
+            StepFrequency = 0.01,
+            SmallChange = 0.05,
+            LargeChange = 0.5,
+            Visibility = Visibility.Collapsed
+        };
+
+        var endSlider = new Slider
+        {
+            Minimum = 0,
+            Maximum = duration,
+            Value = duration,
+            StepFrequency = 0.01,
+            SmallChange = 0.05,
+            LargeChange = 0.5,
+            Visibility = Visibility.Collapsed
+        };
+
+        var waveformRuler = new Canvas
+        {
+            Height = 28,
+            Width = 840,
+            MinWidth = 840,
+            Margin = new Thickness(0, 6, 0, 0)
+        };
+
+        var waveformCanvas = new Canvas
+        {
+            Height = 208,
+            Width = 840,
+            MinWidth = 840,
+            Background = new SolidColorBrush(Microsoft.UI.ColorHelper.FromArgb(0xFF, 0x1F, 0x1F, 0x1F))
+        };
+
+        var waveformBorder = new Border
+        {
+            Background = new SolidColorBrush(Microsoft.UI.ColorHelper.FromArgb(0xFF, 0x1F, 0x1F, 0x1F)),
+            BorderBrush = new SolidColorBrush(Microsoft.UI.ColorHelper.FromArgb(0xFF, 0x3A, 0x3A, 0x3A)),
+            BorderThickness = new Thickness(1),
+            CornerRadius = new CornerRadius(4),
+            Padding = new Thickness(10, 6, 10, 10),
+            HorizontalAlignment = HorizontalAlignment.Stretch,
+            Child = new StackPanel
+            {
+                Spacing = 6,
+                Children =
+                {
+                    waveformRuler,
+                    waveformCanvas
+                }
+            }
+        };
+
+        var selectionStartValueText = new TextBlock
+        {
+            FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
+            FontSize = 18
+        };
+
+        var selectionEndValueText = new TextBlock
+        {
+            FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
+            FontSize = 18
+        };
+
+        var selectionLengthValueText = new TextBlock
+        {
+            FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
+            FontSize = 18
+        };
+
+        FrameworkElement CreateSelectionMetric(string titleText, TextBlock valueBlock)
+        {
+            return new Border
+            {
+                Background = new SolidColorBrush(Microsoft.UI.ColorHelper.FromArgb(0x10, 0xFF, 0xFF, 0xFF)),
+                BorderBrush = new SolidColorBrush(Microsoft.UI.ColorHelper.FromArgb(0x16, 0xFF, 0xFF, 0xFF)),
+                BorderThickness = new Thickness(1),
+                CornerRadius = new CornerRadius(4),
+                Padding = new Thickness(12, 10, 12, 10),
+                HorizontalAlignment = HorizontalAlignment.Stretch,
+                Child = new StackPanel
+                {
+                    Spacing = 2,
+                    Children =
+                    {
+                        new TextBlock
+                        {
+                            Text = titleText,
+                            Opacity = 0.68,
+                            TextWrapping = TextWrapping.WrapWholeWords
+                        },
+                        valueBlock
+                    }
+                }
+            };
+        }
+
+        var selectionMetricsGrid = new Grid
+        {
+            ColumnSpacing = 10,
+            HorizontalAlignment = HorizontalAlignment.Stretch
+        };
+        selectionMetricsGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        selectionMetricsGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        selectionMetricsGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+
+        var startMetric = CreateSelectionMetric("Selection start", selectionStartValueText);
+        var endMetric = CreateSelectionMetric("Selection end", selectionEndValueText);
+        var lengthMetric = CreateSelectionMetric("Selection length", selectionLengthValueText);
+        Grid.SetColumn(startMetric, 0);
+        Grid.SetColumn(endMetric, 1);
+        Grid.SetColumn(lengthMetric, 2);
+        selectionMetricsGrid.Children.Add(startMetric);
+        selectionMetricsGrid.Children.Add(endMetric);
+        selectionMetricsGrid.Children.Add(lengthMetric);
+
+        var gainLabel = new TextBlock
+        {
+            Text = "Volume gain",
+            FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
+            VerticalAlignment = VerticalAlignment.Center
+        };
+
+        var gainSlider = new Slider
+        {
+            Minimum = -24,
+            Maximum = 12,
+            Value = 0,
+            StepFrequency = 0.1,
+            SmallChange = 0.5,
+            LargeChange = 3,
+            HorizontalAlignment = HorizontalAlignment.Stretch,
+            MinWidth = 260
+        };
+
+        var gainValueText = new TextBlock
+        {
+            Width = 92,
+            HorizontalAlignment = HorizontalAlignment.Right,
+            TextAlignment = TextAlignment.Right,
+            VerticalAlignment = VerticalAlignment.Center,
+            FontWeight = Microsoft.UI.Text.FontWeights.SemiBold
+        };
+
+        var gainGrid = new Grid
+        {
+            ColumnSpacing = 12
+        };
+        gainGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        gainGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        gainGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        Grid.SetColumn(gainLabel, 0);
+        Grid.SetColumn(gainSlider, 1);
+        Grid.SetColumn(gainValueText, 2);
+        gainGrid.Children.Add(gainLabel);
+        gainGrid.Children.Add(gainSlider);
+        gainGrid.Children.Add(gainValueText);
+
+        var editorStatusText = new TextBlock
+        {
+            Text = "Preview uses headphones only. The virtual microphone is not used during preview.",
+            TextWrapping = TextWrapping.WrapWholeWords,
+            Opacity = 0.75,
+            MaxWidth = 860
+        };
+
+        Button CreateIconButton(Symbol symbol, string text, string toolTip)
+        {
+            var button = new Button
+            {
+                HorizontalAlignment = HorizontalAlignment.Stretch,
+                Content = new StackPanel
+                {
+                    Orientation = Orientation.Horizontal,
+                    Spacing = 8,
+                    HorizontalAlignment = HorizontalAlignment.Center,
+                    Children =
+                    {
+                        new SymbolIcon(symbol),
+                        new TextBlock { Text = text, VerticalAlignment = VerticalAlignment.Center }
+                    }
+                }
+            };
+            ToolTipService.SetToolTip(button, toolTip);
+            return button;
+        }
+
+        var previewButton = CreateIconButton(Symbol.Play, "Preview Raw", "Preview the selected fragment at full headphones volume");
+        var previewBoardVolumeButton = CreateIconButton(Symbol.Forward, "Preview Board Vol", "Preview the selected fragment with the current SoundBoard headphones volume");
+        var stopPreviewButton = CreateIconButton(Symbol.Stop, "Stop", "Stop preview playback");
+        var resetSelectionButton = CreateIconButton(Symbol.Refresh, "Reset", "Reset the selection to the entire sound");
+
+        var actionsGrid = new Grid
+        {
+            ColumnSpacing = 8,
+            HorizontalAlignment = HorizontalAlignment.Stretch
+        };
+        for (var i = 0; i < 4; i++)
+        {
+            actionsGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        }
+        Grid.SetColumn(previewButton, 0);
+        Grid.SetColumn(previewBoardVolumeButton, 1);
+        Grid.SetColumn(stopPreviewButton, 2);
+        Grid.SetColumn(resetSelectionButton, 3);
+        actionsGrid.Children.Add(previewButton);
+        actionsGrid.Children.Add(previewBoardVolumeButton);
+        actionsGrid.Children.Add(stopPreviewButton);
+        actionsGrid.Children.Add(resetSelectionButton);
+
+        var panel = new StackPanel
+        {
+            Spacing = 12,
+            Width = 880,
+            HorizontalAlignment = HorizontalAlignment.Stretch,
+            Children =
+            {
+                title,
+                durationRow,
+                waveformBorder,
+                selectionHintText,
+                selectionMetricsGrid,
+                gainGrid,
+                actionsGrid,
+                editorStatusText,
+                startSlider,
+                endSlider
+            }
+        };
+
+        var contentViewer = new ScrollViewer
+        {
+            Content = panel,
+            Width = 900,
+            MaxHeight = 720,
+            HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled,
+            VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
+            HorizontalAlignment = HorizontalAlignment.Stretch
+        };
+
+        var syncing = false;
+        string dragMode = "none";
+        double draggedSelectionDuration = 0;
+        double dragOffsetSeconds = 0;
+        double previewPositionSeconds = 0;
+        double previewPlaybackStartSeconds = 0;
+        double previewPlaybackEndSeconds = duration;
+        var previewTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(33) };
+        var previewStopwatch = new Stopwatch();
+        var previewPlaying = false;
+
+        double GetWaveformWidth() => Math.Max(1, waveformCanvas.ActualWidth > 1 ? waveformCanvas.ActualWidth : waveformCanvas.Width);
+        double GetSelectedDuration() => Math.Max(0.01, endSlider.Value - startSlider.Value);
+        double ClampPreviewPosition(double value)
+        {
+            var max = Math.Max(startSlider.Value, endSlider.Value - 0.01);
+            return Math.Clamp(value, startSlider.Value, max);
+        }
+
+        double TimeToX(double seconds)
+            => duration <= 0.0001 ? 0 : Math.Clamp(seconds / duration, 0, 1) * GetWaveformWidth();
+
+        double XToTime(double x)
+            => duration <= 0.0001 ? 0 : Math.Clamp(x / GetWaveformWidth(), 0, 1) * duration;
+
+        void StopPreviewPlayback(string? statusText = null)
+        {
+            _engine?.StopSound(SoundEditorPreviewPlaybackKey);
+            previewTimer.Stop();
+            previewStopwatch.Reset();
+            previewPlaying = false;
+            previewPositionSeconds = ClampPreviewPosition(previewPositionSeconds);
+            RenderWaveformSelection();
+            if (!string.IsNullOrWhiteSpace(statusText))
+            {
+                editorStatusText.Text = statusText;
+            }
+        }
+
+        previewTimer.Tick += (_, _) =>
+        {
+            if (!previewPlaying)
+            {
+                return;
+            }
+
+            previewPositionSeconds = Math.Min(previewPlaybackEndSeconds, previewPlaybackStartSeconds + previewStopwatch.Elapsed.TotalSeconds);
+            RenderWaveformSelection();
+
+            if (previewPositionSeconds >= previewPlaybackEndSeconds - 0.01)
+            {
+                StopPreviewPlayback("Preview finished.");
+            }
+        };
+
+        void RenderWaveformRuler()
+        {
+            waveformRuler.Children.Clear();
+            var width = Math.Max(1, waveformRuler.ActualWidth > 1 ? waveformRuler.ActualWidth : waveformRuler.Width);
+            var majorTickCount = Math.Max(4, Math.Min(12, (int)Math.Ceiling(duration / 20.0) + 4));
+            var minorDivisions = 4;
+
+            for (var majorIndex = 0; majorIndex <= majorTickCount; majorIndex++)
+            {
+                var ratio = majorTickCount == 0 ? 0 : majorIndex / (double)majorTickCount;
+                var x = ratio * width;
+
+                var majorTick = new XamlLine
+                {
+                    X1 = x,
+                    X2 = x,
+                    Y1 = 10,
+                    Y2 = 24,
+                    StrokeThickness = 1,
+                    Stroke = new SolidColorBrush(Microsoft.UI.ColorHelper.FromArgb(0xAA, 0xD0, 0xD0, 0xD0))
+                };
+                waveformRuler.Children.Add(majorTick);
+
+                var label = new TextBlock
+                {
+                    Text = FormatDuration(duration * ratio),
+                    FontSize = 12,
+                    Opacity = 0.82
+                };
+                Canvas.SetLeft(label, Math.Max(0, Math.Min(width - 42, x - 10)));
+                Canvas.SetTop(label, 0);
+                waveformRuler.Children.Add(label);
+
+                if (majorIndex == majorTickCount)
+                {
+                    continue;
+                }
+
+                for (var minor = 1; minor < minorDivisions; minor++)
+                {
+                    var minorRatio = (majorIndex + (minor / (double)minorDivisions)) / majorTickCount;
+                    var minorX = minorRatio * width;
+                    waveformRuler.Children.Add(new XamlLine
+                    {
+                        X1 = minorX,
+                        X2 = minorX,
+                        Y1 = 16,
+                        Y2 = 24,
+                        StrokeThickness = 1,
+                        Stroke = new SolidColorBrush(Microsoft.UI.ColorHelper.FromArgb(0x66, 0xA0, 0xA0, 0xA0))
+                    });
+                }
+            }
+        }
+
+        void RenderWaveformSelection()
+        {
+            waveformCanvas.Children.Clear();
+
+            var width = GetWaveformWidth();
+            var height = Math.Max(1, waveformCanvas.ActualHeight > 1 ? waveformCanvas.ActualHeight : waveformCanvas.Height);
+            var centerY = height / 2.0;
+            var halfHeight = Math.Max(24, (height / 2.0) - 10);
+            var peakCount = Math.Max(1, waveformPeaks.Length);
+            var columnWidth = width / peakCount;
+
+            var startX = TimeToX(startSlider.Value);
+            var endX = TimeToX(endSlider.Value);
+            var playheadX = TimeToX(previewPositionSeconds);
+
+            waveformCanvas.Children.Add(new XamlRectangle
+            {
+                Width = width,
+                Height = height,
+                Fill = new SolidColorBrush(Microsoft.UI.ColorHelper.FromArgb(0xFF, 0x2A, 0x2A, 0x2A))
+            });
+
+            for (var i = 0; i < peakCount; i++)
+            {
+                var amplitude = Math.Clamp(waveformPeaks[Math.Min(i, waveformPeaks.Length - 1)], 0.02f, 1.0f);
+                var barHeight = amplitude * halfHeight;
+                var x = i * columnWidth;
+                var inSelection = x + columnWidth >= startX && x <= endX;
+                var strokeBrush = new SolidColorBrush(inSelection
+                    ? Microsoft.UI.ColorHelper.FromArgb(0xFF, 0xF0, 0xF0, 0xF0)
+                    : Microsoft.UI.ColorHelper.FromArgb(0xC0, 0x88, 0x88, 0x88));
+
+                waveformCanvas.Children.Add(new XamlLine
+                {
+                    X1 = x,
+                    X2 = x,
+                    Y1 = centerY - barHeight,
+                    Y2 = centerY + barHeight,
+                    Stroke = strokeBrush,
+                    StrokeThickness = Math.Max(1.0, Math.Min(2.0, columnWidth))
+                });
+            }
+
+            waveformCanvas.Children.Add(new XamlRectangle
+            {
+                Width = startX,
+                Height = height,
+                Fill = new SolidColorBrush(Microsoft.UI.ColorHelper.FromArgb(0x66, 0x00, 0x00, 0x00))
+            });
+
+            var rightShade = new XamlRectangle
+            {
+                Width = Math.Max(0, width - endX),
+                Height = height,
+                Fill = new SolidColorBrush(Microsoft.UI.ColorHelper.FromArgb(0x66, 0x00, 0x00, 0x00))
+            };
+            Canvas.SetLeft(rightShade, endX);
+            waveformCanvas.Children.Add(rightShade);
+
+            var selectionBorder = new XamlRectangle
+            {
+                Width = Math.Max(2, endX - startX),
+                Height = height,
+                Fill = new SolidColorBrush(Microsoft.UI.ColorHelper.FromArgb(0x16, 0x36, 0xA9, 0xFF)),
+                Stroke = new SolidColorBrush(Microsoft.UI.ColorHelper.FromArgb(0xE0, 0x36, 0xA9, 0xFF)),
+                StrokeThickness = 1,
+                RadiusX = 2,
+                RadiusY = 2,
+                IsHitTestVisible = false
+            };
+            Canvas.SetLeft(selectionBorder, startX);
+            waveformCanvas.Children.Add(selectionBorder);
+
+            XamlRectangle CreateHandle(double left)
+            {
+                var handle = new XamlRectangle
+                {
+                    Width = 6,
+                    Height = height,
+                    Fill = new SolidColorBrush(Microsoft.UI.ColorHelper.FromArgb(0xFF, 0x36, 0xA9, 0xFF)),
+                    RadiusX = 2,
+                    RadiusY = 2,
+                    IsHitTestVisible = false
+                };
+                Canvas.SetLeft(handle, Math.Max(0, Math.Min(width - handle.Width, left - handle.Width / 2.0)));
+                return handle;
+            }
+
+            waveformCanvas.Children.Add(CreateHandle(startX));
+            waveformCanvas.Children.Add(CreateHandle(endX));
+
+            if (previewPositionSeconds >= startSlider.Value && previewPositionSeconds <= endSlider.Value)
+            {
+                var playheadLine = new XamlLine
+                {
+                    X1 = playheadX,
+                    X2 = playheadX,
+                    Y1 = 0,
+                    Y2 = height,
+                    StrokeThickness = 2,
+                    Stroke = new SolidColorBrush(Microsoft.UI.ColorHelper.FromArgb(0xFF, 0xFF, 0xC1, 0x07))
+                };
+                waveformCanvas.Children.Add(playheadLine);
+            }
+        }
+
+        void UpdateEditorState()
+        {
+            if (syncing)
+            {
+                return;
+            }
+
+            syncing = true;
+            try
+            {
+                if (startSlider.Value > endSlider.Value - 0.01)
+                {
+                    startSlider.Value = Math.Max(0, endSlider.Value - 0.01);
+                }
+
+                if (endSlider.Value < startSlider.Value + 0.01)
+                {
+                    endSlider.Value = Math.Min(duration, startSlider.Value + 0.01);
+                }
+
+                previewPositionSeconds = ClampPreviewPosition(previewPositionSeconds);
+                selectionStartValueText.Text = FormatDuration(startSlider.Value);
+                selectionEndValueText.Text = FormatDuration(endSlider.Value);
+                selectionLengthValueText.Text = FormatDuration(Math.Max(0, endSlider.Value - startSlider.Value));
+                trimmedDurationText.Text = $"Selected duration: {FormatDuration(GetSelectedDuration())}";
+                gainValueText.Text = $"{gainSlider.Value:+0.0;-0.0;0.0} dB";
+                RenderWaveformRuler();
+                RenderWaveformSelection();
+            }
+            finally
+            {
+                syncing = false;
+            }
+        }
+
+        async Task StartPreviewAsync(float monitorVolume, string statusText)
+        {
+            if (_engine is null)
+            {
+                editorStatusText.Text = "Start the audio engine to preview in headphones. Saving still works without preview.";
+                return;
+            }
+
+            try
+            {
+                previewButton.IsEnabled = false;
+                previewBoardVolumeButton.IsEnabled = false;
+                editorStatusText.Text = "Rendering preview...";
+                StopPreviewPlayback();
+
+                previewPlaybackStartSeconds = ClampPreviewPosition(previewPositionSeconds);
+                previewPlaybackEndSeconds = endSlider.Value;
+                if (previewPlaybackEndSeconds <= previewPlaybackStartSeconds + 0.01)
+                {
+                    previewPlaybackStartSeconds = startSlider.Value;
+                    previewPositionSeconds = startSlider.Value;
+                }
+
+                var previewPath = Path.Combine(_libraryStore.EditedSoundsDirectory, $"preview_{sound.Id}_{DateTime.UtcNow:yyyyMMddHHmmssfff}.wav");
+                var request = new SoundEditRequest
+                {
+                    SourcePath = sound.FilePath,
+                    TargetPath = previewPath,
+                    TrimStartSeconds = previewPlaybackStartSeconds,
+                    TrimEndSeconds = endSlider.Value,
+                    GainDb = gainSlider.Value
+                };
+
+                await Task.Run(() => SoundEditProcessor.RenderToWav(request));
+                _engine.PlaySound(previewPath, virtualVolume: 0.0f, monitorVolume: monitorVolume, virtualDelayMs: 0, loop: false, playbackKey: SoundEditorPreviewPlaybackKey);
+                previewPlaying = true;
+                previewPositionSeconds = previewPlaybackStartSeconds;
+                previewStopwatch.Restart();
+                previewTimer.Start();
+                RenderWaveformSelection();
+                editorStatusText.Text = statusText;
+            }
+            catch (Exception ex)
+            {
+                StopPreviewPlayback();
+                editorStatusText.Text = $"Preview error: {ex.Message}";
+                AppendLog($"Sound editor preview error: {ex.Message}");
+            }
+            finally
+            {
+                previewButton.IsEnabled = true;
+                previewBoardVolumeButton.IsEnabled = true;
+            }
+        }
+
+        void ApplyWaveformPointer(PointerRoutedEventArgs e)
+        {
+            var point = e.GetCurrentPoint(waveformCanvas).Position;
+            var clickedSeconds = XToTime(point.X);
+
+            if (dragMode == "start")
+            {
+                startSlider.Value = Math.Min(clickedSeconds, endSlider.Value - 0.01);
+                return;
+            }
+
+            if (dragMode == "end")
+            {
+                endSlider.Value = Math.Max(clickedSeconds, startSlider.Value + 0.01);
+                return;
+            }
+
+            if (dragMode == "move")
+            {
+                var desiredStart = clickedSeconds - dragOffsetSeconds;
+                desiredStart = Math.Clamp(desiredStart, 0, Math.Max(0, duration - draggedSelectionDuration));
+                startSlider.Value = desiredStart;
+                endSlider.Value = Math.Min(duration, desiredStart + draggedSelectionDuration);
+            }
+        }
+
+        waveformRuler.PointerPressed += (_, e) =>
+        {
+            StopPreviewPlayback();
+            previewPositionSeconds = ClampPreviewPosition(XToTime(e.GetCurrentPoint(waveformRuler).Position.X));
+            UpdateEditorState();
+            editorStatusText.Text = $"Preview position set to {FormatDuration(previewPositionSeconds)}.";
+            e.Handled = true;
+        };
+
+        waveformCanvas.DoubleTapped += (_, e) =>
+        {
+            StopPreviewPlayback();
+            previewPositionSeconds = ClampPreviewPosition(XToTime(e.GetPosition(waveformCanvas).X));
+            UpdateEditorState();
+            editorStatusText.Text = $"Preview position set to {FormatDuration(previewPositionSeconds)}.";
+        };
+
+        waveformCanvas.PointerPressed += (_, e) =>
+        {
+            StopPreviewPlayback();
+            var point = e.GetCurrentPoint(waveformCanvas).Position;
+            var startX = TimeToX(startSlider.Value);
+            var endX = TimeToX(endSlider.Value);
+            const double handleHitWidth = 12.0;
+
+            if (Math.Abs(point.X - startX) <= handleHitWidth)
+            {
+                dragMode = "start";
+            }
+            else if (Math.Abs(point.X - endX) <= handleHitWidth)
+            {
+                dragMode = "end";
+            }
+            else if (point.X > startX && point.X < endX)
+            {
+                dragMode = "move";
+                draggedSelectionDuration = Math.Max(0.01, endSlider.Value - startSlider.Value);
+                dragOffsetSeconds = XToTime(point.X) - startSlider.Value;
+            }
+            else
+            {
+                dragMode = Math.Abs(point.X - startX) <= Math.Abs(point.X - endX) ? "start" : "end";
+            }
+
+            waveformCanvas.CapturePointer(e.Pointer);
+            ApplyWaveformPointer(e);
+            e.Handled = true;
+        };
+
+        waveformCanvas.PointerMoved += (_, e) =>
+        {
+            if (dragMode == "none")
+            {
+                return;
+            }
+
+            ApplyWaveformPointer(e);
+            e.Handled = true;
+        };
+
+        void EndWaveformDrag(PointerRoutedEventArgs e)
+        {
+            if (dragMode == "none")
+            {
+                return;
+            }
+
+            dragMode = "none";
+            previewPositionSeconds = ClampPreviewPosition(previewPositionSeconds);
+            waveformCanvas.ReleasePointerCaptures();
+            e.Handled = true;
+        }
+
+        waveformCanvas.PointerReleased += (_, e) => EndWaveformDrag(e);
+        waveformCanvas.PointerCanceled += (_, e) => EndWaveformDrag(e);
+        waveformCanvas.PointerCaptureLost += (_, __) => dragMode = "none";
+
+        startSlider.ValueChanged += (_, _) => UpdateEditorState();
+        endSlider.ValueChanged += (_, _) => UpdateEditorState();
+        gainSlider.ValueChanged += (_, _) =>
+        {
+            StopPreviewPlayback();
+            UpdateEditorState();
+        };
+        waveformCanvas.SizeChanged += (_, _) => UpdateEditorState();
+        waveformRuler.SizeChanged += (_, _) => UpdateEditorState();
+        previewPositionSeconds = startSlider.Value;
+        UpdateEditorState();
+
+        previewButton.Click += async (_, _) =>
+        {
+            await StartPreviewAsync(1.0f, "Preview started in headphones at full volume.");
+        };
+
+        previewBoardVolumeButton.Click += async (_, _) =>
+        {
+            var boardMonitorVolume = (float)Math.Clamp(SoundMonitorVolumeSlider?.Value ?? 1.0, 0.0, 1.5);
+            await StartPreviewAsync(boardMonitorVolume, $"Preview started in headphones at the current SoundBoard volume ({boardMonitorVolume:P0}).");
+        };
+
+        stopPreviewButton.Click += (_, _) => StopPreviewPlayback("Preview stopped.");
+
+        resetSelectionButton.Click += (_, _) =>
+        {
+            StopPreviewPlayback();
+            startSlider.Value = 0;
+            endSlider.Value = duration;
+            previewPositionSeconds = 0;
+            gainSlider.Value = 0;
+            editorStatusText.Text = "Selection and preview position reset to the full sound.";
+        };
+
+        var dialog = new ContentDialog
+        {
+            Title = "Sound Editor",
+            Content = contentViewer,
+            PrimaryButtonText = "Save File",
+            SecondaryButtonText = "Save as Copy",
+            CloseButtonText = "Cancel",
+            DefaultButton = ContentDialogButton.Primary,
+            XamlRoot = ((FrameworkElement)Content).XamlRoot
+        };
+
+        dialog.PrimaryButtonClick += async (_, args) =>
+        {
+            var deferral = args.GetDeferral();
+            try
+            {
+                StopPreviewPlayback();
+                editorStatusText.Text = "Saving edited file...";
+                args.Cancel = true;
+                Directory.CreateDirectory(_libraryStore.EditedSoundsDirectory);
+                var renderedPath = Path.Combine(_libraryStore.EditedSoundsDirectory, $"save_{sound.Id}_{DateTime.UtcNow:yyyyMMddHHmmssfff}.wav");
+                var request = new SoundEditRequest
+                {
+                    SourcePath = sound.FilePath,
+                    TargetPath = renderedPath,
+                    TrimStartSeconds = startSlider.Value,
+                    TrimEndSeconds = endSlider.Value,
+                    GainDb = gainSlider.Value
+                };
+                await Task.Run(() => SoundEditProcessor.RenderToWav(request));
+                await SaveEditedSoundAsync(sound, renderedPath, saveAsCopy: false);
+                args.Cancel = false;
+            }
+            catch (Exception ex)
+            {
+                editorStatusText.Text = $"Save error: {ex.Message}";
+                AppendLog($"Sound editor save error: {ex.Message}");
+                args.Cancel = true;
+            }
+            finally
+            {
+                deferral.Complete();
+            }
+        };
+
+        dialog.SecondaryButtonClick += async (_, args) =>
+        {
+            var deferral = args.GetDeferral();
+            try
+            {
+                StopPreviewPlayback();
+                editorStatusText.Text = "Saving edited copy...";
+                args.Cancel = true;
+                Directory.CreateDirectory(_libraryStore.EditedSoundsDirectory);
+                var renderedPath = Path.Combine(_libraryStore.EditedSoundsDirectory, $"copy_{sound.Id}_{DateTime.UtcNow:yyyyMMddHHmmssfff}.wav");
+                var request = new SoundEditRequest
+                {
+                    SourcePath = sound.FilePath,
+                    TargetPath = renderedPath,
+                    TrimStartSeconds = startSlider.Value,
+                    TrimEndSeconds = endSlider.Value,
+                    GainDb = gainSlider.Value
+                };
+                await Task.Run(() => SoundEditProcessor.RenderToWav(request));
+                await SaveEditedSoundAsync(sound, renderedPath, saveAsCopy: true);
+                args.Cancel = false;
+            }
+            catch (Exception ex)
+            {
+                editorStatusText.Text = $"Save copy error: {ex.Message}";
+                AppendLog($"Sound editor save copy error: {ex.Message}");
+                args.Cancel = true;
+            }
+            finally
+            {
+                deferral.Complete();
+            }
+        };
+
+        var result = await dialog.ShowAsync();
+        StopPreviewPlayback();
+        AppendLog(result == ContentDialogResult.None
+            ? "Sound editor closed."
+            : $"Sound editor finished: {sound.DisplayName}.");
+    }
+
+    private static float[] BuildSoundEditorWaveform(string filePath, int requestedPeaks = 900)
+    {
+        if (string.IsNullOrWhiteSpace(filePath) || !File.Exists(filePath))
+        {
+            return new[] { 0.05f };
+        }
+
+        try
+        {
+            using WaveStream reader = Path.GetExtension(filePath).Equals(".ogg", StringComparison.OrdinalIgnoreCase)
+                ? new NAudio.Vorbis.VorbisWaveReader(filePath)
+                : new NAudio.Wave.AudioFileReader(filePath);
+
+            var sampleProvider = reader.ToSampleProvider();
+            var channels = Math.Max(1, sampleProvider.WaveFormat.Channels);
+            var totalFrames = Math.Max(1L, (long)Math.Round(reader.TotalTime.TotalSeconds * sampleProvider.WaveFormat.SampleRate));
+            var framesPerBucket = Math.Max(256, (int)Math.Ceiling(totalFrames / (double)Math.Max(64, requestedPeaks)));
+            var sourceBuffer = new float[Math.Max(4096, sampleProvider.WaveFormat.SampleRate / 2 * channels)];
+            var peaks = new List<float>(requestedPeaks);
+            var currentPeak = 0f;
+            var framesInBucket = 0;
+
+            int read;
+            while ((read = sampleProvider.Read(sourceBuffer, 0, sourceBuffer.Length)) > 0)
+            {
+                for (var sampleIndex = 0; sampleIndex < read; sampleIndex += channels)
+                {
+                    var framePeak = 0f;
+                    for (var channel = 0; channel < channels && sampleIndex + channel < read; channel++)
+                    {
+                        framePeak = Math.Max(framePeak, Math.Abs(sourceBuffer[sampleIndex + channel]));
+                    }
+
+                    currentPeak = Math.Max(currentPeak, framePeak);
+                    framesInBucket++;
+
+                    if (framesInBucket >= framesPerBucket)
+                    {
+                        peaks.Add(currentPeak);
+                        currentPeak = 0f;
+                        framesInBucket = 0;
+                    }
+                }
+            }
+
+            if (framesInBucket > 0 || peaks.Count == 0)
+            {
+                peaks.Add(currentPeak);
+            }
+
+            var normalized = NormalizeWaveformPeaks(peaks);
+            return normalized.Length == 0 ? new[] { 0.05f } : normalized;
+        }
+        catch
+        {
+            return new[] { 0.05f };
+        }
+    }
+
+    private static float[] NormalizeWaveformPeaks(IReadOnlyList<float> peaks)
+    {
+        if (peaks.Count == 0)
+        {
+            return Array.Empty<float>();
+        }
+
+        var max = peaks.Max();
+        if (max <= 0.0001f)
+        {
+            max = 1f;
+        }
+
+        var result = new float[peaks.Count];
+        for (var i = 0; i < peaks.Count; i++)
+        {
+            result[i] = Math.Clamp(peaks[i] / max, 0.02f, 1.0f);
+        }
+
+        return result;
+    }
+
+    private async Task SaveEditedSoundAsync(SoundBoardSound sourceSound, string renderedPath, bool saveAsCopy)
+    {
+        var oldPath = sourceSound.FilePath;
+        SoundBoardSound selectedAfterSave;
+
+        if (saveAsCopy)
+        {
+            selectedAfterSave = _libraryStore.AddEditedCopy(_library, sourceSound, renderedPath);
+            AppendLog($"Edited copy created: {selectedAfterSave.DisplayName}");
+        }
+        else
+        {
+            _engine?.StopSound();
+            _libraryStore.ReplaceSoundWithEditedWav(_library, sourceSound, renderedPath);
+            selectedAfterSave = sourceSound;
+            AppendLog($"Track edited: {selectedAfterSave.DisplayName}");
+        }
+
+        SoundFileLoader.Invalidate(oldPath);
+        SoundFileLoader.Invalidate(selectedAfterSave.FilePath);
+        _soundDurationSecondsCache.Remove(oldPath);
+        _soundDurationSecondsCache.Remove(selectedAfterSave.FilePath);
+
+        _selectedSound = selectedAfterSave;
+        _soundFilePath = selectedAfterSave.FilePath;
+        _settings.LastSoundId = selectedAfterSave.Id;
+        _settings.LastSoundFilePath = selectedAfterSave.FilePath;
+        _settings.LastSoundCategoryId = selectedAfterSave.CategoryId;
+        RefreshSoundList();
+        SelectSound(selectedAfterSave);
+        RebuildSceneSoundButtons();
+        UpdateSceneTimelines();
+        SaveCurrentSettings();
+        WarmSoundCacheInBackground(new[] { selectedAfterSave.FilePath });
+
+        await Task.CompletedTask;
     }
 
     private async void OnSoundContextReplaceFileClick(object sender, RoutedEventArgs e)

@@ -19,11 +19,13 @@ public sealed class SoundBoardLibraryStore
     {
         DataDirectory = dataDirectory;
         SoundsDirectory = Path.Combine(DataDirectory, "sounds");
+        EditedSoundsDirectory = Path.Combine(DataDirectory, "edited-sounds");
         LibraryPath = Path.Combine(DataDirectory, "soundboard.json");
     }
 
     public string DataDirectory { get; }
     public string SoundsDirectory { get; }
+    public string EditedSoundsDirectory { get; }
     public string LibraryPath { get; }
 
     public SoundBoardLibrary Load()
@@ -32,6 +34,7 @@ public sealed class SoundBoardLibraryStore
         {
             Directory.CreateDirectory(DataDirectory);
             Directory.CreateDirectory(SoundsDirectory);
+            Directory.CreateDirectory(EditedSoundsDirectory);
 
             if (!File.Exists(LibraryPath))
             {
@@ -58,6 +61,7 @@ public sealed class SoundBoardLibraryStore
         {
             Directory.CreateDirectory(DataDirectory);
             Directory.CreateDirectory(SoundsDirectory);
+            Directory.CreateDirectory(EditedSoundsDirectory);
             EnsureDefaultCategory(library);
             var json = JsonSerializer.Serialize(library, JsonOptions);
             File.WriteAllText(LibraryPath, json);
@@ -214,6 +218,97 @@ public sealed class SoundBoardLibraryStore
         sound.Extension = extension;
         sound.UpdatedAtUtc = DateTime.UtcNow;
         Save(library);
+    }
+
+
+    public void ReplaceSoundWithEditedWav(SoundBoardLibrary library, SoundBoardSound sound, string editedWavPath)
+    {
+        if (!File.Exists(editedWavPath))
+        {
+            throw new FileNotFoundException("Edited sound file not found.", editedWavPath);
+        }
+
+        Directory.CreateDirectory(SoundsDirectory);
+        var safeName = MakeSafeFileName(sound.DisplayName);
+        var targetFileName = $"{safeName}_{sound.Id[..8]}_edited.wav";
+        var targetPath = Path.Combine(SoundsDirectory, targetFileName);
+        var oldPath = sound.FilePath;
+
+        if (Path.GetExtension(oldPath).Equals(".wav", StringComparison.OrdinalIgnoreCase)
+            && string.Equals(Path.GetDirectoryName(oldPath), SoundsDirectory, StringComparison.OrdinalIgnoreCase))
+        {
+            targetPath = oldPath;
+        }
+
+        var tempTarget = targetPath + ".tmp";
+        File.Copy(editedWavPath, tempTarget, overwrite: true);
+
+        if (File.Exists(targetPath))
+        {
+            var backupPath = targetPath + ".bak";
+            try
+            {
+                File.Copy(targetPath, backupPath, overwrite: true);
+            }
+            catch (Exception ex)
+            {
+                StartupLog.Write("Sound backup error: " + ex);
+            }
+
+            File.Delete(targetPath);
+        }
+
+        File.Move(tempTarget, targetPath);
+
+        if (!string.Equals(oldPath, targetPath, StringComparison.OrdinalIgnoreCase) && File.Exists(oldPath))
+        {
+            try
+            {
+                File.Delete(oldPath);
+            }
+            catch (Exception ex)
+            {
+                StartupLog.Write("Old edited sound source delete error: " + ex);
+            }
+        }
+
+        sound.FilePath = targetPath;
+        sound.Extension = ".wav";
+        sound.OriginalFileName = Path.GetFileName(targetPath);
+        sound.UpdatedAtUtc = DateTime.UtcNow;
+        Save(library);
+    }
+
+    public SoundBoardSound AddEditedCopy(SoundBoardLibrary library, SoundBoardSound sourceSound, string editedWavPath)
+    {
+        if (!File.Exists(editedWavPath))
+        {
+            throw new FileNotFoundException("Edited sound file not found.", editedWavPath);
+        }
+
+        Directory.CreateDirectory(SoundsDirectory);
+        var id = Guid.NewGuid().ToString("N");
+        var safeName = MakeSafeFileName(sourceSound.DisplayName + " copy");
+        var targetFileName = $"{safeName}_{id[..8]}.wav";
+        var targetPath = Path.Combine(SoundsDirectory, targetFileName);
+        File.Copy(editedWavPath, targetPath, overwrite: false);
+
+        var now = DateTime.UtcNow;
+        var copy = new SoundBoardSound
+        {
+            Id = id,
+            Name = sourceSound.DisplayName + " copy",
+            CategoryId = sourceSound.CategoryId,
+            FilePath = targetPath,
+            OriginalFileName = Path.GetFileName(targetPath),
+            Extension = ".wav",
+            CreatedAtUtc = now,
+            UpdatedAtUtc = now
+        };
+
+        library.Sounds.Add(copy);
+        Save(library);
+        return copy;
     }
 
     public void IncrementUsage(SoundBoardLibrary library, SoundBoardSound sound)

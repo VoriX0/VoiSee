@@ -35,6 +35,29 @@ public static class SoundFileLoader
         return lazy.Value;
     }
 
+
+    public static void Invalidate(string filePath)
+    {
+        if (string.IsNullOrWhiteSpace(filePath))
+        {
+            return;
+        }
+
+        var fullPath = Path.GetFullPath(filePath);
+        foreach (var key in Cache.Keys)
+        {
+            if (string.Equals(key.FilePath, fullPath, StringComparison.OrdinalIgnoreCase))
+            {
+                Cache.TryRemove(key, out _);
+            }
+        }
+    }
+
+    public static void ClearCache()
+    {
+        Cache.Clear();
+    }
+
     public static Task PreloadToFormatAsync(string filePath, WaveFormat targetFormat)
     {
         if (string.IsNullOrWhiteSpace(filePath) || !File.Exists(filePath))
