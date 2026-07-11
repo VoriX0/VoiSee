@@ -110,6 +110,7 @@ public sealed partial class MainWindow : Window
     private const string SoundEditorPreviewPlaybackKey = "__voisee_sound_editor_preview";
     private bool _suppressSoundBoardTimelineForEditorPreview;
     private bool _soundEditorActive;
+    private ScrollViewer? _activeSoundEditorScrollViewer;
     private Action? _soundEditorPlayPauseAction;
     private Action? _soundEditorStopAction;
     private readonly Dictionary<string, SceneTimelineBinding> _sceneTimelineBindings = new(StringComparer.OrdinalIgnoreCase);
@@ -170,7 +171,7 @@ public sealed partial class MainWindow : Window
         _timelineTimer.Tick += OnTimelineTimerTick;
         _timelineTimer.Start();
 
-        AppendLog("VoiSee Version 9.2.5 UI started.");
+        AppendLog("VoiSee Version 9.2.7 UI started.");
         AppendLog($"Settings path: {_settingsStore.SettingsPath}");
         StartupLog.Write("MainWindow initialized; waiting for first activation.");
     }
@@ -1314,6 +1315,15 @@ public sealed partial class MainWindow : Window
             return false;
         }
 
+        // Gate 9.2.7: the modal Sound Editor owns the mouse wheel while it is open.
+        // Route the low-level hook directly to its ScrollViewer before any main-tab
+        // routing, otherwise the large Gate 6.8 SoundBoard wheel zone steals it.
+        if (_soundEditorActive)
+        {
+            return _activeSoundEditorScrollViewer is not null
+                && TryScrollViewer(_activeSoundEditorScrollViewer, delta, 58.0);
+        }
+
         if (_suppressMainTabWheelRouting)
         {
             return TryHandleActiveIconPickerWheel(xDip, yDip, delta);
@@ -1674,7 +1684,7 @@ public sealed partial class MainWindow : Window
 
         var current = currentMaybe.Value;
 
-        // Gate 9.2.5: while the modal Sound Editor is open, all normal VoiSee
+        // Gate 9.2.6: while the modal Sound Editor is open, all normal VoiSee
         // hotkeys are disabled. Only the configured Play/Pause and Stop keys
         // are redirected to the editor preview state machine.
         if (_soundEditorActive)
@@ -3729,21 +3739,154 @@ public sealed partial class MainWindow : Window
         gainGrid.Children.Add(gainSlider);
         gainGrid.Children.Add(gainValueText);
 
-        var toolbarAndGainRow = new Grid
+        var normalizeToggle = new ToggleSwitch
         {
-            ColumnSpacing = 18,
+            Header = "Normalize",
+            OffContent = "Off",
+            OnContent = "On",
+            IsOn = false,
             HorizontalAlignment = HorizontalAlignment.Stretch
         };
-        toolbarAndGainRow.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-        toolbarAndGainRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-        Grid.SetColumn(toolbar, 0);
-        Grid.SetColumn(gainGrid, 1);
-        toolbarAndGainRow.Children.Add(toolbar);
-        toolbarAndGainRow.Children.Add(gainGrid);
+
+        var fadeInValueText = new TextBlock
+        {
+            Width = 72,
+            TextAlignment = TextAlignment.Right,
+            VerticalAlignment = VerticalAlignment.Center,
+            FontWeight = Microsoft.UI.Text.FontWeights.SemiBold
+        };
+        var fadeInSlider = new Slider
+        {
+            Minimum = 0,
+            Maximum = Math.Max(0.2, editorDuration),
+            Value = 0,
+            StepFrequency = 0.05,
+            SmallChange = 0.05,
+            LargeChange = 0.5,
+            HorizontalAlignment = HorizontalAlignment.Stretch,
+            MinWidth = 170
+        };
+
+        var fadeOutValueText = new TextBlock
+        {
+            Width = 72,
+            TextAlignment = TextAlignment.Right,
+            VerticalAlignment = VerticalAlignment.Center,
+            FontWeight = Microsoft.UI.Text.FontWeights.SemiBold
+        };
+        var fadeOutSlider = new Slider
+        {
+            Minimum = 0,
+            Maximum = Math.Max(0.2, editorDuration),
+            Value = 0,
+            StepFrequency = 0.05,
+            SmallChange = 0.05,
+            LargeChange = 0.5,
+            HorizontalAlignment = HorizontalAlignment.Stretch,
+            MinWidth = 170
+        };
+
+        var distortionValueText = new TextBlock
+        {
+            Width = 58,
+            TextAlignment = TextAlignment.Right,
+            VerticalAlignment = VerticalAlignment.Center,
+            FontWeight = Microsoft.UI.Text.FontWeights.SemiBold
+        };
+        var distortionSlider = new Slider
+        {
+            Minimum = 0,
+            Maximum = 100,
+            Value = 0,
+            StepFrequency = 1,
+            SmallChange = 1,
+            LargeChange = 10,
+            HorizontalAlignment = HorizontalAlignment.Stretch,
+            MinWidth = 170
+        };
+
+        Grid CreateEffectSliderRow(string label, Slider slider, TextBlock valueText)
+        {
+            var row = new Grid { ColumnSpacing = 10 };
+            row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(92) });
+            row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            var labelBlock = new TextBlock
+            {
+                Text = label,
+                FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
+                VerticalAlignment = VerticalAlignment.Center
+            };
+            Grid.SetColumn(labelBlock, 0);
+            Grid.SetColumn(slider, 1);
+            Grid.SetColumn(valueText, 2);
+            row.Children.Add(labelBlock);
+            row.Children.Add(slider);
+            row.Children.Add(valueText);
+            return row;
+        }
+
+        var leftEffectsColumn = new StackPanel
+        {
+            Spacing = 8,
+            Children =
+            {
+                gainGrid,
+                CreateEffectSliderRow("Fade in", fadeInSlider, fadeInValueText),
+                CreateEffectSliderRow("Fade out", fadeOutSlider, fadeOutValueText)
+            }
+        };
+
+        var rightEffectsColumn = new StackPanel
+        {
+            Spacing = 8,
+            Children =
+            {
+                normalizeToggle,
+                CreateEffectSliderRow("Distortion", distortionSlider, distortionValueText),
+                new TextBlock
+                {
+                    Text = "All effects are non-destructive until Save. The waveform updates immediately.",
+                    TextWrapping = TextWrapping.WrapWholeWords,
+                    Opacity = 0.68
+                }
+            }
+        };
+
+        var effectsColumns = new Grid { ColumnSpacing = 18 };
+        effectsColumns.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        effectsColumns.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        Grid.SetColumn(leftEffectsColumn, 0);
+        Grid.SetColumn(rightEffectsColumn, 1);
+        effectsColumns.Children.Add(leftEffectsColumn);
+        effectsColumns.Children.Add(rightEffectsColumn);
+
+        var effectsPanel = new Border
+        {
+            Background = new SolidColorBrush(Microsoft.UI.ColorHelper.FromArgb(0x12, 0xFF, 0xFF, 0xFF)),
+            BorderBrush = new SolidColorBrush(Microsoft.UI.ColorHelper.FromArgb(0x18, 0xFF, 0xFF, 0xFF)),
+            BorderThickness = new Thickness(1),
+            CornerRadius = new CornerRadius(5),
+            Padding = new Thickness(14, 12, 14, 12),
+            Child = new StackPanel
+            {
+                Spacing = 10,
+                Children =
+                {
+                    new TextBlock
+                    {
+                        Text = "Effects",
+                        FontSize = 18,
+                        FontWeight = Microsoft.UI.Text.FontWeights.SemiBold
+                    },
+                    effectsColumns
+                }
+            }
+        };
 
         var editorStatusText = new TextBlock
         {
-            Text = "Select a fragment, then use Trim Outside or Cut Selection. Save writes the current edited waveform.",
+            Text = "Select a fragment or adjust effects. Preview and Save use the waveform shown above.",
             TextWrapping = TextWrapping.WrapWholeWords,
             Opacity = 0.75,
             MaxWidth = 860
@@ -3758,9 +3901,10 @@ public sealed partial class MainWindow : Window
             {
                 title,
                 durationRow,
-                toolbarAndGainRow,
+                toolbar,
                 waveformBorder,
                 selectionTimesRow,
+                effectsPanel,
                 selectionHintText,
                 editorStatusText
             }
@@ -3770,12 +3914,32 @@ public sealed partial class MainWindow : Window
         {
             Content = panel,
             Width = 880,
-            MaxHeight = 690,
+            Height = 650,
+            MaxHeight = 650,
             HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled,
             VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
             HorizontalAlignment = HorizontalAlignment.Center,
             VerticalAlignment = VerticalAlignment.Center
         };
+
+        // Also handle the normal WinUI routed event. The low-level hook above is
+        // required for this project because the main SoundBoard uses a calibrated
+        // global wheel zone, but this local handler keeps the editor correct even
+        // when the global hook is unavailable.
+        contentViewer.AddHandler(
+            UIElement.PointerWheelChangedEvent,
+            new PointerEventHandler((_, args) =>
+            {
+                var wheelDelta = args.GetCurrentPoint(contentViewer).Properties.MouseWheelDelta;
+                if (wheelDelta == 0)
+                {
+                    return;
+                }
+
+                TryScrollViewer(contentViewer, wheelDelta, 58.0);
+                args.Handled = true;
+            }),
+            true);
 
         var previewTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(30) };
         var pointerMode = "none";
@@ -3815,6 +3979,10 @@ public sealed partial class MainWindow : Window
                                            && editorDuration - SelectionLength() >= minimumSelectionSeconds - 0.001;
             resetButton.IsEnabled = !operationBusy;
             gainSlider.IsEnabled = !operationBusy;
+            normalizeToggle.IsEnabled = !operationBusy;
+            fadeInSlider.IsEnabled = !operationBusy;
+            fadeOutSlider.IsEnabled = !operationBusy;
+            distortionSlider.IsEnabled = !operationBusy;
             waveformCanvas.IsHitTestVisible = !operationBusy;
             waveformRuler.IsHitTestVisible = !operationBusy;
             if (activeEditorDialog is not null)
@@ -3886,6 +4054,14 @@ public sealed partial class MainWindow : Window
             var halfHeight = Math.Max(24, height / 2.0 - 10);
             var peakCount = Math.Max(1, waveformPeaks.Length);
             var columnWidth = width / peakCount;
+            var rawPeakMaximum = waveformPeaks.Length == 0 ? 0.0f : waveformPeaks.Max();
+            var normalizeScale = normalizeToggle.IsOn && rawPeakMaximum > 0.000001f
+                ? 0.98 / rawPeakMaximum
+                : 1.0;
+            var gainScale = Math.Pow(10.0, Math.Clamp(gainSlider.Value, -48.0, 24.0) / 20.0);
+            var distortion = Math.Clamp(distortionSlider.Value / 100.0, 0.0, 1.0);
+            var distortionDrive = 1.0 + distortion * 11.0;
+            var distortionScale = distortion > 0.0001 ? Math.Tanh(distortionDrive) : 1.0;
 
             waveformCanvas.Children.Add(new XamlRectangle
             {
@@ -3896,7 +4072,30 @@ public sealed partial class MainWindow : Window
 
             for (var i = 0; i < peakCount; i++)
             {
-                var amplitude = Math.Clamp(waveformPeaks[Math.Min(i, waveformPeaks.Length - 1)], 0.02f, 1.0f);
+                var sourceAmplitude = waveformPeaks[Math.Min(i, waveformPeaks.Length - 1)];
+                var ratio = peakCount <= 1 ? 0.0 : i / (double)(peakCount - 1);
+                var timelineSeconds = ratio * editorDuration;
+                var envelope = 1.0;
+                if (fadeInSlider.Value > 0.0001 && timelineSeconds < fadeInSlider.Value)
+                {
+                    envelope *= timelineSeconds / fadeInSlider.Value;
+                }
+                if (fadeOutSlider.Value > 0.0001)
+                {
+                    var secondsFromEnd = Math.Max(0, editorDuration - timelineSeconds);
+                    if (secondsFromEnd < fadeOutSlider.Value)
+                    {
+                        envelope *= secondsFromEnd / fadeOutSlider.Value;
+                    }
+                }
+
+                var effectedAmplitude = sourceAmplitude * normalizeScale * gainScale * envelope;
+                if (distortion > 0.0001)
+                {
+                    effectedAmplitude = Math.Tanh(effectedAmplitude * distortionDrive) / distortionScale;
+                }
+
+                var amplitude = Math.Clamp(effectedAmplitude, 0.005, 1.0);
                 var barHeight = amplitude * halfHeight;
                 var x = i * columnWidth;
                 waveformCanvas.Children.Add(new XamlLine
@@ -3956,7 +4155,15 @@ public sealed partial class MainWindow : Window
         void UpdateEditorState()
         {
             previewPositionSeconds = ClampPlayhead(previewPositionSeconds);
+            var maximumFade = Math.Max(0.2, editorDuration);
+            fadeInSlider.Maximum = maximumFade;
+            fadeOutSlider.Maximum = maximumFade;
+            if (fadeInSlider.Value > maximumFade) fadeInSlider.Value = maximumFade;
+            if (fadeOutSlider.Value > maximumFade) fadeOutSlider.Value = maximumFade;
             gainValueText.Text = $"{gainSlider.Value:+0.0;-0.0;0.0} dB";
+            fadeInValueText.Text = FormatEditorTime(fadeInSlider.Value);
+            fadeOutValueText.Text = FormatEditorTime(fadeOutSlider.Value);
+            distortionValueText.Text = $"{distortionSlider.Value:0}%";
 
             if (HasSelection())
             {
@@ -4041,7 +4248,13 @@ public sealed partial class MainWindow : Window
                     TargetPath = previewPath,
                     TrimStartSeconds = startSeconds,
                     TrimEndSeconds = endSeconds,
-                    GainDb = gainSlider.Value
+                    GainDb = gainSlider.Value,
+                    Normalize = normalizeToggle.IsOn,
+                    FadeInSeconds = fadeInSlider.Value,
+                    FadeOutSeconds = fadeOutSlider.Value,
+                    DistortionAmount = distortionSlider.Value / 100.0,
+                    EffectTimelineOffsetSeconds = startSeconds,
+                    EffectTimelineDurationSeconds = editorDuration
                 };
 
                 await Task.Run(() => SoundEditProcessor.RenderToWav(request));
@@ -4274,11 +4487,17 @@ public sealed partial class MainWindow : Window
         waveformCanvas.PointerCanceled += (_, e) => EndWaveformPointer(e);
         waveformCanvas.PointerCaptureLost += (_, _) => pointerMode = "none";
 
-        gainSlider.ValueChanged += (_, _) =>
+        void OnEffectValueChanged()
         {
             StopPreviewCore(resetPlayhead: false);
             UpdateEditorState();
-        };
+        }
+
+        gainSlider.ValueChanged += (_, _) => OnEffectValueChanged();
+        normalizeToggle.Toggled += (_, _) => OnEffectValueChanged();
+        fadeInSlider.ValueChanged += (_, _) => OnEffectValueChanged();
+        fadeOutSlider.ValueChanged += (_, _) => OnEffectValueChanged();
+        distortionSlider.ValueChanged += (_, _) => OnEffectValueChanged();
         waveformCanvas.SizeChanged += (_, _) => UpdateEditorState();
         waveformRuler.SizeChanged += (_, _) => UpdateEditorState();
 
@@ -4432,6 +4651,10 @@ public sealed partial class MainWindow : Window
                 selectionStartSeconds = null;
                 selectionEndSeconds = null;
                 gainSlider.Value = 0;
+                normalizeToggle.IsOn = false;
+                fadeInSlider.Value = 0;
+                fadeOutSlider.Value = 0;
+                distortionSlider.Value = 0;
                 previewPositionSeconds = 0;
                 previewReturnSeconds = 0;
                 UpdateEditorState();
@@ -4510,7 +4733,13 @@ public sealed partial class MainWindow : Window
                 TargetPath = renderedPath,
                 TrimStartSeconds = 0,
                 TrimEndSeconds = editorDuration,
-                GainDb = gainSlider.Value
+                GainDb = gainSlider.Value,
+                Normalize = normalizeToggle.IsOn,
+                FadeInSeconds = fadeInSlider.Value,
+                FadeOutSeconds = fadeOutSlider.Value,
+                DistortionAmount = distortionSlider.Value / 100.0,
+                EffectTimelineOffsetSeconds = 0,
+                EffectTimelineDurationSeconds = editorDuration
             };
             await Task.Run(() => SoundEditProcessor.RenderToWav(request));
             return renderedPath;
@@ -4573,6 +4802,7 @@ public sealed partial class MainWindow : Window
         _activePushToTalkGesture = null;
         UpdateTimeline();
         _suppressSoundBoardTimelineForEditorPreview = true;
+        _activeSoundEditorScrollViewer = contentViewer;
         _soundEditorActive = true;
         _soundEditorPlayPauseAction = () => _ = HandlePlayPauseHotkeyAsync();
         _soundEditorStopAction = HandleStop;
@@ -4589,6 +4819,7 @@ public sealed partial class MainWindow : Window
             _soundEditorPlayPauseAction = null;
             _soundEditorStopAction = null;
             _soundEditorActive = false;
+            _activeSoundEditorScrollViewer = null;
             _suppressSoundBoardTimelineForEditorPreview = false;
             UpdateTimeline();
 
@@ -4664,8 +4895,9 @@ public sealed partial class MainWindow : Window
                 peaks.Add(currentPeak);
             }
 
-            var normalized = NormalizeWaveformPeaks(peaks);
-            return normalized.Length == 0 ? new[] { 0.05f } : normalized;
+            return peaks.Count == 0
+                ? new[] { 0.0f }
+                : peaks.Select(peak => Math.Clamp(peak, 0.0f, 1.0f)).ToArray();
         }
         catch
         {

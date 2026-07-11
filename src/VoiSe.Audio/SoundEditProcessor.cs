@@ -9,6 +9,12 @@ public sealed class SoundEditRequest
     public double TrimStartSeconds { get; init; }
     public double TrimEndSeconds { get; init; }
     public double GainDb { get; init; }
+    public bool Normalize { get; init; }
+    public double FadeInSeconds { get; init; }
+    public double FadeOutSeconds { get; init; }
+    public double DistortionAmount { get; init; }
+    public double EffectTimelineOffsetSeconds { get; init; }
+    public double EffectTimelineDurationSeconds { get; init; }
     public int SampleRate { get; init; } = 48_000;
     public int Channels { get; init; } = 2;
 }
@@ -84,7 +90,37 @@ public static class SoundEditProcessor
         var endFrame = (int)Math.Clamp(Math.Round(endSeconds * sampleRate), startFrame, totalFrames);
         var startSample = startFrame * channels;
         var sampleCount = Math.Max(0, (endFrame - startFrame) * channels);
-        var gain = DbToLinear(request.GainDb);
+        var edited = new float[sampleCount];
+        if (sampleCount > 0)
+        {
+            Array.Copy(source, startSample, edited, 0, sampleCount);
+        }
+
+        var normalizeGain = 1.0f;
+        if (request.Normalize)
+        {
+            var sourcePeak = 0.0f;
+            for (var i = 0; i < source.Length; i++)
+            {
+                sourcePeak = Math.Max(sourcePeak, Math.Abs(source[i]));
+            }
+
+            if (sourcePeak > 0.000001f)
+            {
+                normalizeGain = 0.98f / sourcePeak;
+            }
+        }
+
+        ApplyEffects(
+            edited,
+            channels,
+            sampleRate,
+            DbToLinear(request.GainDb) * normalizeGain,
+            request.FadeInSeconds,
+            request.FadeOutSeconds,
+            request.DistortionAmount,
+            request.EffectTimelineOffsetSeconds,
+            request.EffectTimelineDurationSeconds <= 0 ? totalSeconds : request.EffectTimelineDurationSeconds);
 
         var tempPath = request.TargetPath + ".tmp";
         if (File.Exists(tempPath))
@@ -94,23 +130,7 @@ public static class SoundEditProcessor
 
         using (var writer = new WaveFileWriter(tempPath, format))
         {
-            const int chunkSize = 16_384;
-            var buffer = new float[Math.Min(chunkSize, Math.Max(channels, sampleCount))];
-            var remaining = sampleCount;
-            var position = startSample;
-
-            while (remaining > 0)
-            {
-                var count = Math.Min(buffer.Length, remaining);
-                for (var i = 0; i < count; i++)
-                {
-                    buffer[i] = Math.Clamp(source[position + i] * gain, -1.0f, 1.0f);
-                }
-
-                writer.WriteSamples(buffer, 0, count);
-                position += count;
-                remaining -= count;
-            }
+            WriteRange(writer, edited, 0, edited.Length, 1.0f, channels);
         }
 
         if (File.Exists(request.TargetPath))
@@ -193,6 +213,66 @@ public static class SoundEditProcessor
             DurationSeconds = sampleCount / (double)channels / sampleRate,
             SampleCount = sampleCount
         };
+    }
+
+
+    private static void ApplyEffects(
+        float[] samples,
+        int channels,
+        int sampleRate,
+        float gain,
+        double fadeInSeconds,
+        double fadeOutSeconds,
+        double distortionAmount,
+        double timelineOffsetSeconds,
+        double timelineDurationSeconds)
+    {
+        if (samples.Length == 0)
+        {
+            return;
+        }
+
+        channels = Math.Max(1, channels);
+        sampleRate = Math.Max(1, sampleRate);
+        var frameCount = samples.Length / channels;
+        var timelineFrames = Math.Max(frameCount, (int)Math.Round(Math.Max(0, timelineDurationSeconds) * sampleRate));
+        var offsetFrames = Math.Max(0, (int)Math.Round(Math.Max(0, timelineOffsetSeconds) * sampleRate));
+        var fadeInFrames = Math.Max(0, (int)Math.Round(Math.Max(0, fadeInSeconds) * sampleRate));
+        var fadeOutFrames = Math.Max(0, (int)Math.Round(Math.Max(0, fadeOutSeconds) * sampleRate));
+        var distortion = Math.Clamp(distortionAmount, 0.0, 1.0);
+        var drive = 1.0 + distortion * 11.0;
+        var driveScale = distortion > 0.0001 ? Math.Tanh(drive) : 1.0;
+
+        for (var frame = 0; frame < frameCount; frame++)
+        {
+            var timelineFrame = offsetFrames + frame;
+            var envelope = 1.0;
+            if (fadeInFrames > 0 && timelineFrame < fadeInFrames)
+            {
+                envelope *= timelineFrame / (double)fadeInFrames;
+            }
+
+            if (fadeOutFrames > 0)
+            {
+                var framesFromEnd = Math.Max(0, timelineFrames - 1 - timelineFrame);
+                if (framesFromEnd < fadeOutFrames)
+                {
+                    envelope *= framesFromEnd / (double)fadeOutFrames;
+                }
+            }
+
+            for (var channel = 0; channel < channels; channel++)
+            {
+                var index = frame * channels + channel;
+                var value = samples[index] * gain * (float)envelope;
+                if (distortion > 0.0001)
+                {
+                    value = (float)(Math.Tanh(value * drive) / driveScale);
+                }
+
+                samples[index] = Math.Clamp(value, -1.0f, 1.0f);
+            }
+        }
     }
 
     private static void WriteRange(
