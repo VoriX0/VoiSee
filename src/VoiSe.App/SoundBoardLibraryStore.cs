@@ -288,7 +288,8 @@ public sealed class SoundBoardLibraryStore
 
         Directory.CreateDirectory(SoundsDirectory);
         var id = Guid.NewGuid().ToString("N");
-        var safeName = MakeSafeFileName(sourceSound.DisplayName + " copy");
+        var displayName = BuildUniqueEditedDisplayName(library, sourceSound.DisplayName);
+        var safeName = MakeSafeFileName(displayName);
         var targetFileName = $"{safeName}_{id[..8]}.wav";
         var targetPath = Path.Combine(SoundsDirectory, targetFileName);
         File.Copy(editedWavPath, targetPath, overwrite: false);
@@ -297,7 +298,7 @@ public sealed class SoundBoardLibraryStore
         var copy = new SoundBoardSound
         {
             Id = id,
-            Name = sourceSound.DisplayName + " copy",
+            Name = displayName,
             CategoryId = sourceSound.CategoryId,
             FilePath = targetPath,
             OriginalFileName = Path.GetFileName(targetPath),
@@ -309,6 +310,31 @@ public sealed class SoundBoardLibraryStore
         library.Sounds.Add(copy);
         Save(library);
         return copy;
+    }
+
+    private static string BuildUniqueEditedDisplayName(SoundBoardLibrary library, string sourceDisplayName)
+    {
+        var baseName = string.IsNullOrWhiteSpace(sourceDisplayName)
+            ? "Sound"
+            : Regex.Replace(
+                sourceDisplayName.Trim(),
+                @"\s+\[edit(?:\s+\d+)?\]$",
+                string.Empty,
+                RegexOptions.IgnoreCase).Trim();
+        if (string.IsNullOrWhiteSpace(baseName))
+        {
+            baseName = "Sound";
+        }
+
+        var candidate = $"{baseName} [edit]";
+        var suffix = 2;
+        while (library.Sounds.Any(sound => string.Equals(sound.DisplayName, candidate, StringComparison.OrdinalIgnoreCase)))
+        {
+            candidate = $"{baseName} [edit {suffix}]";
+            suffix++;
+        }
+
+        return candidate;
     }
 
     public void IncrementUsage(SoundBoardLibrary library, SoundBoardSound sound)

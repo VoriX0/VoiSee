@@ -170,7 +170,7 @@ public sealed partial class MainWindow : Window
         _timelineTimer.Tick += OnTimelineTimerTick;
         _timelineTimer.Start();
 
-        AppendLog("VoiSee Version 9.2.4 UI started.");
+        AppendLog("VoiSee Version 9.2.5 UI started.");
         AppendLog($"Settings path: {_settingsStore.SettingsPath}");
         StartupLog.Write("MainWindow initialized; waiting for first activation.");
     }
@@ -1674,7 +1674,7 @@ public sealed partial class MainWindow : Window
 
         var current = currentMaybe.Value;
 
-        // Gate 9.2.4: while the modal Sound Editor is open, all normal VoiSee
+        // Gate 9.2.5: while the modal Sound Editor is open, all normal VoiSee
         // hotkeys are disabled. Only the configured Play/Pause and Stop keys
         // are redirected to the editor preview state machine.
         if (_soundEditorActive)
@@ -3512,7 +3512,7 @@ public sealed partial class MainWindow : Window
 
         var currentDurationText = new TextBlock
         {
-            Text = $"Current duration: {FormatEditorTime(editorDuration)}",
+            Text = "Selected duration: —",
             HorizontalAlignment = HorizontalAlignment.Right,
             TextAlignment = TextAlignment.Right,
             Opacity = 0.85,
@@ -3551,17 +3551,49 @@ public sealed partial class MainWindow : Window
                 VerticalAlignment = VerticalAlignment.Center
             };
 
+        UIElement CreateSelectionPlayIcon()
+        {
+            var icon = new StackPanel
+            {
+                Orientation = Orientation.Horizontal,
+                Spacing = 1,
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center
+            };
+            icon.Children.Add(new TextBlock
+            {
+                Text = "│",
+                FontSize = 17,
+                Opacity = 0.82,
+                VerticalAlignment = VerticalAlignment.Center
+            });
+            icon.Children.Add(new SymbolIcon(Symbol.Play)
+            {
+                Width = 18,
+                Height = 18,
+                VerticalAlignment = VerticalAlignment.Center
+            });
+            icon.Children.Add(new TextBlock
+            {
+                Text = "│",
+                FontSize = 17,
+                Opacity = 0.82,
+                VerticalAlignment = VerticalAlignment.Center
+            });
+            return icon;
+        }
+
         var playFromStartButton = CreateToolbarButton(
             new SymbolIcon(Symbol.Play),
             "Play from the beginning with the current SoundBoard headphones volume");
         var playSelectionButton = CreateToolbarButton(
-            CreateGlyph("[▷]", 17),
+            CreateSelectionPlayIcon(),
             "Play only the selected fragment from its beginning with the current SoundBoard headphones volume");
         var stopButton = CreateToolbarButton(
             new SymbolIcon(Symbol.Stop),
             "Stop preview and return the playhead to the preview start");
         var trimOutsideButton = CreateToolbarButton(
-            CreateGlyph("⛶", 21),
+            new SymbolIcon(Symbol.Crop),
             "Trim outside: keep the selected fragment and remove everything outside it");
         var cutSelectionButton = CreateToolbarButton(
             CreateGlyph("✀", 22),
@@ -3924,17 +3956,19 @@ public sealed partial class MainWindow : Window
         void UpdateEditorState()
         {
             previewPositionSeconds = ClampPlayhead(previewPositionSeconds);
-            currentDurationText.Text = $"Current duration: {FormatEditorTime(editorDuration)}";
             gainValueText.Text = $"{gainSlider.Value:+0.0;-0.0;0.0} dB";
 
             if (HasSelection())
             {
+                var selectedDuration = SelectionLength();
+                currentDurationText.Text = $"Selected duration: {FormatEditorTime(selectedDuration)}";
                 selectionStartText.Text = $"Selection start: {FormatEditorTime(SelectionStart())}";
                 selectionEndText.Text = $"Selection end: {FormatEditorTime(SelectionEnd())}";
-                selectionHintText.Text = $"Selected: {FormatEditorTime(SelectionLength())}. Use Trim Outside to keep it, or Cut Selection to remove it.";
+                selectionHintText.Text = $"Selected: {FormatEditorTime(selectedDuration)}. Use Trim Outside to keep it, or Cut Selection to remove it.";
             }
             else
             {
+                currentDurationText.Text = "Selected duration: —";
                 selectionStartText.Text = "Selection start: —";
                 selectionEndText.Text = "Selection end: —";
                 selectionHintText.Text = "Drag across the waveform to select a fragment. A single click positions the yellow playhead. Minimum selection: 0.2 s.";
@@ -4422,7 +4456,7 @@ public sealed partial class MainWindow : Window
             Title = "Sound Editor",
             Content = contentViewer,
             PrimaryButtonText = "Save File",
-            SecondaryButtonText = "Save as Copy",
+            SecondaryButtonText = "Save as",
             CloseButtonText = "Cancel",
             DefaultButton = ContentDialogButton.Primary,
             MinWidth = 940,
@@ -4512,7 +4546,7 @@ public sealed partial class MainWindow : Window
             try
             {
                 StopPreviewCore(resetPlayhead: false);
-                editorStatusText.Text = "Saving edited copy...";
+                editorStatusText.Text = "Saving edited file as a new [edit] copy...";
                 args.Cancel = true;
                 var renderedPath = await RenderSavedOutputAsync("copy");
                 await SaveEditedSoundAsync(sound, renderedPath, saveAsCopy: true);
@@ -4520,8 +4554,8 @@ public sealed partial class MainWindow : Window
             }
             catch (Exception ex)
             {
-                editorStatusText.Text = $"Save copy error: {ex.Message}";
-                AppendLog($"Sound editor save copy error: {ex.Message}");
+                editorStatusText.Text = $"Save as error: {ex.Message}";
+                AppendLog($"Sound editor Save as error: {ex.Message}");
                 args.Cancel = true;
             }
             finally
