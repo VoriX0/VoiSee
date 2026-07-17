@@ -188,7 +188,7 @@ public sealed partial class MainWindow : Window
         _timelineTimer.Tick += OnTimelineTimerTick;
         _timelineTimer.Start();
 
-        AppendLog("VoiSee Version 10.4.0 UI started.");
+        AppendLog("VoiSee Version 10.4.1 UI started.");
         AppendLog($"Settings path: {_settingsStore.SettingsPath}");
         StartupLog.Write("MainWindow initialized; waiting for first activation.");
     }
@@ -583,32 +583,6 @@ public sealed partial class MainWindow : Window
         {
             AppendLog($"Open theme folder error: {ex.Message}");
             await ShowMessageDialogAsync("Theme error", ex.Message);
-        }
-    }
-
-    private async void OnOpenThemeTemplateClick(object sender, RoutedEventArgs e)
-    {
-        try
-        {
-            var templatePath = Path.Combine(AppContext.BaseDirectory, "Themes", "UserThemeTemplate.voiseetheme.template");
-            if (!File.Exists(templatePath))
-            {
-                await ShowMessageDialogAsync("Theme template", "The bundled theme template was not found.");
-                return;
-            }
-
-            Process.Start(new ProcessStartInfo
-            {
-                FileName = "notepad.exe",
-                Arguments = $"\"{templatePath}\"",
-                UseShellExecute = true
-            });
-            AppendLog($"Theme template opened: {templatePath}");
-        }
-        catch (Exception ex)
-        {
-            AppendLog($"Open theme template error: {ex.Message}");
-            await ShowMessageDialogAsync("Theme template", ex.Message);
         }
     }
 
@@ -1232,7 +1206,7 @@ public sealed partial class MainWindow : Window
     private void OnSettingsTabRootSizeChanged(object sender, SizeChangedEventArgs e)
     {
         if (SettingsSystemColumn is null || SettingsThemesColumn is null || SettingsAboutColumn is null ||
-            MainSettings is null || SettingsThemesPanel is null || AboutMePanel is null || SettingsTabRoot is null)
+            MainSettings is null || SettingsThemesPanel is null || SettingsAboutStack is null || SettingsTabRoot is null)
         {
             return;
         }
@@ -1254,8 +1228,8 @@ public sealed partial class MainWindow : Window
             Grid.SetRow(MainSettings, 0);
             Grid.SetColumn(SettingsThemesPanel, 1);
             Grid.SetRow(SettingsThemesPanel, 0);
-            Grid.SetColumn(AboutMePanel, 2);
-            Grid.SetRow(AboutMePanel, 0);
+            Grid.SetColumn(SettingsAboutStack, 2);
+            Grid.SetRow(SettingsAboutStack, 0);
         }
         else
         {
@@ -1270,8 +1244,8 @@ public sealed partial class MainWindow : Window
             Grid.SetRow(MainSettings, 0);
             Grid.SetColumn(SettingsThemesPanel, 0);
             Grid.SetRow(SettingsThemesPanel, 1);
-            Grid.SetColumn(AboutMePanel, 0);
-            Grid.SetRow(AboutMePanel, 2);
+            Grid.SetColumn(SettingsAboutStack, 0);
+            Grid.SetRow(SettingsAboutStack, 2);
         }
     }
 
@@ -1941,7 +1915,7 @@ public sealed partial class MainWindow : Window
         if (_advancedRouteStatusTextBlock is not null)
         {
             var input = (InputDeviceComboBox?.SelectedItem as AudioDeviceInfo)?.FriendlyName ?? "Not selected";
-            var virtualOutput = (VirtualOutputComboBox?.SelectedItem as AudioDeviceInfo)?.FriendlyName ?? "Not selected";
+            var bridge = IsVBCableReady() ? "Ready (automatic)" : "Not detected";
             var monitor = (MonitorOutputComboBox?.SelectedItem as AudioDeviceInfo)?.FriendlyName ?? "Disabled";
             var routeState = _engine is not null
                 ? "Active"
@@ -1951,7 +1925,7 @@ public sealed partial class MainWindow : Window
 
             _advancedRouteStatusTextBlock.Text =
                 $"Input Device: {input}\n" +
-                $"Virtual Output: {virtualOutput}\n" +
+                $"VB-CABLE bridge: {bridge}\n" +
                 $"Monitor Device: {monitor}\n" +
                 $"Route state: {routeState}\n" +
                 $"Virtual Mic: {(_virtualMicMuted ? "Muted" : "Live")}";
@@ -5840,14 +5814,14 @@ public sealed partial class MainWindow : Window
         var virtualInfo = VirtualOutputComboBox.SelectedItem as AudioDeviceInfo;
         var monitorInfo = MonitorOutputComboBox.SelectedItem as AudioDeviceInfo;
 
-        if (inputInfo is null || virtualInfo is null)
+        if (inputInfo is null)
         {
-            AppendLog("Select input microphone and virtual output first.");
+            AppendLog("Select an input microphone first.");
             UpdateVBCableUiState();
             return false;
         }
 
-        if (!IsLikelyVBCableDevice(virtualInfo))
+        if (virtualInfo is null || !IsLikelyVBCableDevice(virtualInfo))
         {
             AppendLog("VB-CABLE was not detected. Install VB-CABLE before starting the engine.");
             UpdateVBCableUiState();

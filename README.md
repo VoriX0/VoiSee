@@ -1,4 +1,4 @@
-# VoiSee 10.4.0
+# VoiSee 10.4.1
 
 VoiSee is a WinUI 3 application for real-time voice processing, SoundBoard playback into a virtual microphone, scenes, presets, global hotkeys, themes, and non-destructive sound editing.
 
@@ -50,13 +50,14 @@ covering approximately 75% of the VoiSee window.
 
 ## Settings redesign (VoiSee 10.4)
 
-- The first column is now a focused `System & Audio` area with VB-CABLE status,
-  audio devices, SoundBoard delay, hotkeys, autostart, and one Advanced Settings button.
-- Manual engine controls and logs moved out of the main page into a wide centered
-  Advanced Settings dialog with separate scrolling areas.
+- The first column is a focused `System & Audio` area with VB-CABLE status,
+  input and monitor devices, SoundBoard delay, hotkeys, and autostart. The VB-CABLE
+  output route is detected automatically and is no longer exposed as a user setting.
+- The Advanced Settings card now sits under `About me` and opens a wide centered
+  troubleshooting dialog with separate scrolling areas.
 - The log viewer supports Clear, Copy, Export, and automatic scrolling.
 - The Themes column documents native `.voiseetheme.xaml` ResourceDictionary files,
-  shows the actual themes folder, and can open the bundled template.
+  shows the actual themes folder, and places its actions in two compact rows.
 - The About column now links Telegram to `https://t.me/VoriXdev`.
 - Settings keeps three columns on wide windows and stacks them vertically when space
   is limited, preventing horizontal clipping.
@@ -71,13 +72,13 @@ Set-ExecutionPolicy -Scope Process Bypass
 Expected installer:
 
 ```text
-artifacts\installer\VoiSee-Setup-10.4.0-x64.exe
+artifacts\installer\VoiSee-Setup-10.4.1-x64.exe
 ```
 
 Portable build:
 
 ```text
-artifacts\installer\VoiSee-Portable-10.4.0-x64.zip
+artifacts\installer\VoiSee-Portable-10.4.1-x64.zip
 ```
 
 ## Native XAML themes (VoiSee 10.1)
