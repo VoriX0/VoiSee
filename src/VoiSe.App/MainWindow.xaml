@@ -834,59 +834,42 @@
                                                   DropDownOpened="OnThemeComboBoxDropDownOpened" />
                                     </StackPanel>
 
-                                    <Grid ColumnSpacing="8" RowSpacing="8">
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="*" />
-                                            <ColumnDefinition Width="*" />
-                                            <ColumnDefinition Width="*" />
-                                        </Grid.ColumnDefinitions>
-                                        <Grid.RowDefinitions>
-                                            <RowDefinition Height="Auto" />
-                                            <RowDefinition Height="Auto" />
-                                        </Grid.RowDefinitions>
-
-                                        <Button Grid.Row="0" Grid.Column="0" Grid.ColumnSpan="2"
-                                                Style="{ThemeResource VoiSee.Style.Button.ThemeAction}"
+                                    <StackPanel Orientation="Horizontal" Spacing="10">
+                                        <Button Style="{ThemeResource VoiSee.Style.Button.ThemeAction}"
                                                 Content="Create New Theme"
-                                                HorizontalAlignment="Stretch"
-                                                Padding="10,6"
+                                                Padding="14,6"
                                                 MinHeight="32"
                                                 Click="OnCreateNewThemeClick" />
-                                        <Button Grid.Row="0" Grid.Column="2" Grid.ColumnSpan="2"
-                                                Style="{ThemeResource VoiSee.Style.Button.ThemeAction}"
+                                        <Button Style="{ThemeResource VoiSee.Style.Button.ThemeAction}"
                                                 x:Name="OpenThemeFileButton"
                                                 Content="Open Theme File"
-                                                HorizontalAlignment="Stretch"
-                                                Padding="10,6"
+                                                Padding="14,6"
                                                 MinHeight="32"
                                                 IsEnabled="False"
                                                 Click="OnOpenThemeFileClick" />
-                                        <Button Grid.Row="0" Grid.Column="4" Grid.ColumnSpan="2"
-                                                Style="{ThemeResource VoiSee.Style.Button.ThemeAction}"
+                                    </StackPanel>
+
+                                    <StackPanel Orientation="Horizontal" Spacing="10">
+                                        <Button Style="{ThemeResource VoiSee.Style.Button.ThemeAction}"
                                                 Content="Open Theme Folder"
-                                                HorizontalAlignment="Stretch"
-                                                Padding="10,6"
+                                                Padding="14,6"
                                                 MinHeight="32"
                                                 Click="OnOpenThemeFolderClick" />
-                                        <Button Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="3"
-                                                Style="{ThemeResource VoiSee.Style.Button.ThemeAction}"
+                                        <Button Style="{ThemeResource VoiSee.Style.Button.ThemeAction}"
                                                 x:Name="RenameThemeButton"
                                                 Content="Rename Theme"
-                                                HorizontalAlignment="Stretch"
-                                                Padding="10,6"
+                                                Padding="14,6"
                                                 MinHeight="32"
                                                 IsEnabled="False"
                                                 Click="OnRenameThemeClick" />
-                                        <Button Grid.Row="1" Grid.Column="3" Grid.ColumnSpan="3"
-                                                Style="{ThemeResource VoiSee.Style.Button.ThemeAction}"
+                                        <Button Style="{ThemeResource VoiSee.Style.Button.ThemeAction}"
                                                 x:Name="DeleteThemeButton"
                                                 Content="Delete Theme"
-                                                HorizontalAlignment="Stretch"
-                                                Padding="10,6"
+                                                Padding="14,6"
                                                 MinHeight="32"
                                                 IsEnabled="False"
                                                 Click="OnDeleteThemeClick" />
-                                    </Grid>
+                                    </StackPanel>
 
                                     <TextBlock Style="{ThemeResource VoiSee.Style.Text.Secondary}"
                                                x:Name="ThemeStatusTextBlock"
