@@ -38,6 +38,10 @@ VoiSee 10.2.1 also supports direct category drag-and-drop:
 - the active target category is highlighted;
 - dropping on the source category is ignored safely.
 
+Buildfix 1 starts the internal drag through explicit pointer movement detection
+and `StartDragAsync`, avoiding dependence on WinUI automatic drag recognition
+through the transparent SoundBoard input overlay.
+
 Dragging WAV, MP3 or OGG files from Explorer now shows a large centered import
 panel covering approximately 75% of the VoiSee window. Internal track dragging
 does not display the file-import panel.

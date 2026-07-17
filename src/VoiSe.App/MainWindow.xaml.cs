@@ -1,4 +1,4 @@
-using Microsoft.UI.Xaml;
+﻿using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Controls.Primitives;
 using Microsoft.UI.Xaml.Input;
@@ -120,8 +120,12 @@ public sealed partial class MainWindow : Window
     private string? _lastSoundBoardDropSignature;
     private DateTime _lastSoundBoardDropUtc = DateTime.MinValue;
     private readonly DispatcherTimer _categoryDragOpenTimer;
+    private const double SoundBoardInternalDragThreshold = 8.0;
     private SoundBoardSound? _pendingSoundBoardDragSound;
     private SoundBoardSound? _activeSoundBoardDragSound;
+    private uint? _soundBoardDragPointerId;
+    private Windows.Foundation.Point _soundBoardDragPressPosition;
+    private bool _soundBoardDragStartRequested;
     private Panel? _activeCategoryDropTargetPanel;
     private bool _categoryDragPointerOverComboBox;
     private bool _suppressMainTabWheelRouting;
@@ -2567,6 +2571,9 @@ public sealed partial class MainWindow : Window
         }
 
         _pendingSoundBoardDragSound = sound;
+        _soundBoardDragPointerId = point.PointerId;
+        _soundBoardDragPressPosition = point.Position;
+        _soundBoardDragStartRequested = false;
         SelectSound(sound);
 
         var now = DateTime.UtcNow;
@@ -2583,20 +2590,80 @@ public sealed partial class MainWindow : Window
             _lastSoundRowClickUtc = DateTime.MinValue;
         }
 
+        // This overlay uses explicit gesture detection in PointerMoved and then calls
+        // StartDragAsync. Keeping the press handled prevents the click from leaking
+        // into the visual rows behind the input overlay.
         e.Handled = true;
+    }
+
+    private async void OnSoundInputOverlayPointerMoved(object sender, PointerRoutedEventArgs e)
+    {
+        if (_pendingSoundBoardDragSound is null
+            || _activeSoundBoardDragSound is not null
+            || _soundBoardDragStartRequested
+            || _soundBoardDragPointerId is null
+            || e.Pointer.PointerId != _soundBoardDragPointerId.Value)
+        {
+            return;
+        }
+
+        var point = e.GetCurrentPoint(SoundInputOverlay);
+        if (!point.Properties.IsLeftButtonPressed)
+        {
+            ResetSoundBoardDragGestureTracking(clearPendingSound: true);
+            return;
+        }
+
+        var deltaX = point.Position.X - _soundBoardDragPressPosition.X;
+        var deltaY = point.Position.Y - _soundBoardDragPressPosition.Y;
+        if ((deltaX * deltaX) + (deltaY * deltaY)
+            < SoundBoardInternalDragThreshold * SoundBoardInternalDragThreshold)
+        {
+            return;
+        }
+
+        _soundBoardDragStartRequested = true;
+        e.Handled = true;
+
+        try
+        {
+            // StartDragAsync raises OnSoundInputOverlayDragStarting, where the source
+            // sound and the allowed Move/Copy operations are placed into the package.
+            await SoundInputOverlay.StartDragAsync(point);
+        }
+        catch (Exception ex)
+        {
+            AppendLog($"Category drag could not start: {ex.Message}");
+            ResetInternalSoundDragState();
+        }
+        finally
+        {
+            ResetSoundBoardDragGestureTracking(clearPendingSound: _activeSoundBoardDragSound is null);
+        }
     }
 
     private void OnSoundInputOverlayPointerReleased(object sender, PointerRoutedEventArgs e)
     {
-        if (_activeSoundBoardDragSound is null)
+        if (_soundBoardDragPointerId is null || e.Pointer.PointerId == _soundBoardDragPointerId.Value)
         {
-            _pendingSoundBoardDragSound = null;
+            ResetSoundBoardDragGestureTracking(clearPendingSound: _activeSoundBoardDragSound is null);
         }
     }
 
     private void OnSoundInputOverlayPointerCaptureLost(object sender, PointerRoutedEventArgs e)
     {
-        if (_activeSoundBoardDragSound is null)
+        if (!_soundBoardDragStartRequested && _activeSoundBoardDragSound is null)
+        {
+            ResetSoundBoardDragGestureTracking(clearPendingSound: true);
+        }
+    }
+
+    private void ResetSoundBoardDragGestureTracking(bool clearPendingSound)
+    {
+        _soundBoardDragPointerId = null;
+        _soundBoardDragPressPosition = default;
+        _soundBoardDragStartRequested = false;
+        if (clearPendingSound)
         {
             _pendingSoundBoardDragSound = null;
         }
@@ -2605,7 +2672,7 @@ public sealed partial class MainWindow : Window
     private void OnSoundInputOverlayDragStarting(UIElement sender, DragStartingEventArgs e)
     {
         var sound = _pendingSoundBoardDragSound ?? _selectedSound;
-        _pendingSoundBoardDragSound = null;
+        ResetSoundBoardDragGestureTracking(clearPendingSound: true);
 
         if (sound is null || IsSceneActive)
         {
@@ -2628,7 +2695,7 @@ public sealed partial class MainWindow : Window
 
     private void ResetInternalSoundDragState()
     {
-        _pendingSoundBoardDragSound = null;
+        ResetSoundBoardDragGestureTracking(clearPendingSound: true);
         _activeSoundBoardDragSound = null;
         _categoryDragPointerOverComboBox = false;
         _categoryDragOpenTimer.Stop();

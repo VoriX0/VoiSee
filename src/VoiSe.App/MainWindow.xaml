@@ -1,4 +1,4 @@
-<Window
+﻿<Window
     x:Class="VoiSe.App.MainWindow"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
@@ -271,7 +271,7 @@
                                             <Border x:Name="SoundInputOverlay"
                                                     Background="{ThemeResource VoiSee.TransparentHitTestBrush}"
                                                     AllowDrop="True"
-                                                    CanDrag="True"
+                                                    CanDrag="False"
                                                     DragStarting="OnSoundInputOverlayDragStarting"
                                                     DropCompleted="OnSoundInputOverlayDropCompleted"
                                                     DragOver="OnSoundBoardDragOver"
@@ -281,6 +281,7 @@
                                                     VerticalAlignment="Stretch"
                                                     Canvas.ZIndex="1000"
                                                     PointerPressed="OnSoundInputOverlayPointerPressed"
+                                                    PointerMoved="OnSoundInputOverlayPointerMoved"
                                                     PointerReleased="OnSoundInputOverlayPointerReleased"
                                                     PointerCanceled="OnSoundInputOverlayPointerReleased"
                                                     PointerCaptureLost="OnSoundInputOverlayPointerCaptureLost" />
