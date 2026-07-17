@@ -6,7 +6,7 @@
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     mc:Ignorable="d"
-    Title="VoiSee Version 10.1.2">
+    Title="VoiSee Version 10.1.3">
 
     <Grid x:Name="RootGrid" RequestedTheme="Dark" Background="{ThemeResource VoiSee.AppBackgroundBrush}">
         <Grid.RowDefinitions>
@@ -21,7 +21,7 @@
             </Grid.ColumnDefinitions>
             <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center" Margin="10,0,0,0">
                 <Image Source="ms-appx:///Assets/AppIcon_24.png" Width="16" Height="16" VerticalAlignment="Center" />
-                <TextBlock x:Name="TitleBarVersionTextBlock" Text="VoiSee Version 10.1.2" FontSize="12" Foreground="{ThemeResource VoiSee.PrimaryTextBrush}" VerticalAlignment="Center" />
+                <TextBlock x:Name="TitleBarVersionTextBlock" Text="VoiSee Version 10.1.3" FontSize="12" Foreground="{ThemeResource VoiSee.PrimaryTextBrush}" VerticalAlignment="Center" />
             </StackPanel>
         </Grid>
 
@@ -39,7 +39,7 @@
                 </Grid.ColumnDefinitions>
                 <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
                     <Image Source="ms-appx:///Assets/AppIcon_48.png" Width="34" Height="34" VerticalAlignment="Center" />
-                    <TextBlock x:Name="MainTitle" Text="VoiSee Version 10.1.2" FontSize="28" FontWeight="SemiBold" Foreground="{ThemeResource VoiSee.PrimaryTextBrush}" VerticalAlignment="Center" />
+                    <TextBlock x:Name="MainTitle" Text="VoiSee Version 10.1.3" FontSize="28" FontWeight="SemiBold" Foreground="{ThemeResource VoiSee.PrimaryTextBrush}" VerticalAlignment="Center" />
                 </StackPanel>
                 <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center" HorizontalAlignment="Right">
                     <TextBlock Text="Mic Output" Foreground="{ThemeResource VoiSee.PrimaryTextBrush}" Opacity="0.62" VerticalAlignment="Center" />
@@ -755,7 +755,7 @@
                                         <Button Style="{ThemeResource VoiSee.Style.Button.ThemeAction}" x:Name="DeleteThemeButton" Content="Delete Theme" Padding="14,6" MinHeight="32" IsEnabled="False" Click="OnDeleteThemeClick" />
                                     </StackPanel>
                                     <TextBlock Style="{ThemeResource VoiSee.Style.Text.Secondary}" x:Name="ThemeStatusTextBlock" Text="Theme: Default Dark" TextWrapping="WrapWholeWords" Opacity="0.72" />
-                                    <TextBlock Text="A newly created theme is an exact editable copy of Default Dark. It starts with the same colors, interaction states, control styles, panels and geometry, so the interface must not change until you edit a value. Keep x:Key names unchanged; live reload shows the result." TextWrapping="WrapWholeWords" Opacity="0.62" />
+                                    <TextBlock Text="A newly created theme is an exact editable copy of Default Dark. It contains complete normal, hover, pressed, selected, focused and disabled settings for buttons, sliders, inputs and lists, plus VoiSee panels and geometry. Keep x:Key names unchanged; live reload shows the result." TextWrapping="WrapWholeWords" Opacity="0.62" />
                                 </StackPanel>
                             </Border>
 
