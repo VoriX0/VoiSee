@@ -174,6 +174,74 @@ public sealed class SoundBoardLibraryStore
         Save(library);
     }
 
+    public void MoveSoundToCategory(
+        SoundBoardLibrary library,
+        SoundBoardSound sound,
+        SoundBoardCategory targetCategory)
+    {
+        if (!library.Sounds.Any(candidate => candidate.Id == sound.Id))
+        {
+            throw new InvalidOperationException("The sound is no longer present in the library.");
+        }
+
+        if (!library.Categories.Any(category => category.Id == targetCategory.Id))
+        {
+            throw new InvalidOperationException("The target category is no longer present in the library.");
+        }
+
+        sound.CategoryId = targetCategory.Id;
+        Save(library);
+    }
+
+    public SoundBoardSound CopySoundToCategory(
+        SoundBoardLibrary library,
+        SoundBoardSound sourceSound,
+        SoundBoardCategory targetCategory)
+    {
+        if (!File.Exists(sourceSound.FilePath))
+        {
+            throw new FileNotFoundException("The source sound file could not be found.", sourceSound.FilePath);
+        }
+
+        if (!library.Categories.Any(category => category.Id == targetCategory.Id))
+        {
+            throw new InvalidOperationException("The target category is no longer present in the library.");
+        }
+
+        var extension = Path.GetExtension(sourceSound.FilePath).ToLowerInvariant();
+        if (!SupportedExtensions.Contains(extension))
+        {
+            throw new InvalidOperationException("Unsupported sound format. Use WAV, MP3, or OGG.");
+        }
+
+        Directory.CreateDirectory(SoundsDirectory);
+        var id = Guid.NewGuid().ToString("N");
+        var displayName = BuildUniqueCopyDisplayName(library, sourceSound.DisplayName);
+        var safeName = MakeSafeFileName(displayName);
+        var targetFileName = $"{safeName}_{id[..8]}{extension}";
+        var targetPath = Path.Combine(SoundsDirectory, targetFileName);
+        File.Copy(sourceSound.FilePath, targetPath, overwrite: false);
+
+        var now = DateTime.UtcNow;
+        var copy = new SoundBoardSound
+        {
+            Id = id,
+            Name = displayName,
+            CategoryId = targetCategory.Id,
+            FilePath = targetPath,
+            OriginalFileName = sourceSound.OriginalFileName,
+            Extension = extension,
+            Hotkey = null,
+            UsageCount = 0,
+            CreatedAtUtc = now,
+            UpdatedAtUtc = now
+        };
+
+        library.Sounds.Add(copy);
+        Save(library);
+        return copy;
+    }
+
     public void SetHotkey(SoundBoardLibrary library, SoundBoardSound sound, string? hotkey)
     {
         sound.Hotkey = string.IsNullOrWhiteSpace(hotkey) ? null : hotkey.Trim();
@@ -310,6 +378,31 @@ public sealed class SoundBoardLibraryStore
         library.Sounds.Add(copy);
         Save(library);
         return copy;
+    }
+
+    private static string BuildUniqueCopyDisplayName(SoundBoardLibrary library, string sourceDisplayName)
+    {
+        var baseName = string.IsNullOrWhiteSpace(sourceDisplayName)
+            ? "Sound"
+            : Regex.Replace(
+                sourceDisplayName.Trim(),
+                @"\s+\[copy(?:\s+\d+)?\]$",
+                string.Empty,
+                RegexOptions.IgnoreCase).Trim();
+        if (string.IsNullOrWhiteSpace(baseName))
+        {
+            baseName = "Sound";
+        }
+
+        var candidate = $"{baseName} [copy]";
+        var suffix = 2;
+        while (library.Sounds.Any(sound => string.Equals(sound.DisplayName, candidate, StringComparison.OrdinalIgnoreCase)))
+        {
+            candidate = $"{baseName} [copy {suffix}]";
+            suffix++;
+        }
+
+        return candidate;
     }
 
     private static string BuildUniqueEditedDisplayName(SoundBoardLibrary library, string sourceDisplayName)

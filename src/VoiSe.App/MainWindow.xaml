@@ -6,9 +6,9 @@
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     mc:Ignorable="d"
-    Title="VoiSee Version 10.1.5">
+    Title="VoiSee Version 10.2.1">
 
-    <Grid x:Name="RootGrid" RequestedTheme="Dark" Background="{ThemeResource VoiSee.AppBackgroundBrush}">
+    <Grid x:Name="RootGrid" RequestedTheme="Dark" Background="{ThemeResource VoiSee.AppBackgroundBrush}" SizeChanged="OnRootGridSizeChanged">
         <Grid.RowDefinitions>
             <RowDefinition Height="32" />
             <RowDefinition Height="*" />
@@ -21,7 +21,7 @@
             </Grid.ColumnDefinitions>
             <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center" Margin="10,0,0,0">
                 <Image Source="ms-appx:///Assets/AppIcon_24.png" Width="16" Height="16" VerticalAlignment="Center" />
-                <TextBlock x:Name="TitleBarVersionTextBlock" Text="VoiSee Version 10.1.5" FontSize="12" Foreground="{ThemeResource VoiSee.PrimaryTextBrush}" VerticalAlignment="Center" />
+                <TextBlock x:Name="TitleBarVersionTextBlock" Text="VoiSee Version 10.2.1" FontSize="12" Foreground="{ThemeResource VoiSee.PrimaryTextBrush}" VerticalAlignment="Center" />
             </StackPanel>
         </Grid>
 
@@ -39,7 +39,7 @@
                 </Grid.ColumnDefinitions>
                 <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
                     <Image Source="ms-appx:///Assets/AppIcon_48.png" Width="34" Height="34" VerticalAlignment="Center" />
-                    <TextBlock x:Name="MainTitle" Text="VoiSee Version 10.1.5" FontSize="28" FontWeight="SemiBold" Foreground="{ThemeResource VoiSee.PrimaryTextBrush}" VerticalAlignment="Center" />
+                    <TextBlock x:Name="MainTitle" Text="VoiSee Version 10.2.1" FontSize="28" FontWeight="SemiBold" Foreground="{ThemeResource VoiSee.PrimaryTextBrush}" VerticalAlignment="Center" />
                 </StackPanel>
                 <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center" HorizontalAlignment="Right">
                     <TextBlock Text="Mic Output" Foreground="{ThemeResource VoiSee.PrimaryTextBrush}" Opacity="0.62" VerticalAlignment="Center" />
@@ -187,10 +187,26 @@
 
                                     <ComboBox Style="{ThemeResource VoiSee.Style.ComboBox}" Grid.Row="1"
                                               x:Name="CategoryComboBox"
-                                              DisplayMemberPath="Name"
                                               PlaceholderText="Choose category"
                                               SelectionChanged="OnCategorySelectionChanged"
-                                              HorizontalAlignment="Stretch" />
+                                              AllowDrop="True"
+                                              DragOver="OnCategoryComboBoxDragOver"
+                                              DragLeave="OnCategoryComboBoxDragLeave"
+                                              Drop="OnCategoryComboBoxDrop"
+                                              HorizontalAlignment="Stretch">
+                                        <ComboBox.ItemTemplate>
+                                            <DataTemplate>
+                                                <Grid Tag="{Binding}"
+                                                      Background="Transparent"
+                                                      AllowDrop="True"
+                                                      DragOver="OnCategoryDropTargetDragOver"
+                                                      DragLeave="OnCategoryDropTargetDragLeave"
+                                                      Drop="OnCategoryDropTargetDrop">
+                                                    <TextBlock Text="{Binding Name}" />
+                                                </Grid>
+                                            </DataTemplate>
+                                        </ComboBox.ItemTemplate>
+                                    </ComboBox>
 
                                     <Border Grid.Row="2" Margin="0,12,0,0" Padding="10" Background="{ThemeResource VoiSee.PanelBackgroundBrush}" BorderBrush="{ThemeResource VoiSee.PanelBorderBrush}" BorderThickness="1" HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
                                         <TextBlock Style="{ThemeResource VoiSee.Style.Text.Secondary}" x:Name="CategoryInfoTextBlock"
@@ -255,35 +271,23 @@
                                             <Border x:Name="SoundInputOverlay"
                                                     Background="{ThemeResource VoiSee.TransparentHitTestBrush}"
                                                     AllowDrop="True"
+                                                    CanDrag="True"
+                                                    DragStarting="OnSoundInputOverlayDragStarting"
+                                                    DropCompleted="OnSoundInputOverlayDropCompleted"
                                                     DragOver="OnSoundBoardDragOver"
                                                     DragLeave="OnSoundBoardDragLeave"
                                                     Drop="OnSoundBoardDrop"
                                                     HorizontalAlignment="Stretch"
                                                     VerticalAlignment="Stretch"
                                                     Canvas.ZIndex="1000"
-                                                    PointerPressed="OnSoundInputOverlayPointerPressed" />
+                                                    PointerPressed="OnSoundInputOverlayPointerPressed"
+                                                    PointerReleased="OnSoundInputOverlayPointerReleased"
+                                                    PointerCanceled="OnSoundInputOverlayPointerReleased"
+                                                    PointerCaptureLost="OnSoundInputOverlayPointerCaptureLost" />
                                         </Grid>
                                     </Border>
                                 </Grid>
                             </Grid>
-                        </Border>
-
-                        <Border Grid.Row="0" Grid.RowSpan="2"
-                                x:Name="SoundBoardDropOverlay"
-                                Visibility="Collapsed"
-                                IsHitTestVisible="False"
-                                HorizontalAlignment="Center"
-                                VerticalAlignment="Center"
-                                Padding="22,16"
-                                CornerRadius="{ThemeResource VoiSee.CornerRadius.Large}"
-                                Background="{ThemeResource VoiSee.DropOverlayBackgroundBrush}"
-                                BorderBrush="{ThemeResource VoiSee.DropOverlayBorderBrush}"
-                                BorderThickness="1">
-                            <TextBlock Text="Drag one or more sound files here and release to add them to the current category"
-                                       FontWeight="SemiBold"
-                                       TextAlignment="Center"
-                                       TextWrapping="Wrap"
-                                       MaxWidth="520" />
                         </Border>
 
                         <Border Grid.Row="0" Grid.RowSpan="2"
@@ -788,5 +792,42 @@
 
         </Grid>
         </Grid>
+
+        <!-- VoiSee 10.2.1: full-window external file import target. Size is updated to 75% of RootGrid in code. -->
+        <Border Grid.Row="0"
+                Grid.RowSpan="2"
+                x:Name="SoundBoardDropOverlay"
+                Visibility="Collapsed"
+                IsHitTestVisible="False"
+                HorizontalAlignment="Center"
+                VerticalAlignment="Center"
+                Padding="40"
+                MinWidth="420"
+                MinHeight="260"
+                Canvas.ZIndex="5000"
+                CornerRadius="{ThemeResource VoiSee.CornerRadius.Large}"
+                Background="{ThemeResource VoiSee.DropOverlayBackgroundBrush}"
+                BorderBrush="{ThemeResource VoiSee.DropOverlayBorderBrush}"
+                BorderThickness="2">
+            <StackPanel HorizontalAlignment="Center"
+                        VerticalAlignment="Center"
+                        Spacing="20"
+                        MaxWidth="720">
+                <FontIcon Glyph="&#xE898;"
+                          FontFamily="Segoe MDL2 Assets"
+                          FontSize="72"
+                          HorizontalAlignment="Center" />
+                <TextBlock Text="Drop sound files to import"
+                           FontSize="28"
+                           FontWeight="SemiBold"
+                           TextAlignment="Center" />
+                <TextBlock x:Name="SoundBoardDropOverlayDescriptionTextBlock"
+                           Text="Release WAV, MP3 or OGG files to add them to the current category"
+                           FontSize="16"
+                           Opacity="0.78"
+                           TextAlignment="Center"
+                           TextWrapping="WrapWholeWords" />
+            </StackPanel>
+        </Border>
 </Grid>
 </Window>

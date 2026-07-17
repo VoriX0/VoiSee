@@ -119,6 +119,11 @@ public sealed partial class MainWindow : Window
     private bool _soundBoardLoopEnabled;
     private string? _lastSoundBoardDropSignature;
     private DateTime _lastSoundBoardDropUtc = DateTime.MinValue;
+    private readonly DispatcherTimer _categoryDragOpenTimer;
+    private SoundBoardSound? _pendingSoundBoardDragSound;
+    private SoundBoardSound? _activeSoundBoardDragSound;
+    private Panel? _activeCategoryDropTargetPanel;
+    private bool _categoryDragPointerOverComboBox;
     private bool _suppressMainTabWheelRouting;
     private ScrollViewer? _activeIconPickerScrollViewer;
     private FrameworkElement? _activeIconPickerWheelZoneElement;
@@ -136,6 +141,13 @@ public sealed partial class MainWindow : Window
         _themeManager = new ThemeManager(_settingsStore.DataDirectory);
         _library = _libraryStore.Load();
         InitializeComponent();
+
+        _categoryDragOpenTimer = new DispatcherTimer
+        {
+            Interval = TimeSpan.FromMilliseconds(420)
+        };
+        _categoryDragOpenTimer.Tick += OnCategoryDragOpenTimerTick;
+
         _windowHandle = WindowNative.GetWindowHandle(this);
         ConfigureTitleBar();
 
@@ -171,7 +183,7 @@ public sealed partial class MainWindow : Window
         _timelineTimer.Tick += OnTimelineTimerTick;
         _timelineTimer.Start();
 
-        AppendLog("VoiSee Version 10.1.5 UI started.");
+        AppendLog("VoiSee Version 10.2.1 UI started.");
         AppendLog($"Settings path: {_settingsStore.SettingsPath}");
         StartupLog.Write("MainWindow initialized; waiting for first activation.");
     }
@@ -2530,11 +2542,13 @@ public sealed partial class MainWindow : Window
         var sound = TryGetSoundAtOverlayPoint(point.Position);
         if (sound is null)
         {
+            _pendingSoundBoardDragSound = null;
             return;
         }
 
         if (point.Properties.IsRightButtonPressed)
         {
+            _pendingSoundBoardDragSound = null;
             SelectSound(sound);
             var flyout = CreateSoundContextFlyout();
             var options = new Microsoft.UI.Xaml.Controls.Primitives.FlyoutShowOptions
@@ -2548,9 +2562,11 @@ public sealed partial class MainWindow : Window
 
         if (!point.Properties.IsLeftButtonPressed)
         {
+            _pendingSoundBoardDragSound = null;
             return;
         }
 
+        _pendingSoundBoardDragSound = sound;
         SelectSound(sound);
 
         var now = DateTime.UtcNow;
@@ -2568,6 +2584,60 @@ public sealed partial class MainWindow : Window
         }
 
         e.Handled = true;
+    }
+
+    private void OnSoundInputOverlayPointerReleased(object sender, PointerRoutedEventArgs e)
+    {
+        if (_activeSoundBoardDragSound is null)
+        {
+            _pendingSoundBoardDragSound = null;
+        }
+    }
+
+    private void OnSoundInputOverlayPointerCaptureLost(object sender, PointerRoutedEventArgs e)
+    {
+        if (_activeSoundBoardDragSound is null)
+        {
+            _pendingSoundBoardDragSound = null;
+        }
+    }
+
+    private void OnSoundInputOverlayDragStarting(UIElement sender, DragStartingEventArgs e)
+    {
+        var sound = _pendingSoundBoardDragSound ?? _selectedSound;
+        _pendingSoundBoardDragSound = null;
+
+        if (sound is null || IsSceneActive)
+        {
+            e.Cancel = true;
+            return;
+        }
+
+        _activeSoundBoardDragSound = sound;
+        e.Data.SetText($"VoiSee.SoundBoard.Sound:{sound.Id}");
+        e.Data.Properties.Title = sound.DisplayName;
+        e.Data.Properties.Description = "Drop on a category. Hold Ctrl to copy instead of move.";
+        e.Data.RequestedOperation = DataPackageOperation.Move | DataPackageOperation.Copy;
+        AppendLog($"Category drag started: {sound.DisplayName}");
+    }
+
+    private void OnSoundInputOverlayDropCompleted(UIElement sender, DropCompletedEventArgs e)
+    {
+        ResetInternalSoundDragState();
+    }
+
+    private void ResetInternalSoundDragState()
+    {
+        _pendingSoundBoardDragSound = null;
+        _activeSoundBoardDragSound = null;
+        _categoryDragPointerOverComboBox = false;
+        _categoryDragOpenTimer.Stop();
+        ClearCategoryDropTargetHighlight();
+
+        if (CategoryComboBox is not null)
+        {
+            CategoryComboBox.IsDropDownOpen = false;
+        }
     }
 
     private SoundBoardSound? TryGetSoundAtOverlayPoint(Windows.Foundation.Point overlayPoint)
@@ -2911,6 +2981,19 @@ public sealed partial class MainWindow : Window
         edit.Click += OnSoundContextEditClick;
         var replace = new MenuFlyoutItem { Text = "Choose Another File" };
         replace.Click += OnSoundContextReplaceFileClick;
+        var showInExplorer = new MenuFlyoutItem { Text = "Show in File Explorer" };
+        showInExplorer.Click += OnSoundContextShowInExplorerClick;
+        var transferCategory = new MenuFlyoutSubItem
+        {
+            Text = "Transfer to Category",
+            IsEnabled = _library.Categories.Count > 1
+        };
+        var moveToCategory = new MenuFlyoutItem { Text = "Move..." };
+        moveToCategory.Click += OnSoundContextMoveToCategoryClick;
+        var copyToCategory = new MenuFlyoutItem { Text = "Copy..." };
+        copyToCategory.Click += OnSoundContextCopyToCategoryClick;
+        transferCategory.Items.Add(moveToCategory);
+        transferCategory.Items.Add(copyToCategory);
         var delete = new MenuFlyoutItem { Text = "Delete From Category" };
         delete.Click += OnSoundContextDeleteClick;
 
@@ -2919,6 +3002,9 @@ public sealed partial class MainWindow : Window
         flyout.Items.Add(rename);
         flyout.Items.Add(edit);
         flyout.Items.Add(replace);
+        flyout.Items.Add(new MenuFlyoutSeparator());
+        flyout.Items.Add(showInExplorer);
+        flyout.Items.Add(transferCategory);
         flyout.Items.Add(new MenuFlyoutSeparator());
         flyout.Items.Add(delete);
         return flyout;
@@ -3041,19 +3127,218 @@ public sealed partial class MainWindow : Window
             || extension.Equals(".ogg", StringComparison.OrdinalIgnoreCase);
     }
 
+    private void OnRootGridSizeChanged(object sender, SizeChangedEventArgs e)
+    {
+        UpdateSoundBoardDropOverlaySize();
+    }
+
+    private void UpdateSoundBoardDropOverlaySize()
+    {
+        if (RootGrid is null || SoundBoardDropOverlay is null
+            || RootGrid.ActualWidth <= 0 || RootGrid.ActualHeight <= 0)
+        {
+            return;
+        }
+
+        SoundBoardDropOverlay.Width = Math.Max(320, RootGrid.ActualWidth * 0.75);
+        SoundBoardDropOverlay.Height = Math.Max(220, RootGrid.ActualHeight * 0.75);
+        SoundBoardDropOverlay.MaxWidth = Math.Max(320, RootGrid.ActualWidth - 36);
+        SoundBoardDropOverlay.MaxHeight = Math.Max(220, RootGrid.ActualHeight - 36);
+    }
+
+    private void ShowSoundBoardExternalDropOverlay()
+    {
+        if (SoundBoardDropOverlay is null || IsSceneActive)
+        {
+            return;
+        }
+
+        UpdateSoundBoardDropOverlaySize();
+        var categoryName = CurrentCategory?.Name ?? "the current category";
+        if (SoundBoardDropOverlayDescriptionTextBlock is not null)
+        {
+            SoundBoardDropOverlayDescriptionTextBlock.Text =
+                $"Release WAV, MP3 or OGG files to add them to {categoryName}";
+        }
+
+        SoundBoardDropOverlay.Visibility = Visibility.Visible;
+    }
+
+    private void HideSoundBoardExternalDropOverlay()
+    {
+        if (SoundBoardDropOverlay is not null)
+        {
+            SoundBoardDropOverlay.Visibility = Visibility.Collapsed;
+        }
+    }
+
+    private void OnCategoryDragOpenTimerTick(object? sender, object e)
+    {
+        _categoryDragOpenTimer.Stop();
+        if (_activeSoundBoardDragSound is null
+            || !_categoryDragPointerOverComboBox
+            || CategoryComboBox is null
+            || CategoryComboBox.IsDropDownOpen)
+        {
+            return;
+        }
+
+        CategoryComboBox.IsDropDownOpen = true;
+    }
+
+    private void OnCategoryComboBoxDragOver(object sender, DragEventArgs e)
+    {
+        e.Handled = true;
+        HideSoundBoardExternalDropOverlay();
+
+        if (_activeSoundBoardDragSound is null)
+        {
+            e.AcceptedOperation = DataPackageOperation.None;
+            return;
+        }
+
+        var copy = IsModifierDown(0x11);
+        e.AcceptedOperation = copy ? DataPackageOperation.Copy : DataPackageOperation.Move;
+        e.DragUIOverride.Caption = copy
+            ? "Copy track to a category"
+            : "Move track to a category";
+        e.DragUIOverride.IsCaptionVisible = true;
+
+        _categoryDragPointerOverComboBox = true;
+        if (!CategoryComboBox.IsDropDownOpen && !_categoryDragOpenTimer.IsEnabled)
+        {
+            _categoryDragOpenTimer.Start();
+        }
+    }
+
+    private void OnCategoryComboBoxDragLeave(object sender, DragEventArgs e)
+    {
+        e.Handled = true;
+        _categoryDragPointerOverComboBox = false;
+        if (CategoryComboBox is not null && !CategoryComboBox.IsDropDownOpen)
+        {
+            _categoryDragOpenTimer.Stop();
+        }
+    }
+
+    private void OnCategoryComboBoxDrop(object sender, DragEventArgs e)
+    {
+        e.Handled = true;
+        _categoryDragPointerOverComboBox = false;
+        _categoryDragOpenTimer.Stop();
+        e.AcceptedOperation = DataPackageOperation.None;
+    }
+
+    private void OnCategoryDropTargetDragOver(object sender, DragEventArgs e)
+    {
+        e.Handled = true;
+        HideSoundBoardExternalDropOverlay();
+
+        if (_activeSoundBoardDragSound is null
+            || sender is not Panel { Tag: SoundBoardCategory targetCategory } targetPanel
+            || string.Equals(_activeSoundBoardDragSound.CategoryId, targetCategory.Id, StringComparison.Ordinal))
+        {
+            e.AcceptedOperation = DataPackageOperation.None;
+            ClearCategoryDropTargetHighlight();
+            return;
+        }
+
+        var copy = IsModifierDown(0x11);
+        e.AcceptedOperation = copy ? DataPackageOperation.Copy : DataPackageOperation.Move;
+        e.DragUIOverride.Caption = copy
+            ? $"Copy to {targetCategory.Name}"
+            : $"Move to {targetCategory.Name}";
+        e.DragUIOverride.IsCaptionVisible = true;
+        SetCategoryDropTargetHighlight(targetPanel);
+    }
+
+    private void OnCategoryDropTargetDragLeave(object sender, DragEventArgs e)
+    {
+        e.Handled = true;
+        if (ReferenceEquals(sender, _activeCategoryDropTargetPanel))
+        {
+            ClearCategoryDropTargetHighlight();
+        }
+    }
+
+    private async void OnCategoryDropTargetDrop(object sender, DragEventArgs e)
+    {
+        e.Handled = true;
+        _categoryDragPointerOverComboBox = false;
+        _categoryDragOpenTimer.Stop();
+
+        var sourceSound = _activeSoundBoardDragSound;
+        if (sourceSound is null
+            || sender is not Panel { Tag: SoundBoardCategory targetCategory }
+            || string.Equals(sourceSound.CategoryId, targetCategory.Id, StringComparison.Ordinal))
+        {
+            e.AcceptedOperation = DataPackageOperation.None;
+            ResetInternalSoundDragState();
+            return;
+        }
+
+        var copy = IsModifierDown(0x11);
+        e.AcceptedOperation = copy ? DataPackageOperation.Copy : DataPackageOperation.Move;
+        ClearCategoryDropTargetHighlight();
+        CategoryComboBox.IsDropDownOpen = false;
+
+        await ExecuteSoundCategoryTransferAsync(sourceSound, targetCategory, copy, "Drag and drop");
+        ResetInternalSoundDragState();
+    }
+
+    private void SetCategoryDropTargetHighlight(Panel panel)
+    {
+        if (!ReferenceEquals(_activeCategoryDropTargetPanel, panel))
+        {
+            ClearCategoryDropTargetHighlight();
+        }
+
+        _activeCategoryDropTargetPanel = panel;
+        panel.Background = FindApplicationBrush("ComboBoxItemBackgroundPointerOver")
+            ?? new SolidColorBrush(Microsoft.UI.ColorHelper.FromArgb(0x18, 0xFF, 0xFF, 0xFF));
+    }
+
+    private void ClearCategoryDropTargetHighlight()
+    {
+        if (_activeCategoryDropTargetPanel is not null)
+        {
+            _activeCategoryDropTargetPanel.Background =
+                new SolidColorBrush(Microsoft.UI.ColorHelper.FromArgb(0x00, 0x00, 0x00, 0x00));
+            _activeCategoryDropTargetPanel = null;
+        }
+    }
+
+    private static Brush? FindApplicationBrush(string key)
+    {
+        try
+        {
+            return Application.Current?.Resources[key] as Brush;
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
     private void OnSoundBoardDragOver(object sender, DragEventArgs e)
     {
         e.Handled = true;
+
+        if (_activeSoundBoardDragSound is not null)
+        {
+            HideSoundBoardExternalDropOverlay();
+            e.AcceptedOperation = DataPackageOperation.None;
+            return;
+        }
+
         if (e.DataView.Contains(StandardDataFormats.StorageItems))
         {
             e.AcceptedOperation = DataPackageOperation.Copy;
-            if (SoundBoardDropOverlay is not null && !IsSceneActive)
-            {
-                SoundBoardDropOverlay.Visibility = Visibility.Visible;
-            }
+            ShowSoundBoardExternalDropOverlay();
         }
         else
         {
+            HideSoundBoardExternalDropOverlay();
             e.AcceptedOperation = DataPackageOperation.None;
         }
     }
@@ -3061,18 +3346,21 @@ public sealed partial class MainWindow : Window
     private void OnSoundBoardDragLeave(object sender, DragEventArgs e)
     {
         e.Handled = true;
-        if (SoundBoardDropOverlay is not null)
+        if (_activeSoundBoardDragSound is null)
         {
-            SoundBoardDropOverlay.Visibility = Visibility.Collapsed;
+            HideSoundBoardExternalDropOverlay();
         }
     }
 
     private async void OnSoundBoardDrop(object sender, DragEventArgs e)
     {
         e.Handled = true;
-        if (SoundBoardDropOverlay is not null)
+        HideSoundBoardExternalDropOverlay();
+
+        if (_activeSoundBoardDragSound is not null)
         {
-            SoundBoardDropOverlay.Visibility = Visibility.Collapsed;
+            e.AcceptedOperation = DataPackageOperation.None;
+            return;
         }
 
         var category = CurrentCategory ?? _library.Categories.OrderBy(c => c.SortOrder).FirstOrDefault();
@@ -3414,6 +3702,179 @@ public sealed partial class MainWindow : Window
         RebuildSceneSoundButtons();
         SaveCurrentSettings();
         AppendLog($"Track renamed: {name}");
+    }
+
+    private async void OnSoundContextShowInExplorerClick(object sender, RoutedEventArgs e)
+    {
+        var sound = _selectedSound;
+        if (sound is null)
+        {
+            return;
+        }
+
+        try
+        {
+            if (!File.Exists(sound.FilePath))
+            {
+                await ShowMessageDialogAsync(
+                    "Sound file not found",
+                    $"VoiSee could not find the file for '{sound.DisplayName}'.\n\n{sound.FilePath}");
+                AppendLog($"Show in File Explorer failed; file missing: {sound.FilePath}");
+                return;
+            }
+
+            Process.Start(new ProcessStartInfo
+            {
+                FileName = "explorer.exe",
+                Arguments = $"/select,\"{sound.FilePath}\"",
+                UseShellExecute = true
+            });
+            AppendLog($"Opened sound in File Explorer: {sound.DisplayName}");
+        }
+        catch (Exception ex)
+        {
+            await ShowMessageDialogAsync("Open File Explorer", ex.Message);
+            AppendLog($"Show in File Explorer error: {ex.Message}");
+        }
+    }
+
+    private async void OnSoundContextMoveToCategoryClick(object sender, RoutedEventArgs e)
+    {
+        await TransferSelectedSoundToCategoryAsync(copy: false);
+    }
+
+    private async void OnSoundContextCopyToCategoryClick(object sender, RoutedEventArgs e)
+    {
+        await TransferSelectedSoundToCategoryAsync(copy: true);
+    }
+
+    private async Task TransferSelectedSoundToCategoryAsync(bool copy)
+    {
+        var sourceSound = _selectedSound;
+        if (sourceSound is null)
+        {
+            return;
+        }
+
+        var sourceCategory = PickCategory(sourceSound.CategoryId);
+        var targetCategories = _library.Categories
+            .Where(category => category.Id != sourceSound.CategoryId)
+            .OrderBy(category => category.SortOrder)
+            .ThenBy(category => category.Name, StringComparer.CurrentCultureIgnoreCase)
+            .ToList();
+
+        var operationName = copy ? "Copy" : "Move";
+        if (targetCategories.Count == 0)
+        {
+            await ShowMessageDialogAsync(
+                $"{operationName} track",
+                $"Create another category before trying to {operationName.ToLowerInvariant()} this track.");
+            return;
+        }
+
+        var categoryComboBox = new ComboBox
+        {
+            Header = "Target category",
+            ItemsSource = targetCategories,
+            DisplayMemberPath = nameof(SoundBoardCategory.Name),
+            SelectedIndex = 0,
+            MinWidth = 360,
+            HorizontalAlignment = HorizontalAlignment.Stretch
+        };
+
+        var operationDescription = copy
+            ? "Copy creates an independent physical audio file with a new ID, resets usage statistics, and does not copy the hotkey or scene references."
+            : "Move keeps the same physical file, track ID, hotkey, usage statistics, timestamps and scene references.";
+        var description = new TextBlock
+        {
+            Text =
+                $"Track: {sourceSound.DisplayName}\n" +
+                $"Current category: {sourceCategory?.Name ?? "Unknown"}\n\n" +
+                operationDescription,
+            TextWrapping = TextWrapping.Wrap,
+            MaxWidth = 460
+        };
+
+        var panel = new StackPanel { Spacing = 14 };
+        panel.Children.Add(description);
+        panel.Children.Add(categoryComboBox);
+
+        var dialog = new ContentDialog
+        {
+            Title = $"{operationName} track to category",
+            Content = panel,
+            PrimaryButtonText = operationName,
+            CloseButtonText = "Cancel",
+            DefaultButton = ContentDialogButton.Primary,
+            XamlRoot = ((FrameworkElement)Content).XamlRoot
+        };
+
+        var result = await dialog.ShowAsync();
+        if (result != ContentDialogResult.Primary
+            || categoryComboBox.SelectedItem is not SoundBoardCategory targetCategory)
+        {
+            return;
+        }
+
+        await ExecuteSoundCategoryTransferAsync(sourceSound, targetCategory, copy, "Context menu");
+    }
+
+    private async Task<SoundBoardSound?> ExecuteSoundCategoryTransferAsync(
+        SoundBoardSound sourceSound,
+        SoundBoardCategory targetCategory,
+        bool copy,
+        string origin)
+    {
+        var operationName = copy ? "Copy" : "Move";
+        if (string.Equals(sourceSound.CategoryId, targetCategory.Id, StringComparison.Ordinal))
+        {
+            AppendLog($"{origin}: {operationName.ToLowerInvariant()} ignored because the target category is unchanged.");
+            return null;
+        }
+
+        try
+        {
+            SoundBoardSound selectedAfterOperation;
+            if (copy)
+            {
+                selectedAfterOperation = _libraryStore.CopySoundToCategory(_library, sourceSound, targetCategory);
+                WarmSoundCacheInBackground(new[] { selectedAfterOperation.FilePath });
+                AppendLog($"{origin}: track copied: {sourceSound.DisplayName} -> {targetCategory.Name} as {selectedAfterOperation.DisplayName}");
+            }
+            else
+            {
+                _libraryStore.MoveSoundToCategory(_library, sourceSound, targetCategory);
+                selectedAfterOperation = sourceSound;
+                AppendLog($"{origin}: track moved: {sourceSound.DisplayName} -> {targetCategory.Name}");
+            }
+
+            ShowSoundInCategory(targetCategory, selectedAfterOperation);
+            SaveCurrentSettings();
+            return selectedAfterOperation;
+        }
+        catch (Exception ex)
+        {
+            await ShowMessageDialogAsync($"{operationName} track", ex.Message);
+            AppendLog($"{origin}: {operationName} track error: {ex.Message}");
+            return null;
+        }
+    }
+
+    private void ShowSoundInCategory(SoundBoardCategory category, SoundBoardSound sound)
+    {
+        _loadingLibrary = true;
+        try
+        {
+            CategoryComboBox.SelectedItem = PickCategory(category.Id);
+        }
+        finally
+        {
+            _loadingLibrary = false;
+        }
+
+        _settings.LastSoundCategoryId = category.Id;
+        RefreshSoundList();
+        SelectSound(sound);
     }
 
 
