@@ -6,22 +6,22 @@
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     mc:Ignorable="d"
-    Title="VoiSee Version 10.0.0">
+    Title="VoiSee Version 10.1.0">
 
-    <Grid x:Name="RootGrid" RequestedTheme="Dark" Background="#000000">
+    <Grid x:Name="RootGrid" RequestedTheme="Dark" Background="{ThemeResource VoiSee.AppBackgroundBrush}">
         <Grid.RowDefinitions>
             <RowDefinition Height="32" />
             <RowDefinition Height="*" />
         </Grid.RowDefinitions>
 
-        <Grid x:Name="CustomTitleBar" Grid.Row="0" Background="#000000" Height="32" VerticalAlignment="Top">
+        <Grid x:Name="CustomTitleBar" Grid.Row="0" Background="{ThemeResource VoiSee.TitleBarBackgroundBrush}" Height="32" VerticalAlignment="Top">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*" />
                 <ColumnDefinition Width="138" />
             </Grid.ColumnDefinitions>
             <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center" Margin="10,0,0,0">
                 <Image Source="ms-appx:///Assets/AppIcon_24.png" Width="16" Height="16" VerticalAlignment="Center" />
-                <TextBlock x:Name="TitleBarVersionTextBlock" Text="VoiSee Version 10.0.0" FontSize="12" Foreground="White" VerticalAlignment="Center" />
+                <TextBlock x:Name="TitleBarVersionTextBlock" Text="VoiSee Version 10.1.0" FontSize="12" Foreground="{ThemeResource VoiSee.PrimaryTextBrush}" VerticalAlignment="Center" />
             </StackPanel>
         </Grid>
 
@@ -39,11 +39,11 @@
                 </Grid.ColumnDefinitions>
                 <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
                     <Image Source="ms-appx:///Assets/AppIcon_48.png" Width="34" Height="34" VerticalAlignment="Center" />
-                    <TextBlock x:Name="MainTitle" Text="VoiSee Version 10.0.0" FontSize="28" FontWeight="SemiBold" Foreground="White" VerticalAlignment="Center" />
+                    <TextBlock x:Name="MainTitle" Text="VoiSee Version 10.1.0" FontSize="28" FontWeight="SemiBold" Foreground="{ThemeResource VoiSee.PrimaryTextBrush}" VerticalAlignment="Center" />
                 </StackPanel>
                 <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center" HorizontalAlignment="Right">
-                    <TextBlock Text="Mic Output" Foreground="White" Opacity="0.62" VerticalAlignment="Center" />
-                    <TextBlock x:Name="VirtualMicMuteStatusTextBlock" Text="Live" Foreground="#FF37D67A" Opacity="0.95" FontWeight="SemiBold" VerticalAlignment="Center" />
+                    <TextBlock Text="Mic Output" Foreground="{ThemeResource VoiSee.PrimaryTextBrush}" Opacity="0.62" VerticalAlignment="Center" />
+                    <TextBlock x:Name="VirtualMicMuteStatusTextBlock" Text="Live" Foreground="{ThemeResource VoiSee.SuccessBrush}" Opacity="0.95" FontWeight="SemiBold" VerticalAlignment="Center" />
                     <Button x:Name="VirtualMicMuteToggleButton" Content="Mute" MinWidth="92" Padding="10,4" Click="OnVirtualMicMuteToggleClick" />
                 </StackPanel>
             </Grid>
@@ -54,8 +54,8 @@
                 <RowDefinition Height="Auto" />
                 <RowDefinition Height="*" />
             </Grid.RowDefinitions>
-            <Border x:Name="VirtualMicMutedBanner" Grid.Row="0" Background="#44220000" BorderBrush="#88FF4D4D" BorderThickness="1" CornerRadius="10" Padding="12,8" Visibility="Collapsed">
-                <TextBlock Text="Virtual mic output is muted. You can still hear VoiSee in headphones, but Discord/OBS/games receive silence." Foreground="White" FontWeight="SemiBold" TextWrapping="WrapWholeWords" />
+            <Border x:Name="VirtualMicMutedBanner" Grid.Row="0" Background="{ThemeResource VoiSee.MuteBannerBackgroundBrush}" BorderBrush="{ThemeResource VoiSee.MuteBannerBorderBrush}" BorderThickness="1" CornerRadius="{ThemeResource VoiSee.CornerRadius.Medium}" Padding="12,8" Visibility="Collapsed">
+                <TextBlock Text="Virtual mic output is muted. You can still hear VoiSee in headphones, but Discord/OBS/games receive silence." Foreground="{ThemeResource VoiSee.PrimaryTextBrush}" FontWeight="SemiBold" TextWrapping="WrapWholeWords" />
             </Border>
             <Border x:Name="MainTabHostBorder" Grid.Row="1" Padding="4">
                 <TabView x:Name="MainTabView" IsAddTabButtonVisible="False" TabWidthMode="Equal" RequestedTheme="Dark" SelectionChanged="OnMainTabViewSelectionChanged">
@@ -118,15 +118,15 @@
                                             </Button.RenderTransform>
                                         </Button>
 
-                                        <Grid Grid.Row="0" Grid.Column="1" x:Name="TimelineHost" Height="48" VerticalAlignment="Center" Background="#01000000" PointerPressed="OnTimelineHostPointerPressed" PointerMoved="OnTimelineHostPointerMoved" PointerReleased="OnTimelineHostPointerReleased" PointerCanceled="OnTimelineHostPointerReleased" SizeChanged="OnTimelineHostSizeChanged">
+                                        <Grid Grid.Row="0" Grid.Column="1" x:Name="TimelineHost" Height="48" VerticalAlignment="Center" Background="{ThemeResource VoiSee.TimelineHostBrush}" PointerPressed="OnTimelineHostPointerPressed" PointerMoved="OnTimelineHostPointerMoved" PointerReleased="OnTimelineHostPointerReleased" PointerCanceled="OnTimelineHostPointerReleased" SizeChanged="OnTimelineHostSizeChanged">
                                             <Grid.RenderTransform>
                                                 <TranslateTransform Y="10" />
                                             </Grid.RenderTransform>
                                             <Grid Height="8" VerticalAlignment="Center">
-                                                <Border Background="#33FFFFFF" CornerRadius="4" />
-                                                <Border x:Name="TimelineFill" Width="0" HorizontalAlignment="Left" Background="#99FFFFFF" CornerRadius="4" />
+                                                <Border Background="{ThemeResource VoiSee.TimelineTrackBrush}" CornerRadius="{ThemeResource VoiSee.CornerRadius.Small}" />
+                                                <Border x:Name="TimelineFill" Width="0" HorizontalAlignment="Left" Background="{ThemeResource VoiSee.TimelineFillBrush}" CornerRadius="{ThemeResource VoiSee.CornerRadius.Small}" />
                                             </Grid>
-                                            <Ellipse x:Name="TimelineThumb" Width="16" Height="16" HorizontalAlignment="Left" VerticalAlignment="Center" Fill="#FFFFFFFF">
+                                            <Ellipse x:Name="TimelineThumb" Width="16" Height="16" HorizontalAlignment="Left" VerticalAlignment="Center" Fill="{ThemeResource VoiSee.TimelineThumbBrush}">
                                                 <Ellipse.RenderTransform>
                                                     <TranslateTransform x:Name="TimelineThumbTransform" X="0" />
                                                 </Ellipse.RenderTransform>
@@ -192,7 +192,7 @@
                                               SelectionChanged="OnCategorySelectionChanged"
                                               HorizontalAlignment="Stretch" />
 
-                                    <Border Grid.Row="2" Margin="0,12,0,0" Padding="10" Background="#08000000" BorderBrush="#22FFFFFF" BorderThickness="1" HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
+                                    <Border Grid.Row="2" Margin="0,12,0,0" Padding="10" Background="{ThemeResource VoiSee.PanelBackgroundBrush}" BorderBrush="{ThemeResource VoiSee.PanelBorderBrush}" BorderThickness="1" HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
                                         <TextBlock x:Name="CategoryInfoTextBlock"
                                                    Text="Categories: 0&#x0a;Tracks in category: 0&#x0a;Category uses: 0"
                                                    TextWrapping="Wrap"
@@ -253,7 +253,7 @@
                                             <!-- Gate 5.34: local input overlay lives in the same cell as the visual Sounds list.
                                                  No TransformToVisual/Margin positioning, so the wheel/click zone cannot drift in fullscreen. -->
                                             <Border x:Name="SoundInputOverlay"
-                                                    Background="#01000000"
+                                                    Background="{ThemeResource VoiSee.TransparentHitTestBrush}"
                                                     AllowDrop="True"
                                                     DragOver="OnSoundBoardDragOver"
                                                     DragLeave="OnSoundBoardDragLeave"
@@ -275,9 +275,9 @@
                                 HorizontalAlignment="Center"
                                 VerticalAlignment="Center"
                                 Padding="22,16"
-                                CornerRadius="12"
-                                Background="#E0202020"
-                                BorderBrush="#66FFFFFF"
+                                CornerRadius="{ThemeResource VoiSee.CornerRadius.Large}"
+                                Background="{ThemeResource VoiSee.DropOverlayBackgroundBrush}"
+                                BorderBrush="{ThemeResource VoiSee.DropOverlayBorderBrush}"
                                 BorderThickness="1">
                             <TextBlock Text="Drag one or more sound files here and release to add them to the current category"
                                        FontWeight="SemiBold"
@@ -293,9 +293,9 @@
                                 HorizontalAlignment="Center"
                                 VerticalAlignment="Center"
                                 Padding="18,12"
-                                CornerRadius="10"
-                                Background="#DD202020"
-                                BorderBrush="#55FFFFFF"
+                                CornerRadius="{ThemeResource VoiSee.CornerRadius.Medium}"
+                                Background="{ThemeResource VoiSee.DropOverlayInnerBackgroundBrush}"
+                                BorderBrush="{ThemeResource VoiSee.DropOverlayInnerBorderBrush}"
                                 BorderThickness="1">
                             <TextBlock Text="SoundBoard playback is unavailable while a scene is active"
                                        FontWeight="SemiBold"
@@ -315,7 +315,7 @@
                                 <StackPanel Grid.Column="0" Spacing="4">
                                     <TextBlock Text="Voice processing" FontSize="20" FontWeight="SemiBold" />
                                     <TextBlock Text="Connected DSP sliders are shown. Pitch is a real-time low-latency shifter; sliders use -100..+100. Number fields allow -9999..+9999 for experimental presets." Opacity="0.72" TextWrapping="Wrap" />
-                                    <TextBlock Text="Warning: extreme values can cause loud audio, clipping, instability, or device/output problems. Increase them carefully." Opacity="0.82" Foreground="#FFFFD166" TextWrapping="Wrap" />
+                                    <TextBlock Text="Warning: extreme values can cause loud audio, clipping, instability, or device/output problems. Increase them carefully." Opacity="0.82" Foreground="{ThemeResource VoiSee.WarningBrush}" TextWrapping="Wrap" />
                                 </StackPanel>
                                 <Button Grid.Column="1"
                                         x:Name="VoiceMonitorButton"
@@ -522,7 +522,7 @@
                                                     <TextBlock Text="{Binding Name}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
                                                     <TextBlock Text="{Binding SceneListSubtitle}" Opacity="0.65" FontSize="12" TextTrimming="CharacterEllipsis" />
                                                 </StackPanel>
-                                                <Border Grid.Column="1" Padding="8,2" MinWidth="54" Background="#22FFFFFF" BorderBrush="#44FFFFFF" BorderThickness="1" CornerRadius="8" VerticalAlignment="Center" Opacity="{Binding ActiveOpacity}">
+                                                <Border Grid.Column="1" Padding="8,2" MinWidth="54" Background="{ThemeResource VoiSee.CardValueBackgroundBrush}" BorderBrush="{ThemeResource VoiSee.CardValueBorderBrush}" BorderThickness="1" CornerRadius="{ThemeResource VoiSee.CornerRadius.Medium}" VerticalAlignment="Center" Opacity="{Binding ActiveOpacity}">
                                                     <TextBlock Text="{Binding ActiveBadge}" FontSize="10" FontWeight="SemiBold" HorizontalAlignment="Center" />
                                                 </Border>
                                             </Grid>
@@ -661,7 +661,7 @@
                             </Grid.ColumnDefinitions>
 
                             <StackPanel x:Name="MainSettings" Grid.Column="0" Spacing="18">
-                                <Border x:Name="VBCableNoticeBorder" Background="#22141414" BorderBrush="#55D68B00" BorderThickness="1" CornerRadius="12" Padding="14">
+                                <Border x:Name="VBCableNoticeBorder" Background="{ThemeResource VoiSee.VBCableNoticeBackgroundBrush}" BorderBrush="{ThemeResource VoiSee.VBCableNoticeBorderBrush}" BorderThickness="1" CornerRadius="{ThemeResource VoiSee.CornerRadius.Large}" Padding="14">
                                     <StackPanel Spacing="8">
                                         <TextBlock Text="Virtual microphone bridge" FontSize="18" FontWeight="SemiBold" />
                                         <TextBlock x:Name="VBCableStatusTextBlock" Text="VB-CABLE is not installed." TextWrapping="WrapWholeWords" Opacity="0.92" FontWeight="SemiBold" />
@@ -737,10 +737,10 @@
                                 </StackPanel>
                             </StackPanel>
 
-                            <Border x:Name="SettingsThemesPanel" Grid.Column="1" Background="#08000000" BorderBrush="#22FFFFFF" BorderThickness="1" CornerRadius="12" Padding="18" VerticalAlignment="Top">
+                            <Border x:Name="SettingsThemesPanel" Grid.Column="1" Background="{ThemeResource VoiSee.PanelBackgroundBrush}" BorderBrush="{ThemeResource VoiSee.PanelBorderBrush}" BorderThickness="1" CornerRadius="{ThemeResource VoiSee.CornerRadius.Large}" Padding="18" VerticalAlignment="Top">
                                 <StackPanel Spacing="12">
                                     <TextBlock Text="Appearance / Themes" FontSize="18" FontWeight="SemiBold" />
-                                    <TextBlock Text="Create a .voiseetheme.css file, edit it, save it, and VoiSee will apply it automatically. New theme files start as a non-destructive template, so the current design does not change until you edit active declarations." TextWrapping="WrapWholeWords" Opacity="0.72" />
+                                    <TextBlock Text="Create a .voiseetheme.xaml file, edit it as a native WinUI ResourceDictionary, and save it. VoiSee validates and applies the dictionary automatically. If the XAML is invalid, the last working theme stays active." TextWrapping="WrapWholeWords" Opacity="0.72" />
                                     <StackPanel Spacing="6">
                                         <TextBlock Text="Current theme" Opacity="0.72" />
                                         <ComboBox x:Name="ThemeComboBox" HorizontalAlignment="Stretch" SelectionChanged="OnThemeSelectionChanged" DropDownOpened="OnThemeComboBoxDropDownOpened" />
@@ -755,11 +755,11 @@
                                         <Button x:Name="DeleteThemeButton" Content="Delete Theme" Padding="14,6" MinHeight="32" IsEnabled="False" Click="OnDeleteThemeClick" />
                                     </StackPanel>
                                     <TextBlock x:Name="ThemeStatusTextBlock" Text="Theme: Default Dark" TextWrapping="WrapWholeWords" Opacity="0.72" />
-                                    <TextBlock Text="Selector prefixes: Pn = panels, Bt = buttons, Sl = sliders, Cb = combo boxes, Txt = text. Examples: #PnMainHeader, .Bt, #BtSettingsMute, #SlSettingsVirtualMicMaster, #CbTheme. For sliders use height/min-height/margin; padding may be ignored by WinUI Slider." TextWrapping="WrapWholeWords" Opacity="0.62" />
+                                    <TextBlock Text="Theme files use semantic resource keys such as VoiSee.AppBackgroundBrush, VoiSee.PanelBackgroundBrush, VoiSee.PrimaryTextBrush and VoiSee.AccentBrush. You can also override ordinary WinUI brushes and Styles directly. See the sample XAML theme for the full contract." TextWrapping="WrapWholeWords" Opacity="0.62" />
                                 </StackPanel>
                             </Border>
 
-                            <Border x:Name="AboutMePanel" Grid.Column="2" Background="#08000000" BorderBrush="#22FFFFFF" BorderThickness="1" CornerRadius="12" Padding="18" VerticalAlignment="Top">
+                            <Border x:Name="AboutMePanel" Grid.Column="2" Background="{ThemeResource VoiSee.PanelBackgroundBrush}" BorderBrush="{ThemeResource VoiSee.PanelBorderBrush}" BorderThickness="1" CornerRadius="{ThemeResource VoiSee.CornerRadius.Large}" Padding="18" VerticalAlignment="Top">
                                 <StackPanel Spacing="14">
                                     <TextBlock Text="About me" FontSize="18" FontWeight="SemiBold" />
                                     <TextBlock Text="Links" Opacity="0.72" />

@@ -5,6 +5,11 @@
     xmlns:controls="using:Microsoft.UI.Xaml.Controls"
     RequestedTheme="Dark">
     <Application.Resources>
-        <controls:XamlControlsResources />
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <controls:XamlControlsResources />
+                <ResourceDictionary Source="Themes/DefaultDark.xaml" />
+            </ResourceDictionary.MergedDictionaries>
+        </ResourceDictionary>
     </Application.Resources>
 </Application>

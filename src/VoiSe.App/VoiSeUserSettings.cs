@@ -63,7 +63,7 @@ public sealed class VoiSeUserSettings
     public string? DisableSceneHotkey { get; set; }
     public string? VirtualMicMuteHotkey { get; set; }
 
-    // Gate 9.1 CSS-like user theme file. Null means built-in Default Dark.
+    // VoiSee 10.1 native XAML ResourceDictionary theme. Null means built-in Default Dark.
     public string? ThemeFilePath { get; set; }
 }
 

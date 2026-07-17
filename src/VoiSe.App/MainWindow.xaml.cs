@@ -78,7 +78,7 @@ public sealed partial class MainWindow : Window
     private FileSystemWatcher? _themeFileWatcher;
     private string? _watchedThemePath;
     private int _themeReapplyGeneration;
-    private VoiSeeCssTheme? _activeTheme;
+    private VoiSeeXamlTheme? _activeTheme;
     private const int WhMouseLl = 14;
     private const int WhKeyboardLl = 13;
     private const int WmMouseWheel = 0x020A;
@@ -171,7 +171,7 @@ public sealed partial class MainWindow : Window
         _timelineTimer.Tick += OnTimelineTimerTick;
         _timelineTimer.Start();
 
-        AppendLog("VoiSee Version 10.0.0 UI started.");
+        AppendLog("VoiSee Version 10.1.0 UI started.");
         AppendLog($"Settings path: {_settingsStore.SettingsPath}");
         StartupLog.Write("MainWindow initialized; waiting for first activation.");
     }
@@ -223,10 +223,27 @@ public sealed partial class MainWindow : Window
         try
         {
             _themeManager.EnsureThemesDirectory();
+            var migration = _themeManager.MigrateLegacyCssThemes(_settings.ThemeFilePath);
+            if (migration.ActiveThemeWasLegacyCss)
+            {
+                _settings.ThemeFilePath = null;
+                _settingsStore.Save(_settings);
+            }
+
             PopulateThemeComboBox();
             ApplyThemeFromSettings(log: false);
-            RootGrid.Loaded += (_, _) => ApplyThemeFromSettings(log: false);
             WatchActiveThemeFile();
+
+            if (migration.MovedFileCount > 0)
+            {
+                AppendLog($"Legacy CSS themes archived: {migration.MovedFileCount}; folder: {migration.LegacyDirectory}");
+                RootGrid.Loaded += async (_, _) =>
+                {
+                    await ShowMessageDialogAsync(
+                        "Themes migrated",
+                        $"VoiSee 10 now uses native WinUI XAML themes. {migration.MovedFileCount} old CSS theme file(s) were moved to:\n{migration.LegacyDirectory}\n\nThe active theme was reset to Default Dark. CSS themes are no longer loaded at runtime.");
+                };
+            }
         }
         catch (Exception ex)
         {
@@ -250,7 +267,7 @@ public sealed partial class MainWindow : Window
 
             foreach (var path in _themeManager.GetThemeFiles())
             {
-                var name = Path.GetFileNameWithoutExtension(Path.GetFileNameWithoutExtension(path));
+                var name = ThemeManager.GetDisplayName(path);
                 ThemeComboBox.Items.Add(new ThemeComboItem(name, path, false));
             }
 
@@ -304,6 +321,7 @@ public sealed partial class MainWindow : Window
 
     private void ApplyThemeFromSettings(bool log = true)
     {
+        var previousTheme = _activeTheme ?? VoiSeeXamlTheme.DefaultDark;
         try
         {
             if (!string.IsNullOrWhiteSpace(_settings.ThemeFilePath) && !File.Exists(_settings.ThemeFilePath))
@@ -315,9 +333,9 @@ public sealed partial class MainWindow : Window
             }
 
             var theme = _themeManager.LoadTheme(_settings.ThemeFilePath);
+            var resourceCount = _themeManager.ApplyTheme(RootGrid, theme);
             _activeTheme = theme;
-            var applied = _themeManager.ApplyTheme(RootGrid, theme);
-            ApplyTitleBarTheme(theme);
+            ApplyTitleBarTheme();
             if (ThemeStatusTextBlock is not null)
             {
                 ThemeStatusTextBlock.Text = string.IsNullOrWhiteSpace(theme.SourcePath)
@@ -327,20 +345,28 @@ public sealed partial class MainWindow : Window
 
             if (log)
             {
-                AppendLog($"Theme applied: {theme.Name}; declarations applied: {applied}.");
+                AppendLog($"Native XAML theme applied: {theme.Name}; resources: {resourceCount}.");
             }
         }
         catch (Exception ex)
         {
+            // LoadTheme validates the candidate before ThemeManager replaces the
+            // active dictionary, so the previous working theme is still visible.
+            _activeTheme = previousTheme;
+            _settings.ThemeFilePath = previousTheme.SourcePath;
+            _settingsStore.Save(_settings);
+            SelectThemeComboItem(previousTheme.SourcePath);
+            WatchActiveThemeFile();
+
             if (ThemeStatusTextBlock is not null)
             {
-                ThemeStatusTextBlock.Text = $"Theme error: {ex.Message}";
+                ThemeStatusTextBlock.Text = $"Theme error — kept {previousTheme.Name}: {ex.Message}";
             }
-            AppendLog($"Theme apply error: {ex.Message}");
+            AppendLog($"XAML theme apply error; previous theme kept: {ex.Message}");
         }
     }
 
-    private void ApplyTitleBarTheme(VoiSeeCssTheme theme)
+    private void ApplyTitleBarTheme()
     {
         try
         {
@@ -350,22 +376,10 @@ public sealed partial class MainWindow : Window
             var hover = Microsoft.UI.ColorHelper.FromArgb(0xFF, 0x20, 0x20, 0x20);
             var pressed = Microsoft.UI.ColorHelper.FromArgb(0xFF, 0x10, 0x10, 0x10);
 
-            if (theme.Rules.Count > 0)
-            {
-                if (theme.TryGetVariableColor("--titlebar-background", out var titleColor))
-                {
-                    background = titleColor;
-                }
-                else if (theme.TryGetVariableColor("--app-background", out var appColor))
-                {
-                    background = appColor;
-                }
-
-                if (theme.TryGetVariableColor("--text-primary", out var textColor))
-                {
-                    foreground = textColor;
-                }
-            }
+            if (_themeManager.TryGetColor("VoiSee.TitleBarBackgroundBrush", out var themedBackground)) background = themedBackground;
+            if (_themeManager.TryGetColor("VoiSee.TitleBarForegroundBrush", out var themedForeground)) foreground = themedForeground;
+            if (_themeManager.TryGetColor("VoiSee.TitleBarHoverBrush", out var themedHover)) hover = themedHover;
+            if (_themeManager.TryGetColor("VoiSee.TitleBarPressedBrush", out var themedPressed)) pressed = themedPressed;
 
             titleBar.BackgroundColor = background;
             titleBar.ForegroundColor = foreground;
@@ -443,47 +457,11 @@ public sealed partial class MainWindow : Window
     }
 
 
-    private async void ReapplyThemeAfterVisualTreeChange()
+    private void ReapplyThemeAfterVisualTreeChange()
     {
-        var generation = ++_themeReapplyGeneration;
-
-        // Paint the newly selected tab immediately without globally restoring the
-        // old theme first. This avoids the visible Default Dark flash.
-        ApplyActiveThemeIncremental();
-
-        // One deferred lightweight pass catches WinUI controls whose templates are
-        // materialized just after SelectionChanged. The old 40/160/420 ms full
-        // reapply loop was intentionally removed because it caused tab-switch lag.
-        await Task.Delay(16);
-        if (generation != _themeReapplyGeneration)
-        {
-            return;
-        }
-
-        DispatcherQueue.TryEnqueue(() =>
-        {
-            if (generation == _themeReapplyGeneration)
-            {
-                ApplyActiveThemeIncremental();
-            }
-        });
-    }
-
-    private void ApplyActiveThemeIncremental()
-    {
-        try
-        {
-            if (_activeTheme is null || _activeTheme.Rules.Count == 0)
-            {
-                return;
-            }
-
-            _themeManager.ApplyThemeIncremental(RootGrid, _activeTheme);
-        }
-        catch (Exception ex)
-        {
-            AppendLog($"Theme incremental apply error: {ex.Message}");
-        }
+        // Native WinUI resources are resolved by each control when its template
+        // is materialized. Unlike the removed CSS engine, tab switching needs no
+        // visual-tree traversal or theme repaint.
     }
 
     private void OnMainTabViewSelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -636,7 +614,7 @@ public sealed partial class MainWindow : Window
                 return;
             }
 
-            var newPath = Path.Combine(_themeManager.ThemesDirectory, requestedName + ".voiseetheme.css");
+            var newPath = Path.Combine(_themeManager.ThemesDirectory, requestedName + ThemeManager.ThemeExtension);
             if (Path.GetFullPath(newPath).Equals(fullOldPath, StringComparison.OrdinalIgnoreCase))
             {
                 return;
@@ -683,13 +661,13 @@ public sealed partial class MainWindow : Window
     private static string SanitizeThemeFileName(string? value)
     {
         var name = (value ?? string.Empty).Trim();
-        if (name.EndsWith(".voiseetheme.css", StringComparison.OrdinalIgnoreCase))
+        if (name.EndsWith(ThemeManager.ThemeExtension, StringComparison.OrdinalIgnoreCase))
         {
-            name = name[..^".voiseetheme.css".Length];
+            name = name[..^ThemeManager.ThemeExtension.Length];
         }
-        else if (name.EndsWith(".css", StringComparison.OrdinalIgnoreCase))
+        else if (name.EndsWith(".xaml", StringComparison.OrdinalIgnoreCase))
         {
-            name = name[..^".css".Length];
+            name = name[..^".xaml".Length];
         }
 
         name = name.Trim();
@@ -736,7 +714,7 @@ public sealed partial class MainWindow : Window
             var dialog = new ContentDialog
             {
                 Title = "Delete theme?",
-                Content = $"Delete '{fileName}'?\n\nThis will remove the .voiseetheme.css file from the VoiSee themes folder.",
+                Content = $"Delete '{fileName}'?\n\nThis will remove the .voiseetheme.xaml file from the VoiSee themes folder.",
                 PrimaryButtonText = "Delete",
                 CloseButtonText = "Cancel",
                 DefaultButton = ContentDialogButton.Close,
@@ -780,7 +758,7 @@ public sealed partial class MainWindow : Window
         try
         {
             var picker = new FileOpenPicker();
-            picker.FileTypeFilter.Add(".css");
+            picker.FileTypeFilter.Add(".xaml");
             InitializeWithWindow.Initialize(picker, WindowNative.GetWindowHandle(this));
             var file = await picker.PickSingleFileAsync();
             if (file is null)
@@ -811,10 +789,10 @@ public sealed partial class MainWindow : Window
             {
                 SuggestedStartLocation = PickerLocationId.DocumentsLibrary,
                 SuggestedFileName = string.IsNullOrWhiteSpace(_settings.ThemeFilePath)
-                    ? "DefaultDark.voiseetheme.css"
+                    ? "DefaultDark.voiseetheme.xaml"
                     : Path.GetFileName(_settings.ThemeFilePath)
             };
-            picker.FileTypeChoices.Add("VoiSee theme", new List<string> { ".css" });
+            picker.FileTypeChoices.Add("VoiSee XAML theme", new List<string> { ".xaml" });
             InitializeWithWindow.Initialize(picker, WindowNative.GetWindowHandle(this));
             var file = await picker.PickSaveFileAsync();
             if (file is null)
@@ -5044,7 +5022,6 @@ public sealed partial class MainWindow : Window
             AppendLog($"Engine started. Input: {input.FriendlyName}");
             AppendLog($"Virtual output: {virtualOutput.FriendlyName}");
             AppendLog($"Monitor: {(monitor is null ? "disabled" : monitor.FriendlyName)}");
-            AppendLog($"Voice monitor route: {(_engine.VoiceMonitorRouteEnabled ? "connected" : "hard disconnected")}");
             WarmSoundCacheInBackground();
             return true;
         }
@@ -5571,10 +5548,6 @@ public sealed partial class MainWindow : Window
         _voiceMonitorEnabled = !_voiceMonitorEnabled;
         UpdateVoiceMonitorButton();
         ApplyLiveSettings(_voiceMonitorEnabled ? "voice monitor enabled" : "voice monitor disabled");
-        if (_engine is not null)
-        {
-            AppendLog($"Voice monitor route: {(_engine.VoiceMonitorRouteEnabled ? "connected" : "hard disconnected")}");
-        }
     }
 
     private void OnTimelineHostPointerPressed(object sender, PointerRoutedEventArgs e)

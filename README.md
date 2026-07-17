@@ -1,4 +1,4 @@
-# VoiSee 10.0.0
+# VoiSee 10.1.0
 
 VoiSee is a WinUI 3 application for real-time voice processing, SoundBoard playback into a virtual microphone, scenes, presets, global hotkeys, themes, and non-destructive sound editing.
 
@@ -26,11 +26,30 @@ Set-ExecutionPolicy -Scope Process Bypass
 Expected installer:
 
 ```text
-artifacts\installer\VoiSee-Setup-10.0.0-x64.exe
+artifacts\installer\VoiSee-Setup-10.1.0-x64.exe
 ```
 
 Portable build:
 
 ```text
-artifacts\installer\VoiSee-Portable-10.0.0-x64.zip
+artifacts\installer\VoiSee-Portable-10.1.0-x64.zip
 ```
+
+## Native XAML themes (VoiSee 10.1)
+
+VoiSee themes are native WinUI `ResourceDictionary` files with the extension:
+
+```text
+*.voiseetheme.xaml
+```
+
+The application loads them directly into `Application.Resources.MergedDictionaries`.
+There is no CSS parser or CSS-to-XAML conversion layer. Use **Settings → Themes →
+Create New Theme** to create a validated template, or start with:
+
+```text
+sample-themes\Neon_Cyan.voiseetheme.xaml
+```
+
+Old `.voiseetheme.css` files from the user themes folder are archived once into
+`themes\Legacy CSS` and are not loaded at runtime.

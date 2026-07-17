@@ -1,52 +1,81 @@
 using Microsoft.UI.Xaml;
-using Microsoft.UI.Xaml.Controls;
-using Microsoft.UI.Xaml.Controls.Primitives;
+using Microsoft.UI.Xaml.Markup;
 using Microsoft.UI.Xaml.Media;
 using System;
 using System.Collections.Generic;
-using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Text;
-using System.Text.RegularExpressions;
-using Windows.Foundation;
 using Windows.UI;
 
 namespace VoiSe.App;
 
+/// <summary>
+/// VoiSee 10.1 native theme loader.
+///
+/// User themes are ordinary WinUI ResourceDictionary XAML files. The manager
+/// validates a candidate dictionary before it atomically replaces the active
+/// user dictionary in Application.Resources.MergedDictionaries. There is no
+/// CSS parser, selector engine, visual-tree traversal, or CSS-to-XAML mapping.
+/// </summary>
 public sealed class ThemeManager
 {
-    private static readonly Regex RuleRegex = new(@"(?<selector>[^{}]+)\{(?<body>[^{}]*)\}", RegexOptions.Compiled | RegexOptions.Singleline);
-    private static readonly Regex CommentRegex = new(@"/\*.*?\*/", RegexOptions.Compiled | RegexOptions.Singleline);
-    private static readonly Regex VarRegex = new(@"var\((?<name>--[A-Za-z0-9_-]+)\)", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+    public const string ThemeExtension = ".voiseetheme.xaml";
 
-    // Original visual values captured before a theme paints an element.
-    // Empty CSS values must restore these values, never whatever theme happened
-    // to be active during the previous run. This is especially important for
-    // WinUI controls such as ComboBox and ListView, which otherwise can keep
-    // stale local values from the last selected theme.
-    private readonly Dictionary<FrameworkElement, ElementStyleSnapshot> _originalSnapshots = new();
-    private readonly Dictionary<FrameworkElement, ElementStyleSnapshot> _snapshots = new();
-    private readonly HashSet<FrameworkElement> _styledByLastApply = new();
-    private readonly Dictionary<FrameworkElement, InteractiveThemeState> _interactiveStates = new();
-    private readonly HashSet<FrameworkElement> _interactiveHandlersAttached = new();
+    private static readonly string[] RequiredSemanticKeys =
+    {
+        "VoiSee.AppBackgroundBrush",
+        "VoiSee.PanelBackgroundBrush",
+        "VoiSee.PrimaryTextBrush",
+        "VoiSee.AccentBrush"
+    };
+
+    private ResourceDictionary? _activeUserDictionary;
 
     public ThemeManager(string dataDirectory)
     {
         ThemesDirectory = Path.Combine(dataDirectory, "themes");
+        LegacyCssDirectory = Path.Combine(ThemesDirectory, "Legacy CSS");
     }
 
     public string ThemesDirectory { get; }
+    public string LegacyCssDirectory { get; }
 
     public void EnsureThemesDirectory()
     {
         Directory.CreateDirectory(ThemesDirectory);
     }
 
+    public ThemeMigrationResult MigrateLegacyCssThemes(string? activeThemePath)
+    {
+        EnsureThemesDirectory();
+        var legacyFiles = Directory.GetFiles(ThemesDirectory, "*.voiseetheme.css", SearchOption.TopDirectoryOnly)
+            .Concat(Directory.GetFiles(ThemesDirectory, "*.css", SearchOption.TopDirectoryOnly))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+
+        if (legacyFiles.Length == 0)
+        {
+            return new ThemeMigrationResult(0, false, LegacyCssDirectory);
+        }
+
+        Directory.CreateDirectory(LegacyCssDirectory);
+        foreach (var sourcePath in legacyFiles)
+        {
+            var targetPath = BuildUniquePath(LegacyCssDirectory, Path.GetFileName(sourcePath));
+            File.Move(sourcePath, targetPath);
+        }
+
+        var activeWasLegacyCss = !string.IsNullOrWhiteSpace(activeThemePath)
+            && activeThemePath.EndsWith(".css", StringComparison.OrdinalIgnoreCase);
+
+        return new ThemeMigrationResult(legacyFiles.Length, activeWasLegacyCss, LegacyCssDirectory);
+    }
+
     public IReadOnlyList<string> GetThemeFiles()
     {
         EnsureThemesDirectory();
-        return Directory.GetFiles(ThemesDirectory, "*.voiseetheme.css", SearchOption.TopDirectoryOnly)
+        return Directory.GetFiles(ThemesDirectory, $"*{ThemeExtension}", SearchOption.TopDirectoryOnly)
             .OrderBy(Path.GetFileName, StringComparer.OrdinalIgnoreCase)
             .ToArray();
     }
@@ -54,2220 +83,328 @@ public sealed class ThemeManager
     public string CreateNewThemeFile()
     {
         EnsureThemesDirectory();
-        var basePath = Path.Combine(ThemesDirectory, "MyTheme.voiseetheme.css");
-        var path = basePath;
-        var index = 2;
-        while (File.Exists(path))
-        {
-            path = Path.Combine(ThemesDirectory, $"MyTheme {index}.voiseetheme.css");
-            index++;
-        }
-
-        File.WriteAllText(path, CreateTemplateCss("My Theme"), Encoding.UTF8);
+        var path = BuildUniquePath(ThemesDirectory, $"MyTheme{ThemeExtension}");
+        File.WriteAllText(path, CreateTemplateXaml("My Theme"), new UTF8Encoding(encoderShouldEmitUTF8Identifier: false));
         return path;
     }
 
     public string ImportTheme(string sourcePath)
     {
+        if (string.IsNullOrWhiteSpace(sourcePath) || !File.Exists(sourcePath))
+        {
+            throw new FileNotFoundException("Theme file was not found.", sourcePath);
+        }
+
         EnsureThemesDirectory();
-        var fileName = Path.GetFileName(sourcePath);
-        if (!fileName.EndsWith(".voiseetheme.css", StringComparison.OrdinalIgnoreCase))
-        {
-            fileName = Path.GetFileNameWithoutExtension(fileName) + ".voiseetheme.css";
-        }
+        var sourceFileName = Path.GetFileName(sourcePath);
+        var destinationName = sourceFileName.EndsWith(ThemeExtension, StringComparison.OrdinalIgnoreCase)
+            ? sourceFileName
+            : Path.GetFileNameWithoutExtension(sourceFileName) + ThemeExtension;
 
-        var targetPath = Path.Combine(ThemesDirectory, fileName);
-        if (File.Exists(targetPath))
-        {
-            var name = Path.GetFileNameWithoutExtension(Path.GetFileNameWithoutExtension(fileName));
-            var index = 2;
-            do
-            {
-                targetPath = Path.Combine(ThemesDirectory, $"{name} {index}.voiseetheme.css");
-                index++;
-            }
-            while (File.Exists(targetPath));
-        }
-
+        var targetPath = BuildUniquePath(ThemesDirectory, destinationName);
         File.Copy(sourcePath, targetPath);
+
+        // Validate the imported copy before returning it to the UI.
+        _ = LoadTheme(targetPath);
         return targetPath;
     }
 
     public string ExportTheme(string? activeThemePath, string targetPath)
     {
-        var css = !string.IsNullOrWhiteSpace(activeThemePath) && File.Exists(activeThemePath)
-            ? File.ReadAllText(activeThemePath)
-            : CreateTemplateCss("Default Dark");
-        File.WriteAllText(targetPath, css, Encoding.UTF8);
+        if (!string.IsNullOrWhiteSpace(activeThemePath) && File.Exists(activeThemePath))
+        {
+            File.Copy(activeThemePath, targetPath, overwrite: true);
+        }
+        else
+        {
+            File.WriteAllText(targetPath, CreateTemplateXaml("Default Dark copy"), new UTF8Encoding(encoderShouldEmitUTF8Identifier: false));
+        }
+
         return targetPath;
     }
 
-    public VoiSeeCssTheme LoadTheme(string? themePath)
+    public VoiSeeXamlTheme LoadTheme(string? themePath)
     {
-        if (string.IsNullOrWhiteSpace(themePath) || !File.Exists(themePath))
+        if (string.IsNullOrWhiteSpace(themePath))
         {
-            return new VoiSeeCssTheme("Default Dark", null);
+            return VoiSeeXamlTheme.DefaultDark;
         }
 
-        var css = File.ReadAllText(themePath);
-        return Parse(css, Path.GetFileNameWithoutExtension(Path.GetFileNameWithoutExtension(themePath)), themePath);
-    }
-
-    public VoiSeeCssTheme Parse(string css, string fallbackName, string? sourcePath)
-    {
-        css = CommentRegex.Replace(css ?? string.Empty, string.Empty);
-        var theme = new VoiSeeCssTheme(fallbackName, sourcePath);
-
-        foreach (Match match in RuleRegex.Matches(css))
+        if (!File.Exists(themePath))
         {
-            var selectorList = match.Groups["selector"].Value.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-            var declarations = ParseDeclarations(match.Groups["body"].Value);
-            if (declarations.Count == 0)
-            {
-                continue;
-            }
-
-            foreach (var selector in selectorList)
-            {
-                var normalizedSelector = selector.Trim();
-                if (string.IsNullOrWhiteSpace(normalizedSelector))
-                {
-                    continue;
-                }
-
-                if (normalizedSelector.Equals(":root", StringComparison.OrdinalIgnoreCase))
-                {
-                    foreach (var pair in declarations)
-                    {
-                        if (pair.Key.StartsWith("--", StringComparison.Ordinal))
-                        {
-                            theme.Variables[pair.Key] = pair.Value;
-                        }
-                    }
-                }
-                else
-                {
-                    theme.Rules.Add(new VoiSeeCssRule(normalizedSelector, new Dictionary<string, string>(declarations, StringComparer.OrdinalIgnoreCase)));
-                }
-            }
+            throw new FileNotFoundException("The selected XAML theme file was not found.", themePath);
         }
 
-        return theme;
-    }
-
-    private static Dictionary<string, string> ParseDeclarations(string body)
-    {
-        var result = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-        foreach (var rawDeclaration in body.Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+        if (!themePath.EndsWith(ThemeExtension, StringComparison.OrdinalIgnoreCase))
         {
-            var separator = rawDeclaration.IndexOf(':');
-            if (separator <= 0)
-            {
-                continue;
-            }
-
-            var name = rawDeclaration[..separator].Trim();
-            var value = separator >= rawDeclaration.Length - 1
-                ? string.Empty
-                : rawDeclaration[(separator + 1)..].Trim();
-            if (!string.IsNullOrWhiteSpace(name))
-            {
-                // Empty values are intentional in VoiSee themes. They mean:
-                // "reset this property to the original XAML/default value".
-                result[name] = value;
-            }
+            throw new InvalidDataException($"VoiSee themes must use the {ThemeExtension} extension.");
         }
 
-        return result;
-    }
-
-    public int ApplyTheme(FrameworkElement root, VoiSeeCssTheme theme)
-    {
-        // Full apply is used only when the selected theme changes or when the
-        // active CSS file is saved. It may restore and repaint the whole visual
-        // tree because the rules themselves may have changed. Do not use this
-        // path for ordinary tab switching: repainting the whole tree there makes
-        // the original XAML design flash briefly and can stall the UI.
-        RestoreAllThemedElements();
-        _interactiveStates.Clear();
-
-        var elements = EnumerateVisualTree(root).OfType<FrameworkElement>().ToArray();
-        CaptureOriginalSnapshots(elements);
-
-        // A theme with no active rules means "return to the original VoiSee XAML
-        // design". Do not paint a hard-coded fallback here: the real default
-        // appearance already lives in MainWindow.xaml.
-        if (theme.Rules.Count == 0)
-        {
-            RestoreOriginalSnapshots(elements);
-            _snapshots.Clear();
-            _styledByLastApply.Clear();
-            return 0;
-        }
-
-        return ApplyThemeRulesWithoutGlobalRestore(elements, theme, replaceLastStyledSet: true);
-    }
-
-    public int ApplyThemeIncremental(FrameworkElement root, VoiSeeCssTheme theme)
-    {
-        // Fast path for tab switches / lazy WinUI materialization. The currently
-        // selected theme did not change, so we only paint controls that are
-        // currently present. We intentionally avoid RestoreAllThemedElements()
-        // here: it is the source of the half-second Default Dark flash and the
-        // small freeze during frequent tab swipes.
-        if (theme.Rules.Count == 0)
-        {
-            return 0;
-        }
-
-        var elements = EnumerateVisualTree(root).OfType<FrameworkElement>().ToArray();
-        CaptureOriginalSnapshots(elements);
-        return ApplyThemeRulesWithoutGlobalRestore(elements, theme, replaceLastStyledSet: false);
-    }
-
-    private int ApplyThemeRulesWithoutGlobalRestore(IReadOnlyList<FrameworkElement> elements, VoiSeeCssTheme theme, bool replaceLastStyledSet)
-    {
-        var applied = 0;
-        var styledThisApply = new HashSet<FrameworkElement>();
-
-        foreach (var element in elements)
-        {
-            applied += ApplyRulesToElement(element, theme, styledThisApply);
-        }
-
-        if (replaceLastStyledSet)
-        {
-            _styledByLastApply.Clear();
-        }
-
-        foreach (var element in styledThisApply)
-        {
-            _styledByLastApply.Add(element);
-        }
-
-        foreach (var element in _interactiveStates.Keys.ToArray())
-        {
-            if (_interactiveStates.TryGetValue(element, out var state) && state.PseudoDeclarations.Count > 0)
-            {
-                AttachInteractiveHandlers(element);
-                ApplyCurrentInteractiveState(element);
-            }
-        }
-
-        return applied;
-    }
-
-    private void RestoreAllThemedElements()
-    {
-        foreach (var element in _snapshots.Keys.ToArray())
-        {
-            try
-            {
-                if (_originalSnapshots.TryGetValue(element, out var original))
-                {
-                    original.Restore(element);
-                }
-                else if (_snapshots.TryGetValue(element, out var snapshot))
-                {
-                    snapshot.Restore(element);
-                }
-            }
-            catch
-            {
-                // Themed elements can be virtualized/recreated by WinUI while switching tabs.
-                // A failed restore should never break theme application.
-            }
-        }
-
-        _styledByLastApply.Clear();
-    }
-
-    private void CaptureOriginalSnapshots(IEnumerable<FrameworkElement> elements)
-    {
-        foreach (var element in elements)
-        {
-            if (!_originalSnapshots.ContainsKey(element))
-            {
-                _originalSnapshots[element] = ElementStyleSnapshot.Capture(element);
-            }
-        }
-    }
-
-    private void RestoreOriginalSnapshots(IEnumerable<FrameworkElement> elements)
-    {
-        foreach (var element in elements)
-        {
-            try
-            {
-                if (_originalSnapshots.TryGetValue(element, out var original))
-                {
-                    original.Restore(element);
-                }
-                else
-                {
-                    ResetKnownThemeProperties(element);
-                }
-            }
-            catch
-            {
-            }
-        }
-    }
-
-    private static void ResetKnownThemeProperties(FrameworkElement element)
-    {
-        foreach (var property in new[]
-        {
-            "background", "foreground", "border", "border-radius", "padding",
-            "margin", "opacity", "font-size", "font-weight", "width", "height",
-            "min-width", "min-height", "max-width", "max-height"
-        })
-        {
-            ResetLocalProperty(element, property);
-        }
-    }
-
-    private static void ApplyDefaultDarkVisualReset(FrameworkElement root)
-    {
-        foreach (var element in EnumerateVisualTree(root).OfType<FrameworkElement>())
-        {
-            ApplyDefaultDarkVisualResetToElement(element);
-        }
-    }
-
-    private static void ApplyDefaultDarkVisualResetToElement(FrameworkElement element)
-    {
-        var white = new SolidColorBrush(Color.FromArgb(0xFF, 0xF3, 0xF7, 0xFF));
-        var secondary = new SolidColorBrush(Color.FromArgb(0xFF, 0xB6, 0xC0, 0xD0));
-        var transparent = new SolidColorBrush(Color.FromArgb(0x00, 0x00, 0x00, 0x00));
-        var buttonBackground = new SolidColorBrush(Color.FromArgb(0xFF, 0x1A, 0x1A, 0x1A));
-        var inputBackground = new SolidColorBrush(Color.FromArgb(0xFF, 0x09, 0x0E, 0x16));
-        var inputBorder = new SolidColorBrush(Color.FromArgb(0x55, 0xFF, 0xFF, 0xFF));
-
-        switch (element)
-        {
-            case ComboBox comboBox:
-                comboBox.Background = inputBackground;
-                comboBox.Foreground = white;
-                comboBox.BorderBrush = inputBorder;
-                comboBox.BorderThickness = new Thickness(1);
-                TrySetCornerRadiusProperty(comboBox, new CornerRadius(8));
-                comboBox.Padding = new Thickness(10, 3, 10, 3);
-                break;
-
-            case ListView listView:
-                listView.Background = transparent;
-                listView.BorderBrush = transparent;
-                listView.BorderThickness = new Thickness(0);
-                listView.Padding = new Thickness(0);
-                break;
-
-            case ToggleButton toggleButton:
-                toggleButton.Background = buttonBackground;
-                toggleButton.Foreground = white;
-                toggleButton.BorderBrush = transparent;
-                toggleButton.BorderThickness = new Thickness(0);
-                TrySetCornerRadiusProperty(toggleButton, new CornerRadius(4));
-                toggleButton.Padding = new Thickness(10, 4, 10, 4);
-                break;
-
-            case Button button:
-                button.Background = buttonBackground;
-                button.Foreground = white;
-                button.BorderBrush = transparent;
-                button.BorderThickness = new Thickness(0);
-                TrySetCornerRadiusProperty(button, new CornerRadius(4));
-                button.Padding = new Thickness(10, 4, 10, 4);
-                break;
-
-            case HyperlinkButton hyperlinkButton:
-                hyperlinkButton.Background = transparent;
-                hyperlinkButton.BorderBrush = transparent;
-                hyperlinkButton.BorderThickness = new Thickness(0);
-                hyperlinkButton.Foreground = new SolidColorBrush(Color.FromArgb(0xFF, 0x00, 0xD5, 0xFF));
-                hyperlinkButton.Padding = new Thickness(0);
-                break;
-
-            case Slider slider:
-                slider.Background = transparent;
-                slider.Foreground = secondary;
-                slider.BorderBrush = transparent;
-                slider.BorderThickness = new Thickness(0);
-                slider.Padding = new Thickness(0);
-                slider.Height = double.NaN;
-                slider.MinHeight = 0;
-                slider.Margin = new Thickness(0);
-                break;
-
-            case TextBox textBox:
-                textBox.Background = inputBackground;
-                textBox.Foreground = white;
-                textBox.BorderBrush = inputBorder;
-                textBox.BorderThickness = new Thickness(1);
-                TrySetCornerRadiusProperty(textBox, new CornerRadius(8));
-                textBox.Padding = new Thickness(10, 4, 10, 4);
-                break;
-        }
-    }
-
-
-    private int ApplyRulesToElement(FrameworkElement element, VoiSeeCssTheme theme, HashSet<FrameworkElement> styledThisApply)
-    {
-        var applied = 0;
-        foreach (var rule in theme.Rules)
-        {
-            var selector = ParseSelector(rule.Selector);
-            if (!IsSelectorMatch(element, selector.BaseSelector))
-            {
-                continue;
-            }
-
-            var resolved = rule.Declarations.ToDictionary(
-                pair => pair.Key,
-                pair => theme.ResolveValue(pair.Value),
-                StringComparer.OrdinalIgnoreCase);
-
-            if (!string.IsNullOrWhiteSpace(selector.Pseudo))
-            {
-                var pseudo = NormalizePseudo(selector.Pseudo);
-                if (pseudo is not null)
-                {
-                    var state = GetInteractiveState(element);
-                    state.PseudoDeclarations[pseudo] = resolved;
-                    CaptureSnapshotIfNeeded(element);
-                    styledThisApply.Add(element);
-                }
-                continue;
-            }
-
-            foreach (var declaration in resolved)
-            {
-                if (string.IsNullOrWhiteSpace(declaration.Value))
-                {
-                    // Empty values mean "reset this property". Do not capture a
-                    // snapshot here: after restart the previous active theme might
-                    // already have painted this control. Capturing at this point
-                    // would store the stale theme color as the "default" and the
-                    // reset would appear to do nothing. Prefer the original snapshot
-                    // when it exists; otherwise clear the local themed value so WinUI
-                    // can fall back to the real XAML/control default.
-                    var restored = _originalSnapshots.TryGetValue(element, out var snapshot)
-                        ? snapshot.RestoreProperty(element, declaration.Key)
-                        : ResetLocalProperty(element, declaration.Key);
-
-                    if (restored)
-                    {
-                        applied++;
-                        styledThisApply.Add(element);
-                        GetInteractiveState(element).BaseDeclarations[declaration.Key] = declaration.Value;
-                    }
-                    continue;
-                }
-
-                CaptureSnapshotIfNeeded(element);
-
-                if (ApplyDeclaration(element, declaration.Key, declaration.Value))
-                {
-                    applied++;
-                    styledThisApply.Add(element);
-                    GetInteractiveState(element).BaseDeclarations[declaration.Key] = declaration.Value;
-                }
-            }
-        }
-
-        return applied;
-    }
-
-    private static ParsedSelector ParseSelector(string selector)
-    {
-        selector = selector.Trim();
-        if (selector.Equals(":root", StringComparison.OrdinalIgnoreCase))
-        {
-            return new ParsedSelector(selector, null);
-        }
-
-        var colon = selector.LastIndexOf(':');
-        if (colon > 0 && colon < selector.Length - 1)
-        {
-            return new ParsedSelector(selector[..colon].Trim(), selector[(colon + 1)..].Trim());
-        }
-
-        return new ParsedSelector(selector, null);
-    }
-
-    private static string? NormalizePseudo(string pseudo)
-    {
-        return pseudo.Trim().ToLowerInvariant() switch
-        {
-            "hover" => "hover",
-            "pressed" or "active" or "onclick" or "on-click" => "pressed",
-            "checked" or "on" => "checked",
-            _ => null
-        };
-    }
-
-    private static bool IsSelectorMatch(FrameworkElement element, string selector)
-    {
-        selector = selector.Trim();
-        if (string.IsNullOrWhiteSpace(selector))
-        {
-            return false;
-        }
-
-        if (selector.StartsWith("#", StringComparison.Ordinal))
-        {
-            var id = selector[1..];
-            return GetElementIds(element).Contains(id, StringComparer.OrdinalIgnoreCase);
-        }
-
-        if (selector.StartsWith(".", StringComparison.Ordinal))
-        {
-            var cls = selector[1..];
-            return GetElementClasses(element).Contains(cls, StringComparer.OrdinalIgnoreCase);
-        }
-
-        return element.GetType().Name.Equals(selector, StringComparison.OrdinalIgnoreCase);
-    }
-
-    private static IEnumerable<string> GetElementIds(FrameworkElement element)
-    {
-        if (!string.IsNullOrWhiteSpace(element.Name))
-        {
-            yield return element.Name;
-        }
-
-        foreach (var alias in GetFriendlyIds(element))
-        {
-            yield return alias;
-        }
-    }
-
-    private static IEnumerable<string> GetFriendlyIds(FrameworkElement element)
-    {
-        var name = element.Name ?? string.Empty;
-        switch (name)
-        {
-            // Global panels / areas (Pn = panel/container)
-            case "RootGrid": yield return "PnRoot"; break;
-            case "CustomTitleBar": yield return "PnTitleBar"; break;
-            case "MainHeaderBorder": yield return "MainHeaderBorder"; yield return "HeaderPanel"; yield return "PnMainHeader"; yield return "PnHeader"; break;
-            case "MainContentHost": yield return "PnMainContent"; break;
-            case "MainTabHostBorder": yield return "MainTabs"; yield return "PnMainTabs"; break;
-            case "SoundBoardTabRoot": yield return "MainSoundboard"; yield return "PnMainSoundboard"; break;
-            case "VoiceChangerScrollViewer": yield return "MainVoiceChanger"; yield return "PnMainVoiceChanger"; break;
-            case "VoicePresetsPanel": yield return "VoiceChangerPresets"; yield return "VoicechangerPresets"; yield return "PnVoiceChangerPresets"; break;
-            case "ScenesTabRoot": yield return "MainScenes"; yield return "PnMainScenes"; break;
-            case "MainSettings": yield return "MainSettings"; yield return "PnMainSettings"; break;
-            case "SettingsThemesPanel": yield return "MainThemes"; yield return "ThemesPanel"; yield return "PnThemes"; yield return "PnMainThemes"; break;
-            case "AboutMePanel": yield return "AboutMePanel"; yield return "PnAboutMe"; break;
-            case "VBCableNoticeBorder": yield return "VBCableNoticeBorder"; yield return "SettingsVBCable"; yield return "PnVBCable"; break;
-            case "VirtualMicMutedBanner": yield return "PnMuteBanner"; break;
-            case "SettingsLogArea": yield return "PnSettingsLog"; break;
-            case "SoundListArea": yield return "SoundboardSoundList"; yield return "PnSoundboardSoundList"; break;
-            case "TimelineHost": yield return "SoundboardTimeline"; yield return "SoungboardTimeline"; yield return "PnSoundboardTimeline"; break;
-            case "LoopedSceneSoundsPanel": yield return "PnScenesLoopedSounds"; break;
-            case "SceneSoundsPanel": yield return "PnScenesSoundButtons"; break;
-
-            // Buttons (Bt = button)
-            case "VirtualMicMuteToggleButton": yield return "SettingsMute"; yield return "GlobalMute"; yield return "BtSettingsMute"; yield return "BtGlobalMute"; break;
-            case "NextSoundButton": yield return "SoundboardNext"; yield return "BtSoundboardNext"; break;
-            case "PreviousSoundButton": yield return "SoundboardPrevious"; yield return "BtSoundboardPrevious"; break;
-            case "PlayPauseButton": yield return "SoundboardPlayPause"; yield return "BtSoundboardPlayPause"; break;
-            case "StopSoundButton": yield return "SoundboardStop"; yield return "BtSoundboardStop"; break;
-            case "SoundLoopToggleButton": yield return "SoundboardLoop"; yield return "BtSoundboardLoop"; break;
-            case "InstallVBCableButton": yield return "BtInstallVBCable"; yield return "BtSettingsInstallVBCable"; break;
-            case "StartEngineButton": yield return "SettingsStartEngine"; yield return "BtSettingsStartEngine"; break;
-            case "StopEngineButton": yield return "SettingsStopEngine"; yield return "BtSettingsStopEngine"; break;
-            case "VoiceMonitorButton": yield return "VoicechangerMonitor"; yield return "BtVoicechangerMonitor"; break;
-            case "SceneApplyButton": yield return "ScenesApply"; yield return "BtScenesApply"; break;
-            case "SceneDisableButton": yield return "ScenesDisable"; yield return "BtScenesDisable"; break;
-            case "SceneDeleteButton": yield return "ScenesDelete"; yield return "BtScenesDelete"; break;
-            case "SceneRenameButton": yield return "ScenesRename"; yield return "BtScenesRename"; break;
-            case "SceneCreateNewButton": yield return "ScenesCreate"; yield return "BtScenesCreate"; break;
-            case "SceneVoicePresetClearButton": yield return "BtScenesVoicePresetClear"; break;
-            case "SceneVoicePresetCreateButton": yield return "BtScenesVoicePresetCreate"; break;
-            case "SceneVoiceMonitorButton": yield return "ScenesVoiceMonitor"; yield return "BtScenesVoiceMonitor"; break;
-            case "SceneLoopPlayLoopButton": yield return "ScenesLoopPlayLoop"; yield return "BtScenesLoopPlayLoop"; break;
-            case "SceneLoopPlayOnceButton": yield return "ScenesLoopPlayOnce"; yield return "BtScenesLoopPlayOnce"; break;
-            case "SceneLoopRemoveButton": yield return "ScenesLoopRemove"; yield return "BtScenesLoopRemove"; break;
-            case "SceneLoopChooseButton": yield return "ScenesLoopChoose"; yield return "BtScenesLoopChoose"; break;
-            case "DeleteThemeButton": yield return "BtThemeDelete"; yield return "BtSettingsThemeDelete"; break;
-
-            // Sliders (Sl = slider). Use height/min-height/margin for visual size; WinUI Slider ignores most padding changes.
-            case "SoundVirtualVolumeSlider": yield return "SoundboardVirtualMic"; yield return "SlSoundboardVirtualMic"; break;
-            case "SoundMonitorVolumeSlider": yield return "SoundboardHeadphones"; yield return "SlSoundboardHeadphones"; break;
-            case "SoundVirtualDelaySlider": yield return "SoundboardDelay"; yield return "SlSoundboardDelay"; break;
-            case "VirtualOutputVolumeSlider": yield return "SettingsVirtualMicMaster"; yield return "SlSettingsVirtualMicMaster"; break;
-            case "VoiceGainSlider": yield return "SlVoiceGain"; break;
-            case "GateThresholdSlider": yield return "SlVoiceGateThreshold"; break;
-            case "CompressorThresholdSlider": yield return "SlVoiceCompressorThreshold"; break;
-            case "PitchSlider": yield return "SlVoicePitch"; break;
-            case "FormantSlider": yield return "SlVoiceFormant"; break;
-            case "BassSlider": yield return "SlVoiceBass"; break;
-            case "TrebleSlider": yield return "SlVoiceTreble"; break;
-            case "DistortionSlider": yield return "SlVoiceDistortion"; break;
-            case "RobotSlider": yield return "SlVoiceRobot"; break;
-            case "TremoloSlider": yield return "SlVoiceTremolo"; break;
-            case "EchoSlider": yield return "SlVoiceEcho"; break;
-            case "ReverbSlider": yield return "SlVoiceReverb"; break;
-            case "RadioSlider": yield return "SlVoiceRadio"; break;
-            case "BitCrusherSlider": yield return "SlVoiceBitCrusher"; break;
-            case "AlienSlider": yield return "SlVoiceAlien"; break;
-            case "SceneLoopHeadphonesVolumeSlider": yield return "SlScenesLoopHeadphones"; break;
-            case "SceneLoopVirtualMicVolumeSlider": yield return "SlScenesLoopVirtualMic"; break;
-
-            // Combo boxes / drop-downs (Cb = combo box)
-            case "CategoryComboBox": yield return "SoundboardCategoryList"; yield return "CbSoundboardCategory"; break;
-            case "InputDeviceComboBox": yield return "CbSettingsInputMicrophone"; break;
-            case "MonitorOutputComboBox": yield return "CbSettingsMonitorOutput"; break;
-            case "VirtualOutputComboBox": yield return "CbSettingsVirtualOutput"; break;
-            case "ThemeComboBox": yield return "CbTheme"; yield return "CbSettingsTheme"; break;
-            case "SceneVoicePresetComboBox": yield return "ScenesVoicePreset"; yield return "CbScenesVoicePreset"; break;
-        }
-    }
-
-    private static IEnumerable<string> GetElementClasses(FrameworkElement element)
-    {
-        yield return "all";
-        yield return "El";
-
-        var area = DetectArea(element);
-        if (!string.IsNullOrWhiteSpace(area))
-        {
-            yield return area;
-        }
-
-        if (element is Grid or StackPanel or ScrollViewer or VariableSizedWrapGrid)
-        {
-            yield return "layout";
-            yield return "PnLayout";
-            if (!string.IsNullOrWhiteSpace(area)) yield return $"{area}-layout";
-        }
-
-        if (element is Border)
-        {
-            yield return "panel";
-            yield return "Pn";
-            if (!string.IsNullOrWhiteSpace(area)) yield return $"{area}-panel";
-        }
-
-        if (element is TextBlock)
-        {
-            yield return "text";
-            yield return "Txt";
-            if (!string.IsNullOrWhiteSpace(area)) yield return $"{area}-text";
-        }
-
-        if (element is Button)
-        {
-            yield return "button";
-            yield return "Bt";
-            yield return "primary-button";
-            if (!string.IsNullOrWhiteSpace(area)) yield return $"{area}-button";
-        }
-
-        if (element is ToggleButton)
-        {
-            yield return "button";
-            yield return "Bt";
-            yield return "toggle-button";
-            if (!string.IsNullOrWhiteSpace(area)) yield return $"{area}-button";
-            if (!string.IsNullOrWhiteSpace(area)) yield return $"{area}-toggle-button";
-        }
-
-        if (element is HyperlinkButton)
-        {
-            yield return "link-button";
-            yield return "Bt";
-            yield return "button";
-            if (!string.IsNullOrWhiteSpace(area)) yield return $"{area}-button";
-        }
-
-        if (element is ComboBox)
-        {
-            yield return "combo-box";
-            yield return "Cb";
-            if (!string.IsNullOrWhiteSpace(area)) yield return $"{area}-combo-box";
-        }
-
-        if (element is Slider)
-        {
-            yield return "slider";
-            yield return "Sl";
-            if (!string.IsNullOrWhiteSpace(area)) yield return $"{area}-slider";
-        }
-
-        if (element is TextBox)
-        {
-            yield return "text-box";
-            yield return "Tx";
-            if (!string.IsNullOrWhiteSpace(area)) yield return $"{area}-text-box";
-        }
-
-        if (element is TabView)
-        {
-            yield return "tab-view";
-            yield return "Tb";
-        }
-
-        if (element is TabViewItem)
-        {
-            yield return "tab-item";
-            yield return "TbItem";
-        }
-
-        if (element is ListView)
-        {
-            yield return "list-view";
-            yield return "Lv";
-            if (!string.IsNullOrWhiteSpace(area)) yield return $"{area}-list-view";
-        }
-
-        var typeName = element.GetType().Name;
-        if (typeName.Contains("MenuFlyout", StringComparison.OrdinalIgnoreCase) || typeName.Contains("MenuItem", StringComparison.OrdinalIgnoreCase))
-        {
-            yield return "Mn";
-            yield return "menu";
-        }
-
-        if (element.Name.Contains("Banner", StringComparison.OrdinalIgnoreCase))
-        {
-            yield return "status-banner";
-        }
-
-        if (element.Tag is SoundBoardSound)
-        {
-            yield return "soundboard-sound";
-            yield return "soundboard-row";
-        }
-    }
-
-    private static string? DetectArea(FrameworkElement element)
-    {
-        for (DependencyObject? current = element; current is not null; current = VisualTreeHelper.GetParent(current))
-        {
-            if (current is FrameworkElement fe)
-            {
-                var name = fe.Name ?? string.Empty;
-                if (name.Equals("SoundBoardTabRoot", StringComparison.OrdinalIgnoreCase) || name.Equals("SoundItemsPanel", StringComparison.OrdinalIgnoreCase) || name.Equals("SoundBoardBodyGrid", StringComparison.OrdinalIgnoreCase))
-                {
-                    return "soundboard";
-                }
-                if (name.Equals("VoiceChangerScrollViewer", StringComparison.OrdinalIgnoreCase) || name.Equals("VoicePresetsPanel", StringComparison.OrdinalIgnoreCase))
-                {
-                    return "voicechanger";
-                }
-                if (name.Equals("ScenesTabRoot", StringComparison.OrdinalIgnoreCase) || name.Equals("SceneSoundsPanel", StringComparison.OrdinalIgnoreCase) || name.Equals("LoopedSceneSoundsPanel", StringComparison.OrdinalIgnoreCase))
-                {
-                    return "scenes";
-                }
-                if (name.Equals("SettingsScrollViewer", StringComparison.OrdinalIgnoreCase) || name.Equals("SettingsTabRoot", StringComparison.OrdinalIgnoreCase) || name.Equals("MainSettings", StringComparison.OrdinalIgnoreCase) || name.Equals("SettingsThemesPanel", StringComparison.OrdinalIgnoreCase) || name.Equals("AboutMePanel", StringComparison.OrdinalIgnoreCase))
-                {
-                    return "settings";
-                }
-            }
-        }
-
-        return null;
-    }
-
-    private void CaptureSnapshotIfNeeded(FrameworkElement element)
-    {
-        if (!_originalSnapshots.ContainsKey(element))
-        {
-            _originalSnapshots[element] = ElementStyleSnapshot.Capture(element);
-        }
-
-        if (!_snapshots.ContainsKey(element))
-        {
-            _snapshots[element] = _originalSnapshots[element];
-        }
-    }
-
-    private InteractiveThemeState GetInteractiveState(FrameworkElement element)
-    {
-        if (!_interactiveStates.TryGetValue(element, out var state))
-        {
-            state = new InteractiveThemeState();
-            _interactiveStates[element] = state;
-        }
-        return state;
-    }
-
-    private void AttachInteractiveHandlers(FrameworkElement element)
-    {
-        if (_interactiveHandlersAttached.Contains(element))
-        {
-            return;
-        }
-
-        element.PointerEntered += OnThemedElementPointerEntered;
-        element.PointerExited += OnThemedElementPointerExited;
-        element.PointerPressed += OnThemedElementPointerPressed;
-        element.PointerReleased += OnThemedElementPointerReleased;
-        element.PointerCanceled += OnThemedElementPointerReleased;
-        element.PointerCaptureLost += OnThemedElementPointerReleased;
-
-        if (element is ToggleButton toggle)
-        {
-            toggle.Checked += OnThemedToggleChanged;
-            toggle.Unchecked += OnThemedToggleChanged;
-        }
-
-        _interactiveHandlersAttached.Add(element);
-    }
-
-    private void OnThemedElementPointerEntered(object sender, Microsoft.UI.Xaml.Input.PointerRoutedEventArgs e)
-    {
-        if (sender is FrameworkElement element && _interactiveStates.TryGetValue(element, out var state))
-        {
-            state.IsHover = true;
-            ApplyCurrentInteractiveState(element);
-        }
-    }
-
-    private void OnThemedElementPointerExited(object sender, Microsoft.UI.Xaml.Input.PointerRoutedEventArgs e)
-    {
-        if (sender is FrameworkElement element && _interactiveStates.TryGetValue(element, out var state))
-        {
-            state.IsHover = false;
-            state.IsPressed = false;
-            ApplyCurrentInteractiveState(element);
-        }
-    }
-
-    private void OnThemedElementPointerPressed(object sender, Microsoft.UI.Xaml.Input.PointerRoutedEventArgs e)
-    {
-        if (sender is FrameworkElement element && _interactiveStates.TryGetValue(element, out var state))
-        {
-            state.IsPressed = true;
-            ApplyCurrentInteractiveState(element);
-        }
-    }
-
-    private void OnThemedElementPointerReleased(object sender, Microsoft.UI.Xaml.Input.PointerRoutedEventArgs e)
-    {
-        if (sender is FrameworkElement element && _interactiveStates.TryGetValue(element, out var state))
-        {
-            state.IsPressed = false;
-            ApplyCurrentInteractiveState(element);
-        }
-    }
-
-    private void OnThemedToggleChanged(object sender, RoutedEventArgs e)
-    {
-        if (sender is FrameworkElement element)
-        {
-            ApplyCurrentInteractiveState(element);
-        }
-    }
-
-    private void ApplyCurrentInteractiveState(FrameworkElement element)
-    {
-        if (!_interactiveStates.TryGetValue(element, out var state))
-        {
-            return;
-        }
-
-        if (_originalSnapshots.TryGetValue(element, out var snapshot))
-        {
-            snapshot.Restore(element);
-        }
-        else if (_snapshots.TryGetValue(element, out var fallbackSnapshot))
-        {
-            fallbackSnapshot.Restore(element);
-        }
-
-        ApplyDeclarations(element, state.BaseDeclarations);
-
-        if (state.IsHover && state.PseudoDeclarations.TryGetValue("hover", out var hover))
-        {
-            ApplyDeclarations(element, hover);
-        }
-
-        var isChecked = element is ToggleButton { IsChecked: true };
-        if (isChecked && state.PseudoDeclarations.TryGetValue("checked", out var checkedDeclarations))
-        {
-            ApplyDeclarations(element, checkedDeclarations);
-        }
-
-        if (state.IsPressed && state.PseudoDeclarations.TryGetValue("pressed", out var pressed))
-        {
-            ApplyDeclarations(element, pressed);
-        }
-    }
-
-    private static void ApplyDeclarations(FrameworkElement element, IReadOnlyDictionary<string, string> declarations)
-    {
-        foreach (var declaration in declarations)
-        {
-            ApplyDeclaration(element, declaration.Key, declaration.Value);
-        }
-    }
-
-    private static bool ResetLocalProperty(FrameworkElement element, string property)
-    {
+        var xaml = ReadAllTextWithRetry(themePath);
+        object parsed;
         try
         {
-            switch (property.Trim().ToLowerInvariant())
-            {
-                case "background":
-                case "background-color":
-                case "background-image":
-                    switch (element)
-                    {
-                        case Panel panel:
-                            panel.ClearValue(Panel.BackgroundProperty);
-                            return true;
-                        case Border border:
-                            border.ClearValue(Border.BackgroundProperty);
-                            return true;
-                        case Control control:
-                            control.ClearValue(Control.BackgroundProperty);
-                            return true;
-                    }
-                    return false;
-
-                case "foreground":
-                case "color":
-                    switch (element)
-                    {
-                        case TextBlock textBlock:
-                            textBlock.ClearValue(TextBlock.ForegroundProperty);
-                            return true;
-                        case Control control:
-                            control.ClearValue(Control.ForegroundProperty);
-                            return true;
-                    }
-                    return false;
-
-                case "border":
-                    return ResetLocalProperty(element, "border-color") | ResetLocalProperty(element, "border-thickness");
-
-                case "border-color":
-                    switch (element)
-                    {
-                        case Border border:
-                            border.ClearValue(Border.BorderBrushProperty);
-                            return true;
-                        case Control control:
-                            control.ClearValue(Control.BorderBrushProperty);
-                            return true;
-                    }
-                    return false;
-
-                case "border-thickness":
-                case "border-width":
-                    switch (element)
-                    {
-                        case Border border:
-                            border.ClearValue(Border.BorderThicknessProperty);
-                            return true;
-                        case Control control:
-                            control.ClearValue(Control.BorderThicknessProperty);
-                            return true;
-                    }
-                    return false;
-
-                case "corner-radius":
-                case "border-radius":
-                case "radius":
-                    if (element is Border borderForRadius)
-                    {
-                        borderForRadius.ClearValue(Border.CornerRadiusProperty);
-                        return true;
-                    }
-                    return ClearCornerRadiusProperty(element);
-
-                case "padding":
-                    switch (element)
-                    {
-                        case Border border:
-                            border.ClearValue(Border.PaddingProperty);
-                            return true;
-                        case Control control:
-                            control.ClearValue(Control.PaddingProperty);
-                            return true;
-                    }
-                    return false;
-
-                case "margin":
-                    element.ClearValue(FrameworkElement.MarginProperty);
-                    return true;
-                case "width":
-                    element.ClearValue(FrameworkElement.WidthProperty);
-                    return true;
-                case "height":
-                    element.ClearValue(FrameworkElement.HeightProperty);
-                    return true;
-                case "min-width":
-                    element.ClearValue(FrameworkElement.MinWidthProperty);
-                    return true;
-                case "min-height":
-                    element.ClearValue(FrameworkElement.MinHeightProperty);
-                    return true;
-                case "max-width":
-                    element.ClearValue(FrameworkElement.MaxWidthProperty);
-                    return true;
-                case "max-height":
-                    element.ClearValue(FrameworkElement.MaxHeightProperty);
-                    return true;
-                case "opacity":
-                    element.ClearValue(UIElement.OpacityProperty);
-                    return true;
-
-                case "font-size":
-                    switch (element)
-                    {
-                        case TextBlock textBlock:
-                            textBlock.ClearValue(TextBlock.FontSizeProperty);
-                            return true;
-                        case Control control:
-                            control.ClearValue(Control.FontSizeProperty);
-                            return true;
-                    }
-                    return false;
-
-                case "font-weight":
-                    switch (element)
-                    {
-                        case TextBlock textBlock:
-                            textBlock.ClearValue(TextBlock.FontWeightProperty);
-                            return true;
-                        case Control control:
-                            control.ClearValue(Control.FontWeightProperty);
-                            return true;
-                    }
-                    return false;
-
-                case "spacing":
-                case "gap":
-                    switch (element)
-                    {
-                        case StackPanel stackPanel:
-                            stackPanel.ClearValue(StackPanel.SpacingProperty);
-                            return true;
-                        case Grid grid:
-                            grid.ClearValue(Grid.ColumnSpacingProperty);
-                            grid.ClearValue(Grid.RowSpacingProperty);
-                            return true;
-                    }
-                    return false;
-
-                default:
-                    return false;
-            }
+            parsed = XamlReader.Load(xaml);
         }
-        catch
+        catch (Exception ex)
         {
-            return false;
+            throw new InvalidDataException($"The theme is not valid WinUI XAML: {ex.Message}", ex);
         }
+
+        if (parsed is not ResourceDictionary dictionary)
+        {
+            throw new InvalidDataException("The root object of a VoiSee theme must be ResourceDictionary.");
+        }
+
+        ValidateSemanticContract(dictionary);
+        var name = GetDisplayName(themePath);
+        return new VoiSeeXamlTheme(name, Path.GetFullPath(themePath), dictionary);
     }
 
-    private static bool ClearCornerRadiusProperty(FrameworkElement element)
+    public int ApplyTheme(FrameworkElement root, VoiSeeXamlTheme theme)
     {
-        var property = element.GetType().GetProperty("CornerRadius");
-        if (property is null || property.PropertyType != typeof(CornerRadius))
+        var merged = Application.Current.Resources.MergedDictionaries;
+
+        // Candidate XAML has already been parsed and validated by LoadTheme.
+        // Add it before removing the previous dictionary so a failure cannot
+        // leave the application without its last working theme.
+        if (theme.Dictionary is not null)
         {
-            return false;
+            merged.Add(theme.Dictionary);
         }
 
-        try
+        if (_activeUserDictionary is not null)
         {
-            // DependencyObject.ClearValue needs the static DependencyProperty field.
-            // Most WinUI controls expose it as CornerRadiusProperty.
-            var dpField = element.GetType().GetField("CornerRadiusProperty");
-            if (dpField?.GetValue(null) is DependencyProperty dp)
-            {
-                element.ClearValue(dp);
-                return true;
-            }
-        }
-        catch
-        {
+            merged.Remove(_activeUserDictionary);
         }
 
-        // Fallback for rare non-DP wrappers.
-        if (property.CanWrite)
-        {
-            property.SetValue(element, default(CornerRadius));
-            return true;
-        }
-
-        return false;
+        _activeUserDictionary = theme.Dictionary;
+        RefreshThemeResources(root);
+        return theme.Dictionary is null ? 0 : CountResources(theme.Dictionary);
     }
 
-    private static bool ApplyDeclaration(FrameworkElement element, string property, string value)
+    public void RefreshThemeResources(FrameworkElement root)
     {
-        try
-        {
-            switch (property.Trim().ToLowerInvariant())
-            {
-                case "background":
-                case "background-color":
-                case "background-image":
-                    return ApplyBackground(element, value);
-                case "foreground":
-                case "color":
-                    return ApplyForeground(element, value);
-                case "border":
-                    return ApplyBorderShorthand(element, value);
-                case "border-color":
-                    return ApplyBorderBrush(element, value);
-                case "border-thickness":
-                case "border-width":
-                    return ApplyBorderThickness(element, value);
-                case "border-style":
-                    return true;
-                case "corner-radius":
-                case "border-radius":
-                case "radius":
-                    return ApplyCornerRadius(element, value);
-                case "opacity":
-                    if (TryParseDouble(value, out var opacity))
-                    {
-                        element.Opacity = Math.Clamp(opacity, 0.0, 1.0);
-                        return true;
-                    }
-                    return false;
-                case "font-size":
-                    return ApplyFontSize(element, value);
-                case "font-weight":
-                    return ApplyFontWeight(element, value);
-                case "padding":
-                    return ApplyPadding(element, value);
-                case "margin":
-                    return ApplyMargin(element, value);
-                case "width":
-                    return ApplyWidth(element, value);
-                case "height":
-                    return ApplyHeight(element, value);
-                case "min-width":
-                    return ApplyMinWidth(element, value);
-                case "min-height":
-                    return ApplyMinHeight(element, value);
-                case "max-width":
-                    return ApplyMaxWidth(element, value);
-                case "max-height":
-                    return ApplyMaxHeight(element, value);
-                case "spacing":
-                case "gap":
-                    return ApplySpacing(element, value);
-                default:
-                    return false;
-            }
-        }
-        catch
-        {
-            return false;
-        }
+        // ThemeResource expressions are re-evaluated when RequestedTheme
+        // changes. Both assignments happen synchronously before the next frame,
+        // avoiding the old CSS restore/repaint flash on tab switches.
+        var targetTheme = root.RequestedTheme == ElementTheme.Light
+            ? ElementTheme.Light
+            : ElementTheme.Dark;
+        root.RequestedTheme = targetTheme == ElementTheme.Dark
+            ? ElementTheme.Light
+            : ElementTheme.Dark;
+        root.RequestedTheme = targetTheme;
     }
 
-    private static bool ApplyBackground(FrameworkElement element, string value)
+    public bool TryGetColor(string resourceKey, out Color color)
     {
-        if (!TryParseBrush(value, out var brush)) return false;
-        switch (element)
-        {
-            case Panel panel:
-                panel.Background = brush;
-                return true;
-            case Border border:
-                border.Background = brush;
-                return true;
-            case Control control:
-                control.Background = brush;
-                return true;
-            default:
-                return false;
-        }
-    }
-
-    private static bool ApplyForeground(FrameworkElement element, string value)
-    {
-        if (!TryParseBrush(value, out var brush)) return false;
-        switch (element)
-        {
-            case TextBlock textBlock:
-                textBlock.Foreground = brush;
-                return true;
-            case Control control:
-                control.Foreground = brush;
-                return true;
-            default:
-                return false;
-        }
-    }
-
-    private static bool ApplyBorderShorthand(FrameworkElement element, string value)
-    {
-        var normalized = value.Trim();
-        if (normalized.Equals("none", StringComparison.OrdinalIgnoreCase) || normalized.Equals("0", StringComparison.OrdinalIgnoreCase))
-        {
-            var appliedNone = ApplyBorderThickness(element, "0");
-            appliedNone |= ApplyBorderBrush(element, "transparent");
-            return appliedNone;
-        }
-
-        var tokens = SplitCssValueTokens(normalized);
-        Brush? brush = null;
-        Thickness? thickness = null;
-
-        foreach (var token in tokens)
-        {
-            if (IsBorderStyleToken(token))
-            {
-                continue;
-            }
-
-            if (brush is null && TryParseBrush(token, out var parsedBrush))
-            {
-                brush = parsedBrush;
-                continue;
-            }
-
-            if (thickness is null && TryParseThickness(token, out var parsedThickness))
-            {
-                thickness = parsedThickness;
-                continue;
-            }
-        }
-
-        // Also allow the compact forms: border: #44FFFFFF; and border: 1;
-        if (tokens.Count == 1)
-        {
-            if (brush is null && TryParseBrush(normalized, out var singleBrush))
-            {
-                brush = singleBrush;
-            }
-            else if (thickness is null && TryParseThickness(normalized, out var singleThickness))
-            {
-                thickness = singleThickness;
-            }
-        }
-
-        var applied = false;
-        if (brush is not null)
-        {
-            applied |= SetBorderBrush(element, brush);
-        }
-        if (thickness.HasValue)
-        {
-            applied |= SetBorderThickness(element, thickness.Value);
-        }
-
-        return applied;
-    }
-
-    private static bool IsBorderStyleToken(string token)
-    {
-        return token.Trim().ToLowerInvariant() switch
-        {
-            "solid" or "dashed" or "dotted" or "double" or "groove" or "ridge" or "inset" or "outset" or "hidden" => true,
-            _ => false
-        };
-    }
-
-    private static bool SetBorderBrush(FrameworkElement element, Brush brush)
-    {
-        switch (element)
-        {
-            case Border border:
-                border.BorderBrush = brush;
-                return true;
-            case Control control:
-                control.BorderBrush = brush;
-                return true;
-            default:
-                return false;
-        }
-    }
-
-    private static bool SetBorderThickness(FrameworkElement element, Thickness thickness)
-    {
-        switch (element)
-        {
-            case Border border:
-                border.BorderThickness = thickness;
-                return true;
-            case Control control:
-                control.BorderThickness = thickness;
-                return true;
-            default:
-                return false;
-        }
-    }
-
-    private static bool ApplyBorderBrush(FrameworkElement element, string value)
-    {
-        if (!TryParseBrush(value, out var brush)) return false;
-        return SetBorderBrush(element, brush);
-    }
-
-    private static bool ApplyBorderThickness(FrameworkElement element, string value)
-    {
-        if (!TryParseThickness(value, out var thickness)) return false;
-        return SetBorderThickness(element, thickness);
-    }
-
-    private static bool ApplyCornerRadius(FrameworkElement element, string value)
-    {
-        if (!TryParseCornerRadius(value, out var radius)) return false;
-        if (element is Border border)
-        {
-            border.CornerRadius = radius;
-            return true;
-        }
-
-        // Many WinUI controls such as Button/ToggleButton/ComboBox expose CornerRadius,
-        // but not all of them share a compile-time interface. Reflection keeps the theme
-        // engine safe and lets border-radius work for controls where WinUI supports it.
-        return TrySetCornerRadiusProperty(element, radius);
-    }
-
-    private static bool TrySetCornerRadiusProperty(FrameworkElement element, CornerRadius radius)
-    {
-        var property = element.GetType().GetProperty("CornerRadius");
-        if (property is null || !property.CanWrite || property.PropertyType != typeof(CornerRadius))
-        {
-            return false;
-        }
-
-        property.SetValue(element, radius);
-        return true;
-    }
-
-    private static bool TryGetCornerRadiusProperty(FrameworkElement element, out CornerRadius radius)
-    {
-        var property = element.GetType().GetProperty("CornerRadius");
-        if (property is null || !property.CanRead || property.PropertyType != typeof(CornerRadius))
-        {
-            radius = default;
-            return false;
-        }
-
-        var value = property.GetValue(element);
-        if (value is CornerRadius cornerRadius)
-        {
-            radius = cornerRadius;
-            return true;
-        }
-
-        radius = default;
-        return false;
-    }
-
-    private static bool ApplyPadding(FrameworkElement element, string value)
-    {
-        if (!TryParseThickness(value, out var padding)) return false;
-        switch (element)
-        {
-            case Border border:
-                border.Padding = padding;
-                return true;
-            case Control control:
-                control.Padding = padding;
-                return true;
-            default:
-                return false;
-        }
-    }
-
-    private static bool ApplyMargin(FrameworkElement element, string value)
-    {
-        if (!TryParseThickness(value, out var margin)) return false;
-        element.Margin = margin;
-        return true;
-    }
-
-
-    private static bool ApplyWidth(FrameworkElement element, string value)
-    {
-        if (!TryParseDouble(value, out var width) || width < 0) return false;
-        element.Width = width;
-        return true;
-    }
-
-    private static bool ApplyHeight(FrameworkElement element, string value)
-    {
-        if (!TryParseDouble(value, out var height) || height < 0) return false;
-        element.Height = height;
-        return true;
-    }
-
-    private static bool ApplyMinWidth(FrameworkElement element, string value)
-    {
-        if (!TryParseDouble(value, out var width) || width < 0) return false;
-        element.MinWidth = width;
-        return true;
-    }
-
-    private static bool ApplyMinHeight(FrameworkElement element, string value)
-    {
-        if (!TryParseDouble(value, out var height) || height < 0) return false;
-        element.MinHeight = height;
-        return true;
-    }
-
-    private static bool ApplyMaxWidth(FrameworkElement element, string value)
-    {
-        if (!TryParseDouble(value, out var width) || width < 0) return false;
-        element.MaxWidth = width;
-        return true;
-    }
-
-    private static bool ApplyMaxHeight(FrameworkElement element, string value)
-    {
-        if (!TryParseDouble(value, out var height) || height < 0) return false;
-        element.MaxHeight = height;
-        return true;
-    }
-
-    private static bool ApplySpacing(FrameworkElement element, string value)
-    {
-        if (!TryParseDouble(value, out var spacing) || spacing < 0) return false;
-        switch (element)
-        {
-            case StackPanel stackPanel:
-                stackPanel.Spacing = spacing;
-                return true;
-            case Grid grid:
-                grid.ColumnSpacing = spacing;
-                grid.RowSpacing = spacing;
-                return true;
-            default:
-                return false;
-        }
-    }
-
-    private static bool ApplyFontSize(FrameworkElement element, string value)
-    {
-        if (!TryParseDouble(value, out var size) || size <= 0) return false;
-        switch (element)
-        {
-            case TextBlock textBlock:
-                textBlock.FontSize = size;
-                return true;
-            case Control control:
-                control.FontSize = size;
-                return true;
-            default:
-                return false;
-        }
-    }
-
-    private static bool ApplyFontWeight(FrameworkElement element, string value)
-    {
-        var weight = value.Trim().ToLowerInvariant() switch
-        {
-            "bold" or "700" => Microsoft.UI.Text.FontWeights.Bold,
-            "semibold" or "semi-bold" or "600" => Microsoft.UI.Text.FontWeights.SemiBold,
-            "light" or "300" => Microsoft.UI.Text.FontWeights.Light,
-            _ => Microsoft.UI.Text.FontWeights.Normal
-        };
-
-        switch (element)
-        {
-            case TextBlock textBlock:
-                textBlock.FontWeight = weight;
-                return true;
-            case Control control:
-                control.FontWeight = weight;
-                return true;
-            default:
-                return false;
-        }
-    }
-
-    public static bool TryParseColor(string value, out Color color)
-    {
-        value = value.Trim();
-        if (value.Equals("transparent", StringComparison.OrdinalIgnoreCase))
-        {
-            color = Color.FromArgb(0, 0, 0, 0);
-            return true;
-        }
-        if (value.Equals("black", StringComparison.OrdinalIgnoreCase))
-        {
-            color = Color.FromArgb(255, 0, 0, 0);
-            return true;
-        }
-        if (value.Equals("white", StringComparison.OrdinalIgnoreCase))
-        {
-            color = Color.FromArgb(255, 255, 255, 255);
-            return true;
-        }
-
-        if (TryParseRgbFunction(value, out color))
+        if (_activeUserDictionary is not null && TryLookupResource(_activeUserDictionary, resourceKey, out var userValue) && TryConvertColor(userValue, out color))
         {
             return true;
         }
 
-        if (!value.StartsWith("#", StringComparison.Ordinal))
+        if (TryLookupResource(Application.Current.Resources, resourceKey, out var applicationValue) && TryConvertColor(applicationValue, out color))
         {
-            color = default;
-            return false;
-        }
-
-        var hex = value[1..];
-        try
-        {
-            if (hex.Length == 6)
-            {
-                color = Color.FromArgb(255, byte.Parse(hex[..2], NumberStyles.HexNumber), byte.Parse(hex.Substring(2, 2), NumberStyles.HexNumber), byte.Parse(hex.Substring(4, 2), NumberStyles.HexNumber));
-                return true;
-            }
-            if (hex.Length == 8)
-            {
-                color = Color.FromArgb(byte.Parse(hex[..2], NumberStyles.HexNumber), byte.Parse(hex.Substring(2, 2), NumberStyles.HexNumber), byte.Parse(hex.Substring(4, 2), NumberStyles.HexNumber), byte.Parse(hex.Substring(6, 2), NumberStyles.HexNumber));
-                return true;
-            }
-        }
-        catch
-        {
+            return true;
         }
 
         color = default;
         return false;
     }
 
-    private static bool TryParseRgbFunction(string value, out Color color)
+    public static string GetDisplayName(string path)
     {
-        color = default;
-        var match = Regex.Match(value.Trim(), @"^(rgba?|RGBA?)\((?<args>.*)\)$");
-        if (!match.Success)
-        {
-            return false;
-        }
-
-        var parts = SplitFunctionArgs(match.Groups["args"].Value);
-        if (parts.Count < 3 || parts.Count > 4)
-        {
-            return false;
-        }
-
-        if (!TryParseByte(parts[0], out var r) || !TryParseByte(parts[1], out var g) || !TryParseByte(parts[2], out var b))
-        {
-            return false;
-        }
-
-        var a = (byte)255;
-        if (parts.Count == 4)
-        {
-            var raw = parts[3].Trim();
-            if (raw.EndsWith("%", StringComparison.Ordinal) && TryParseDouble(raw.TrimEnd('%'), out var percent))
-            {
-                a = (byte)Math.Clamp(Math.Round(percent * 2.55), 0, 255);
-            }
-            else if (TryParseDouble(raw, out var alpha))
-            {
-                a = alpha <= 1.0 ? (byte)Math.Clamp(Math.Round(alpha * 255.0), 0, 255) : (byte)Math.Clamp(Math.Round(alpha), 0, 255);
-            }
-        }
-
-        color = Color.FromArgb(a, r, g, b);
-        return true;
+        var fileName = Path.GetFileName(path);
+        return fileName.EndsWith(ThemeExtension, StringComparison.OrdinalIgnoreCase)
+            ? fileName[..^ThemeExtension.Length]
+            : Path.GetFileNameWithoutExtension(fileName);
     }
 
-    private static bool TryParseByte(string value, out byte result)
-    {
-        value = value.Trim();
-        if (value.EndsWith("%", StringComparison.Ordinal) && TryParseDouble(value.TrimEnd('%'), out var percent))
-        {
-            result = (byte)Math.Clamp(Math.Round(percent * 2.55), 0, 255);
-            return true;
-        }
-        if (byte.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out result))
-        {
-            return true;
-        }
-
-        result = 0;
-        return false;
-    }
-
-    private static bool TryParseBrush(string value, out Brush brush)
-    {
-        value = value.Trim();
-        if (TryParseLinearGradient(value, out var gradient))
-        {
-            brush = gradient;
-            return true;
-        }
-
-        if (TryParseColor(value, out var color))
-        {
-            brush = new SolidColorBrush(color);
-            return true;
-        }
-
-        brush = null!;
-        return false;
-    }
-
-    private static bool TryParseLinearGradient(string value, out LinearGradientBrush brush)
-    {
-        brush = null!;
-        var match = Regex.Match(value.Trim(), @"^linear-gradient\((?<args>.*)\)$", RegexOptions.IgnoreCase);
-        if (!match.Success)
-        {
-            return false;
-        }
-
-        var args = SplitFunctionArgs(match.Groups["args"].Value);
-        if (args.Count < 2)
-        {
-            return false;
-        }
-
-        var angle = 90.0;
-        var colorStartIndex = 0;
-        if (args[0].Trim().EndsWith("deg", StringComparison.OrdinalIgnoreCase) && TryParseDouble(args[0].Trim()[..^3], out var parsedAngle))
-        {
-            angle = parsedAngle;
-            colorStartIndex = 1;
-        }
-
-        if (args.Count - colorStartIndex < 2)
-        {
-            return false;
-        }
-
-        var colors = new List<Color>();
-        for (var i = colorStartIndex; i < args.Count; i++)
-        {
-            var colorPart = args[i].Trim();
-            var space = colorPart.IndexOf(' ');
-            if (space > 0 && colorPart.StartsWith("#", StringComparison.Ordinal))
-            {
-                colorPart = colorPart[..space];
-            }
-
-            if (!TryParseColor(colorPart, out var color))
-            {
-                return false;
-            }
-            colors.Add(color);
-        }
-
-        brush = new LinearGradientBrush();
-        ApplyGradientAngle(brush, angle);
-        if (colors.Count == 1)
-        {
-            brush.GradientStops.Add(new GradientStop { Color = colors[0], Offset = 0 });
-            brush.GradientStops.Add(new GradientStop { Color = colors[0], Offset = 1 });
-            return true;
-        }
-
-        for (var i = 0; i < colors.Count; i++)
-        {
-            brush.GradientStops.Add(new GradientStop
-            {
-                Color = colors[i],
-                Offset = colors.Count == 1 ? 0 : i / (double)(colors.Count - 1)
-            });
-        }
-
-        return true;
-    }
-
-    private static void ApplyGradientAngle(LinearGradientBrush brush, double angle)
-    {
-        var radians = angle * Math.PI / 180.0;
-        var dx = Math.Cos(radians);
-        var dy = Math.Sin(radians);
-        brush.StartPoint = new Point(0.5 - dx / 2.0, 0.5 - dy / 2.0);
-        brush.EndPoint = new Point(0.5 + dx / 2.0, 0.5 + dy / 2.0);
-    }
-
-    private static List<string> SplitCssValueTokens(string value)
-    {
-        var result = new List<string>();
-        var depth = 0;
-        var start = 0;
-        for (var i = 0; i < value.Length; i++)
-        {
-            var c = value[i];
-            if (c == '(') depth++;
-            else if (c == ')') depth = Math.Max(0, depth - 1);
-            else if (char.IsWhiteSpace(c) && depth == 0)
-            {
-                if (i > start)
-                {
-                    var token = value[start..i].Trim();
-                    if (!string.IsNullOrWhiteSpace(token))
-                    {
-                        result.Add(token);
-                    }
-                }
-                start = i + 1;
-            }
-        }
-
-        if (start < value.Length)
-        {
-            var token = value[start..].Trim();
-            if (!string.IsNullOrWhiteSpace(token))
-            {
-                result.Add(token);
-            }
-        }
-
-        return result;
-    }
-
-    private static List<string> SplitFunctionArgs(string value)
-    {
-        var result = new List<string>();
-        var depth = 0;
-        var start = 0;
-        for (var i = 0; i < value.Length; i++)
-        {
-            var c = value[i];
-            if (c == '(') depth++;
-            else if (c == ')') depth = Math.Max(0, depth - 1);
-            else if (c == ',' && depth == 0)
-            {
-                result.Add(value[start..i].Trim());
-                start = i + 1;
-            }
-        }
-        result.Add(value[start..].Trim());
-        return result.Where(part => !string.IsNullOrWhiteSpace(part)).ToList();
-    }
-
-    private static bool TryParseDouble(string value, out double result)
-    {
-        return double.TryParse(value.Trim().Replace("px", string.Empty, StringComparison.OrdinalIgnoreCase), NumberStyles.Float, CultureInfo.InvariantCulture, out result);
-    }
-
-    private static bool TryParseThickness(string value, out Thickness thickness)
-    {
-        var parts = value.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-        if (parts.Length == 1 && TryParseDouble(parts[0], out var all))
-        {
-            thickness = new Thickness(all);
-            return true;
-        }
-        if (parts.Length == 2 && TryParseDouble(parts[0], out var vertical) && TryParseDouble(parts[1], out var horizontal))
-        {
-            thickness = new Thickness(horizontal, vertical, horizontal, vertical);
-            return true;
-        }
-        if (parts.Length == 4 && TryParseDouble(parts[0], out var left) && TryParseDouble(parts[1], out var top) && TryParseDouble(parts[2], out var right) && TryParseDouble(parts[3], out var bottom))
-        {
-            thickness = new Thickness(left, top, right, bottom);
-            return true;
-        }
-
-        thickness = default;
-        return false;
-    }
-
-    private static bool TryParseCornerRadius(string value, out CornerRadius radius)
-    {
-        var parts = value.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-        if (parts.Length == 1 && TryParseDouble(parts[0], out var all))
-        {
-            radius = new CornerRadius(all);
-            return true;
-        }
-
-        if (parts.Length == 2
-            && TryParseDouble(parts[0], out var topBottom)
-            && TryParseDouble(parts[1], out var leftRight))
-        {
-            radius = new CornerRadius(leftRight, topBottom, leftRight, topBottom);
-            return true;
-        }
-
-        if (parts.Length == 4
-            && TryParseDouble(parts[0], out var topLeft)
-            && TryParseDouble(parts[1], out var topRight)
-            && TryParseDouble(parts[2], out var bottomRight)
-            && TryParseDouble(parts[3], out var bottomLeft))
-        {
-            radius = new CornerRadius(topLeft, topRight, bottomRight, bottomLeft);
-            return true;
-        }
-
-        radius = default;
-        return false;
-    }
-
-    private static IEnumerable<DependencyObject> EnumerateVisualTree(DependencyObject root)
-    {
-        yield return root;
-        var count = VisualTreeHelper.GetChildrenCount(root);
-        for (var i = 0; i < count; i++)
-        {
-            var child = VisualTreeHelper.GetChild(root, i);
-            foreach (var descendant in EnumerateVisualTree(child))
-            {
-                yield return descendant;
-            }
-        }
-    }
-
-    public string CreateTemplateCss(string themeName)
+    public static string CreateTemplateXaml(string themeName)
     {
         return $$"""
-/*
-  VoiSee Theme CSS
-  Theme: {{themeName}}
+<ResourceDictionary
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
 
-  Naming guide:
-    Pn = panel/container: #PnMainHeader, #PnAboutMe, #PnVBCable, .Pn
-    Bt = button/toggle/link button: #BtSettingsMute, #BtSoundboardNext, .Bt
-    Sl = slider: #SlSettingsVirtualMicMaster, #SlSoundboardVirtualMic, .Sl
-    Cb = combo box/drop-down: #CbTheme, #CbSettingsInputMicrophone, .Cb
-    Txt = text: .Txt
-    Tb = tabs: .Tb, .TbItem
-    Mn = context/menu flyout elements where available: .Mn
+    <!-- VoiSee native XAML theme: {{themeName}} -->
+    <!-- Required semantic resources -->
+    <SolidColorBrush x:Key="VoiSee.AppBackgroundBrush" Color="#FF05070A" />
+    <SolidColorBrush x:Key="VoiSee.TitleBarBackgroundBrush" Color="#FF05070A" />
+    <SolidColorBrush x:Key="VoiSee.TitleBarForegroundBrush" Color="#FFF2FEFF" />
+    <SolidColorBrush x:Key="VoiSee.TitleBarHoverBrush" Color="#FF20343D" />
+    <SolidColorBrush x:Key="VoiSee.TitleBarPressedBrush" Color="#FF10242C" />
 
-  Empty value means: reset this property to the original VoiSee/XAML default, not to the previous theme.
-  Example:
-    .Bt { background:; padding:; }
-  This is useful when you remove a value while editing a theme live.
+    <SolidColorBrush x:Key="VoiSee.PanelBackgroundBrush" Color="#CC0B1018" />
+    <SolidColorBrush x:Key="VoiSee.PanelBorderBrush" Color="#6600E5FF" />
+    <SolidColorBrush x:Key="VoiSee.PrimaryTextBrush" Color="#FFF2FEFF" />
+    <SolidColorBrush x:Key="VoiSee.SecondaryTextBrush" Color="#B8F2FEFF" />
+    <SolidColorBrush x:Key="VoiSee.AccentBrush" Color="#FF00E5FF" />
+    <SolidColorBrush x:Key="VoiSee.DangerBrush" Color="#FFFF3366" />
+    <SolidColorBrush x:Key="VoiSee.SuccessBrush" Color="#FF37FF9B" />
+    <SolidColorBrush x:Key="VoiSee.WarningBrush" Color="#FFFFD166" />
 
-  Fill only the values you want to change. Save the file and VoiSee reloads it live.
+    <SolidColorBrush x:Key="VoiSee.ButtonBackgroundBrush" Color="#FF18242C" />
+    <SolidColorBrush x:Key="VoiSee.ButtonHoverBrush" Color="#FF243642" />
+    <SolidColorBrush x:Key="VoiSee.ButtonPressedBrush" Color="#FF001B22" />
+    <SolidColorBrush x:Key="VoiSee.ButtonBorderBrush" Color="#7700E5FF" />
+    <SolidColorBrush x:Key="VoiSee.InputBackgroundBrush" Color="#CC10161D" />
 
-  Supported properties:
-    background, foreground/color, border, border-color, border-thickness/border-width,
-    border-radius/corner-radius/radius, opacity, font-size, font-weight,
-    padding, margin, width, height, min-width, min-height, max-width, max-height, spacing/gap.
+    <SolidColorBrush x:Key="VoiSee.TimelineHostBrush" Color="#01000000" />
+    <SolidColorBrush x:Key="VoiSee.TransparentHitTestBrush" Color="#01000000" />
+    <SolidColorBrush x:Key="VoiSee.TimelineTrackBrush" Color="#33FFFFFF" />
+    <SolidColorBrush x:Key="VoiSee.TimelineFillBrush" Color="#99FFFFFF" />
+    <SolidColorBrush x:Key="VoiSee.TimelineThumbBrush" Color="#FFFFFFFF" />
+    <SolidColorBrush x:Key="VoiSee.MuteBannerBackgroundBrush" Color="#44220000" />
+    <SolidColorBrush x:Key="VoiSee.MuteBannerBorderBrush" Color="#88FF4D4D" />
+    <SolidColorBrush x:Key="VoiSee.DropOverlayBackgroundBrush" Color="#E0202020" />
+    <SolidColorBrush x:Key="VoiSee.DropOverlayBorderBrush" Color="#66FFFFFF" />
+    <SolidColorBrush x:Key="VoiSee.DropOverlayInnerBackgroundBrush" Color="#DD202020" />
+    <SolidColorBrush x:Key="VoiSee.DropOverlayInnerBorderBrush" Color="#55FFFFFF" />
+    <SolidColorBrush x:Key="VoiSee.CardValueBackgroundBrush" Color="#22FFFFFF" />
+    <SolidColorBrush x:Key="VoiSee.CardValueBorderBrush" Color="#44FFFFFF" />
+    <SolidColorBrush x:Key="VoiSee.VBCableNoticeBackgroundBrush" Color="#22141414" />
+    <SolidColorBrush x:Key="VoiSee.VBCableNoticeBorderBrush" Color="#55D68B00" />
 
-  Border shorthand examples:
-    border: solid var(--panel-border) 1;
-    border: dashed #66FFFFFF 2;
-    border: none;
-*/
+    <CornerRadius x:Key="VoiSee.CornerRadius.Small">6</CornerRadius>
+    <CornerRadius x:Key="VoiSee.CornerRadius.Medium">10</CornerRadius>
+    <CornerRadius x:Key="VoiSee.CornerRadius.Large">14</CornerRadius>
 
-:root {
-  --app-background: #000000;
-  --titlebar-background: #000000;
-  --panel-background: #10151D;
-  --panel-border: #44546A82;
-  --text-primary: #F3F7FF;
-  --text-secondary: #B6C0D0;
-  --accent: #7DD3FC;
-  --danger: #FF5D5D;
-  --warning: #F59E0B;
-  --success: #37D67A;
-  --button-background: #182232;
-  --button-hover: #223149;
-  --button-pressed: #2B405F;
-  --button-border: #52647D;
-  --radius-panel: 18;
-  --radius-button: 12;
-  --radius-input: 14;
-}
+    <!-- Common WinUI resource overrides. Add or remove ordinary WinUI
+         resources and Styles here; the file is loaded directly as a
+         ResourceDictionary, with no CSS conversion layer. -->
+    <SolidColorBrush x:Key="ApplicationPageBackgroundThemeBrush" Color="#FF05070A" />
+    <SolidColorBrush x:Key="TextFillColorPrimaryBrush" Color="#FFF2FEFF" />
+    <SolidColorBrush x:Key="TextFillColorSecondaryBrush" Color="#B8F2FEFF" />
+    <SolidColorBrush x:Key="AccentFillColorDefaultBrush" Color="#FF00E5FF" />
+    <SolidColorBrush x:Key="ControlFillColorDefaultBrush" Color="#FF18242C" />
+    <SolidColorBrush x:Key="ControlFillColorSecondaryBrush" Color="#FF243642" />
+    <SolidColorBrush x:Key="ControlFillColorTertiaryBrush" Color="#FF001B22" />
+    <SolidColorBrush x:Key="ControlStrokeColorDefaultBrush" Color="#7700E5FF" />
 
-/* Global reset-ready selectors. Blank declarations restore defaults. */
-#RootGrid { background:; }
-.Pn { background:; border:; border-radius:; padding:; margin:; opacity:; }
-.Bt { background:; foreground:; border:; border-radius:; padding:; margin:; font-size:; font-weight:; }
-.Bt:hover { background:; foreground:; border:; }
-.Bt:pressed { background:; foreground:; border:; }
-.Bt:on { background:; foreground:; border:; }
-.Cb { background:; foreground:; border:; border-radius:; padding:; margin:; font-size:; }
-.Sl { background:; foreground:; border:; padding:; margin:; height:; min-height:; }
-.Txt { foreground:; font-size:; font-weight:; margin:; opacity:; }
-.Tb, .TbItem { background:; foreground:; border:; border-radius:; padding:; }
-.Lv, .list-view { background:; border:; padding:; margin:; }
-.link-button { background:; foreground:; border:; padding:; }
-
-/* Main panels */
-#PnMainHeader { background:; border:; border-radius:; padding:; margin:; }
-#PnMainTabs { background:; border:; border-radius:; padding:; margin:; }
-#PnMainSoundboard { background:; }
-#PnMainVoiceChanger { background:; }
-#PnMainScenes { background:; }
-#PnMainSettings { background:; }
-#PnThemes { background:; border:; border-radius:; padding:; }
-#PnAboutMe { background:; border:; border-radius:; padding:; }
-#PnVBCable { background:; border:; border-radius:; padding:; }
-
-/* Header / mute */
-#BtSettingsMute, #BtGlobalMute { background:; foreground:; border:; border-radius:; padding:; }
-#VirtualMicMuteStatusTextBlock { foreground:; }
-#PnMuteBanner { background:; border:; border-radius:; padding:; }
-
-/* SoundBoard */
-#PnSoundboardTimeline { background:; border:; border-radius:; padding:; }
-#PnSoundboardSoundList { background:; border:; border-radius:; padding:; }
-#BtSoundboardNext, #BtSoundboardPrevious, #BtSoundboardPlayPause, #BtSoundboardStop, #BtSoundboardLoop { background:; foreground:; border:; border-radius:; padding:; }
-#SlSoundboardVirtualMic, #SlSoundboardHeadphones, #SlSoundboardDelay { foreground:; height:; min-height:; margin:; }
-#CbSoundboardCategory, #SoundboardCategoryList { background:; foreground:; border:; border-radius:; padding:; }
-.soundboard-sound, .soundboard-row { background:; foreground:; border:; border-radius:; padding:; margin:; }
-.soundboard-sound:hover, .soundboard-row:hover { background:; foreground:; border:; }
-
-/* Voice Changer */
-#PnVoiceChangerPresets { background:; border:; border-radius:; padding:; }
-#BtVoicechangerMonitor { background:; foreground:; border:; border-radius:; padding:; }
-.voicechanger-slider, #SlVoiceGain, #SlVoicePitch, #SlVoiceFormant { foreground:; height:; min-height:; margin:; }
-
-/* Scenes */
-#BtScenesApply, #BtScenesDisable, #BtScenesDelete, #BtScenesRename, #BtScenesCreate { background:; foreground:; border:; border-radius:; padding:; }
-#BtScenesApply:pressed { background:; foreground:; }
-#BtScenesDisable:pressed, #BtScenesDelete:pressed { background:; foreground:; }
-#SlScenesLoopHeadphones, #SlScenesLoopVirtualMic { foreground:; height:; min-height:; margin:; }
-#CbScenesVoicePreset { background:; foreground:; border:; border-radius:; padding:; }
-
-/* Settings */
-#SlSettingsVirtualMicMaster { foreground:; height:; min-height:; margin:; padding:; }
-#BtSettingsStartEngine, #BtSettingsStopEngine, #BtInstallVBCable, #BtThemeDelete { background:; foreground:; border:; border-radius:; padding:; }
-#BtSettingsStartEngine:pressed { background:; foreground:; }
-#BtSettingsStopEngine:pressed { background:; foreground:; }
-#CbSettingsInputMicrophone, #CbSettingsMonitorOutput, #CbTheme { background:; foreground:; border:; border-radius:; padding:; }
-
-/* Examples: uncomment or copy into selectors above.
-.Pn { background: var(--panel-background); border: solid var(--panel-border) 1; border-radius: var(--radius-panel); }
-.Bt { background: var(--button-background); foreground: var(--text-primary); border: solid var(--button-border) 1; border-radius: var(--radius-button); padding: 14 7; }
-.Bt:hover { background: var(--button-hover); }
-.Bt:pressed { background: var(--button-pressed); }
-.Cb { background: #0D1420; foreground: var(--text-primary); border: solid var(--button-border) 1; border-radius: var(--radius-input); padding: 12 6; }
-.Sl { foreground: var(--accent); height: 32; min-height: 32; margin: 0 4 0 4; }
-#PnMainHeader { background: linear-gradient(90deg, #101827, #071018); border-radius: 18; padding: 8; }
-*/
-
-/* Notes:
-   Padding on Slider is limited by WinUI's internal Slider template.
-   To make a slider easier to hit or visually larger, use height/min-height/margin:
-   #SlSettingsVirtualMicMaster { height: 40; min-height: 40; margin: 8 0; }
-*/
+</ResourceDictionary>
 """;
     }
 
-    private sealed record ParsedSelector(string BaseSelector, string? Pseudo);
-
-    private sealed class InteractiveThemeState
+    private static void ValidateSemanticContract(ResourceDictionary dictionary)
     {
-        public bool IsHover { get; set; }
-        public bool IsPressed { get; set; }
-        public Dictionary<string, string> BaseDeclarations { get; } = new(StringComparer.OrdinalIgnoreCase);
-        public Dictionary<string, Dictionary<string, string>> PseudoDeclarations { get; } = new(StringComparer.OrdinalIgnoreCase);
+        var missing = RequiredSemanticKeys
+            .Where(key => !TryLookupResource(dictionary, key, out _))
+            .ToArray();
+
+        if (missing.Length > 0)
+        {
+            throw new InvalidDataException("The XAML theme is missing required resources: " + string.Join(", ", missing));
+        }
+
+        foreach (var key in RequiredSemanticKeys)
+        {
+            if (!TryLookupResource(dictionary, key, out var value) || value is not Brush)
+            {
+                throw new InvalidDataException($"Theme resource '{key}' must be a Brush.");
+            }
+        }
     }
 
-    private sealed class ElementStyleSnapshot
+    private static bool TryLookupResource(ResourceDictionary dictionary, string key, out object? value)
     {
-        private Brush? Background { get; set; }
-        private Brush? Foreground { get; set; }
-        private Brush? BorderBrush { get; set; }
-        private Thickness? BorderThickness { get; set; }
-        private CornerRadius? CornerRadius { get; set; }
-        private Thickness? Padding { get; set; }
-        private Thickness Margin { get; set; }
-        private double Width { get; set; }
-        private double Height { get; set; }
-        private double MinWidth { get; set; }
-        private double MinHeight { get; set; }
-        private double MaxWidth { get; set; }
-        private double MaxHeight { get; set; }
-        private double Opacity { get; set; }
-        private double? FontSize { get; set; }
-        private Windows.UI.Text.FontWeight? FontWeight { get; set; }
-
-        public static ElementStyleSnapshot Capture(FrameworkElement element)
+        if (dictionary.ContainsKey(key))
         {
-            var snapshot = new ElementStyleSnapshot
-            {
-                Margin = element.Margin,
-                Width = element.Width,
-                Height = element.Height,
-                MinWidth = element.MinWidth,
-                MinHeight = element.MinHeight,
-                MaxWidth = element.MaxWidth,
-                MaxHeight = element.MaxHeight,
-                Opacity = element.Opacity
-            };
-
-            switch (element)
-            {
-                case Panel panel:
-                    snapshot.Background = panel.Background;
-                    break;
-                case Border border:
-                    snapshot.Background = border.Background;
-                    snapshot.BorderBrush = border.BorderBrush;
-                    snapshot.BorderThickness = border.BorderThickness;
-                    snapshot.CornerRadius = border.CornerRadius;
-                    snapshot.Padding = border.Padding;
-                    break;
-                case Control control:
-                    snapshot.Background = control.Background;
-                    snapshot.Foreground = control.Foreground;
-                    snapshot.BorderBrush = control.BorderBrush;
-                    snapshot.BorderThickness = control.BorderThickness;
-                    if (TryGetCornerRadiusProperty(control, out var controlCornerRadius)) snapshot.CornerRadius = controlCornerRadius;
-                    snapshot.Padding = control.Padding;
-                    snapshot.FontSize = control.FontSize;
-                    snapshot.FontWeight = control.FontWeight;
-                    break;
-                case TextBlock textBlock:
-                    snapshot.Foreground = textBlock.Foreground;
-                    snapshot.FontSize = textBlock.FontSize;
-                    snapshot.FontWeight = textBlock.FontWeight;
-                    break;
-            }
-
-            return snapshot;
+            value = dictionary[key];
+            return true;
         }
 
-        public bool RestoreProperty(FrameworkElement element, string property)
+        for (var i = dictionary.MergedDictionaries.Count - 1; i >= 0; i--)
         {
-            switch (property.Trim().ToLowerInvariant())
+            if (TryLookupResource(dictionary.MergedDictionaries[i], key, out value))
             {
-                case "background":
-                case "background-color":
-                case "background-image":
-                    return RestoreBackground(element);
-                case "foreground":
-                case "color":
-                    return RestoreForeground(element);
-                case "border":
-                    return RestoreBorderBrush(element) | RestoreBorderThickness(element);
-                case "border-color":
-                    return RestoreBorderBrush(element);
-                case "border-thickness":
-                case "border-width":
-                    return RestoreBorderThickness(element);
-                case "corner-radius":
-                case "border-radius":
-                case "radius":
-                    return RestoreCornerRadius(element);
-                case "padding":
-                    return RestorePadding(element);
-                case "margin":
-                    element.Margin = Margin;
-                    return true;
-                case "width":
-                    element.Width = Width;
-                    return true;
-                case "height":
-                    element.Height = Height;
-                    return true;
-                case "min-width":
-                    element.MinWidth = MinWidth;
-                    return true;
-                case "min-height":
-                    element.MinHeight = MinHeight;
-                    return true;
-                case "max-width":
-                    element.MaxWidth = MaxWidth;
-                    return true;
-                case "max-height":
-                    element.MaxHeight = MaxHeight;
-                    return true;
-                case "opacity":
-                    element.Opacity = Opacity;
-                    return true;
-                case "font-size":
-                    return RestoreFontSize(element);
-                case "font-weight":
-                    return RestoreFontWeight(element);
-                default:
-                    return false;
-            }
-        }
-
-        private bool RestoreBackground(FrameworkElement element)
-        {
-            switch (element)
-            {
-                case Panel panel:
-                    panel.Background = Background;
-                    return true;
-                case Border border:
-                    border.Background = Background;
-                    return true;
-                case Control control:
-                    control.Background = Background;
-                    return true;
-                default:
-                    return false;
-            }
-        }
-
-        private bool RestoreForeground(FrameworkElement element)
-        {
-            switch (element)
-            {
-                case TextBlock textBlock:
-                    textBlock.Foreground = Foreground;
-                    return true;
-                case Control control:
-                    control.Foreground = Foreground;
-                    return true;
-                default:
-                    return false;
-            }
-        }
-
-        private bool RestoreBorderBrush(FrameworkElement element)
-        {
-            switch (element)
-            {
-                case Border border:
-                    border.BorderBrush = BorderBrush;
-                    return true;
-                case Control control:
-                    control.BorderBrush = BorderBrush;
-                    return true;
-                default:
-                    return false;
-            }
-        }
-
-        private bool RestoreBorderThickness(FrameworkElement element)
-        {
-            if (!BorderThickness.HasValue) return false;
-            switch (element)
-            {
-                case Border border:
-                    border.BorderThickness = BorderThickness.Value;
-                    return true;
-                case Control control:
-                    control.BorderThickness = BorderThickness.Value;
-                    return true;
-                default:
-                    return false;
-            }
-        }
-
-        private bool RestoreCornerRadius(FrameworkElement element)
-        {
-            if (!CornerRadius.HasValue) return false;
-            if (element is Border border)
-            {
-                border.CornerRadius = CornerRadius.Value;
                 return true;
             }
-            return TrySetCornerRadiusProperty(element, CornerRadius.Value);
         }
 
-        private bool RestorePadding(FrameworkElement element)
-        {
-            if (!Padding.HasValue) return false;
-            switch (element)
-            {
-                case Border border:
-                    border.Padding = Padding.Value;
-                    return true;
-                case Control control:
-                    control.Padding = Padding.Value;
-                    return true;
-                default:
-                    return false;
-            }
-        }
-
-        private bool RestoreFontSize(FrameworkElement element)
-        {
-            if (!FontSize.HasValue) return false;
-            switch (element)
-            {
-                case TextBlock textBlock:
-                    textBlock.FontSize = FontSize.Value;
-                    return true;
-                case Control control:
-                    control.FontSize = FontSize.Value;
-                    return true;
-                default:
-                    return false;
-            }
-        }
-
-        private bool RestoreFontWeight(FrameworkElement element)
-        {
-            if (!FontWeight.HasValue) return false;
-            switch (element)
-            {
-                case TextBlock textBlock:
-                    textBlock.FontWeight = FontWeight.Value;
-                    return true;
-                case Control control:
-                    control.FontWeight = FontWeight.Value;
-                    return true;
-                default:
-                    return false;
-            }
-        }
-
-        public void Restore(FrameworkElement element)
-        {
-            element.Margin = Margin;
-            element.Width = Width;
-            element.Height = Height;
-            element.MinWidth = MinWidth;
-            element.MinHeight = MinHeight;
-            element.MaxWidth = MaxWidth;
-            element.MaxHeight = MaxHeight;
-            element.Opacity = Opacity;
-            switch (element)
-            {
-                case Panel panel:
-                    panel.Background = Background;
-                    break;
-                case Border border:
-                    border.Background = Background;
-                    border.BorderBrush = BorderBrush;
-                    if (BorderThickness.HasValue) border.BorderThickness = BorderThickness.Value;
-                    if (CornerRadius.HasValue) border.CornerRadius = CornerRadius.Value;
-                    if (Padding.HasValue) border.Padding = Padding.Value;
-                    break;
-                case Control control:
-                    control.Background = Background;
-                    control.Foreground = Foreground;
-                    control.BorderBrush = BorderBrush;
-                    if (BorderThickness.HasValue) control.BorderThickness = BorderThickness.Value;
-                    if (CornerRadius.HasValue) TrySetCornerRadiusProperty(control, CornerRadius.Value);
-                    if (Padding.HasValue) control.Padding = Padding.Value;
-                    if (FontSize.HasValue) control.FontSize = FontSize.Value;
-                    if (FontWeight.HasValue) control.FontWeight = FontWeight.Value;
-                    break;
-                case TextBlock textBlock:
-                    textBlock.Foreground = Foreground;
-                    if (FontSize.HasValue) textBlock.FontSize = FontSize.Value;
-                    if (FontWeight.HasValue) textBlock.FontWeight = FontWeight.Value;
-                    break;
-            }
-        }
-    }
-}
-
-public sealed class VoiSeeCssTheme
-{
-    public VoiSeeCssTheme(string name, string? sourcePath)
-    {
-        Name = name;
-        SourcePath = sourcePath;
+        value = null;
+        return false;
     }
 
-    public string Name { get; }
-    public string? SourcePath { get; }
-    public Dictionary<string, string> Variables { get; } = new(StringComparer.OrdinalIgnoreCase);
-    public List<VoiSeeCssRule> Rules { get; } = new();
-
-    public string ResolveValue(string value)
+    private static bool TryConvertColor(object? value, out Color color)
     {
-        value = value.Trim();
-        return Regex.Replace(value, @"var\((?<name>--[A-Za-z0-9_-]+)\)", match =>
+        if (value is SolidColorBrush brush)
         {
-            var name = match.Groups["name"].Value;
-            return Variables.TryGetValue(name, out var resolved) ? resolved.Trim() : match.Value;
-        }, RegexOptions.IgnoreCase);
-    }
+            color = brush.Color;
+            return true;
+        }
 
-    public bool TryGetVariableColor(string variableName, out Color color)
-    {
-        if (Variables.TryGetValue(variableName, out var value))
+        if (value is Color directColor)
         {
-            return ThemeManager.TryParseColor(ResolveValue(value), out color);
+            color = directColor;
+            return true;
         }
 
         color = default;
         return false;
     }
+
+    private static int CountResources(ResourceDictionary dictionary)
+    {
+        var count = dictionary.Count;
+        foreach (var merged in dictionary.MergedDictionaries)
+        {
+            count += CountResources(merged);
+        }
+
+        return count;
+    }
+
+    private static string BuildUniquePath(string directory, string fileName)
+    {
+        var candidate = Path.Combine(directory, fileName);
+        if (!File.Exists(candidate))
+        {
+            return candidate;
+        }
+
+        var extension = fileName.EndsWith(ThemeExtension, StringComparison.OrdinalIgnoreCase)
+            ? ThemeExtension
+            : Path.GetExtension(fileName);
+        var baseName = fileName.EndsWith(ThemeExtension, StringComparison.OrdinalIgnoreCase)
+            ? fileName[..^ThemeExtension.Length]
+            : Path.GetFileNameWithoutExtension(fileName);
+
+        var index = 2;
+        do
+        {
+            candidate = Path.Combine(directory, $"{baseName} {index}{extension}");
+            index++;
+        }
+        while (File.Exists(candidate));
+
+        return candidate;
+    }
+
+    private static string ReadAllTextWithRetry(string path)
+    {
+        Exception? lastError = null;
+        for (var attempt = 0; attempt < 4; attempt++)
+        {
+            try
+            {
+                return File.ReadAllText(path, Encoding.UTF8);
+            }
+            catch (IOException ex)
+            {
+                lastError = ex;
+                System.Threading.Thread.Sleep(35 * (attempt + 1));
+            }
+        }
+
+        throw new IOException("The theme file is temporarily locked and could not be read.", lastError);
+    }
 }
 
-public sealed record VoiSeeCssRule(string Selector, Dictionary<string, string> Declarations);
+public sealed record VoiSeeXamlTheme(string Name, string? SourcePath, ResourceDictionary? Dictionary)
+{
+    public static VoiSeeXamlTheme DefaultDark { get; } = new("Default Dark", null, null);
+}
+
+public sealed record ThemeMigrationResult(int MovedFileCount, bool ActiveThemeWasLegacyCss, string LegacyDirectory);
