@@ -2,7 +2,7 @@
 ; Build with Inno Setup 6 using scripts\build-installer.ps1
 
 #define MyAppName "VoiSee"
-#define MyAppVersion "10.2.1"
+#define MyAppVersion "10.3.0"
 #define MyAppPublisher "VoriX"
 #define MyAppURL "https://github.com/VoriX0/VoiSe"
 #define MyAppExeName "VoiSe.App.exe"
@@ -57,6 +57,9 @@ Name: "{autodesktop}\VoiSee"; Filename: "{app}\{#MyAppExeName}"; WorkingDir: "{a
 Filename: "{code:GetVBCableInstaller}"; WorkingDir: "{code:GetVBCableInstallerDir}"; Description: "Install VB-CABLE"; StatusMsg: "Starting VB-CABLE installer..."; Flags: shellexec waituntilterminated; Verb: runas; Tasks: installvbcable; Check: VBCableInstallerExists
 #endif
 Filename: "{app}\{#MyAppExeName}"; Description: "Launch VoiSee"; Flags: nowait postinstall skipifsilent; Check: ShouldLaunchVoiSeePostInstall
+
+[UninstallRun]
+Filename: "{cmd}"; Parameters: "/C reg.exe delete HKCU\Software\Microsoft\Windows\CurrentVersion\Run /v VoiSee /f"; Flags: runhidden; RunOnceId: "RemoveVoiSeeAutostart"
 
 [UninstallDelete]
 ; Keep user settings and sound library data in %LOCALAPPDATA%\VoiSe by default.

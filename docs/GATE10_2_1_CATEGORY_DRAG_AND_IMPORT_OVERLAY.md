@@ -1,5 +1,8 @@
 # VoiSee 10.2.1 — category drag-and-drop and full-window import overlay
 
+> **Historical note:** the experimental internal SoundBoard track-to-category drag gesture documented here was removed in VoiSee 10.3.0 at the user’s request. The large external Explorer import overlay remains active.
+
+
 Base: VoiSee 10.2.0.
 
 ## Internal SoundBoard track drag

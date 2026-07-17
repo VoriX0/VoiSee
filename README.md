@@ -1,4 +1,4 @@
-# VoiSee 10.2.1
+﻿# VoiSee 10.3.0
 
 VoiSee is a WinUI 3 application for real-time voice processing, SoundBoard playback into a virtual microphone, scenes, presets, global hotkeys, themes, and non-destructive sound editing.
 
@@ -29,22 +29,25 @@ Right-click a SoundBoard track to use the new library actions:
 After a successful operation VoiSee opens the target category and selects the
 resulting track.
 
-VoiSee 10.2.1 also supports direct category drag-and-drop:
+The experimental internal track-to-category drag gesture was removed. Category
+Move and Copy remain available through the reliable SoundBoard context menu.
 
-- drag an existing track toward the category ComboBox;
-- after a short hover the category list opens automatically;
-- drop on another category to move the track;
-- hold `Ctrl` while dropping to create an independent copy;
-- the active target category is highlighted;
-- dropping on the source category is ignored safely.
+Dragging WAV, MP3 or OGG files from Explorer shows a large centered import panel
+covering approximately 75% of the VoiSee window.
 
-Buildfix 1 starts the internal drag through explicit pointer movement detection
-and `StartDragAsync`, avoiding dependence on WinUI automatic drag recognition
-through the transparent SoundBoard input overlay.
+## Windows integration (VoiSee 10.3)
 
-Dragging WAV, MP3 or OGG files from Explorer now shows a large centered import
-panel covering approximately 75% of the VoiSee window. Internal track dragging
-does not display the file-import panel.
+> Buildfix 1 corrects the custom WinUI `Application.Start` callback in `Program.cs` for Windows App SDK 1.6 and removes an unused theme field.
+
+- Closing the main window hides VoiSee in the notification area without stopping
+  the audio engine, active scenes, looped sounds, or global hotkeys.
+- The tray menu contains `Open VoiSee` and `Exit VoiSee`; double-clicking the tray
+  icon restores the existing window.
+- Only one process may own the audio engine. A second launch signals the existing
+  instance and exits.
+- `Start VoiSee with Windows` creates a per-user startup entry and launches
+  `VoiSe.App.exe --background` hidden in the notification area.
+- `Exit VoiSee` performs the real cleanup and process shutdown.
 
 ## Build
 
@@ -56,13 +59,13 @@ Set-ExecutionPolicy -Scope Process Bypass
 Expected installer:
 
 ```text
-artifacts\installer\VoiSee-Setup-10.2.1-x64.exe
+artifacts\installer\VoiSee-Setup-10.3.0-x64.exe
 ```
 
 Portable build:
 
 ```text
-artifacts\installer\VoiSee-Portable-10.2.1-x64.zip
+artifacts\installer\VoiSee-Portable-10.3.0-x64.zip
 ```
 
 ## Native XAML themes (VoiSee 10.1)

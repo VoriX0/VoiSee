@@ -1,5 +1,8 @@
 # VoiSee 10.2.1 buildfix 1 — internal SoundBoard drag start
 
+> **Historical note:** the experimental internal SoundBoard track-to-category drag gesture documented here was removed in VoiSee 10.3.0 at the user’s request. The large external Explorer import overlay remains active.
+
+
 ## Symptom
 
 The full-window Explorer import overlay worked, but dragging an existing SoundBoard sound toward the category ComboBox did not start an internal drag operation.

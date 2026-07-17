@@ -13,10 +13,10 @@
     <EnableMsixTooling>true</EnableMsixTooling>
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>
     <ApplicationIcon>Assets\AppIcon.ico</ApplicationIcon>
-    <Version>10.2.1</Version>
-    <AssemblyVersion>10.2.1.0</AssemblyVersion>
-    <FileVersion>10.2.1.0</FileVersion>
-    <InformationalVersion>10.2.1</InformationalVersion>
+    <Version>10.3.0</Version>
+    <AssemblyVersion>10.3.0.0</AssemblyVersion>
+    <FileVersion>10.3.0.0</FileVersion>
+    <InformationalVersion>10.3.0</InformationalVersion>
   </PropertyGroup>
   <ItemGroup>
     <!-- User-generated data must never be published or packed into the installer.
@@ -26,6 +26,7 @@
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="Microsoft.WindowsAppSDK" Version="1.6.*" />
+    <FrameworkReference Include="Microsoft.WindowsDesktop.App.WindowsForms" />
   </ItemGroup>
   <ItemGroup>
     <Content Include="Assets\**\*">

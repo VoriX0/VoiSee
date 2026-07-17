@@ -4,9 +4,9 @@ using System.IO;
 
 namespace VoiSe.App;
 
-public partial class App : Application
+public partial class App : Microsoft.UI.Xaml.Application
 {
-    private Window? _window;
+    private MainWindow? _window;
 
     public App()
     {
@@ -29,8 +29,28 @@ public partial class App : Application
         {
             StartupLog.Write("OnLaunched started.");
             _window = new MainWindow();
-            _window.Activate();
-            StartupLog.Write("MainWindow activated.");
+            Program.InstanceCoordinator?.StartListening(() =>
+            {
+                var window = _window;
+                if (window is null)
+                {
+                    return;
+                }
+
+                window.DispatcherQueue.TryEnqueue(window.RestoreAndActivate);
+            });
+
+            if (Program.StartInBackground && _window.StartHiddenInTray())
+            {
+                StartupLog.Write("MainWindow initialized in background tray mode without being shown.");
+            }
+            else
+            {
+                _window.Activate();
+                StartupLog.Write(Program.StartInBackground
+                    ? "Background tray initialization failed; MainWindow activated as a safe fallback."
+                    : "MainWindow activated.");
+            }
         }
         catch (Exception ex)
         {

@@ -11,7 +11,7 @@ using Windows.UI;
 namespace VoiSe.App;
 
 /// <summary>
-/// VoiSee 10.2.1 native theme loader and exact Default Dark copy workflow.
+/// VoiSee 10.3.0 native theme loader and exact Default Dark copy workflow.
 ///
 /// User themes are ordinary WinUI ResourceDictionary XAML files. The manager
 /// validates a candidate dictionary before it atomically replaces the active
@@ -163,7 +163,7 @@ public sealed class ThemeManager
 
     public int ApplyTheme(FrameworkElement root, VoiSeeXamlTheme theme)
     {
-        var merged = Application.Current.Resources.MergedDictionaries;
+        var merged = Microsoft.UI.Xaml.Application.Current.Resources.MergedDictionaries;
 
         // Candidate XAML has already been parsed and validated by LoadTheme.
         // Add it before removing the previous dictionary so a failure cannot
@@ -204,7 +204,7 @@ public sealed class ThemeManager
             return true;
         }
 
-        if (TryLookupResource(Application.Current.Resources, resourceKey, out var applicationValue) && TryConvertColor(applicationValue, out color))
+        if (TryLookupResource(Microsoft.UI.Xaml.Application.Current.Resources, resourceKey, out var applicationValue) && TryConvertColor(applicationValue, out color))
         {
             return true;
         }

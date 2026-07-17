@@ -1,6 +1,7 @@
-using Microsoft.UI.Dispatching;
+﻿using Microsoft.UI.Dispatching;
 using Microsoft.UI.Xaml;
 using System;
+using System.Linq;
 using System.Threading;
 using WinRT;
 
@@ -8,23 +9,41 @@ namespace VoiSe.App;
 
 public static class Program
 {
+    internal static bool StartInBackground { get; private set; }
+    internal static SingleInstanceCoordinator? InstanceCoordinator { get; private set; }
+
     [STAThread]
     public static void Main(string[] args)
     {
         try
         {
             StartupLog.Write("Program.Main started.");
+            StartInBackground = args.Any(argument =>
+                string.Equals(argument, "--background", StringComparison.OrdinalIgnoreCase));
+
+            InstanceCoordinator = SingleInstanceCoordinator.Create();
+            if (!InstanceCoordinator.IsPrimary)
+            {
+                var signaled = InstanceCoordinator.SignalPrimaryInstanceAsync().GetAwaiter().GetResult();
+                StartupLog.Write(signaled
+                    ? "Existing VoiSee instance was activated; secondary process exits."
+                    : "Existing VoiSee instance was detected, but activation signaling failed.");
+                InstanceCoordinator.Dispose();
+                InstanceCoordinator = null;
+                return;
+            }
+
             ComWrappersSupport.InitializeComWrappers();
             StartupLog.Write("WinRT COM wrappers initialized.");
 
-            Application.Start(p =>
+            Microsoft.UI.Xaml.Application.Start(_initializationCallbackParams =>
             {
                 try
                 {
                     StartupLog.Write("Application.Start callback entered.");
                     var context = new DispatcherQueueSynchronizationContext(DispatcherQueue.GetForCurrentThread());
                     SynchronizationContext.SetSynchronizationContext(context);
-                    var app = new App();
+                    new App();
                     StartupLog.Write("App instance created from Program.Main.");
                 }
                 catch (Exception ex)
@@ -39,8 +58,12 @@ public static class Program
         catch (Exception ex)
         {
             StartupLog.Write("Program.Main fatal error: " + ex);
-            Console.Error.WriteLine(ex);
             Environment.ExitCode = 1;
+        }
+        finally
+        {
+            InstanceCoordinator?.Dispose();
+            InstanceCoordinator = null;
         }
     }
 }

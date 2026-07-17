@@ -1,4 +1,5 @@
-﻿using Microsoft.UI.Xaml;
+﻿using Microsoft.UI.Windowing;
+using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Controls.Primitives;
 using Microsoft.UI.Xaml.Input;
@@ -77,7 +78,6 @@ public sealed partial class MainWindow : Window
     private bool _loadingThemeChoices;
     private FileSystemWatcher? _themeFileWatcher;
     private string? _watchedThemePath;
-    private int _themeReapplyGeneration;
     private VoiSeeXamlTheme? _activeTheme;
     private const int WhMouseLl = 14;
     private const int WhKeyboardLl = 13;
@@ -119,15 +119,11 @@ public sealed partial class MainWindow : Window
     private bool _soundBoardLoopEnabled;
     private string? _lastSoundBoardDropSignature;
     private DateTime _lastSoundBoardDropUtc = DateTime.MinValue;
-    private readonly DispatcherTimer _categoryDragOpenTimer;
-    private const double SoundBoardInternalDragThreshold = 8.0;
-    private SoundBoardSound? _pendingSoundBoardDragSound;
-    private SoundBoardSound? _activeSoundBoardDragSound;
-    private uint? _soundBoardDragPointerId;
-    private Windows.Foundation.Point _soundBoardDragPressPosition;
-    private bool _soundBoardDragStartRequested;
-    private Panel? _activeCategoryDropTargetPanel;
-    private bool _categoryDragPointerOverComboBox;
+    private readonly AutostartService _autostartService = new();
+    private TrayIconService? _trayIconService;
+    private bool _exitRequested;
+    private bool _windowHiddenToTray;
+    private bool _updatingAutostartUi;
     private bool _suppressMainTabWheelRouting;
     private ScrollViewer? _activeIconPickerScrollViewer;
     private FrameworkElement? _activeIconPickerWheelZoneElement;
@@ -146,14 +142,11 @@ public sealed partial class MainWindow : Window
         _library = _libraryStore.Load();
         InitializeComponent();
 
-        _categoryDragOpenTimer = new DispatcherTimer
-        {
-            Interval = TimeSpan.FromMilliseconds(420)
-        };
-        _categoryDragOpenTimer.Tick += OnCategoryDragOpenTimerTick;
 
         _windowHandle = WindowNative.GetWindowHandle(this);
         ConfigureTitleBar();
+        AppWindow.Closing += OnAppWindowClosing;
+        InitializeTrayIcon();
 
         _themeReloadTimer = new DispatcherTimer
         {
@@ -187,7 +180,7 @@ public sealed partial class MainWindow : Window
         _timelineTimer.Tick += OnTimelineTimerTick;
         _timelineTimer.Start();
 
-        AppendLog("VoiSee Version 10.2.1 UI started.");
+        AppendLog("VoiSee Version 10.3.0 UI started.");
         AppendLog($"Settings path: {_settingsStore.SettingsPath}");
         StartupLog.Write("MainWindow initialized; waiting for first activation.");
     }
@@ -908,6 +901,7 @@ public sealed partial class MainWindow : Window
         finally
         {
             _loadingSettings = false;
+            RefreshAutostartState();
             UpdateAllLabels();
             UpdateTransportHotkeySummary();
             UpdateVirtualMicMuteUi();
@@ -2546,13 +2540,11 @@ public sealed partial class MainWindow : Window
         var sound = TryGetSoundAtOverlayPoint(point.Position);
         if (sound is null)
         {
-            _pendingSoundBoardDragSound = null;
             return;
         }
 
         if (point.Properties.IsRightButtonPressed)
         {
-            _pendingSoundBoardDragSound = null;
             SelectSound(sound);
             var flyout = CreateSoundContextFlyout();
             var options = new Microsoft.UI.Xaml.Controls.Primitives.FlyoutShowOptions
@@ -2566,23 +2558,16 @@ public sealed partial class MainWindow : Window
 
         if (!point.Properties.IsLeftButtonPressed)
         {
-            _pendingSoundBoardDragSound = null;
             return;
         }
 
-        _pendingSoundBoardDragSound = sound;
-        _soundBoardDragPointerId = point.PointerId;
-        _soundBoardDragPressPosition = point.Position;
-        _soundBoardDragStartRequested = false;
         SelectSound(sound);
-
         var now = DateTime.UtcNow;
         var isDoubleClick = string.Equals(_lastSoundRowClickSoundId, sound.Id, StringComparison.Ordinal)
             && (now - _lastSoundRowClickUtc).TotalMilliseconds <= 520;
 
         _lastSoundRowClickSoundId = sound.Id;
         _lastSoundRowClickUtc = now;
-
         if (isDoubleClick)
         {
             PlaySelectedSound();
@@ -2590,121 +2575,7 @@ public sealed partial class MainWindow : Window
             _lastSoundRowClickUtc = DateTime.MinValue;
         }
 
-        // This overlay uses explicit gesture detection in PointerMoved and then calls
-        // StartDragAsync. Keeping the press handled prevents the click from leaking
-        // into the visual rows behind the input overlay.
         e.Handled = true;
-    }
-
-    private async void OnSoundInputOverlayPointerMoved(object sender, PointerRoutedEventArgs e)
-    {
-        if (_pendingSoundBoardDragSound is null
-            || _activeSoundBoardDragSound is not null
-            || _soundBoardDragStartRequested
-            || _soundBoardDragPointerId is null
-            || e.Pointer.PointerId != _soundBoardDragPointerId.Value)
-        {
-            return;
-        }
-
-        var point = e.GetCurrentPoint(SoundInputOverlay);
-        if (!point.Properties.IsLeftButtonPressed)
-        {
-            ResetSoundBoardDragGestureTracking(clearPendingSound: true);
-            return;
-        }
-
-        var deltaX = point.Position.X - _soundBoardDragPressPosition.X;
-        var deltaY = point.Position.Y - _soundBoardDragPressPosition.Y;
-        if ((deltaX * deltaX) + (deltaY * deltaY)
-            < SoundBoardInternalDragThreshold * SoundBoardInternalDragThreshold)
-        {
-            return;
-        }
-
-        _soundBoardDragStartRequested = true;
-        e.Handled = true;
-
-        try
-        {
-            // StartDragAsync raises OnSoundInputOverlayDragStarting, where the source
-            // sound and the allowed Move/Copy operations are placed into the package.
-            await SoundInputOverlay.StartDragAsync(point);
-        }
-        catch (Exception ex)
-        {
-            AppendLog($"Category drag could not start: {ex.Message}");
-            ResetInternalSoundDragState();
-        }
-        finally
-        {
-            ResetSoundBoardDragGestureTracking(clearPendingSound: _activeSoundBoardDragSound is null);
-        }
-    }
-
-    private void OnSoundInputOverlayPointerReleased(object sender, PointerRoutedEventArgs e)
-    {
-        if (_soundBoardDragPointerId is null || e.Pointer.PointerId == _soundBoardDragPointerId.Value)
-        {
-            ResetSoundBoardDragGestureTracking(clearPendingSound: _activeSoundBoardDragSound is null);
-        }
-    }
-
-    private void OnSoundInputOverlayPointerCaptureLost(object sender, PointerRoutedEventArgs e)
-    {
-        if (!_soundBoardDragStartRequested && _activeSoundBoardDragSound is null)
-        {
-            ResetSoundBoardDragGestureTracking(clearPendingSound: true);
-        }
-    }
-
-    private void ResetSoundBoardDragGestureTracking(bool clearPendingSound)
-    {
-        _soundBoardDragPointerId = null;
-        _soundBoardDragPressPosition = default;
-        _soundBoardDragStartRequested = false;
-        if (clearPendingSound)
-        {
-            _pendingSoundBoardDragSound = null;
-        }
-    }
-
-    private void OnSoundInputOverlayDragStarting(UIElement sender, DragStartingEventArgs e)
-    {
-        var sound = _pendingSoundBoardDragSound ?? _selectedSound;
-        ResetSoundBoardDragGestureTracking(clearPendingSound: true);
-
-        if (sound is null || IsSceneActive)
-        {
-            e.Cancel = true;
-            return;
-        }
-
-        _activeSoundBoardDragSound = sound;
-        e.Data.SetText($"VoiSee.SoundBoard.Sound:{sound.Id}");
-        e.Data.Properties.Title = sound.DisplayName;
-        e.Data.Properties.Description = "Drop on a category. Hold Ctrl to copy instead of move.";
-        e.Data.RequestedOperation = DataPackageOperation.Move | DataPackageOperation.Copy;
-        AppendLog($"Category drag started: {sound.DisplayName}");
-    }
-
-    private void OnSoundInputOverlayDropCompleted(UIElement sender, DropCompletedEventArgs e)
-    {
-        ResetInternalSoundDragState();
-    }
-
-    private void ResetInternalSoundDragState()
-    {
-        ResetSoundBoardDragGestureTracking(clearPendingSound: true);
-        _activeSoundBoardDragSound = null;
-        _categoryDragPointerOverComboBox = false;
-        _categoryDragOpenTimer.Stop();
-        ClearCategoryDropTargetHighlight();
-
-        if (CategoryComboBox is not null)
-        {
-            CategoryComboBox.IsDropDownOpen = false;
-        }
     }
 
     private SoundBoardSound? TryGetSoundAtOverlayPoint(Windows.Foundation.Point overlayPoint)
@@ -2790,6 +2661,10 @@ public sealed partial class MainWindow : Window
     private static extern IntPtr GetForegroundWindow();
 
     [DllImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool SetForegroundWindow(IntPtr hWnd);
+
+    [DllImport("user32.dll")]
     private static extern bool ScreenToClient(IntPtr hWnd, ref NativePoint lpPoint);
 
     [DllImport("user32.dll")]
@@ -2800,8 +2675,137 @@ public sealed partial class MainWindow : Window
         // Gate 5.6: no shared bottom panel. Kept as a no-op for older call sites.
     }
 
+    private void InitializeTrayIcon()
+    {
+        try
+        {
+            var iconPath = Path.Combine(AppContext.BaseDirectory, "Assets", "TrayIcon.ico");
+            if (!File.Exists(iconPath))
+            {
+                iconPath = Path.Combine(AppContext.BaseDirectory, "Assets", "AppIcon.ico");
+            }
+
+            _trayIconService = new TrayIconService(
+                iconPath,
+                () => DispatcherQueue.TryEnqueue(RestoreAndActivate),
+                () => DispatcherQueue.TryEnqueue(RequestExit));
+        }
+        catch (Exception ex)
+        {
+            StartupLog.Write("Tray icon initialization error: " + ex);
+            AppendLog($"Tray icon unavailable: {ex.Message}");
+        }
+    }
+
+    private void OnAppWindowClosing(AppWindow sender, AppWindowClosingEventArgs args)
+    {
+        if (_exitRequested)
+        {
+            return;
+        }
+
+        if (_trayIconService is null)
+        {
+            _exitRequested = true;
+            return;
+        }
+
+        args.Cancel = true;
+        if (!HideToTray())
+        {
+            _exitRequested = true;
+            args.Cancel = false;
+        }
+    }
+
+    private bool HideToTray(bool log = true)
+    {
+        if (_exitRequested)
+        {
+            return false;
+        }
+
+        if (_windowHiddenToTray)
+        {
+            return true;
+        }
+
+        try
+        {
+            SaveCurrentSettings();
+            AppWindow.Hide();
+            _windowHiddenToTray = true;
+            if (log)
+            {
+                AppendLog("VoiSee hidden to the notification area. Audio and global hotkeys remain active.");
+            }
+
+            return true;
+        }
+        catch (Exception ex)
+        {
+            StartupLog.Write("Window hide-to-tray error: " + ex);
+            AppendLog($"Could not hide VoiSee to the notification area: {ex.Message}");
+            return false;
+        }
+    }
+
+    public bool StartHiddenInTray()
+    {
+        if (_trayIconService is null)
+        {
+            return false;
+        }
+
+        if (!_loadedOnce)
+        {
+            _loadedOnce = true;
+            RestoreSettingsAfterWindowActivation();
+        }
+
+        return HideToTray(log: false);
+    }
+
+    public void RestoreAndActivate()
+    {
+        if (_exitRequested)
+        {
+            return;
+        }
+
+        try
+        {
+            if (AppWindow.Presenter is OverlappedPresenter presenter
+                && presenter.State == OverlappedPresenterState.Minimized)
+            {
+                presenter.Restore();
+            }
+
+            AppWindow.Show();
+            Activate();
+            SetForegroundWindow(_windowHandle);
+            _windowHiddenToTray = false;
+        }
+        catch (Exception ex)
+        {
+            StartupLog.Write("Window restore error: " + ex);
+        }
+    }
+
+    private void RequestExit()
+    {
+        if (_exitRequested)
+        {
+            return;
+        }
+
+        _exitRequested = true;
+        Close();
+    }
+
     private void OnClosed(object sender, WindowEventArgs args)
     {
+        _exitRequested = true;
         _manualStopRequested = true;
         SaveCurrentSettings();
         StopEngine(log: false);
@@ -2809,6 +2813,9 @@ public sealed partial class MainWindow : Window
         _themeReloadTimer.Stop();
         _themeFileWatcher?.Dispose();
         _themeFileWatcher = null;
+        _trayIconService?.Dispose();
+        _trayIconService = null;
+        AppWindow.Closing -= OnAppWindowClosing;
         if (_mouseHookHandle != IntPtr.Zero)
         {
             UnhookWindowsHookEx(_mouseHookHandle);
@@ -3239,164 +3246,10 @@ public sealed partial class MainWindow : Window
         }
     }
 
-    private void OnCategoryDragOpenTimerTick(object? sender, object e)
-    {
-        _categoryDragOpenTimer.Stop();
-        if (_activeSoundBoardDragSound is null
-            || !_categoryDragPointerOverComboBox
-            || CategoryComboBox is null
-            || CategoryComboBox.IsDropDownOpen)
-        {
-            return;
-        }
-
-        CategoryComboBox.IsDropDownOpen = true;
-    }
-
-    private void OnCategoryComboBoxDragOver(object sender, DragEventArgs e)
-    {
-        e.Handled = true;
-        HideSoundBoardExternalDropOverlay();
-
-        if (_activeSoundBoardDragSound is null)
-        {
-            e.AcceptedOperation = DataPackageOperation.None;
-            return;
-        }
-
-        var copy = IsModifierDown(0x11);
-        e.AcceptedOperation = copy ? DataPackageOperation.Copy : DataPackageOperation.Move;
-        e.DragUIOverride.Caption = copy
-            ? "Copy track to a category"
-            : "Move track to a category";
-        e.DragUIOverride.IsCaptionVisible = true;
-
-        _categoryDragPointerOverComboBox = true;
-        if (!CategoryComboBox.IsDropDownOpen && !_categoryDragOpenTimer.IsEnabled)
-        {
-            _categoryDragOpenTimer.Start();
-        }
-    }
-
-    private void OnCategoryComboBoxDragLeave(object sender, DragEventArgs e)
-    {
-        e.Handled = true;
-        _categoryDragPointerOverComboBox = false;
-        if (CategoryComboBox is not null && !CategoryComboBox.IsDropDownOpen)
-        {
-            _categoryDragOpenTimer.Stop();
-        }
-    }
-
-    private void OnCategoryComboBoxDrop(object sender, DragEventArgs e)
-    {
-        e.Handled = true;
-        _categoryDragPointerOverComboBox = false;
-        _categoryDragOpenTimer.Stop();
-        e.AcceptedOperation = DataPackageOperation.None;
-    }
-
-    private void OnCategoryDropTargetDragOver(object sender, DragEventArgs e)
-    {
-        e.Handled = true;
-        HideSoundBoardExternalDropOverlay();
-
-        if (_activeSoundBoardDragSound is null
-            || sender is not Panel { Tag: SoundBoardCategory targetCategory } targetPanel
-            || string.Equals(_activeSoundBoardDragSound.CategoryId, targetCategory.Id, StringComparison.Ordinal))
-        {
-            e.AcceptedOperation = DataPackageOperation.None;
-            ClearCategoryDropTargetHighlight();
-            return;
-        }
-
-        var copy = IsModifierDown(0x11);
-        e.AcceptedOperation = copy ? DataPackageOperation.Copy : DataPackageOperation.Move;
-        e.DragUIOverride.Caption = copy
-            ? $"Copy to {targetCategory.Name}"
-            : $"Move to {targetCategory.Name}";
-        e.DragUIOverride.IsCaptionVisible = true;
-        SetCategoryDropTargetHighlight(targetPanel);
-    }
-
-    private void OnCategoryDropTargetDragLeave(object sender, DragEventArgs e)
-    {
-        e.Handled = true;
-        if (ReferenceEquals(sender, _activeCategoryDropTargetPanel))
-        {
-            ClearCategoryDropTargetHighlight();
-        }
-    }
-
-    private async void OnCategoryDropTargetDrop(object sender, DragEventArgs e)
-    {
-        e.Handled = true;
-        _categoryDragPointerOverComboBox = false;
-        _categoryDragOpenTimer.Stop();
-
-        var sourceSound = _activeSoundBoardDragSound;
-        if (sourceSound is null
-            || sender is not Panel { Tag: SoundBoardCategory targetCategory }
-            || string.Equals(sourceSound.CategoryId, targetCategory.Id, StringComparison.Ordinal))
-        {
-            e.AcceptedOperation = DataPackageOperation.None;
-            ResetInternalSoundDragState();
-            return;
-        }
-
-        var copy = IsModifierDown(0x11);
-        e.AcceptedOperation = copy ? DataPackageOperation.Copy : DataPackageOperation.Move;
-        ClearCategoryDropTargetHighlight();
-        CategoryComboBox.IsDropDownOpen = false;
-
-        await ExecuteSoundCategoryTransferAsync(sourceSound, targetCategory, copy, "Drag and drop");
-        ResetInternalSoundDragState();
-    }
-
-    private void SetCategoryDropTargetHighlight(Panel panel)
-    {
-        if (!ReferenceEquals(_activeCategoryDropTargetPanel, panel))
-        {
-            ClearCategoryDropTargetHighlight();
-        }
-
-        _activeCategoryDropTargetPanel = panel;
-        panel.Background = FindApplicationBrush("ComboBoxItemBackgroundPointerOver")
-            ?? new SolidColorBrush(Microsoft.UI.ColorHelper.FromArgb(0x18, 0xFF, 0xFF, 0xFF));
-    }
-
-    private void ClearCategoryDropTargetHighlight()
-    {
-        if (_activeCategoryDropTargetPanel is not null)
-        {
-            _activeCategoryDropTargetPanel.Background =
-                new SolidColorBrush(Microsoft.UI.ColorHelper.FromArgb(0x00, 0x00, 0x00, 0x00));
-            _activeCategoryDropTargetPanel = null;
-        }
-    }
-
-    private static Brush? FindApplicationBrush(string key)
-    {
-        try
-        {
-            return Application.Current?.Resources[key] as Brush;
-        }
-        catch
-        {
-            return null;
-        }
-    }
-
     private void OnSoundBoardDragOver(object sender, DragEventArgs e)
     {
         e.Handled = true;
 
-        if (_activeSoundBoardDragSound is not null)
-        {
-            HideSoundBoardExternalDropOverlay();
-            e.AcceptedOperation = DataPackageOperation.None;
-            return;
-        }
 
         if (e.DataView.Contains(StandardDataFormats.StorageItems))
         {
@@ -3413,10 +3266,7 @@ public sealed partial class MainWindow : Window
     private void OnSoundBoardDragLeave(object sender, DragEventArgs e)
     {
         e.Handled = true;
-        if (_activeSoundBoardDragSound is null)
-        {
-            HideSoundBoardExternalDropOverlay();
-        }
+        HideSoundBoardExternalDropOverlay();
     }
 
     private async void OnSoundBoardDrop(object sender, DragEventArgs e)
@@ -3424,11 +3274,6 @@ public sealed partial class MainWindow : Window
         e.Handled = true;
         HideSoundBoardExternalDropOverlay();
 
-        if (_activeSoundBoardDragSound is not null)
-        {
-            e.AcceptedOperation = DataPackageOperation.None;
-            return;
-        }
 
         var category = CurrentCategory ?? _library.Categories.OrderBy(c => c.SortOrder).FirstOrDefault();
         if (category is null)
@@ -9094,6 +8939,53 @@ public sealed partial class MainWindow : Window
             $"Visible tracks: {visibleCount}\n" +
             $"Category uses: {categoryUsage}\n" +
             $"Track uses: {soundUsage}";
+    }
+
+    private void RefreshAutostartState()
+    {
+        if (StartWithWindowsCheckBox is null)
+        {
+            return;
+        }
+
+        try
+        {
+            _updatingAutostartUi = true;
+            StartWithWindowsCheckBox.IsChecked = _autostartService.RefreshAndRepairIfRegistered();
+        }
+        catch (Exception ex)
+        {
+            StartupLog.Write("Autostart state read error: " + ex);
+            StartWithWindowsCheckBox.IsChecked = false;
+        }
+        finally
+        {
+            _updatingAutostartUi = false;
+        }
+    }
+
+    private async void OnStartWithWindowsChanged(object sender, RoutedEventArgs e)
+    {
+        if (_loadingSettings || _updatingAutostartUi || StartWithWindowsCheckBox is null)
+        {
+            return;
+        }
+
+        var enabled = StartWithWindowsCheckBox.IsChecked == true;
+        try
+        {
+            _autostartService.SetEnabled(enabled);
+            RefreshAutostartState();
+            AppendLog(enabled
+                ? "Windows autostart enabled: VoiSee will start hidden in the notification area."
+                : "Windows autostart disabled.");
+        }
+        catch (Exception ex)
+        {
+            StartupLog.Write("Autostart update error: " + ex);
+            RefreshAutostartState();
+            await ShowMessageDialogAsync("Autostart error", ex.Message);
+        }
     }
 
     private void SaveCurrentSettings()
