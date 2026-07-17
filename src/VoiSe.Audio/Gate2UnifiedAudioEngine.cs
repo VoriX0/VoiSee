@@ -23,6 +23,8 @@ public sealed class Gate2UnifiedAudioEngine : IDisposable
     private RouteMixSampleProvider? _virtualProvider;
     private RouteMixSampleProvider? _monitorProvider;
     private bool _virtualMicMuted;
+    private readonly object _voiceMonitorRouteSync = new();
+    private bool _voiceMonitorRouteEnabled;
     private bool _disposed;
 
     public Gate2UnifiedAudioEngine(
@@ -35,6 +37,7 @@ public sealed class Gate2UnifiedAudioEngine : IDisposable
         _virtualOutputDevice = virtualOutputDevice;
         _monitorDevice = monitorDevice;
         _settings = settings;
+        _voiceMonitorRouteEnabled = settings.VoiceMonitorGain > 0.0001f;
         _mixFormat = WaveFormat.CreateIeeeFloatWaveFormat(48_000, 2);
 
         // Keep up to ~2 seconds of microphone route audio. If an output route falls behind,
@@ -46,6 +49,17 @@ public sealed class Gate2UnifiedAudioEngine : IDisposable
     }
 
     public WaveFormat MixFormat => _mixFormat;
+
+    public bool VoiceMonitorRouteEnabled
+    {
+        get
+        {
+            lock (_voiceMonitorRouteSync)
+            {
+                return _voiceMonitorRouteEnabled;
+            }
+        }
+    }
 
     public void Start()
     {
@@ -129,9 +143,31 @@ public sealed class Gate2UnifiedAudioEngine : IDisposable
     public void UpdateEffectSettings(EffectSettings settings)
     {
         _settings = settings;
+        SetVoiceMonitorEnabled(settings.VoiceMonitorGain > 0.0001f);
         _processor?.UpdateSettings(settings);
         _virtualProvider?.UpdateSettings(settings);
         _monitorProvider?.UpdateSettings(settings);
+    }
+
+    /// <summary>
+    /// Hard-connects or disconnects processed microphone audio from the physical
+    /// monitor route. When disabled, voice samples are not queued for headphones
+    /// at all. This is intentionally stronger than a final gain of zero so desktop
+    /// or application loopback capture cannot receive a stale monitor buffer.
+    /// SoundBoard monitoring remains independent through SoundboardTransport.
+    /// </summary>
+    public void SetVoiceMonitorEnabled(bool enabled)
+    {
+        lock (_voiceMonitorRouteSync)
+        {
+            if (_voiceMonitorRouteEnabled == enabled)
+            {
+                return;
+            }
+
+            _voiceMonitorRouteEnabled = enabled;
+            _monitorMicQueue.Clear();
+        }
     }
 
     public void UpdateSoundVolumes(float virtualVolume, float monitorVolume, string? playbackKey = null)
@@ -177,7 +213,18 @@ public sealed class Gate2UnifiedAudioEngine : IDisposable
 
             _processor.ProcessInPlace(targetSamples);
             _virtualMicQueue.Add(targetSamples);
-            _monitorMicQueue.Add(targetSamples);
+
+            // VoiSee 10.0: when Voice Monitor is off, do not feed processed
+            // microphone samples into the physical monitor route at all.
+            // The lock prevents a final capture buffer from being enqueued after
+            // SetVoiceMonitorEnabled(false) has cleared the route.
+            lock (_voiceMonitorRouteSync)
+            {
+                if (_voiceMonitorRouteEnabled)
+                {
+                    _monitorMicQueue.Add(targetSamples);
+                }
+            }
         }
         catch (NotSupportedException ex)
         {

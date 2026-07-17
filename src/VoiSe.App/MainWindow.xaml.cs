@@ -171,7 +171,7 @@ public sealed partial class MainWindow : Window
         _timelineTimer.Tick += OnTimelineTimerTick;
         _timelineTimer.Start();
 
-        AppendLog("VoiSee Version 9.2.7 UI started.");
+        AppendLog("VoiSee Version 10.0.0 UI started.");
         AppendLog($"Settings path: {_settingsStore.SettingsPath}");
         StartupLog.Write("MainWindow initialized; waiting for first activation.");
     }
@@ -5044,6 +5044,7 @@ public sealed partial class MainWindow : Window
             AppendLog($"Engine started. Input: {input.FriendlyName}");
             AppendLog($"Virtual output: {virtualOutput.FriendlyName}");
             AppendLog($"Monitor: {(monitor is null ? "disabled" : monitor.FriendlyName)}");
+            AppendLog($"Voice monitor route: {(_engine.VoiceMonitorRouteEnabled ? "connected" : "hard disconnected")}");
             WarmSoundCacheInBackground();
             return true;
         }
@@ -5570,6 +5571,10 @@ public sealed partial class MainWindow : Window
         _voiceMonitorEnabled = !_voiceMonitorEnabled;
         UpdateVoiceMonitorButton();
         ApplyLiveSettings(_voiceMonitorEnabled ? "voice monitor enabled" : "voice monitor disabled");
+        if (_engine is not null)
+        {
+            AppendLog($"Voice monitor route: {(_engine.VoiceMonitorRouteEnabled ? "connected" : "hard disconnected")}");
+        }
     }
 
     private void OnTimelineHostPointerPressed(object sender, PointerRoutedEventArgs e)

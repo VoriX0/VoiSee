@@ -1,0 +1,38 @@
+/* VoiSee sample theme: Terminal Green. Tests minimal palette, borders, font weights, rgba(). */
+:root {
+  --app-background: #020702;
+  --titlebar-background: #020702;
+  --panel-background: rgba(0, 18, 0, 0.78);
+  --panel-border: #6648FF70;
+  --text-primary: #D8FFE2;
+  --text-secondary: #AA9DFFB0;
+  --accent: #48FF70;
+  --danger: #FF5959;
+  --success: #48FF70;
+  --button-background: #071807;
+  --button-hover: #0D2A0D;
+  --button-pressed: #123812;
+  --radius-panel: 6;
+  --radius-button: 4;
+  --radius-small: 3;
+  --button-border: #5548FF70;
+}
+
+#RootGrid { background: #020702; }
+#MainHeaderBorder { background: #CC061206; border: solid #7748FF70 1; border-radius: var(--radius-panel); }
+.panel { background: var(--panel-background); border: solid var(--panel-border) 1; border-radius: var(--radius-panel); }
+.text { foreground: var(--text-primary); }
+.button { background: var(--button-background); foreground: var(--text-primary); border: solid var(--button-border) 1; font-weight: semibold; border-radius: var(--radius-button); }
+.button:hover { background: var(--button-hover); border-color: var(--accent); }
+.button:pressed { background: var(--button-pressed); }
+.combo-box { background: #CC061206; foreground: var(--text-primary); border: solid var(--button-border) 1; border-radius: var(--radius-button); }
+.slider { foreground: var(--accent); }
+#VirtualMicMuteStatusTextBlock { foreground: var(--accent); font-weight: bold; }
+#SoundboardTimeline { background: linear-gradient(90deg, #061206, #123812); border-radius: var(--radius-small); }
+#SoundboardSoundList { background: rgba(0, 10, 0, 0.5); border-radius: var(--radius-panel); }
+.soundboard-sound:hover { background: rgba(72, 255, 112, 0.16); }
+#ScenesApply:pressed { background: var(--success); foreground: black; }
+#ScenesDelete:pressed, #SettingsStopEngine:pressed { background: var(--danger); foreground: black; }
+#AboutMePanel { background: #CC061206; border-radius: var(--radius-panel); }
+
+.soundboard-sound { border-radius: var(--radius-small); }

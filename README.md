@@ -1,4 +1,4 @@
-# VoiSee 9.2.7
+# VoiSee 10.0.0
 
 VoiSee is a WinUI 3 application for real-time voice processing, SoundBoard playback into a virtual microphone, scenes, presets, global hotkeys, themes, and non-destructive sound editing.
 
@@ -26,11 +26,11 @@ Set-ExecutionPolicy -Scope Process Bypass
 Expected installer:
 
 ```text
-artifacts\installer\VoiSee-Setup-9.2.7-x64.exe
+artifacts\installer\VoiSee-Setup-10.0.0-x64.exe
 ```
 
 Portable build:
 
 ```text
-artifacts\installer\VoiSee-Portable-9.2.7-x64.zip
+artifacts\installer\VoiSee-Portable-10.0.0-x64.zip
 ```
