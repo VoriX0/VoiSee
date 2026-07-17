@@ -6,7 +6,7 @@
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     mc:Ignorable="d"
-    Title="VoiSee Version 10.3.0">
+    Title="VoiSee Version 10.4.0">
 
     <Grid x:Name="RootGrid" RequestedTheme="Dark" Background="{ThemeResource VoiSee.AppBackgroundBrush}" SizeChanged="OnRootGridSizeChanged">
         <Grid.RowDefinitions>
@@ -21,7 +21,7 @@
             </Grid.ColumnDefinitions>
             <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center" Margin="10,0,0,0">
                 <Image Source="ms-appx:///Assets/AppIcon_24.png" Width="16" Height="16" VerticalAlignment="Center" />
-                <TextBlock x:Name="TitleBarVersionTextBlock" Text="VoiSee Version 10.3.0" FontSize="12" Foreground="{ThemeResource VoiSee.PrimaryTextBrush}" VerticalAlignment="Center" />
+                <TextBlock x:Name="TitleBarVersionTextBlock" Text="VoiSee Version 10.4.0" FontSize="12" Foreground="{ThemeResource VoiSee.PrimaryTextBrush}" VerticalAlignment="Center" />
             </StackPanel>
         </Grid>
 
@@ -39,7 +39,7 @@
                 </Grid.ColumnDefinitions>
                 <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
                     <Image Source="ms-appx:///Assets/AppIcon_48.png" Width="34" Height="34" VerticalAlignment="Center" />
-                    <TextBlock x:Name="MainTitle" Text="VoiSee Version 10.3.0" FontSize="28" FontWeight="SemiBold" Foreground="{ThemeResource VoiSee.PrimaryTextBrush}" VerticalAlignment="Center" />
+                    <TextBlock x:Name="MainTitle" Text="VoiSee Version 10.4.0" FontSize="28" FontWeight="SemiBold" Foreground="{ThemeResource VoiSee.PrimaryTextBrush}" VerticalAlignment="Center" />
                 </StackPanel>
                 <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center" HorizontalAlignment="Right">
                     <TextBlock Text="Mic Output" Foreground="{ThemeResource VoiSee.PrimaryTextBrush}" Opacity="0.62" VerticalAlignment="Center" />
@@ -633,149 +633,314 @@
                 </TabViewItem>
 
                 <TabViewItem Header="Settings" IsClosable="False">
-                    <ScrollViewer x:Name="SettingsScrollViewer" VerticalScrollBarVisibility="Auto" VerticalScrollMode="Enabled" HorizontalScrollBarVisibility="Disabled" HorizontalScrollMode="Disabled" ZoomMode="Disabled">
-                        <Grid x:Name="SettingsTabRoot" Padding="0,16,24,24" ColumnSpacing="20">
+                    <ScrollViewer x:Name="SettingsScrollViewer"
+                                  VerticalScrollBarVisibility="Auto"
+                                  VerticalScrollMode="Enabled"
+                                  HorizontalScrollBarVisibility="Disabled"
+                                  HorizontalScrollMode="Disabled"
+                                  ZoomMode="Disabled">
+                        <Grid x:Name="SettingsTabRoot"
+                              Padding="0,16,24,24"
+                              ColumnSpacing="20"
+                              RowSpacing="20"
+                              SizeChanged="OnSettingsTabRootSizeChanged">
                             <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="5*" MinWidth="360" />
-                                <ColumnDefinition Width="4*" MinWidth="320" />
-                                <ColumnDefinition Width="3*" MinWidth="260" />
+                                <ColumnDefinition x:Name="SettingsSystemColumn" Width="5*" MinWidth="360" />
+                                <ColumnDefinition x:Name="SettingsThemesColumn" Width="4*" MinWidth="320" />
+                                <ColumnDefinition x:Name="SettingsAboutColumn" Width="3*" MinWidth="260" />
                             </Grid.ColumnDefinitions>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
+                            </Grid.RowDefinitions>
 
-                            <StackPanel x:Name="MainSettings" Grid.Column="0" Spacing="18">
-                                <Border x:Name="VBCableNoticeBorder" Background="{ThemeResource VoiSee.VBCableNoticeBackgroundBrush}" BorderBrush="{ThemeResource VoiSee.VBCableNoticeBorderBrush}" BorderThickness="1" CornerRadius="{ThemeResource VoiSee.CornerRadius.Large}" Padding="14">
+                            <StackPanel x:Name="MainSettings" Grid.Column="0" Grid.Row="0" Spacing="18">
+                                <TextBlock Text="System &amp; Audio" FontSize="22" FontWeight="SemiBold" />
+
+                                <Border x:Name="VBCableNoticeBorder"
+                                        Background="{ThemeResource VoiSee.VBCableNoticeBackgroundBrush}"
+                                        BorderBrush="{ThemeResource VoiSee.VBCableNoticeBorderBrush}"
+                                        BorderThickness="1"
+                                        CornerRadius="{ThemeResource VoiSee.CornerRadius.Large}"
+                                        Padding="14">
                                     <StackPanel Spacing="8">
-                                        <TextBlock Text="Virtual microphone bridge" FontSize="18" FontWeight="SemiBold" />
-                                        <TextBlock x:Name="VBCableStatusTextBlock" Text="VB-CABLE is not installed." TextWrapping="WrapWholeWords" Opacity="0.92" FontWeight="SemiBold" />
-                                        <TextBlock Style="{ThemeResource VoiSee.Style.Text.Secondary}" x:Name="VBCableBridgeInfoTextBlock" Text="Install VB-CABLE to create the virtual microphone bridge. The audio engine will stay disabled until CABLE Input is detected." TextWrapping="WrapWholeWords" Opacity="0.72" />
+                                        <TextBlock Text="VB-CABLE status" FontSize="18" FontWeight="SemiBold" />
+                                        <TextBlock x:Name="VBCableStatusTextBlock"
+                                                   Text="VB-CABLE is not installed."
+                                                   TextWrapping="WrapWholeWords"
+                                                   Opacity="0.92"
+                                                   FontWeight="SemiBold" />
+                                        <TextBlock Style="{ThemeResource VoiSee.Style.Text.Secondary}"
+                                                   x:Name="VBCableBridgeInfoTextBlock"
+                                                   Text="Install VB-CABLE to create the virtual microphone bridge. The audio engine will stay disabled until CABLE Input is detected."
+                                                   TextWrapping="WrapWholeWords"
+                                                   Opacity="0.72" />
                                         <StackPanel Orientation="Horizontal" Spacing="10">
-                                            <Button Style="{ThemeResource VoiSee.Style.Button.SettingsAction}" x:Name="InstallVBCableButton" Content="Install VB-CABLE" Padding="14,6" MinHeight="32" Click="OnInstallVBCableClick" />
-                                            <Button Style="{ThemeResource VoiSee.Style.Button}" Content="Refresh Devices" Padding="14,6" MinHeight="32" Click="OnRefreshDevicesClick" />
+                                            <Button Style="{ThemeResource VoiSee.Style.Button.SettingsAction}"
+                                                    x:Name="InstallVBCableButton"
+                                                    Content="Install VB-CABLE"
+                                                    Padding="14,6"
+                                                    MinHeight="32"
+                                                    Click="OnInstallVBCableClick" />
+                                            <Button Style="{ThemeResource VoiSee.Style.Button}"
+                                                    Content="Refresh Devices"
+                                                    Padding="14,6"
+                                                    MinHeight="32"
+                                                    Click="OnRefreshDevicesClick" />
                                         </StackPanel>
                                     </StackPanel>
                                 </Border>
 
-                                <TextBlock Text="Audio devices" FontSize="18" FontWeight="SemiBold" />
+                                <Border Style="{ThemeResource VoiSee.Style.Panel.SettingsCard}">
+                                    <StackPanel Spacing="12">
+                                        <Grid ColumnSpacing="12">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="Auto" />
+                                            </Grid.ColumnDefinitions>
+                                            <TextBlock Text="Audio Devices" FontSize="18" FontWeight="SemiBold" VerticalAlignment="Center" />
+                                            <Button Grid.Column="1"
+                                                    Style="{ThemeResource VoiSee.Style.Button}"
+                                                    Content="Refresh Devices"
+                                                    Padding="14,6"
+                                                    MinHeight="32"
+                                                    Click="OnRefreshDevicesClick" />
+                                        </Grid>
 
-                                <Grid HorizontalAlignment="Stretch" ColumnSpacing="18">
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="Auto" />
-                                        <ColumnDefinition Width="*" />
-                                    </Grid.ColumnDefinitions>
-                                    <Button Style="{ThemeResource VoiSee.Style.Button}" Grid.Column="0" Content="Refresh Devices" Click="OnRefreshDevicesClick" VerticalAlignment="Center" />
-                                    <StackPanel Grid.Column="1" Spacing="6" VerticalAlignment="Center">
-                                        <TextBlock x:Name="VirtualOutputVolumeLabel" Text="Virtual Mic Master: 100%" FontWeight="SemiBold" />
-                                        <Slider Style="{ThemeResource VoiSee.Style.Slider}" x:Name="VirtualOutputVolumeSlider" Minimum="0" Maximum="1.5" Value="1" StepFrequency="0.01" ValueChanged="OnOutputVolumeChanged" />
+                                        <StackPanel Spacing="6">
+                                            <TextBlock Text="Input Device" />
+                                            <ComboBox Style="{ThemeResource VoiSee.Style.ComboBox}"
+                                                      x:Name="InputDeviceComboBox"
+                                                      PlaceholderText="Choose microphone"
+                                                      DisplayMemberPath="FriendlyName"
+                                                      HorizontalAlignment="Stretch"
+                                                      SelectionChanged="OnRouteSettingChanged" />
+                                        </StackPanel>
+
+                                        <StackPanel Spacing="6">
+                                            <TextBlock Text="Virtual Output" />
+                                            <ComboBox Style="{ThemeResource VoiSee.Style.ComboBox}"
+                                                      x:Name="VirtualOutputComboBox"
+                                                      PlaceholderText="Choose CABLE Input"
+                                                      DisplayMemberPath="FriendlyName"
+                                                      HorizontalAlignment="Stretch"
+                                                      SelectionChanged="OnRouteSettingChanged" />
+                                        </StackPanel>
+
+                                        <StackPanel Spacing="6">
+                                            <TextBlock Text="Monitor / Headphones" />
+                                            <ComboBox Style="{ThemeResource VoiSee.Style.ComboBox}"
+                                                      x:Name="MonitorOutputComboBox"
+                                                      PlaceholderText="Choose headphones"
+                                                      DisplayMemberPath="FriendlyName"
+                                                      HorizontalAlignment="Stretch"
+                                                      SelectionChanged="OnRouteSettingChanged" />
+                                        </StackPanel>
+
+                                        <StackPanel Spacing="6">
+                                            <TextBlock x:Name="VirtualOutputVolumeLabel" Text="Virtual Mic Master: 100%" FontWeight="SemiBold" />
+                                            <Slider Style="{ThemeResource VoiSee.Style.Slider}"
+                                                    x:Name="VirtualOutputVolumeSlider"
+                                                    Minimum="0"
+                                                    Maximum="1.5"
+                                                    Value="1"
+                                                    StepFrequency="0.01"
+                                                    ValueChanged="OnOutputVolumeChanged" />
+                                        </StackPanel>
+
+                                        <StackPanel Spacing="6">
+                                            <TextBlock x:Name="DelayLabel" Text="SoundBoard Delay: 85 ms" FontWeight="SemiBold" />
+                                            <Slider Style="{ThemeResource VoiSee.Style.Slider}"
+                                                    x:Name="SoundVirtualDelaySlider"
+                                                    Minimum="0"
+                                                    Maximum="300"
+                                                    Value="85"
+                                                    StepFrequency="1"
+                                                    ValueChanged="OnDelayChanged" />
+                                            <TextBlock Text="SoundBoard reaches headphones immediately and the virtual microphone after this delay. Changes apply on the next playback."
+                                                       Opacity="0.7"
+                                                       TextWrapping="WrapWholeWords" />
+                                        </StackPanel>
                                     </StackPanel>
-                                </Grid>
+                                </Border>
 
-                                <StackPanel Spacing="6">
-                                    <TextBlock Text="Input Microphone" />
-                                    <ComboBox Style="{ThemeResource VoiSee.Style.ComboBox}" x:Name="InputDeviceComboBox" PlaceholderText="Choose microphone" DisplayMemberPath="FriendlyName" HorizontalAlignment="Stretch" SelectionChanged="OnRouteSettingChanged" />
-                                </StackPanel>
-                                <ComboBox Style="{ThemeResource VoiSee.Style.ComboBox}" x:Name="VirtualOutputComboBox" PlaceholderText="Choose CABLE Input" DisplayMemberPath="FriendlyName" HorizontalAlignment="Stretch" SelectionChanged="OnRouteSettingChanged" Visibility="Collapsed" />
-                                <StackPanel Spacing="6">
-                                    <TextBlock Text="Monitor Output" />
-                                    <ComboBox Style="{ThemeResource VoiSee.Style.ComboBox}" x:Name="MonitorOutputComboBox" PlaceholderText="Choose headphones" DisplayMemberPath="FriendlyName" HorizontalAlignment="Stretch" SelectionChanged="OnRouteSettingChanged" />
-                                </StackPanel>
-
-                                <TextBlock Text="Output" FontSize="18" FontWeight="SemiBold" />
-                                <StackPanel x:Name="SettingsLogArea" Orientation="Horizontal" Spacing="10" Background="Transparent">
-                                    <Button Style="{ThemeResource VoiSee.Style.Button}" Content="Open logs" Padding="14,6" MinHeight="32" Click="OnOpenLogFullscreenClick" />
-                                    <TextBlock Text="Application log opens in a separate window." VerticalAlignment="Center" Opacity="0.7" />
-                                </StackPanel>
-
-                                <TextBlock Text="Hotkeys" FontSize="18" FontWeight="SemiBold" />
-                                <StackPanel Spacing="8" Background="Transparent">
-                                    <StackPanel Orientation="Horizontal" Spacing="10">
-                                        <Button Style="{ThemeResource VoiSee.Style.Button}" Content="Hotkeys" Padding="14,6" MinHeight="32" Click="OnConfigureTransportHotkeysClick" />
-                                        <TextBlock Text="Transport and Virtual Mic Mute hotkeys. While a scene is active, Play/Pause and Stop control only scene one-shot sounds." VerticalAlignment="Center" Opacity="0.7" TextWrapping="WrapWholeWords" />
+                                <Border Style="{ThemeResource VoiSee.Style.Panel.SettingsCard}">
+                                    <StackPanel Spacing="10">
+                                        <TextBlock Text="Hotkeys" FontSize="18" FontWeight="SemiBold" />
+                                        <Button Style="{ThemeResource VoiSee.Style.Button}"
+                                                Content="Configure Hotkeys"
+                                                HorizontalAlignment="Left"
+                                                Padding="14,6"
+                                                MinHeight="32"
+                                                Click="OnConfigureTransportHotkeysClick" />
+                                        <TextBlock Style="{ThemeResource VoiSee.Style.Text.Secondary}"
+                                                   x:Name="TransportHotkeysSummaryTextBlock"
+                                                   Text="Transport hotkeys: not configured"
+                                                   Opacity="0.72"
+                                                   TextWrapping="Wrap" />
+                                        <TextBlock Text="NumPad is supported. Conflicts follow this priority: Transport → Scene → SoundBoard → Voice Preset. Sound Editor keeps its dedicated Play/Pause and Stop behavior."
+                                                   Opacity="0.66"
+                                                   TextWrapping="WrapWholeWords" />
                                     </StackPanel>
-                                    <TextBlock Style="{ThemeResource VoiSee.Style.Text.Secondary}" x:Name="TransportHotkeysSummaryTextBlock" Text="Transport hotkeys: not configured" Opacity="0.72" TextWrapping="Wrap" />
-                                </StackPanel>
+                                </Border>
 
-                                <TextBlock Text="SoundBoard" FontSize="18" FontWeight="SemiBold" />
-                                <StackPanel Spacing="8">
-                                    <TextBlock x:Name="DelayLabel" Text="SoundBoard Virtual Mic Delay: 85 ms" FontWeight="SemiBold" />
-                                    <Slider Style="{ThemeResource VoiSee.Style.Slider}" x:Name="SoundVirtualDelaySlider" Minimum="0" Maximum="300" Value="85" StepFrequency="1" ValueChanged="OnDelayChanged" />
-                                    <TextBlock Text="SoundBoard plays in headphones immediately, then reaches the virtual microphone bridge after this delay. Changes apply on next Play Sound." Opacity="0.7" TextWrapping="Wrap" />
-                                </StackPanel>
-
-                                <TextBlock Text="Startup" FontSize="18" FontWeight="SemiBold" />
-                                <StackPanel Spacing="6">
-                                    <CheckBox Style="{ThemeResource VoiSee.Style.CheckBox}"
-                                              x:Name="StartWithWindowsCheckBox"
-                                              Content="Start VoiSee with Windows"
-                                              Checked="OnStartWithWindowsChanged"
-                                              Unchecked="OnStartWithWindowsChanged" />
-                                    <TextBlock Text="VoiSee starts hidden in the notification area and keeps the audio engine and global hotkeys available."
-                                               Opacity="0.7"
-                                               TextWrapping="WrapWholeWords" />
-                                </StackPanel>
-
-                                <TextBlock Text="Engine manual control" FontSize="18" FontWeight="SemiBold" />
-                                <StackPanel Spacing="8">
-                                    <Grid ColumnSpacing="10" VerticalAlignment="Center">
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="Auto" />
-                                            <ColumnDefinition Width="*" />
-                                        </Grid.ColumnDefinitions>
-                                        <TextBlock Text="Engine status" Opacity="0.72" VerticalAlignment="Center" />
-                                        <TextBlock Grid.Column="1" x:Name="EngineStatusTextBlock" Text="Stopped" Opacity="0.9" FontWeight="SemiBold" VerticalAlignment="Center" />
-                                    </Grid>
-                                    <TextBlock Text="The engine starts automatically when VoiSee opens. Use these buttons only for manual troubleshooting." Opacity="0.7" TextWrapping="Wrap" />
-                                    <StackPanel Orientation="Horizontal" Spacing="10">
-                                        <Button Style="{ThemeResource VoiSee.Style.Button.SettingsAction}" x:Name="StartEngineButton" Content="Start Engine" MinWidth="154" Height="42" Padding="18,8" Click="OnStartEngineClick" />
-                                        <Button Style="{ThemeResource VoiSee.Style.Button.SettingsAction}" x:Name="StopEngineButton" Content="Stop Engine" MinWidth="154" Height="42" Padding="18,8" Click="OnStopEngineClick" />
+                                <Border Style="{ThemeResource VoiSee.Style.Panel.SettingsCard}">
+                                    <StackPanel Spacing="8">
+                                        <TextBlock Text="Startup" FontSize="18" FontWeight="SemiBold" />
+                                        <CheckBox Style="{ThemeResource VoiSee.Style.CheckBox}"
+                                                  x:Name="StartWithWindowsCheckBox"
+                                                  Content="Start VoiSee with Windows"
+                                                  Checked="OnStartWithWindowsChanged"
+                                                  Unchecked="OnStartWithWindowsChanged" />
+                                        <TextBlock Text="VoiSee starts in the notification area and keeps audio hotkeys available."
+                                                   Opacity="0.7"
+                                                   TextWrapping="WrapWholeWords" />
                                     </StackPanel>
+                                </Border>
+
+                                <Border Style="{ThemeResource VoiSee.Style.Panel.SettingsCard}">
+                                    <StackPanel Spacing="8">
+                                        <TextBlock Text="Advanced Settings" FontSize="18" FontWeight="SemiBold" />
+                                        <TextBlock Text="Open manual engine controls and the full application log in one troubleshooting window."
+                                                   Opacity="0.7"
+                                                   TextWrapping="WrapWholeWords" />
+                                        <Button Style="{ThemeResource VoiSee.Style.Button.SettingsAction}"
+                                                Content="Open Advanced Settings"
+                                                HorizontalAlignment="Left"
+                                                Padding="16,8"
+                                                MinHeight="36"
+                                                Click="OnOpenAdvancedSettingsClick" />
+                                    </StackPanel>
+                                </Border>
+
+                                <!-- These named controls remain hidden because the established engine state code updates them. -->
+                                <StackPanel Visibility="Collapsed">
+                                    <TextBlock x:Name="EngineStatusTextBlock" Text="Stopped" />
+                                    <Button x:Name="StartEngineButton" Content="Start Engine" Click="OnStartEngineClick" />
+                                    <Button x:Name="StopEngineButton" Content="Stop Engine" Click="OnStopEngineClick" />
                                 </StackPanel>
                             </StackPanel>
 
-                            <Border Style="{ThemeResource VoiSee.Style.Panel.SettingsCard}" x:Name="SettingsThemesPanel" Grid.Column="1" VerticalAlignment="Top">
+                            <Border Style="{ThemeResource VoiSee.Style.Panel.SettingsCard}"
+                                    x:Name="SettingsThemesPanel"
+                                    Grid.Column="1"
+                                    Grid.Row="0"
+                                    VerticalAlignment="Top">
                                 <StackPanel Spacing="12">
-                                    <TextBlock Text="Appearance / Themes" FontSize="18" FontWeight="SemiBold" />
-                                    <TextBlock Text="Create a .voiseetheme.xaml file, edit it as a native WinUI ResourceDictionary, and save it. VoiSee validates and applies the dictionary automatically. If the XAML is invalid, the last working theme stays active." TextWrapping="WrapWholeWords" Opacity="0.72" />
+                                    <TextBlock Text="Themes" FontSize="22" FontWeight="SemiBold" />
+                                    <TextBlock Text="VoiSee themes are native WinUI ResourceDictionary files with the .voiseetheme.xaml extension. Save a valid dictionary and live reload applies it automatically; invalid XAML leaves the last working theme active."
+                                               TextWrapping="WrapWholeWords"
+                                               Opacity="0.72" />
+
+                                    <StackPanel Spacing="5">
+                                        <TextBlock Text="Themes folder" Opacity="0.72" />
+                                        <TextBlock x:Name="ThemeFolderPathTextBlock"
+                                                   Text="%LOCALAPPDATA%\VoiSe\themes"
+                                                   FontFamily="Consolas"
+                                                   FontSize="12"
+                                                   TextWrapping="WrapWholeWords"
+                                                   IsTextSelectionEnabled="True" />
+                                    </StackPanel>
+
                                     <StackPanel Spacing="6">
                                         <TextBlock Text="Current theme" Opacity="0.72" />
-                                        <ComboBox Style="{ThemeResource VoiSee.Style.ComboBox}" x:Name="ThemeComboBox" HorizontalAlignment="Stretch" SelectionChanged="OnThemeSelectionChanged" DropDownOpened="OnThemeComboBoxDropDownOpened" />
+                                        <ComboBox Style="{ThemeResource VoiSee.Style.ComboBox}"
+                                                  x:Name="ThemeComboBox"
+                                                  HorizontalAlignment="Stretch"
+                                                  SelectionChanged="OnThemeSelectionChanged"
+                                                  DropDownOpened="OnThemeComboBoxDropDownOpened" />
                                     </StackPanel>
-                                    <StackPanel Orientation="Horizontal" Spacing="10">
-                                        <Button Style="{ThemeResource VoiSee.Style.Button.ThemeAction}" Content="Create New Theme" Padding="14,6" MinHeight="32" Click="OnCreateNewThemeClick" />
-                                        <Button Style="{ThemeResource VoiSee.Style.Button.ThemeAction}" x:Name="OpenThemeFileButton" Content="Open Theme File" Padding="14,6" MinHeight="32" IsEnabled="False" Click="OnOpenThemeFileClick" />
-                                    </StackPanel>
-                                    <StackPanel Orientation="Horizontal" Spacing="10">
-                                        <Button Style="{ThemeResource VoiSee.Style.Button.ThemeAction}" Content="Open Theme Folder" Padding="14,6" MinHeight="32" Click="OnOpenThemeFolderClick" />
-                                        <Button Style="{ThemeResource VoiSee.Style.Button.ThemeAction}" x:Name="RenameThemeButton" Content="Rename Theme" Padding="14,6" MinHeight="32" IsEnabled="False" Click="OnRenameThemeClick" />
-                                        <Button Style="{ThemeResource VoiSee.Style.Button.ThemeAction}" x:Name="DeleteThemeButton" Content="Delete Theme" Padding="14,6" MinHeight="32" IsEnabled="False" Click="OnDeleteThemeClick" />
-                                    </StackPanel>
-                                    <TextBlock Style="{ThemeResource VoiSee.Style.Text.Secondary}" x:Name="ThemeStatusTextBlock" Text="Theme: Default Dark" TextWrapping="WrapWholeWords" Opacity="0.72" />
-                                    <TextBlock Text="A newly created theme is an exact editable copy of Default Dark. It contains complete normal, hover, pressed, selected, focused and disabled settings for buttons, sliders, inputs and lists, plus VoiSee panels and geometry. Keep x:Key names unchanged; live reload shows the result." TextWrapping="WrapWholeWords" Opacity="0.62" />
+
+                                    <Button Style="{ThemeResource VoiSee.Style.Button.ThemeAction}"
+                                            Content="Create New Theme"
+                                            HorizontalAlignment="Stretch"
+                                            Padding="14,6"
+                                            MinHeight="32"
+                                            Click="OnCreateNewThemeClick" />
+                                    <Button Style="{ThemeResource VoiSee.Style.Button.ThemeAction}"
+                                            x:Name="OpenThemeFileButton"
+                                            Content="Open Theme File"
+                                            HorizontalAlignment="Stretch"
+                                            Padding="14,6"
+                                            MinHeight="32"
+                                            IsEnabled="False"
+                                            Click="OnOpenThemeFileClick" />
+                                    <Button Style="{ThemeResource VoiSee.Style.Button.ThemeAction}"
+                                            Content="Open Theme Folder"
+                                            HorizontalAlignment="Stretch"
+                                            Padding="14,6"
+                                            MinHeight="32"
+                                            Click="OnOpenThemeFolderClick" />
+                                    <Button Style="{ThemeResource VoiSee.Style.Button.ThemeAction}"
+                                            Content="Open Theme Template"
+                                            HorizontalAlignment="Stretch"
+                                            Padding="14,6"
+                                            MinHeight="32"
+                                            Click="OnOpenThemeTemplateClick" />
+                                    <Button Style="{ThemeResource VoiSee.Style.Button.ThemeAction}"
+                                            x:Name="RenameThemeButton"
+                                            Content="Rename Theme"
+                                            HorizontalAlignment="Stretch"
+                                            Padding="14,6"
+                                            MinHeight="32"
+                                            IsEnabled="False"
+                                            Click="OnRenameThemeClick" />
+                                    <Button Style="{ThemeResource VoiSee.Style.Button.ThemeAction}"
+                                            x:Name="DeleteThemeButton"
+                                            Content="Delete Theme"
+                                            HorizontalAlignment="Stretch"
+                                            Padding="14,6"
+                                            MinHeight="32"
+                                            IsEnabled="False"
+                                            Click="OnDeleteThemeClick" />
+
+                                    <TextBlock Style="{ThemeResource VoiSee.Style.Text.Secondary}"
+                                               x:Name="ThemeStatusTextBlock"
+                                               Text="Theme: Default Dark"
+                                               TextWrapping="WrapWholeWords"
+                                               Opacity="0.72" />
+                                    <TextBlock Text="A new theme is an exact editable copy of Default Dark. Keep x:Key names unchanged. Colors, brushes, control states, panel geometry and gradients may be edited directly in XAML."
+                                               TextWrapping="WrapWholeWords"
+                                               Opacity="0.62" />
                                 </StackPanel>
                             </Border>
 
-                            <Border Style="{ThemeResource VoiSee.Style.Panel.SettingsCard}" x:Name="AboutMePanel" Grid.Column="2" VerticalAlignment="Top">
+                            <Border Style="{ThemeResource VoiSee.Style.Panel.SettingsCard}"
+                                    x:Name="AboutMePanel"
+                                    Grid.Column="2"
+                                    Grid.Row="0"
+                                    VerticalAlignment="Top">
                                 <StackPanel Spacing="14">
-                                    <TextBlock Text="About me" FontSize="18" FontWeight="SemiBold" />
+                                    <TextBlock Text="About me" FontSize="22" FontWeight="SemiBold" />
                                     <TextBlock Text="Links" Opacity="0.72" />
 
                                     <StackPanel Spacing="8">
                                         <TextBlock Text="Telegram" FontWeight="SemiBold" />
-                                        <HyperlinkButton Content="t.me/VoriXq" NavigateUri="https://t.me/VoriXq" HorizontalAlignment="Left" />
+                                        <HyperlinkButton Content="t.me/VoriXdev"
+                                                         NavigateUri="https://t.me/VoriXdev"
+                                                         HorizontalAlignment="Left" />
                                     </StackPanel>
 
                                     <StackPanel Spacing="8">
                                         <TextBlock Text="GitHub" FontWeight="SemiBold" />
-                                        <HyperlinkButton Content="github.com/VoriX0/VoiSe" NavigateUri="https://github.com/VoriX0/VoiSe" HorizontalAlignment="Left" />
+                                        <HyperlinkButton Content="github.com/VoriX0/VoiSe"
+                                                         NavigateUri="https://github.com/VoriX0/VoiSe"
+                                                         HorizontalAlignment="Left" />
                                     </StackPanel>
 
                                     <StackPanel Spacing="8">
                                         <TextBlock Text="CloudTips" FontWeight="SemiBold" />
-                                        <HyperlinkButton Content="pay.cloudtips.ru/p/00d81ea7" NavigateUri="https://pay.cloudtips.ru/p/00d81ea7" HorizontalAlignment="Left" />
+                                        <HyperlinkButton Content="pay.cloudtips.ru/p/00d81ea7"
+                                                         NavigateUri="https://pay.cloudtips.ru/p/00d81ea7"
+                                                         HorizontalAlignment="Left" />
                                     </StackPanel>
                                 </StackPanel>
                             </Border>
                         </Grid>
                     </ScrollViewer>
                 </TabViewItem>
+
                 </TabView>
             </Border>
 

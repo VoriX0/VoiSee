@@ -1,4 +1,4 @@
-﻿using Microsoft.UI.Windowing;
+using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Controls.Primitives;
@@ -130,6 +130,10 @@ public sealed partial class MainWindow : Window
     private double _activeModalWheelZoneLeftExtensionRatio;
     private double _activeModalWheelZoneRightExtensionRatio;
     private double _activeModalWheelZoneHorizontalShiftRatio;
+    private TextBlock? _advancedEngineStatusTextBlock;
+    private TextBlock? _advancedRouteStatusTextBlock;
+    private TextBlock? _advancedLogTextBlock;
+    private ScrollViewer? _advancedLogScrollViewer;
 
     public MainWindow()
     {
@@ -142,6 +146,10 @@ public sealed partial class MainWindow : Window
         _library = _libraryStore.Load();
         InitializeComponent();
 
+        if (ThemeFolderPathTextBlock is not null)
+        {
+            ThemeFolderPathTextBlock.Text = _themeManager.ThemesDirectory;
+        }
 
         _windowHandle = WindowNative.GetWindowHandle(this);
         ConfigureTitleBar();
@@ -180,7 +188,7 @@ public sealed partial class MainWindow : Window
         _timelineTimer.Tick += OnTimelineTimerTick;
         _timelineTimer.Start();
 
-        AppendLog("VoiSee Version 10.3.0 UI started.");
+        AppendLog("VoiSee Version 10.4.0 UI started.");
         AppendLog($"Settings path: {_settingsStore.SettingsPath}");
         StartupLog.Write("MainWindow initialized; waiting for first activation.");
     }
@@ -578,6 +586,32 @@ public sealed partial class MainWindow : Window
         }
     }
 
+    private async void OnOpenThemeTemplateClick(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            var templatePath = Path.Combine(AppContext.BaseDirectory, "Themes", "UserThemeTemplate.voiseetheme.template");
+            if (!File.Exists(templatePath))
+            {
+                await ShowMessageDialogAsync("Theme template", "The bundled theme template was not found.");
+                return;
+            }
+
+            Process.Start(new ProcessStartInfo
+            {
+                FileName = "notepad.exe",
+                Arguments = $"\"{templatePath}\"",
+                UseShellExecute = true
+            });
+            AppendLog($"Theme template opened: {templatePath}");
+        }
+        catch (Exception ex)
+        {
+            AppendLog($"Open theme template error: {ex.Message}");
+            await ShowMessageDialogAsync("Theme template", ex.Message);
+        }
+    }
+
     private async void OnRenameThemeClick(object sender, RoutedEventArgs e)
     {
         try
@@ -968,7 +1002,7 @@ public sealed partial class MainWindow : Window
         if (VBCableStatusTextBlock is not null)
         {
             VBCableStatusTextBlock.Text = hasCable
-                ? "VB-CABLE is detected. Everything is working normally."
+                ? "VB-CABLE is working normally"
                 : "VB-CABLE is not installed.";
         }
 
@@ -998,6 +1032,8 @@ public sealed partial class MainWindow : Window
         {
             EngineStatusTextBlock.Text = "Stopped";
         }
+
+        RefreshAdvancedSettingsStatus();
     }
 
     private void OnInstallVBCableClick(object sender, RoutedEventArgs e)
@@ -1191,6 +1227,52 @@ public sealed partial class MainWindow : Window
     private void OnMainTabSelectionChanged(object sender, SelectionChangedEventArgs e)
     {
         UpdateSoundInputOverlayBounds();
+    }
+
+    private void OnSettingsTabRootSizeChanged(object sender, SizeChangedEventArgs e)
+    {
+        if (SettingsSystemColumn is null || SettingsThemesColumn is null || SettingsAboutColumn is null ||
+            MainSettings is null || SettingsThemesPanel is null || AboutMePanel is null || SettingsTabRoot is null)
+        {
+            return;
+        }
+
+        var useThreeColumns = e.NewSize.Width >= 1040;
+        SettingsTabRoot.ColumnSpacing = useThreeColumns ? 20 : 0;
+        SettingsTabRoot.RowSpacing = useThreeColumns ? 0 : 20;
+
+        if (useThreeColumns)
+        {
+            SettingsSystemColumn.MinWidth = 360;
+            SettingsThemesColumn.MinWidth = 320;
+            SettingsAboutColumn.MinWidth = 260;
+            SettingsSystemColumn.Width = new GridLength(5, GridUnitType.Star);
+            SettingsThemesColumn.Width = new GridLength(4, GridUnitType.Star);
+            SettingsAboutColumn.Width = new GridLength(3, GridUnitType.Star);
+
+            Grid.SetColumn(MainSettings, 0);
+            Grid.SetRow(MainSettings, 0);
+            Grid.SetColumn(SettingsThemesPanel, 1);
+            Grid.SetRow(SettingsThemesPanel, 0);
+            Grid.SetColumn(AboutMePanel, 2);
+            Grid.SetRow(AboutMePanel, 0);
+        }
+        else
+        {
+            SettingsSystemColumn.MinWidth = 0;
+            SettingsThemesColumn.MinWidth = 0;
+            SettingsAboutColumn.MinWidth = 0;
+            SettingsSystemColumn.Width = new GridLength(1, GridUnitType.Star);
+            SettingsThemesColumn.Width = new GridLength(0);
+            SettingsAboutColumn.Width = new GridLength(0);
+
+            Grid.SetColumn(MainSettings, 0);
+            Grid.SetRow(MainSettings, 0);
+            Grid.SetColumn(SettingsThemesPanel, 0);
+            Grid.SetRow(SettingsThemesPanel, 1);
+            Grid.SetColumn(AboutMePanel, 0);
+            Grid.SetRow(AboutMePanel, 2);
+        }
     }
 
     private void InstallSoundBoardWheelHook()
@@ -1538,6 +1620,389 @@ public sealed partial class MainWindow : Window
         target = Math.Max(0, Math.Min(scrollViewer.ScrollableHeight, target));
         scrollViewer.ChangeView(null, target, null, disableAnimation: false);
         return true;
+    }
+
+    private async void OnOpenAdvancedSettingsClick(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            var engineHeading = new TextBlock
+            {
+                Text = "Engine Manual Control",
+                FontSize = 20,
+                FontWeight = Microsoft.UI.Text.FontWeights.SemiBold
+            };
+
+            _advancedEngineStatusTextBlock = new TextBlock
+            {
+                FontSize = 15,
+                FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
+                TextWrapping = TextWrapping.WrapWholeWords
+            };
+
+            _advancedRouteStatusTextBlock = new TextBlock
+            {
+                Opacity = 0.76,
+                TextWrapping = TextWrapping.WrapWholeWords,
+                FontFamily = new FontFamily("Consolas"),
+                FontSize = 12
+            };
+
+            var startButton = new Button
+            {
+                Content = "Start Engine",
+                MinWidth = 132,
+                Padding = new Thickness(14, 7, 14, 7)
+            };
+            startButton.Click += (_, _) =>
+            {
+                _manualStopRequested = false;
+                StartEngine(logAlreadyRunning: true);
+                RefreshAdvancedSettingsStatus();
+            };
+
+            var stopButton = new Button
+            {
+                Content = "Stop Engine",
+                MinWidth = 132,
+                Padding = new Thickness(14, 7, 14, 7)
+            };
+            stopButton.Click += (_, _) =>
+            {
+                _manualStopRequested = true;
+                StopEngine(log: true);
+                RefreshAdvancedSettingsStatus();
+            };
+
+            var restartButton = new Button
+            {
+                Content = "Restart Engine",
+                MinWidth = 132,
+                Padding = new Thickness(14, 7, 14, 7)
+            };
+            restartButton.Click += (_, _) =>
+            {
+                _manualStopRequested = false;
+                StopEngine(log: false);
+                var started = StartEngine(logAlreadyRunning: false);
+                AppendLog(started ? "Engine restarted manually." : "Manual engine restart failed.");
+                RefreshAdvancedSettingsStatus();
+            };
+
+            var engineButtons = new StackPanel
+            {
+                Orientation = Orientation.Vertical,
+                Spacing = 8
+            };
+            engineButtons.Children.Add(startButton);
+            engineButtons.Children.Add(stopButton);
+            engineButtons.Children.Add(restartButton);
+
+            var refreshDevicesButton = new Button
+            {
+                Content = "Refresh Devices",
+                HorizontalAlignment = HorizontalAlignment.Left,
+                Padding = new Thickness(14, 7, 14, 7)
+            };
+            refreshDevicesButton.Click += (_, _) =>
+            {
+                try
+                {
+                    RefreshDevices();
+                    RefreshAdvancedSettingsStatus();
+                }
+                catch (Exception ex)
+                {
+                    AppendLog($"Advanced device refresh error: {ex.Message}");
+                }
+            };
+
+            var enginePanel = new StackPanel
+            {
+                Spacing = 12,
+                Padding = new Thickness(4, 2, 18, 4)
+            };
+            enginePanel.Children.Add(engineHeading);
+            enginePanel.Children.Add(new TextBlock
+            {
+                Text = "Use these controls only for diagnostics. Normal VoiSee operation starts and restarts the engine automatically.",
+                Opacity = 0.7,
+                TextWrapping = TextWrapping.WrapWholeWords
+            });
+            enginePanel.Children.Add(_advancedEngineStatusTextBlock);
+            enginePanel.Children.Add(engineButtons);
+            enginePanel.Children.Add(refreshDevicesButton);
+            enginePanel.Children.Add(new TextBlock
+            {
+                Text = "Current routes",
+                FontSize = 16,
+                FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
+                Margin = new Thickness(0, 8, 0, 0)
+            });
+            enginePanel.Children.Add(_advancedRouteStatusTextBlock);
+
+            var engineScrollViewer = new ScrollViewer
+            {
+                Content = enginePanel,
+                VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
+                VerticalScrollMode = ScrollMode.Enabled,
+                HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled,
+                HorizontalScrollMode = ScrollMode.Disabled,
+                ZoomMode = ZoomMode.Disabled
+            };
+
+            var logHeading = new TextBlock
+            {
+                Text = "Logs",
+                FontSize = 20,
+                FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
+                VerticalAlignment = VerticalAlignment.Center
+            };
+
+            var clearButton = new Button
+            {
+                Content = "Clear",
+                Padding = new Thickness(12, 6, 12, 6)
+            };
+            clearButton.Click += (_, _) =>
+            {
+                _logBuffer.Clear();
+                RefreshAdvancedLogViewer(scrollToEnd: false);
+            };
+
+            var copyButton = new Button
+            {
+                Content = "Copy",
+                Padding = new Thickness(12, 6, 12, 6)
+            };
+            copyButton.Click += (_, _) =>
+            {
+                try
+                {
+                    var dataPackage = new DataPackage
+                    {
+                        RequestedOperation = DataPackageOperation.Copy
+                    };
+                    dataPackage.SetText(GetApplicationLogText());
+                    Clipboard.SetContent(dataPackage);
+                    Clipboard.Flush();
+                }
+                catch (Exception ex)
+                {
+                    AppendLog($"Copy log error: {ex.Message}");
+                }
+            };
+
+            var exportButton = new Button
+            {
+                Content = "Export",
+                Padding = new Thickness(12, 6, 12, 6)
+            };
+            exportButton.Click += async (_, _) => await ExportApplicationLogAsync();
+
+            var logToolbar = new Grid
+            {
+                ColumnSpacing = 10
+            };
+            logToolbar.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            logToolbar.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            logToolbar.Children.Add(logHeading);
+
+            var logButtons = new StackPanel
+            {
+                Orientation = Orientation.Horizontal,
+                Spacing = 8
+            };
+            logButtons.Children.Add(clearButton);
+            logButtons.Children.Add(copyButton);
+            logButtons.Children.Add(exportButton);
+            Grid.SetColumn(logButtons, 1);
+            logToolbar.Children.Add(logButtons);
+
+            _advancedLogTextBlock = new TextBlock
+            {
+                Text = GetApplicationLogText(),
+                TextWrapping = TextWrapping.Wrap,
+                FontFamily = new FontFamily("Consolas"),
+                FontSize = 12,
+                IsTextSelectionEnabled = true
+            };
+
+            _advancedLogScrollViewer = new ScrollViewer
+            {
+                Content = _advancedLogTextBlock,
+                VerticalScrollBarVisibility = ScrollBarVisibility.Visible,
+                VerticalScrollMode = ScrollMode.Enabled,
+                HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled,
+                HorizontalScrollMode = ScrollMode.Disabled,
+                ZoomMode = ZoomMode.Disabled,
+                Padding = new Thickness(2, 4, 8, 4)
+            };
+
+            var logPanel = new Grid
+            {
+                RowSpacing = 10,
+                Padding = new Thickness(18, 2, 2, 4)
+            };
+            logPanel.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+            logPanel.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
+            logPanel.Children.Add(logToolbar);
+            Grid.SetRow(_advancedLogScrollViewer, 1);
+            logPanel.Children.Add(_advancedLogScrollViewer);
+
+            var divider = new Border
+            {
+                Width = 1,
+                Opacity = 0.35,
+                HorizontalAlignment = HorizontalAlignment.Center,
+                Background = new SolidColorBrush(Microsoft.UI.ColorHelper.FromArgb(0x66, 0xFF, 0xFF, 0xFF))
+            };
+
+            var contentWidth = RootGrid is null || RootGrid.ActualWidth <= 0
+                ? 1040
+                : Math.Clamp(RootGrid.ActualWidth * 0.88, 720, 1120);
+            var contentHeight = RootGrid is null || RootGrid.ActualHeight <= 0
+                ? 600
+                : Math.Clamp(RootGrid.ActualHeight * 0.76, 460, 680);
+
+            var root = new Grid
+            {
+                Width = contentWidth,
+                Height = contentHeight,
+                ColumnSpacing = 0
+            };
+            root.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(0.95, GridUnitType.Star) });
+            root.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1) });
+            root.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.35, GridUnitType.Star) });
+            root.Children.Add(engineScrollViewer);
+            Grid.SetColumn(divider, 1);
+            root.Children.Add(divider);
+            Grid.SetColumn(logPanel, 2);
+            root.Children.Add(logPanel);
+
+            RefreshAdvancedSettingsStatus();
+
+            var dialog = new ContentDialog
+            {
+                Title = "Advanced Settings",
+                Content = root,
+                CloseButtonText = "Close",
+                DefaultButton = ContentDialogButton.Close,
+                XamlRoot = ((FrameworkElement)Content).XamlRoot
+            };
+            dialog.Resources["ContentDialogMaxWidth"] = 1200d;
+
+            _suppressMainTabWheelRouting = true;
+            _activeIconPickerScrollViewer = _advancedLogScrollViewer;
+            _activeIconPickerWheelZoneElement = root;
+            _activeModalWheelZoneLeftExtensionRatio = 0.0;
+            _activeModalWheelZoneRightExtensionRatio = 0.0;
+            _activeModalWheelZoneHorizontalShiftRatio = 0.0;
+
+            _advancedLogScrollViewer.Loaded += (_, _) => DispatcherQueue.TryEnqueue(() =>
+                _advancedLogScrollViewer?.ChangeView(null, _advancedLogScrollViewer.ScrollableHeight, null, disableAnimation: true));
+
+            try
+            {
+                await dialog.ShowAsync();
+            }
+            finally
+            {
+                _advancedEngineStatusTextBlock = null;
+                _advancedRouteStatusTextBlock = null;
+                _advancedLogTextBlock = null;
+                _advancedLogScrollViewer = null;
+                _activeIconPickerScrollViewer = null;
+                _activeIconPickerWheelZoneElement = null;
+                _activeModalWheelZoneLeftExtensionRatio = 0.0;
+                _activeModalWheelZoneRightExtensionRatio = 0.0;
+                _activeModalWheelZoneHorizontalShiftRatio = 0.0;
+                _suppressMainTabWheelRouting = false;
+            }
+        }
+        catch (Exception ex)
+        {
+            AppendLog($"Open advanced settings error: {ex.Message}");
+            await ShowMessageDialogAsync("Advanced Settings", ex.Message);
+        }
+    }
+
+    private void RefreshAdvancedSettingsStatus()
+    {
+        if (_advancedEngineStatusTextBlock is not null)
+        {
+            _advancedEngineStatusTextBlock.Text = _engine is not null
+                ? "Engine status: Running"
+                : IsVBCableReady()
+                    ? "Engine status: Stopped"
+                    : "Engine status: VB-CABLE required";
+        }
+
+        if (_advancedRouteStatusTextBlock is not null)
+        {
+            var input = (InputDeviceComboBox?.SelectedItem as AudioDeviceInfo)?.FriendlyName ?? "Not selected";
+            var virtualOutput = (VirtualOutputComboBox?.SelectedItem as AudioDeviceInfo)?.FriendlyName ?? "Not selected";
+            var monitor = (MonitorOutputComboBox?.SelectedItem as AudioDeviceInfo)?.FriendlyName ?? "Disabled";
+            var routeState = _engine is not null
+                ? "Active"
+                : IsVBCableReady() && InputDeviceComboBox?.SelectedItem is AudioDeviceInfo
+                    ? "Ready"
+                    : "Incomplete";
+
+            _advancedRouteStatusTextBlock.Text =
+                $"Input Device: {input}\n" +
+                $"Virtual Output: {virtualOutput}\n" +
+                $"Monitor Device: {monitor}\n" +
+                $"Route state: {routeState}\n" +
+                $"Virtual Mic: {(_virtualMicMuted ? "Muted" : "Live")}";
+        }
+    }
+
+    private string GetApplicationLogText()
+    {
+        return _logBuffer.Length == 0 ? "No log entries yet." : _logBuffer.ToString();
+    }
+
+    private void RefreshAdvancedLogViewer(bool scrollToEnd)
+    {
+        if (_advancedLogTextBlock is null)
+        {
+            return;
+        }
+
+        _advancedLogTextBlock.Text = GetApplicationLogText();
+        if (scrollToEnd && _advancedLogScrollViewer is not null)
+        {
+            DispatcherQueue.TryEnqueue(() =>
+                _advancedLogScrollViewer?.ChangeView(null, _advancedLogScrollViewer.ScrollableHeight, null, disableAnimation: true));
+        }
+    }
+
+    private async Task ExportApplicationLogAsync()
+    {
+        try
+        {
+            var picker = new FileSavePicker
+            {
+                SuggestedStartLocation = PickerLocationId.DocumentsLibrary,
+                SuggestedFileName = $"VoiSee-log-{DateTime.Now:yyyyMMdd-HHmmss}"
+            };
+            picker.FileTypeChoices.Add("Text file", new List<string> { ".txt" });
+            InitializeWithWindow.Initialize(picker, WindowNative.GetWindowHandle(this));
+            var file = await picker.PickSaveFileAsync();
+            if (file is null)
+            {
+                return;
+            }
+
+            await File.WriteAllTextAsync(file.Path, GetApplicationLogText(), Encoding.UTF8);
+            AppendLog($"Application log exported: {file.Path}");
+        }
+        catch (Exception ex)
+        {
+            AppendLog($"Export log error: {ex.Message}");
+            await ShowMessageDialogAsync("Export log", ex.Message);
+        }
     }
 
     private async void OnOpenLogFullscreenClick(object sender, RoutedEventArgs e)
@@ -5410,6 +5875,7 @@ public sealed partial class MainWindow : Window
             AppendLog($"Virtual output: {virtualOutput.FriendlyName}");
             AppendLog($"Monitor: {(monitor is null ? "disabled" : monitor.FriendlyName)}");
             WarmSoundCacheInBackground();
+            RefreshAdvancedSettingsStatus();
             return true;
         }
         catch (Exception ex)
@@ -5418,6 +5884,7 @@ public sealed partial class MainWindow : Window
             _engine = null;
             EngineStatusTextBlock.Text = "Error";
             AppendLog($"Engine start error: {ex.Message}");
+            RefreshAdvancedSettingsStatus();
             return false;
         }
     }
@@ -5440,6 +5907,7 @@ public sealed partial class MainWindow : Window
             _engine = null;
             EngineStatusTextBlock.Text = "Stopped";
             UpdateVBCableUiState();
+            RefreshAdvancedSettingsStatus();
         }
     }
 
@@ -5536,6 +6004,7 @@ public sealed partial class MainWindow : Window
         _routeRestartTimer.Stop();
         _routeRestartTimer.Start();
         EngineStatusTextBlock.Text = "Restart pending";
+        RefreshAdvancedSettingsStatus();
     }
 
     private void ApplyLiveSettings(string reason)
@@ -8861,7 +9330,7 @@ public sealed partial class MainWindow : Window
     private void UpdateDelayLabel()
     {
         if (DelayLabel is null || SoundVirtualDelaySlider is null) return;
-        DelayLabel.Text = $"SoundBoard Virtual Mic Delay: {(int)Math.Round(SoundVirtualDelaySlider.Value)} ms";
+        DelayLabel.Text = $"SoundBoard Delay: {(int)Math.Round(SoundVirtualDelaySlider.Value)} ms";
     }
 
     private void UpdateSoundVolumeLabels()
@@ -9058,6 +9527,10 @@ public sealed partial class MainWindow : Window
         }
 
         _logBuffer.Append(line);
+        if (_advancedLogTextBlock is not null)
+        {
+            DispatcherQueue.TryEnqueue(() => RefreshAdvancedLogViewer(scrollToEnd: true));
+        }
     }
     private readonly record struct VoicePresetIconChoice(string Name, string Icon, bool UseMdl2);
 

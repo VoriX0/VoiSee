@@ -1,4 +1,4 @@
-﻿# VoiSee 10.3.0
+# VoiSee 10.4.0
 
 VoiSee is a WinUI 3 application for real-time voice processing, SoundBoard playback into a virtual microphone, scenes, presets, global hotkeys, themes, and non-destructive sound editing.
 
@@ -37,17 +37,29 @@ covering approximately 75% of the VoiSee window.
 
 ## Windows integration (VoiSee 10.3)
 
-> Buildfix 1 corrects the custom WinUI `Application.Start` callback in `Program.cs` for Windows App SDK 1.6 and removes an unused theme field.
-
 - Closing the main window hides VoiSee in the notification area without stopping
   the audio engine, active scenes, looped sounds, or global hotkeys.
-- The tray menu contains `Open VoiSee` and `Exit VoiSee`; double-clicking the tray
-  icon restores the existing window.
+- The tray menu contains `Open VoiSee` and `Exit VoiSee`; a single left click on
+  the tray icon restores the existing window.
 - Only one process may own the audio engine. A second launch signals the existing
   instance and exits.
 - `Start VoiSee with Windows` creates a per-user startup entry and launches
   `VoiSe.App.exe --background` hidden in the notification area.
 - `Exit VoiSee` performs the real cleanup and process shutdown.
+
+
+## Settings redesign (VoiSee 10.4)
+
+- The first column is now a focused `System & Audio` area with VB-CABLE status,
+  audio devices, SoundBoard delay, hotkeys, autostart, and one Advanced Settings button.
+- Manual engine controls and logs moved out of the main page into a wide centered
+  Advanced Settings dialog with separate scrolling areas.
+- The log viewer supports Clear, Copy, Export, and automatic scrolling.
+- The Themes column documents native `.voiseetheme.xaml` ResourceDictionary files,
+  shows the actual themes folder, and can open the bundled template.
+- The About column now links Telegram to `https://t.me/VoriXdev`.
+- Settings keeps three columns on wide windows and stacks them vertically when space
+  is limited, preventing horizontal clipping.
 
 ## Build
 
@@ -59,13 +71,13 @@ Set-ExecutionPolicy -Scope Process Bypass
 Expected installer:
 
 ```text
-artifacts\installer\VoiSee-Setup-10.3.0-x64.exe
+artifacts\installer\VoiSee-Setup-10.4.0-x64.exe
 ```
 
 Portable build:
 
 ```text
-artifacts\installer\VoiSee-Portable-10.3.0-x64.zip
+artifacts\installer\VoiSee-Portable-10.4.0-x64.zip
 ```
 
 ## Native XAML themes (VoiSee 10.1)
