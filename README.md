@@ -1,10 +1,17 @@
-# VoiSee 10.4.1
+# VoiSee 10.5.0
 
 VoiSee is a WinUI 3 application for real-time voice processing, SoundBoard playback into a virtual microphone, scenes, presets, global hotkeys, themes, and non-destructive sound editing.
 
+## VoiSee 10.5.0 interim release
+
+This is the stable project checkpoint before the separate Yandex Music integration work.
+The SoundBoard list toolbar now contains only `Add Track` and `Delete Track`; sound
+editing remains available from the track context menu. No Yandex Music code or
+dependencies are included in this checkpoint.
+
 ## Sound Editor highlights
 
-- Centered timeline editor opened from `Edit Track` or the sound context menu.
+- Centered timeline editor opened from the SoundBoard track context menu.
 - Drag directly across the waveform to select a fragment.
 - `Trim Outside` keeps the selection and removes everything outside it.
 - `Cut Selection` removes the selected fragment and joins the remaining audio.
@@ -72,13 +79,13 @@ Set-ExecutionPolicy -Scope Process Bypass
 Expected installer:
 
 ```text
-artifacts\installer\VoiSee-Setup-10.4.1-x64.exe
+artifacts\installer\VoiSee-Setup-10.5.0-x64.exe
 ```
 
 Portable build:
 
 ```text
-artifacts\installer\VoiSee-Portable-10.4.1-x64.zip
+artifacts\installer\VoiSee-Portable-10.5.0-x64.zip
 ```
 
 ## Native XAML themes (VoiSee 10.1)

@@ -188,7 +188,7 @@ public sealed partial class MainWindow : Window
         _timelineTimer.Tick += OnTimelineTimerTick;
         _timelineTimer.Start();
 
-        AppendLog("VoiSee Version 10.4.1 UI started.");
+        AppendLog("VoiSee Version 10.5.0 UI started.");
         AppendLog($"Settings path: {_settingsStore.SettingsPath}");
         StartupLog.Write("MainWindow initialized; waiting for first activation.");
     }
@@ -4226,12 +4226,6 @@ public sealed partial class MainWindow : Window
         _settings.LastSoundCategoryId = category.Id;
         RefreshSoundList();
         SelectSound(sound);
-    }
-
-
-    private async void OnEditSoundClick(object sender, RoutedEventArgs e)
-    {
-        await ShowSoundEditorDialogAsync();
     }
 
     private async void OnSoundContextEditClick(object sender, RoutedEventArgs e)

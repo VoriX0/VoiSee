@@ -6,7 +6,7 @@ param(
 
 $ErrorActionPreference = "Stop"
 
-$Version = "10.4.1"
+$Version = "10.5.0"
 $Root = Resolve-Path (Join-Path $PSScriptRoot "..")
 $PublishDir = Join-Path $Root "artifacts\publish\VoiSe"
 $InstallerDir = Join-Path $Root "artifacts\installer"
@@ -158,8 +158,8 @@ dotnet publish $Project `
     -p:PublishSingleFile=false `
     -p:EnableCompressionInSingleFile=false `
     -p:Version=$Version `
-    -p:AssemblyVersion=10.4.1.0 `
-    -p:FileVersion=10.4.1.0 `
+    -p:AssemblyVersion=10.5.0.0 `
+    -p:FileVersion=10.5.0.0 `
     -p:InformationalVersion=$Version `
     -o $PublishDir
 
