@@ -53,13 +53,19 @@
     <CornerRadius x:Key="VoiSee.CornerRadius.Small">4</CornerRadius>
     <CornerRadius x:Key="VoiSee.CornerRadius.Medium">10</CornerRadius>
     <CornerRadius x:Key="VoiSee.CornerRadius.Large">12</CornerRadius>
-    <CornerRadius x:Key="VoiSee.CornerRadius.Button">6</CornerRadius>
-    <CornerRadius x:Key="VoiSee.CornerRadius.Input">6</CornerRadius>
-    <CornerRadius x:Key="VoiSee.CornerRadius.ListItem">6</CornerRadius>
+    <CornerRadius x:Key="VoiSee.CornerRadius.Button">4</CornerRadius>
+    <CornerRadius x:Key="VoiSee.CornerRadius.Input">8</CornerRadius>
+    <CornerRadius x:Key="VoiSee.CornerRadius.ListItem">4</CornerRadius>
+    <CornerRadius x:Key="VoiSee.CornerRadius.CheckBox">0</CornerRadius>
     <Thickness x:Key="VoiSee.Thickness.ControlBorder">1</Thickness>
-    <Thickness x:Key="VoiSee.Thickness.ButtonPadding">12,7</Thickness>
+    <Thickness x:Key="VoiSee.Thickness.ButtonBorder">0</Thickness>
+    <Thickness x:Key="VoiSee.Thickness.InputBorder">0</Thickness>
+    <Thickness x:Key="VoiSee.Thickness.ComboBoxBorder">0</Thickness>
+    <Thickness x:Key="VoiSee.Thickness.ListBorder">0</Thickness>
+    <Thickness x:Key="VoiSee.Thickness.ListItemBorder">1</Thickness>
+    <Thickness x:Key="VoiSee.Thickness.ButtonPadding">10,4</Thickness>
     <Thickness x:Key="VoiSee.Thickness.CompactButtonPadding">8,4</Thickness>
-    <Thickness x:Key="VoiSee.Thickness.InputPadding">10,6</Thickness>
+    <Thickness x:Key="VoiSee.Thickness.InputPadding">10,4</Thickness>
     <Thickness x:Key="VoiSee.Thickness.ListItemPadding">10,7</Thickness>
 
     <!-- Standard WinUI text/accent resources used by built-in templates. -->
@@ -79,18 +85,18 @@
       official WinUI lightweight-styling resources below, so they also apply
       to buttons created from C# in dialogs and editors.
     -->
-    <Color x:Key="VoiSee.Color.ButtonBackground">#12FFFFFF</Color>
-    <Color x:Key="VoiSee.Color.ButtonBorder">#22FFFFFF</Color>
-    <Color x:Key="VoiSee.Color.ButtonText">#FFFFFFFF</Color>
-    <Color x:Key="VoiSee.Color.ButtonHoverBackground">#20FFFFFF</Color>
-    <Color x:Key="VoiSee.Color.ButtonHoverBorder">#FF007A8A</Color>
-    <Color x:Key="VoiSee.Color.ButtonHoverText">#FFFFFFFF</Color>
-    <Color x:Key="VoiSee.Color.ButtonPressedBackground">#0CFFFFFF</Color>
-    <Color x:Key="VoiSee.Color.ButtonPressedBorder">#CC007A8A</Color>
-    <Color x:Key="VoiSee.Color.ButtonPressedText">#FFFFFFFF</Color>
-    <Color x:Key="VoiSee.Color.ButtonDisabledBackground">#08FFFFFF</Color>
-    <Color x:Key="VoiSee.Color.ButtonDisabledBorder">#12FFFFFF</Color>
-    <Color x:Key="VoiSee.Color.ButtonDisabledText">#66FFFFFF</Color>
+    <Color x:Key="VoiSee.Color.ButtonBackground">#FF1A1A1A</Color>
+    <Color x:Key="VoiSee.Color.ButtonBorder">#00000000</Color>
+    <Color x:Key="VoiSee.Color.ButtonText">#FFF3F7FF</Color>
+    <Color x:Key="VoiSee.Color.ButtonHoverBackground">#FF262626</Color>
+    <Color x:Key="VoiSee.Color.ButtonHoverBorder">#00000000</Color>
+    <Color x:Key="VoiSee.Color.ButtonHoverText">#FFF3F7FF</Color>
+    <Color x:Key="VoiSee.Color.ButtonPressedBackground">#FF111111</Color>
+    <Color x:Key="VoiSee.Color.ButtonPressedBorder">#00000000</Color>
+    <Color x:Key="VoiSee.Color.ButtonPressedText">#FFF3F7FF</Color>
+    <Color x:Key="VoiSee.Color.ButtonDisabledBackground">#FF101010</Color>
+    <Color x:Key="VoiSee.Color.ButtonDisabledBorder">#00000000</Color>
+    <Color x:Key="VoiSee.Color.ButtonDisabledText">#66F3F7FF</Color>
 
     <!-- Backward-compatible aliases retained for themes created by 10.1.0-10.1.2. -->
     <StaticResource x:Key="VoiSee.Color.ButtonHover" ResourceKey="VoiSee.Color.ButtonHoverBackground" />
@@ -130,7 +136,7 @@
         <Setter Property="Background" Value="{ThemeResource VoiSee.ButtonBackgroundBrush}" />
         <Setter Property="Foreground" Value="{ThemeResource VoiSee.ButtonTextBrush}" />
         <Setter Property="BorderBrush" Value="{ThemeResource VoiSee.ButtonBorderBrush}" />
-        <Setter Property="BorderThickness" Value="{ThemeResource VoiSee.Thickness.ControlBorder}" />
+        <Setter Property="BorderThickness" Value="{ThemeResource VoiSee.Thickness.ButtonBorder}" />
     </Style>
     <!-- All unstyled/dynamically created buttons inherit the same editable theme. -->
     <Style TargetType="Button" BasedOn="{StaticResource VoiSee.Style.Button}" />
@@ -141,22 +147,19 @@
     </Style>
     <Style x:Key="VoiSee.Style.Button.Transport" TargetType="Button" BasedOn="{StaticResource VoiSee.Style.Button}">
         <Setter Property="MinHeight" Value="42" />
-        <Setter Property="CornerRadius" Value="{ThemeResource VoiSee.CornerRadius.Medium}" />
+        <Setter Property="CornerRadius" Value="{ThemeResource VoiSee.CornerRadius.Button}" />
     </Style>
-    <Style x:Key="VoiSee.Style.Button.Danger" TargetType="Button" BasedOn="{StaticResource VoiSee.Style.Button}">
-        <Setter Property="BorderBrush" Value="{ThemeResource VoiSee.DangerBrush}" />
-        <Setter Property="Foreground" Value="{ThemeResource VoiSee.DangerBrush}" />
-    </Style>
+    <Style x:Key="VoiSee.Style.Button.Danger" TargetType="Button" BasedOn="{StaticResource VoiSee.Style.Button}" />
 
     <!-- ToggleButton normal states reuse the complete Button palette. -->
-    <Color x:Key="VoiSee.Color.ToggleCheckedBackground">#CC007A8A</Color>
-    <Color x:Key="VoiSee.Color.ToggleCheckedBorder">#FF00A6B8</Color>
+    <Color x:Key="VoiSee.Color.ToggleCheckedBackground">#FF333333</Color>
+    <Color x:Key="VoiSee.Color.ToggleCheckedBorder">#00000000</Color>
     <Color x:Key="VoiSee.Color.ToggleCheckedText">#FFFFFFFF</Color>
-    <Color x:Key="VoiSee.Color.ToggleCheckedHoverBackground">#FF008D9E</Color>
-    <Color x:Key="VoiSee.Color.ToggleCheckedHoverBorder">#FF23C4D6</Color>
+    <Color x:Key="VoiSee.Color.ToggleCheckedHoverBackground">#FF3D3D3D</Color>
+    <Color x:Key="VoiSee.Color.ToggleCheckedHoverBorder">#00000000</Color>
     <Color x:Key="VoiSee.Color.ToggleCheckedHoverText">#FFFFFFFF</Color>
-    <Color x:Key="VoiSee.Color.ToggleCheckedPressedBackground">#FF006A78</Color>
-    <Color x:Key="VoiSee.Color.ToggleCheckedPressedBorder">#FF00A6B8</Color>
+    <Color x:Key="VoiSee.Color.ToggleCheckedPressedBackground">#FF242424</Color>
+    <Color x:Key="VoiSee.Color.ToggleCheckedPressedBorder">#00000000</Color>
     <Color x:Key="VoiSee.Color.ToggleCheckedPressedText">#FFFFFFFF</Color>
 
     <SolidColorBrush x:Key="ToggleButtonBackground" Color="{StaticResource VoiSee.Color.ButtonBackground}" />
@@ -191,7 +194,7 @@
         <Setter Property="Background" Value="{ThemeResource VoiSee.ButtonBackgroundBrush}" />
         <Setter Property="Foreground" Value="{ThemeResource VoiSee.ButtonTextBrush}" />
         <Setter Property="BorderBrush" Value="{ThemeResource VoiSee.ButtonBorderBrush}" />
-        <Setter Property="BorderThickness" Value="{ThemeResource VoiSee.Thickness.ControlBorder}" />
+        <Setter Property="BorderThickness" Value="{ThemeResource VoiSee.Thickness.ButtonBorder}" />
     </Style>
     <Style TargetType="ToggleButton" BasedOn="{StaticResource VoiSee.Style.ToggleButton}" />
 
@@ -208,10 +211,10 @@
     <Color x:Key="VoiSee.Color.SliderFillPressed">#FFFFFFFF</Color>
     <Color x:Key="VoiSee.Color.SliderFillDisabled">#33FFFFFF</Color>
     <Color x:Key="VoiSee.Color.SliderThumb">#FFFFFFFF</Color>
-    <Color x:Key="VoiSee.Color.SliderThumbHover">#FF60CDFF</Color>
-    <Color x:Key="VoiSee.Color.SliderThumbPressed">#FF23C4D6</Color>
+    <Color x:Key="VoiSee.Color.SliderThumbHover">#FFFFFFFF</Color>
+    <Color x:Key="VoiSee.Color.SliderThumbPressed">#FFFFFFFF</Color>
     <Color x:Key="VoiSee.Color.SliderThumbDisabled">#667E7E7E</Color>
-    <Color x:Key="VoiSee.Color.SliderThumbBorder">#44FFFFFF</Color>
+    <Color x:Key="VoiSee.Color.SliderThumbBorder">#00000000</Color>
 
     <SolidColorBrush x:Key="VoiSee.SliderTrackBrush" Color="{StaticResource VoiSee.Color.SliderTrack}" />
     <SolidColorBrush x:Key="VoiSee.SliderFillBrush" Color="{StaticResource VoiSee.Color.SliderFill}" />
@@ -245,17 +248,17 @@
     <!-- 4. TEXT FIELDS AND DROP-DOWN LISTS                              -->
     <!-- ================================================================ -->
     <!-- TextBox input states. -->
-    <Color x:Key="VoiSee.Color.InputBackground">#0AFFFFFF</Color>
-    <Color x:Key="VoiSee.Color.InputBorder">#22FFFFFF</Color>
-    <Color x:Key="VoiSee.Color.InputText">#FFFFFFFF</Color>
-    <Color x:Key="VoiSee.Color.InputHoverBackground">#14FFFFFF</Color>
-    <Color x:Key="VoiSee.Color.InputHoverBorder">#FF007A8A</Color>
-    <Color x:Key="VoiSee.Color.InputHoverText">#FFFFFFFF</Color>
-    <Color x:Key="VoiSee.Color.InputFocusedBackground">#18FFFFFF</Color>
-    <Color x:Key="VoiSee.Color.InputFocusedBorder">#FF60CDFF</Color>
-    <Color x:Key="VoiSee.Color.InputFocusedText">#FFFFFFFF</Color>
-    <Color x:Key="VoiSee.Color.InputDisabledBackground">#05FFFFFF</Color>
-    <Color x:Key="VoiSee.Color.InputDisabledBorder">#12FFFFFF</Color>
+    <Color x:Key="VoiSee.Color.InputBackground">#FF090E16</Color>
+    <Color x:Key="VoiSee.Color.InputBorder">#00000000</Color>
+    <Color x:Key="VoiSee.Color.InputText">#FFF3F7FF</Color>
+    <Color x:Key="VoiSee.Color.InputHoverBackground">#FF111821</Color>
+    <Color x:Key="VoiSee.Color.InputHoverBorder">#00000000</Color>
+    <Color x:Key="VoiSee.Color.InputHoverText">#FFF3F7FF</Color>
+    <Color x:Key="VoiSee.Color.InputFocusedBackground">#FF0D1420</Color>
+    <Color x:Key="VoiSee.Color.InputFocusedBorder">#00000000</Color>
+    <Color x:Key="VoiSee.Color.InputFocusedText">#FFF3F7FF</Color>
+    <Color x:Key="VoiSee.Color.InputDisabledBackground">#FF070A0F</Color>
+    <Color x:Key="VoiSee.Color.InputDisabledBorder">#00000000</Color>
     <Color x:Key="VoiSee.Color.InputDisabledText">#66FFFFFF</Color>
 
     <!-- Backward-compatible names from 10.1.0-10.1.2. -->
@@ -280,38 +283,38 @@
     <SolidColorBrush x:Key="TextControlForegroundDisabled" Color="{StaticResource VoiSee.Color.InputDisabledText}" />
 
     <!-- ComboBox itself, its popup and every dropdown item state. -->
-    <Color x:Key="VoiSee.Color.ComboBoxBackground">#0AFFFFFF</Color>
-    <Color x:Key="VoiSee.Color.ComboBoxBorder">#22FFFFFF</Color>
-    <Color x:Key="VoiSee.Color.ComboBoxText">#FFFFFFFF</Color>
-    <Color x:Key="VoiSee.Color.ComboBoxHoverBackground">#14FFFFFF</Color>
-    <Color x:Key="VoiSee.Color.ComboBoxHoverBorder">#FF007A8A</Color>
-    <Color x:Key="VoiSee.Color.ComboBoxHoverText">#FFFFFFFF</Color>
-    <Color x:Key="VoiSee.Color.ComboBoxPressedBackground">#18FFFFFF</Color>
-    <Color x:Key="VoiSee.Color.ComboBoxPressedBorder">#CC007A8A</Color>
-    <Color x:Key="VoiSee.Color.ComboBoxPressedText">#FFFFFFFF</Color>
-    <Color x:Key="VoiSee.Color.ComboBoxFocusedBackground">#18FFFFFF</Color>
-    <Color x:Key="VoiSee.Color.ComboBoxFocusedBorder">#FF60CDFF</Color>
-    <Color x:Key="VoiSee.Color.ComboBoxFocusedText">#FFFFFFFF</Color>
-    <Color x:Key="VoiSee.Color.ComboBoxDisabledBackground">#05FFFFFF</Color>
-    <Color x:Key="VoiSee.Color.ComboBoxDisabledBorder">#12FFFFFF</Color>
+    <Color x:Key="VoiSee.Color.ComboBoxBackground">#FF090E16</Color>
+    <Color x:Key="VoiSee.Color.ComboBoxBorder">#00000000</Color>
+    <Color x:Key="VoiSee.Color.ComboBoxText">#FFF3F7FF</Color>
+    <Color x:Key="VoiSee.Color.ComboBoxHoverBackground">#FF111821</Color>
+    <Color x:Key="VoiSee.Color.ComboBoxHoverBorder">#00000000</Color>
+    <Color x:Key="VoiSee.Color.ComboBoxHoverText">#FFF3F7FF</Color>
+    <Color x:Key="VoiSee.Color.ComboBoxPressedBackground">#FF151D28</Color>
+    <Color x:Key="VoiSee.Color.ComboBoxPressedBorder">#00000000</Color>
+    <Color x:Key="VoiSee.Color.ComboBoxPressedText">#FFF3F7FF</Color>
+    <Color x:Key="VoiSee.Color.ComboBoxFocusedBackground">#FF0D1420</Color>
+    <Color x:Key="VoiSee.Color.ComboBoxFocusedBorder">#00000000</Color>
+    <Color x:Key="VoiSee.Color.ComboBoxFocusedText">#FFF3F7FF</Color>
+    <Color x:Key="VoiSee.Color.ComboBoxDisabledBackground">#FF070A0F</Color>
+    <Color x:Key="VoiSee.Color.ComboBoxDisabledBorder">#00000000</Color>
     <Color x:Key="VoiSee.Color.ComboBoxDisabledText">#66FFFFFF</Color>
-    <Color x:Key="VoiSee.Color.ComboBoxDropDownBackground">#FF101418</Color>
-    <Color x:Key="VoiSee.Color.ComboBoxDropDownBorder">#44FFFFFF</Color>
-    <Color x:Key="VoiSee.Color.ComboBoxDropDownText">#FFFFFFFF</Color>
+    <Color x:Key="VoiSee.Color.ComboBoxDropDownBackground">#FF202020</Color>
+    <Color x:Key="VoiSee.Color.ComboBoxDropDownBorder">#00000000</Color>
+    <Color x:Key="VoiSee.Color.ComboBoxDropDownText">#FFF3F7FF</Color>
     <Color x:Key="VoiSee.Color.ComboBoxItemBackground">#00000000</Color>
     <Color x:Key="VoiSee.Color.ComboBoxItemBorder">#00000000</Color>
-    <Color x:Key="VoiSee.Color.ComboBoxItemText">#FFFFFFFF</Color>
-    <Color x:Key="VoiSee.Color.ComboBoxItemHoverBackground">#1A60CDFF</Color>
-    <Color x:Key="VoiSee.Color.ComboBoxItemHoverBorder">#FF007A8A</Color>
+    <Color x:Key="VoiSee.Color.ComboBoxItemText">#FFF3F7FF</Color>
+    <Color x:Key="VoiSee.Color.ComboBoxItemHoverBackground">#FF2A2A2A</Color>
+    <Color x:Key="VoiSee.Color.ComboBoxItemHoverBorder">#00000000</Color>
     <Color x:Key="VoiSee.Color.ComboBoxItemHoverText">#FFFFFFFF</Color>
-    <Color x:Key="VoiSee.Color.ComboBoxItemPressedBackground">#2660CDFF</Color>
-    <Color x:Key="VoiSee.Color.ComboBoxItemPressedBorder">#CC007A8A</Color>
+    <Color x:Key="VoiSee.Color.ComboBoxItemPressedBackground">#FF333333</Color>
+    <Color x:Key="VoiSee.Color.ComboBoxItemPressedBorder">#00000000</Color>
     <Color x:Key="VoiSee.Color.ComboBoxItemPressedText">#FFFFFFFF</Color>
-    <Color x:Key="VoiSee.Color.ComboBoxItemSelectedBackground">#3360CDFF</Color>
-    <Color x:Key="VoiSee.Color.ComboBoxItemSelectedBorder">#FF007A8A</Color>
+    <Color x:Key="VoiSee.Color.ComboBoxItemSelectedBackground">#FF383838</Color>
+    <Color x:Key="VoiSee.Color.ComboBoxItemSelectedBorder">#00000000</Color>
     <Color x:Key="VoiSee.Color.ComboBoxItemSelectedText">#FFFFFFFF</Color>
-    <Color x:Key="VoiSee.Color.ComboBoxItemSelectedHoverBackground">#4460CDFF</Color>
-    <Color x:Key="VoiSee.Color.ComboBoxItemSelectedHoverBorder">#FF23C4D6</Color>
+    <Color x:Key="VoiSee.Color.ComboBoxItemSelectedHoverBackground">#FF444444</Color>
+    <Color x:Key="VoiSee.Color.ComboBoxItemSelectedHoverBorder">#00000000</Color>
     <Color x:Key="VoiSee.Color.ComboBoxItemSelectedHoverText">#FFFFFFFF</Color>
 
     <SolidColorBrush x:Key="ComboBoxBackground" Color="{StaticResource VoiSee.Color.ComboBoxBackground}" />
@@ -333,6 +336,10 @@
     <SolidColorBrush x:Key="ComboBoxDropDownBackground" Color="{StaticResource VoiSee.Color.ComboBoxDropDownBackground}" />
     <SolidColorBrush x:Key="ComboBoxDropDownBorderBrush" Color="{StaticResource VoiSee.Color.ComboBoxDropDownBorder}" />
     <SolidColorBrush x:Key="ComboBoxDropDownForeground" Color="{StaticResource VoiSee.Color.ComboBoxDropDownText}" />
+    <SolidColorBrush x:Key="ComboBoxBackgroundBorderBrushUnfocused" Color="{StaticResource VoiSee.Color.ComboBoxBorder}" />
+    <SolidColorBrush x:Key="ComboBoxItemPillFillBrush" Color="#00000000" />
+    <CornerRadius x:Key="OverlayCornerRadius">8</CornerRadius>
+    <Thickness x:Key="ComboBoxDropdownBorderThickness">0</Thickness>
 
     <SolidColorBrush x:Key="ComboBoxItemBackground" Color="{StaticResource VoiSee.Color.ComboBoxItemBackground}" />
     <SolidColorBrush x:Key="ComboBoxItemBorderBrush" Color="{StaticResource VoiSee.Color.ComboBoxItemBorder}" />
@@ -353,7 +360,7 @@
     <SolidColorBrush x:Key="ComboBoxItemBorderBrushSelectedPressed" Color="{StaticResource VoiSee.Color.ComboBoxItemPressedBorder}" />
     <SolidColorBrush x:Key="ComboBoxItemForegroundSelectedPressed" Color="{StaticResource VoiSee.Color.ComboBoxItemPressedText}" />
 
-    <StaticResource x:Key="ComboBoxItemCornerRadius" ResourceKey="VoiSee.CornerRadius.ListItem" />
+    <CornerRadius x:Key="ComboBoxItemCornerRadius">4</CornerRadius>
 
     <Style x:Key="VoiSee.Style.TextBox" TargetType="TextBox">
         <Setter Property="MinHeight" Value="34" />
@@ -362,7 +369,7 @@
         <Setter Property="Background" Value="{ThemeResource VoiSee.InputBackgroundBrush}" />
         <Setter Property="Foreground" Value="{ThemeResource VoiSee.InputTextBrush}" />
         <Setter Property="BorderBrush" Value="{ThemeResource VoiSee.InputBorderBrush}" />
-        <Setter Property="BorderThickness" Value="{ThemeResource VoiSee.Thickness.ControlBorder}" />
+        <Setter Property="BorderThickness" Value="{ThemeResource VoiSee.Thickness.InputBorder}" />
     </Style>
     <Style TargetType="TextBox" BasedOn="{StaticResource VoiSee.Style.TextBox}" />
 
@@ -373,14 +380,53 @@
         <Setter Property="Background" Value="{ThemeResource ComboBoxBackground}" />
         <Setter Property="Foreground" Value="{ThemeResource ComboBoxForeground}" />
         <Setter Property="BorderBrush" Value="{ThemeResource ComboBoxBorderBrush}" />
-        <Setter Property="BorderThickness" Value="{ThemeResource VoiSee.Thickness.ControlBorder}" />
+        <Setter Property="BorderThickness" Value="{ThemeResource VoiSee.Thickness.ComboBoxBorder}" />
     </Style>
     <Style TargetType="ComboBox" BasedOn="{StaticResource VoiSee.Style.ComboBox}" />
+
+    <!-- CheckBox box, border and check glyph states. Default remains square. -->
+    <Color x:Key="VoiSee.Color.CheckBoxUncheckedFill">#FF1A1A1A</Color>
+    <Color x:Key="VoiSee.Color.CheckBoxUncheckedBorder">#99FFFFFF</Color>
+    <Color x:Key="VoiSee.Color.CheckBoxUncheckedHoverFill">#FF262626</Color>
+    <Color x:Key="VoiSee.Color.CheckBoxUncheckedHoverBorder">#FFFFFFFF</Color>
+    <Color x:Key="VoiSee.Color.CheckBoxUncheckedPressedFill">#FF111111</Color>
+    <Color x:Key="VoiSee.Color.CheckBoxUncheckedPressedBorder">#CCFFFFFF</Color>
+    <Color x:Key="VoiSee.Color.CheckBoxCheckedFill">#FFFFFFFF</Color>
+    <Color x:Key="VoiSee.Color.CheckBoxCheckedHoverFill">#FFE6E6E6</Color>
+    <Color x:Key="VoiSee.Color.CheckBoxCheckedPressedFill">#FFCCCCCC</Color>
+    <Color x:Key="VoiSee.Color.CheckBoxCheckedBorder">#FFFFFFFF</Color>
+    <Color x:Key="VoiSee.Color.CheckBoxGlyph">#FF000000</Color>
+
+    <SolidColorBrush x:Key="CheckBoxCheckBackgroundFillUnchecked" Color="{StaticResource VoiSee.Color.CheckBoxUncheckedFill}" />
+    <SolidColorBrush x:Key="CheckBoxCheckBackgroundFillUncheckedPointerOver" Color="{StaticResource VoiSee.Color.CheckBoxUncheckedHoverFill}" />
+    <SolidColorBrush x:Key="CheckBoxCheckBackgroundFillUncheckedPressed" Color="{StaticResource VoiSee.Color.CheckBoxUncheckedPressedFill}" />
+    <SolidColorBrush x:Key="CheckBoxCheckBackgroundStrokeUnchecked" Color="{StaticResource VoiSee.Color.CheckBoxUncheckedBorder}" />
+    <SolidColorBrush x:Key="CheckBoxCheckBackgroundStrokeUncheckedPointerOver" Color="{StaticResource VoiSee.Color.CheckBoxUncheckedHoverBorder}" />
+    <SolidColorBrush x:Key="CheckBoxCheckBackgroundStrokeUncheckedPressed" Color="{StaticResource VoiSee.Color.CheckBoxUncheckedPressedBorder}" />
+    <SolidColorBrush x:Key="CheckBoxCheckBackgroundFillChecked" Color="{StaticResource VoiSee.Color.CheckBoxCheckedFill}" />
+    <SolidColorBrush x:Key="CheckBoxCheckBackgroundFillCheckedPointerOver" Color="{StaticResource VoiSee.Color.CheckBoxCheckedHoverFill}" />
+    <SolidColorBrush x:Key="CheckBoxCheckBackgroundFillCheckedPressed" Color="{StaticResource VoiSee.Color.CheckBoxCheckedPressedFill}" />
+    <SolidColorBrush x:Key="CheckBoxCheckBackgroundStrokeChecked" Color="{StaticResource VoiSee.Color.CheckBoxCheckedBorder}" />
+    <SolidColorBrush x:Key="CheckBoxCheckBackgroundStrokeCheckedPointerOver" Color="{StaticResource VoiSee.Color.CheckBoxCheckedBorder}" />
+    <SolidColorBrush x:Key="CheckBoxCheckBackgroundStrokeCheckedPressed" Color="{StaticResource VoiSee.Color.CheckBoxCheckedBorder}" />
+    <SolidColorBrush x:Key="CheckBoxCheckBackgroundFillIndeterminate" Color="{StaticResource VoiSee.Color.CheckBoxCheckedFill}" />
+    <SolidColorBrush x:Key="CheckBoxCheckBackgroundFillIndeterminatePointerOver" Color="{StaticResource VoiSee.Color.CheckBoxCheckedHoverFill}" />
+    <SolidColorBrush x:Key="CheckBoxCheckBackgroundFillIndeterminatePressed" Color="{StaticResource VoiSee.Color.CheckBoxCheckedPressedFill}" />
+    <SolidColorBrush x:Key="CheckBoxCheckBackgroundStrokeIndeterminate" Color="{StaticResource VoiSee.Color.CheckBoxCheckedBorder}" />
+    <SolidColorBrush x:Key="CheckBoxCheckBackgroundStrokeIndeterminatePointerOver" Color="{StaticResource VoiSee.Color.CheckBoxCheckedBorder}" />
+    <SolidColorBrush x:Key="CheckBoxCheckBackgroundStrokeIndeterminatePressed" Color="{StaticResource VoiSee.Color.CheckBoxCheckedBorder}" />
+    <SolidColorBrush x:Key="CheckBoxCheckGlyphForegroundChecked" Color="{StaticResource VoiSee.Color.CheckBoxGlyph}" />
+    <SolidColorBrush x:Key="CheckBoxCheckGlyphForegroundCheckedPointerOver" Color="{StaticResource VoiSee.Color.CheckBoxGlyph}" />
+    <SolidColorBrush x:Key="CheckBoxCheckGlyphForegroundCheckedPressed" Color="{StaticResource VoiSee.Color.CheckBoxGlyph}" />
+    <SolidColorBrush x:Key="CheckBoxCheckGlyphForegroundIndeterminate" Color="{StaticResource VoiSee.Color.CheckBoxGlyph}" />
+    <SolidColorBrush x:Key="CheckBoxCheckGlyphForegroundIndeterminatePointerOver" Color="{StaticResource VoiSee.Color.CheckBoxGlyph}" />
+    <SolidColorBrush x:Key="CheckBoxCheckGlyphForegroundIndeterminatePressed" Color="{StaticResource VoiSee.Color.CheckBoxGlyph}" />
 
     <Style x:Key="VoiSee.Style.CheckBox" TargetType="CheckBox">
         <Setter Property="MinHeight" Value="30" />
         <Setter Property="Padding" Value="4" />
         <Setter Property="Foreground" Value="{ThemeResource VoiSee.PrimaryTextBrush}" />
+        <Setter Property="CornerRadius" Value="{ThemeResource VoiSee.CornerRadius.CheckBox}" />
     </Style>
     <Style TargetType="CheckBox" BasedOn="{StaticResource VoiSee.Style.CheckBox}" />
 
@@ -391,8 +437,8 @@
       Saved scenes ListView. Background, border and text are separately
       editable for normal, hover, pressed, selected and selected-hover states.
     -->
-    <Color x:Key="VoiSee.Color.ListBackground">#03000000</Color>
-    <Color x:Key="VoiSee.Color.ListBorder">#22FFFFFF</Color>
+    <Color x:Key="VoiSee.Color.ListBackground">#00000000</Color>
+    <Color x:Key="VoiSee.Color.ListBorder">#00000000</Color>
     <Color x:Key="VoiSee.Color.ListItemBackground">#00000000</Color>
     <Color x:Key="VoiSee.Color.ListItemBorder">#00000000</Color>
     <Color x:Key="VoiSee.Color.ListItemText">#FFFFFFFF</Color>
@@ -465,7 +511,7 @@
     <Style x:Key="VoiSee.Style.ListView" TargetType="ListView">
         <Setter Property="Background" Value="{ThemeResource VoiSee.ListBackgroundBrush}" />
         <Setter Property="BorderBrush" Value="{ThemeResource VoiSee.ListBorderBrush}" />
-        <Setter Property="BorderThickness" Value="{ThemeResource VoiSee.Thickness.ControlBorder}" />
+        <Setter Property="BorderThickness" Value="{ThemeResource VoiSee.Thickness.ListBorder}" />
     </Style>
     <Style TargetType="ListView" BasedOn="{StaticResource VoiSee.Style.ListView}" />
 
@@ -481,7 +527,7 @@
         <Setter Property="Background" Value="{ThemeResource VoiSee.ListItemBackgroundBrush}" />
         <Setter Property="Foreground" Value="{ThemeResource VoiSee.ListItemTextBrush}" />
         <Setter Property="BorderBrush" Value="{ThemeResource VoiSee.ListItemBorderBrush}" />
-        <Setter Property="BorderThickness" Value="{ThemeResource VoiSee.Thickness.ControlBorder}" />
+        <Setter Property="BorderThickness" Value="{ThemeResource VoiSee.Thickness.ListItemBorder}" />
         <Setter Property="HorizontalContentAlignment" Value="Stretch" />
         <Setter Property="VerticalContentAlignment" Value="Center" />
         <Setter Property="Template">
@@ -615,9 +661,7 @@
         <Setter Property="MinWidth" Value="92" />
     </Style>
     <Style x:Key="VoiSee.Style.Button.SoundBoardTransport" TargetType="Button" BasedOn="{StaticResource VoiSee.Style.Button.Transport}" />
-    <Style x:Key="VoiSee.Style.Button.SoundBoardEdit" TargetType="Button" BasedOn="{StaticResource VoiSee.Style.Button}">
-        <Setter Property="BorderBrush" Value="{ThemeResource VoiSee.AccentBrush}" />
-    </Style>
+    <Style x:Key="VoiSee.Style.Button.SoundBoardEdit" TargetType="Button" BasedOn="{StaticResource VoiSee.Style.Button}" />
     <Style x:Key="VoiSee.Style.Button.SceneAction" TargetType="Button" BasedOn="{StaticResource VoiSee.Style.Button}" />
     <Style x:Key="VoiSee.Style.Button.SettingsAction" TargetType="Button" BasedOn="{StaticResource VoiSee.Style.Button}" />
     <Style x:Key="VoiSee.Style.Button.ThemeAction" TargetType="Button" BasedOn="{StaticResource VoiSee.Style.Button.Compact}" />
