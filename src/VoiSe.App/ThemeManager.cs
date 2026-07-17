@@ -11,7 +11,7 @@ using Windows.UI;
 namespace VoiSe.App;
 
 /// <summary>
-/// VoiSee 10.1.1 native theme loader and connected resource catalogue.
+/// VoiSee 10.1.2 native theme loader and exact Default Dark copy workflow.
 ///
 /// User themes are ordinary WinUI ResourceDictionary XAML files. The manager
 /// validates a candidate dictionary before it atomically replaces the active
@@ -84,7 +84,7 @@ public sealed class ThemeManager
     {
         EnsureThemesDirectory();
         var path = BuildUniquePath(ThemesDirectory, $"MyTheme{ThemeExtension}");
-        File.WriteAllText(path, CreateTemplateXaml("My Theme"), new UTF8Encoding(encoderShouldEmitUTF8Identifier: false));
+        File.WriteAllText(path, CreateDefaultDarkCopyXaml("My Theme"), new UTF8Encoding(encoderShouldEmitUTF8Identifier: false));
         return path;
     }
 
@@ -117,7 +117,7 @@ public sealed class ThemeManager
         }
         else
         {
-            File.WriteAllText(targetPath, CreateTemplateXaml("Default Dark copy"), new UTF8Encoding(encoderShouldEmitUTF8Identifier: false));
+            File.WriteAllText(targetPath, CreateDefaultDarkCopyXaml("Default Dark copy"), new UTF8Encoding(encoderShouldEmitUTF8Identifier: false));
         }
 
         return targetPath;
@@ -221,12 +221,12 @@ public sealed class ThemeManager
             : Path.GetFileNameWithoutExtension(fileName);
     }
 
-    public static string CreateTemplateXaml(string themeName)
+    public static string CreateDefaultDarkCopyXaml(string themeName)
     {
         var templatePath = Path.Combine(AppContext.BaseDirectory, "Themes", "UserThemeTemplate.voiseetheme.template");
         if (!File.Exists(templatePath))
         {
-            throw new FileNotFoundException("The built-in VoiSee XAML theme template was not found.", templatePath);
+            throw new FileNotFoundException("The built-in editable copy of Default Dark was not found.", templatePath);
         }
 
         var template = File.ReadAllText(templatePath, Encoding.UTF8);

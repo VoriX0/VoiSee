@@ -171,7 +171,7 @@ public sealed partial class MainWindow : Window
         _timelineTimer.Tick += OnTimelineTimerTick;
         _timelineTimer.Start();
 
-        AppendLog("VoiSee Version 10.1.1 UI started.");
+        AppendLog("VoiSee Version 10.1.2 UI started.");
         AppendLog($"Settings path: {_settingsStore.SettingsPath}");
         StartupLog.Write("MainWindow initialized; waiting for first activation.");
     }
@@ -286,6 +286,11 @@ public sealed partial class MainWindow : Window
             && !item.IsDefault
             && !string.IsNullOrWhiteSpace(item.FilePath)
             && File.Exists(item.FilePath);
+
+        if (OpenThemeFileButton is not null)
+        {
+            OpenThemeFileButton.IsEnabled = userThemeSelected;
+        }
 
         if (RenameThemeButton is not null)
         {
@@ -518,16 +523,25 @@ public sealed partial class MainWindow : Window
     {
         try
         {
-            var path = _settings.ThemeFilePath;
-            if (string.IsNullOrWhiteSpace(path) || !File.Exists(path))
+            if (ThemeComboBox?.SelectedItem is not ThemeComboItem item ||
+                item.IsDefault ||
+                string.IsNullOrWhiteSpace(item.FilePath))
             {
-                var newPath = _themeManager.CreateNewThemeFile();
-                _settings.ThemeFilePath = newPath;
-                _settingsStore.Save(_settings);
+                await ShowMessageDialogAsync(
+                    "Open theme file",
+                    "Select a user theme first. Default Dark is built into VoiSee and cannot be opened or edited directly.");
+                UpdateThemeControls();
+                return;
+            }
+
+            var path = item.FilePath;
+            if (!File.Exists(path))
+            {
+                await ShowMessageDialogAsync(
+                    "Open theme file",
+                    "The selected theme file no longer exists. The theme list will be refreshed.");
                 PopulateThemeComboBox();
-                ApplyThemeFromSettings();
-                WatchActiveThemeFile();
-                path = newPath;
+                return;
             }
 
             OpenFileWithShell(path);

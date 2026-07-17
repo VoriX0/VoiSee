@@ -5,38 +5,39 @@
     <!--
       VoiSee native XAML theme: __THEME_NAME__
 
-      This file is an editable catalogue of resources that are connected to the
-      current VoiSee interface. Change values, save the file, and VoiSee will
-      reload it. Keep x:Key names unchanged. Do not add x:Class or event handlers.
+      This ResourceDictionary is an exact editable copy of VoiSee Default Dark.
+      It therefore looks identical immediately after creation and exposes the
+      same resources and control states. Keep x:Key names unchanged; edit only
+      values/styles.
 
       ORDER:
         1. Global palette and geometry
         2. Buttons and toggle buttons
         3. Sliders
         4. Text fields and drop-down lists
-        5. Lists
+        5. Lists and scene selection states
         6. Specific VoiSee panels and controls
     -->
 
     <!-- ================================================================ -->
     <!-- 1. GLOBAL PALETTE                                                -->
     <!-- ================================================================ -->
-    <Color x:Key="VoiSee.Color.AppBackground">#FF05070A</Color>
-    <Color x:Key="VoiSee.Color.TitleBarBackground">#FF05070A</Color>
-    <Color x:Key="VoiSee.Color.PrimaryText">#FFF2FEFF</Color>
-    <Color x:Key="VoiSee.Color.SecondaryText">#B8F2FEFF</Color>
-    <Color x:Key="VoiSee.Color.Accent">#FF00E5FF</Color>
-    <Color x:Key="VoiSee.Color.PanelBackground">#CC0B1018</Color>
-    <Color x:Key="VoiSee.Color.PanelBorder">#6600E5FF</Color>
-    <Color x:Key="VoiSee.Color.Danger">#FFFF3366</Color>
-    <Color x:Key="VoiSee.Color.Success">#FF37FF9B</Color>
+    <Color x:Key="VoiSee.Color.AppBackground">#FF000000</Color>
+    <Color x:Key="VoiSee.Color.TitleBarBackground">#FF000000</Color>
+    <Color x:Key="VoiSee.Color.PrimaryText">#FFFFFFFF</Color>
+    <Color x:Key="VoiSee.Color.SecondaryText">#B8FFFFFF</Color>
+    <Color x:Key="VoiSee.Color.Accent">#FF60CDFF</Color>
+    <Color x:Key="VoiSee.Color.PanelBackground">#08000000</Color>
+    <Color x:Key="VoiSee.Color.PanelBorder">#22FFFFFF</Color>
+    <Color x:Key="VoiSee.Color.Danger">#FFFF4D4D</Color>
+    <Color x:Key="VoiSee.Color.Success">#FF37D67A</Color>
     <Color x:Key="VoiSee.Color.Warning">#FFFFD166</Color>
 
     <SolidColorBrush x:Key="VoiSee.AppBackgroundBrush" Color="{StaticResource VoiSee.Color.AppBackground}" />
     <SolidColorBrush x:Key="VoiSee.TitleBarBackgroundBrush" Color="{StaticResource VoiSee.Color.TitleBarBackground}" />
     <SolidColorBrush x:Key="VoiSee.TitleBarForegroundBrush" Color="{StaticResource VoiSee.Color.PrimaryText}" />
-    <SolidColorBrush x:Key="VoiSee.TitleBarHoverBrush" Color="#FF243642" />
-    <SolidColorBrush x:Key="VoiSee.TitleBarPressedBrush" Color="#FF001B22" />
+    <SolidColorBrush x:Key="VoiSee.TitleBarHoverBrush" Color="#20FFFFFF" />
+    <SolidColorBrush x:Key="VoiSee.TitleBarPressedBrush" Color="#0CFFFFFF" />
     <SolidColorBrush x:Key="VoiSee.PanelBackgroundBrush" Color="{StaticResource VoiSee.Color.PanelBackground}" />
     <SolidColorBrush x:Key="VoiSee.PanelBorderBrush" Color="{StaticResource VoiSee.Color.PanelBorder}" />
     <SolidColorBrush x:Key="VoiSee.PrimaryTextBrush" Color="{StaticResource VoiSee.Color.PrimaryText}" />
@@ -71,10 +72,10 @@
     <!-- ================================================================ -->
     <!-- 2. BUTTONS                                                       -->
     <!-- ================================================================ -->
-    <Color x:Key="VoiSee.Color.ButtonBackground">#FF18242C</Color>
-    <Color x:Key="VoiSee.Color.ButtonHover">#FF243642</Color>
-    <Color x:Key="VoiSee.Color.ButtonPressed">#FF001B22</Color>
-    <Color x:Key="VoiSee.Color.ButtonBorder">#7700E5FF</Color>
+    <Color x:Key="VoiSee.Color.ButtonBackground">#12FFFFFF</Color>
+    <Color x:Key="VoiSee.Color.ButtonHover">#20FFFFFF</Color>
+    <Color x:Key="VoiSee.Color.ButtonPressed">#0CFFFFFF</Color>
+    <Color x:Key="VoiSee.Color.ButtonBorder">#22FFFFFF</Color>
 
     <SolidColorBrush x:Key="VoiSee.ButtonBackgroundBrush" Color="{StaticResource VoiSee.Color.ButtonBackground}" />
     <SolidColorBrush x:Key="VoiSee.ButtonBorderBrush" Color="{StaticResource VoiSee.Color.ButtonBorder}" />
@@ -124,8 +125,8 @@
     <!-- ================================================================ -->
     <!-- 3. SLIDERS                                                       -->
     <!-- ================================================================ -->
-    <Color x:Key="VoiSee.Color.SliderTrack">#4400E5FF</Color>
-    <Color x:Key="VoiSee.Color.SliderFill">#CC00E5FF</Color>
+    <Color x:Key="VoiSee.Color.SliderTrack">#33FFFFFF</Color>
+    <Color x:Key="VoiSee.Color.SliderFill">#99FFFFFF</Color>
     <Color x:Key="VoiSee.Color.SliderThumb">#FFFFFFFF</Color>
     <SolidColorBrush x:Key="VoiSee.SliderTrackBrush" Color="{StaticResource VoiSee.Color.SliderTrack}" />
     <SolidColorBrush x:Key="VoiSee.SliderFillBrush" Color="{StaticResource VoiSee.Color.SliderFill}" />
@@ -145,9 +146,9 @@
     <!-- ================================================================ -->
     <!-- 4. TEXT FIELDS AND DROP-DOWN LISTS                               -->
     <!-- ================================================================ -->
-    <Color x:Key="VoiSee.Color.InputBackground">#CC10161D</Color>
-    <Color x:Key="VoiSee.Color.InputHover">#FF17212A</Color>
-    <Color x:Key="VoiSee.Color.InputFocused">#FF0D171E</Color>
+    <Color x:Key="VoiSee.Color.InputBackground">#0AFFFFFF</Color>
+    <Color x:Key="VoiSee.Color.InputHover">#14FFFFFF</Color>
+    <Color x:Key="VoiSee.Color.InputFocused">#18FFFFFF</Color>
     <SolidColorBrush x:Key="VoiSee.InputBackgroundBrush" Color="{StaticResource VoiSee.Color.InputBackground}" />
 
     <SolidColorBrush x:Key="TextControlBackground" Color="{StaticResource VoiSee.Color.InputBackground}" />
@@ -188,15 +189,46 @@
     <!-- ================================================================ -->
     <!-- 5. LISTS                                                         -->
     <!-- ================================================================ -->
-    <Color x:Key="VoiSee.Color.ListBackground">#330B1018</Color>
-    <Color x:Key="VoiSee.Color.ListItemHover">#33243A44</Color>
-    <Color x:Key="VoiSee.Color.ListItemSelected">#6600E5FF</Color>
+    <!--
+      These values control the Saved scenes list as well as other ListView
+      controls. Selected scene = cyan-tinted background. Pointer-over = cyan
+      border/indicator. All interaction states are explicit so a user theme
+      never silently falls back to unrelated WinUI accent defaults.
+    -->
+    <Color x:Key="VoiSee.Color.ListBackground">#03000000</Color>
+    <Color x:Key="VoiSee.Color.ListItemHover">#12FFFFFF</Color>
+    <Color x:Key="VoiSee.Color.ListItemPressed">#0CFFFFFF</Color>
+    <Color x:Key="VoiSee.Color.ListItemSelected">#3360CDFF</Color>
+    <Color x:Key="VoiSee.Color.ListItemSelectedHover">#4460CDFF</Color>
+    <Color x:Key="VoiSee.Color.ListItemSelectedPressed">#2A60CDFF</Color>
+    <Color x:Key="VoiSee.Color.ListItemHoverBorder">#FF60CDFF</Color>
+    <Color x:Key="VoiSee.Color.ListItemSelectedBorder">#FF60CDFF</Color>
+
     <SolidColorBrush x:Key="VoiSee.ListBackgroundBrush" Color="{StaticResource VoiSee.Color.ListBackground}" />
     <SolidColorBrush x:Key="ListViewItemBackground" Color="{StaticResource VoiSee.Color.ListBackground}" />
     <SolidColorBrush x:Key="ListViewItemBackgroundPointerOver" Color="{StaticResource VoiSee.Color.ListItemHover}" />
+    <SolidColorBrush x:Key="ListViewItemBackgroundPressed" Color="{StaticResource VoiSee.Color.ListItemPressed}" />
     <SolidColorBrush x:Key="ListViewItemBackgroundSelected" Color="{StaticResource VoiSee.Color.ListItemSelected}" />
-    <SolidColorBrush x:Key="ListViewItemBackgroundSelectedPointerOver" Color="{StaticResource VoiSee.Color.ListItemSelected}" />
+    <SolidColorBrush x:Key="ListViewItemBackgroundSelectedPointerOver" Color="{StaticResource VoiSee.Color.ListItemSelectedHover}" />
+    <SolidColorBrush x:Key="ListViewItemBackgroundSelectedPressed" Color="{StaticResource VoiSee.Color.ListItemSelectedPressed}" />
+
+    <SolidColorBrush x:Key="ListViewItemForeground" Color="{StaticResource VoiSee.Color.PrimaryText}" />
+    <SolidColorBrush x:Key="ListViewItemForegroundPointerOver" Color="{StaticResource VoiSee.Color.PrimaryText}" />
+    <SolidColorBrush x:Key="ListViewItemForegroundPressed" Color="{StaticResource VoiSee.Color.PrimaryText}" />
+    <SolidColorBrush x:Key="ListViewItemForegroundSelected" Color="{StaticResource VoiSee.Color.PrimaryText}" />
+    <SolidColorBrush x:Key="ListViewItemForegroundSelectedPointerOver" Color="{StaticResource VoiSee.Color.PrimaryText}" />
+    <SolidColorBrush x:Key="ListViewItemForegroundSelectedPressed" Color="{StaticResource VoiSee.Color.PrimaryText}" />
+
+    <SolidColorBrush x:Key="ListViewItemBorderBrush" Color="#00FFFFFF" />
+    <SolidColorBrush x:Key="ListViewItemBorderBrushPointerOver" Color="{StaticResource VoiSee.Color.ListItemHoverBorder}" />
+    <SolidColorBrush x:Key="ListViewItemBorderBrushPressed" Color="{StaticResource VoiSee.Color.ListItemHoverBorder}" />
+    <SolidColorBrush x:Key="ListViewItemBorderBrushSelected" Color="{StaticResource VoiSee.Color.ListItemSelectedBorder}" />
+    <SolidColorBrush x:Key="ListViewItemBorderBrushSelectedPointerOver" Color="{StaticResource VoiSee.Color.ListItemSelectedBorder}" />
+    <SolidColorBrush x:Key="ListViewItemBorderBrushSelectedPressed" Color="{StaticResource VoiSee.Color.ListItemSelectedBorder}" />
+
     <SolidColorBrush x:Key="ListViewItemSelectionIndicatorBrush" Color="{StaticResource VoiSee.Color.Accent}" />
+    <SolidColorBrush x:Key="ListViewItemSelectionIndicatorBrushPointerOver" Color="{StaticResource VoiSee.Color.Accent}" />
+    <SolidColorBrush x:Key="ListViewItemSelectionIndicatorBrushPressed" Color="{StaticResource VoiSee.Color.Accent}" />
     <Style x:Key="VoiSee.Style.ListView" TargetType="ListView">
         <Setter Property="Background" Value="{ThemeResource VoiSee.ListBackgroundBrush}" />
         <Setter Property="BorderBrush" Value="{ThemeResource VoiSee.PanelBorderBrush}" />
