@@ -6,7 +6,7 @@
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     mc:Ignorable="d"
-    Title="VoiSee Version 10.1.0">
+    Title="VoiSee Version 10.1.1">
 
     <Grid x:Name="RootGrid" RequestedTheme="Dark" Background="{ThemeResource VoiSee.AppBackgroundBrush}">
         <Grid.RowDefinitions>
@@ -21,7 +21,7 @@
             </Grid.ColumnDefinitions>
             <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center" Margin="10,0,0,0">
                 <Image Source="ms-appx:///Assets/AppIcon_24.png" Width="16" Height="16" VerticalAlignment="Center" />
-                <TextBlock x:Name="TitleBarVersionTextBlock" Text="VoiSee Version 10.1.0" FontSize="12" Foreground="{ThemeResource VoiSee.PrimaryTextBrush}" VerticalAlignment="Center" />
+                <TextBlock x:Name="TitleBarVersionTextBlock" Text="VoiSee Version 10.1.1" FontSize="12" Foreground="{ThemeResource VoiSee.PrimaryTextBrush}" VerticalAlignment="Center" />
             </StackPanel>
         </Grid>
 
@@ -31,7 +31,7 @@
                 <RowDefinition Height="*" />
             </Grid.RowDefinitions>
 
-        <Border x:Name="MainHeaderBorder" Grid.Row="0" Padding="6" MinHeight="46">
+        <Border Style="{ThemeResource VoiSee.Style.Panel.MainHeader}" x:Name="MainHeaderBorder" Grid.Row="0" Padding="6" MinHeight="46">
             <Grid ColumnSpacing="16">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*" />
@@ -39,12 +39,12 @@
                 </Grid.ColumnDefinitions>
                 <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
                     <Image Source="ms-appx:///Assets/AppIcon_48.png" Width="34" Height="34" VerticalAlignment="Center" />
-                    <TextBlock x:Name="MainTitle" Text="VoiSee Version 10.1.0" FontSize="28" FontWeight="SemiBold" Foreground="{ThemeResource VoiSee.PrimaryTextBrush}" VerticalAlignment="Center" />
+                    <TextBlock x:Name="MainTitle" Text="VoiSee Version 10.1.1" FontSize="28" FontWeight="SemiBold" Foreground="{ThemeResource VoiSee.PrimaryTextBrush}" VerticalAlignment="Center" />
                 </StackPanel>
                 <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center" HorizontalAlignment="Right">
                     <TextBlock Text="Mic Output" Foreground="{ThemeResource VoiSee.PrimaryTextBrush}" Opacity="0.62" VerticalAlignment="Center" />
                     <TextBlock x:Name="VirtualMicMuteStatusTextBlock" Text="Live" Foreground="{ThemeResource VoiSee.SuccessBrush}" Opacity="0.95" FontWeight="SemiBold" VerticalAlignment="Center" />
-                    <Button x:Name="VirtualMicMuteToggleButton" Content="Mute" MinWidth="92" Padding="10,4" Click="OnVirtualMicMuteToggleClick" />
+                    <Button Style="{ThemeResource VoiSee.Style.Button.VirtualMicMute}" x:Name="VirtualMicMuteToggleButton" Content="Mute" MinWidth="92" Padding="10,4" Click="OnVirtualMicMuteToggleClick" />
                 </StackPanel>
             </Grid>
         </Border>
@@ -90,15 +90,15 @@
                                             <ColumnDefinition Width="78" />
                                             <ColumnDefinition Width="78" />
                                         </Grid.ColumnDefinitions>
-                                        <Button Grid.Row="0" Grid.Column="0" x:Name="PreviousSoundButton" Content="&#xE892;" FontFamily="Segoe MDL2 Assets" FontSize="18" MinWidth="0" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" Click="OnPreviousSoundClick" ToolTipService.ToolTip="Previous track" />
-                                        <Button Grid.Row="0" Grid.Column="1" x:Name="NextSoundButton" Content="&#xE893;" FontFamily="Segoe MDL2 Assets" FontSize="18" MinWidth="0" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" Click="OnNextSoundClick" ToolTipService.ToolTip="Next track" />
-                                        <ToggleButton Grid.Row="1" Grid.Column="0" x:Name="SoundLoopToggleButton" Content="∞" FontSize="20" MinWidth="0" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" Checked="OnSoundLoopToggleChanged" Unchecked="OnSoundLoopToggleChanged" ToolTipService.ToolTip="Loop current SoundBoard track" />
-                                        <Button Grid.Row="1" Grid.Column="1" x:Name="StopSoundButton" Content="Stop" MinWidth="0" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" Click="OnStopSoundClick" ToolTipService.ToolTip="Stop sound" />
+                                        <Button Style="{ThemeResource VoiSee.Style.Button.SoundBoardTransport}" Grid.Row="0" Grid.Column="0" x:Name="PreviousSoundButton" Content="&#xE892;" FontFamily="Segoe MDL2 Assets" FontSize="18" MinWidth="0" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" Click="OnPreviousSoundClick" ToolTipService.ToolTip="Previous track" />
+                                        <Button Style="{ThemeResource VoiSee.Style.Button.SoundBoardTransport}" Grid.Row="0" Grid.Column="1" x:Name="NextSoundButton" Content="&#xE893;" FontFamily="Segoe MDL2 Assets" FontSize="18" MinWidth="0" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" Click="OnNextSoundClick" ToolTipService.ToolTip="Next track" />
+                                        <ToggleButton Style="{ThemeResource VoiSee.Style.ToggleButton}" Grid.Row="1" Grid.Column="0" x:Name="SoundLoopToggleButton" Content="∞" FontSize="20" MinWidth="0" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" Checked="OnSoundLoopToggleChanged" Unchecked="OnSoundLoopToggleChanged" ToolTipService.ToolTip="Loop current SoundBoard track" />
+                                        <Button Style="{ThemeResource VoiSee.Style.Button.SoundBoardTransport}" Grid.Row="1" Grid.Column="1" x:Name="StopSoundButton" Content="Stop" MinWidth="0" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" Click="OnStopSoundClick" ToolTipService.ToolTip="Stop sound" />
                                     </Grid>
                                 </Border>
 
                                 <Border Grid.Row="0" Grid.Column="1" Grid.ColumnSpan="2" Padding="2">
-                                    <TextBlock x:Name="TransportStatusTextBlock" Text="No sound" HorizontalAlignment="Center" Opacity="0.75" />
+                                    <TextBlock Style="{ThemeResource VoiSee.Style.Text.Secondary}" x:Name="TransportStatusTextBlock" Text="No sound" HorizontalAlignment="Center" Opacity="0.75" />
                                 </Border>
 
                                 <Border Grid.Row="1" Grid.Column="1" Grid.ColumnSpan="2" Padding="0" Height="104" VerticalAlignment="Top">
@@ -112,7 +112,7 @@
                                             <RowDefinition Height="20" />
                                         </Grid.RowDefinitions>
 
-                                        <Button Grid.Row="0" Grid.Column="0" x:Name="PlayPauseButton" Content="&#xE768;" FontFamily="Segoe MDL2 Assets" FontSize="22" MinWidth="0" Width="56" Height="48" HorizontalAlignment="Left" VerticalAlignment="Center" Click="OnPlayPauseSoundClick" ToolTipService.ToolTip="Play / Pause">
+                                        <Button Style="{ThemeResource VoiSee.Style.Button.SoundBoardTransport}" Grid.Row="0" Grid.Column="0" x:Name="PlayPauseButton" Content="&#xE768;" FontFamily="Segoe MDL2 Assets" FontSize="22" MinWidth="0" Width="56" Height="48" HorizontalAlignment="Left" VerticalAlignment="Center" Click="OnPlayPauseSoundClick" ToolTipService.ToolTip="Play / Pause">
                                             <Button.RenderTransform>
                                                 <TranslateTransform Y="10" />
                                             </Button.RenderTransform>
@@ -148,9 +148,9 @@
                                 <Border Grid.Row="0" Grid.RowSpan="2" Grid.Column="3" Padding="6">
                                     <StackPanel Spacing="6" VerticalAlignment="Top">
                                         <TextBlock x:Name="SoundVirtualVolumeLabel" Text="SoundBoard → Virtual Mic: 100%" FontWeight="SemiBold" />
-                                        <Slider x:Name="SoundVirtualVolumeSlider" Minimum="0" Maximum="1.5" Value="1" StepFrequency="0.01" ValueChanged="OnSoundVolumeChanged" />
+                                        <Slider Style="{ThemeResource VoiSee.Style.Slider}" x:Name="SoundVirtualVolumeSlider" Minimum="0" Maximum="1.5" Value="1" StepFrequency="0.01" ValueChanged="OnSoundVolumeChanged" />
                                         <TextBlock x:Name="SoundMonitorVolumeLabel" Text="SoundBoard → Headphones: 100%" FontWeight="SemiBold" />
-                                        <Slider x:Name="SoundMonitorVolumeSlider" Minimum="0" Maximum="1.5" Value="1" StepFrequency="0.01" ValueChanged="OnSoundVolumeChanged" />
+                                        <Slider Style="{ThemeResource VoiSee.Style.Slider}" x:Name="SoundMonitorVolumeSlider" Minimum="0" Maximum="1.5" Value="1" StepFrequency="0.01" ValueChanged="OnSoundVolumeChanged" />
                                     </StackPanel>
                                 </Border>
                             </Grid>
@@ -180,12 +180,12 @@
                                             <ColumnDefinition Width="*" />
                                             <ColumnDefinition Width="*" />
                                         </Grid.ColumnDefinitions>
-                                        <Button Grid.Column="0" Content="Create" HorizontalAlignment="Stretch" Click="OnAddCategoryClick" />
-                                        <Button Grid.Column="1" Content="Rename" HorizontalAlignment="Stretch" Click="OnRenameCategoryClick" />
-                                        <Button Grid.Column="2" Content="Delete" HorizontalAlignment="Stretch" Click="OnDeleteCategoryClick" />
+                                        <Button Style="{ThemeResource VoiSee.Style.Button}" Grid.Column="0" Content="Create" HorizontalAlignment="Stretch" Click="OnAddCategoryClick" />
+                                        <Button Style="{ThemeResource VoiSee.Style.Button}" Grid.Column="1" Content="Rename" HorizontalAlignment="Stretch" Click="OnRenameCategoryClick" />
+                                        <Button Style="{ThemeResource VoiSee.Style.Button}" Grid.Column="2" Content="Delete" HorizontalAlignment="Stretch" Click="OnDeleteCategoryClick" />
                                     </Grid>
 
-                                    <ComboBox Grid.Row="1"
+                                    <ComboBox Style="{ThemeResource VoiSee.Style.ComboBox}" Grid.Row="1"
                                               x:Name="CategoryComboBox"
                                               DisplayMemberPath="Name"
                                               PlaceholderText="Choose category"
@@ -193,7 +193,7 @@
                                               HorizontalAlignment="Stretch" />
 
                                     <Border Grid.Row="2" Margin="0,12,0,0" Padding="10" Background="{ThemeResource VoiSee.PanelBackgroundBrush}" BorderBrush="{ThemeResource VoiSee.PanelBorderBrush}" BorderThickness="1" HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
-                                        <TextBlock x:Name="CategoryInfoTextBlock"
+                                        <TextBlock Style="{ThemeResource VoiSee.Style.Text.Secondary}" x:Name="CategoryInfoTextBlock"
                                                    Text="Categories: 0&#x0a;Tracks in category: 0&#x0a;Category uses: 0"
                                                    TextWrapping="Wrap"
                                                    Opacity="0.82" />
@@ -217,17 +217,17 @@
                                         </Grid.ColumnDefinitions>
 
                                         <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="8" HorizontalAlignment="Left">
-                                            <TextBox x:Name="TrackSearchTextBox"
+                                            <TextBox Style="{ThemeResource VoiSee.Style.TextBox}" x:Name="TrackSearchTextBox"
                                                      Width="360"
                                                      PlaceholderText="Search track"
                                                      KeyDown="OnTrackSearchKeyDown" />
-                                            <Button Content="Find" Click="OnSearchTrackClick" />
+                                            <Button Style="{ThemeResource VoiSee.Style.Button}" Content="Find" Click="OnSearchTrackClick" />
                                         </StackPanel>
 
                                         <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right">
-                                            <Button x:Name="EditSoundButton" Content="Edit Track" Click="OnEditSoundClick" />
-                                            <Button Content="Add Track" Click="OnAddSoundClick" />
-                                            <Button Content="Delete Track" Click="OnDeleteSoundClick" />
+                                            <Button Style="{ThemeResource VoiSee.Style.Button.SoundBoardEdit}" x:Name="EditSoundButton" Content="Edit Track" Click="OnEditSoundClick" />
+                                            <Button Style="{ThemeResource VoiSee.Style.Button}" Content="Add Track" Click="OnAddSoundClick" />
+                                            <Button Style="{ThemeResource VoiSee.Style.Button}" Content="Delete Track" Click="OnDeleteSoundClick" />
                                         </StackPanel>
                                     </Grid>
 
@@ -317,7 +317,7 @@
                                     <TextBlock Text="Connected DSP sliders are shown. Pitch is a real-time low-latency shifter; sliders use -100..+100. Number fields allow -9999..+9999 for experimental presets." Opacity="0.72" TextWrapping="Wrap" />
                                     <TextBlock Text="Warning: extreme values can cause loud audio, clipping, instability, or device/output problems. Increase them carefully." Opacity="0.82" Foreground="{ThemeResource VoiSee.WarningBrush}" TextWrapping="Wrap" />
                                 </StackPanel>
-                                <Button Grid.Column="1"
+                                <Button Style="{ThemeResource VoiSee.Style.Button}" Grid.Column="1"
                                         x:Name="VoiceMonitorButton"
                                         Content="Voice Monitor: Off"
                                         MinWidth="180"
@@ -345,135 +345,135 @@
                                     <Grid ColumnSpacing="8">
                                         <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="70" /></Grid.ColumnDefinitions>
                                         <TextBlock x:Name="VoiceGainLabel" Text="Voice Gain" FontWeight="SemiBold" VerticalAlignment="Center" />
-                                        <TextBox Grid.Column="1" x:Name="VoiceGainValueBox" Text="0" MaxLength="5" TextAlignment="Right" TextChanged="OnVoiceValueTextChanged" />
+                                        <TextBox Style="{ThemeResource VoiSee.Style.TextBox}" Grid.Column="1" x:Name="VoiceGainValueBox" Text="0" MaxLength="5" TextAlignment="Right" TextChanged="OnVoiceValueTextChanged" />
                                     </Grid>
-                                    <Slider x:Name="VoiceGainSlider" Minimum="-100" Maximum="100" Value="0" StepFrequency="1" ValueChanged="OnVoiceSettingsChanged" />
+                                    <Slider Style="{ThemeResource VoiSee.Style.Slider}" x:Name="VoiceGainSlider" Minimum="-100" Maximum="100" Value="0" StepFrequency="1" ValueChanged="OnVoiceSettingsChanged" />
                                 </StackPanel>
 
                                 <StackPanel Grid.Row="0" Grid.Column="1" Spacing="6">
                                     <Grid ColumnSpacing="8">
                                         <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="70" /></Grid.ColumnDefinitions>
                                         <TextBlock x:Name="GateThresholdLabel" Text="Gate" FontWeight="SemiBold" VerticalAlignment="Center" />
-                                        <TextBox Grid.Column="1" x:Name="GateThresholdValueBox" Text="0" MaxLength="5" TextAlignment="Right" TextChanged="OnVoiceValueTextChanged" />
+                                        <TextBox Style="{ThemeResource VoiSee.Style.TextBox}" Grid.Column="1" x:Name="GateThresholdValueBox" Text="0" MaxLength="5" TextAlignment="Right" TextChanged="OnVoiceValueTextChanged" />
                                     </Grid>
-                                    <Slider x:Name="GateThresholdSlider" Minimum="-100" Maximum="100" Value="0" StepFrequency="1" ValueChanged="OnVoiceSettingsChanged" />
+                                    <Slider Style="{ThemeResource VoiSee.Style.Slider}" x:Name="GateThresholdSlider" Minimum="-100" Maximum="100" Value="0" StepFrequency="1" ValueChanged="OnVoiceSettingsChanged" />
                                 </StackPanel>
 
                                 <StackPanel Grid.Row="0" Grid.Column="2" Spacing="6">
                                     <Grid ColumnSpacing="8">
                                         <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="70" /></Grid.ColumnDefinitions>
                                         <TextBlock x:Name="CompressorThresholdLabel" Text="Compressor" FontWeight="SemiBold" VerticalAlignment="Center" />
-                                        <TextBox Grid.Column="1" x:Name="CompressorThresholdValueBox" Text="0" MaxLength="5" TextAlignment="Right" TextChanged="OnVoiceValueTextChanged" />
+                                        <TextBox Style="{ThemeResource VoiSee.Style.TextBox}" Grid.Column="1" x:Name="CompressorThresholdValueBox" Text="0" MaxLength="5" TextAlignment="Right" TextChanged="OnVoiceValueTextChanged" />
                                     </Grid>
-                                    <Slider x:Name="CompressorThresholdSlider" Minimum="-100" Maximum="100" Value="0" StepFrequency="1" ValueChanged="OnVoiceSettingsChanged" />
+                                    <Slider Style="{ThemeResource VoiSee.Style.Slider}" x:Name="CompressorThresholdSlider" Minimum="-100" Maximum="100" Value="0" StepFrequency="1" ValueChanged="OnVoiceSettingsChanged" />
                                 </StackPanel>
 
                                 <StackPanel Grid.Row="0" Grid.Column="3" Spacing="6">
                                     <Grid ColumnSpacing="8">
                                         <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="70" /></Grid.ColumnDefinitions>
                                         <TextBlock x:Name="PitchLabel" Text="Pitch" FontWeight="SemiBold" VerticalAlignment="Center" />
-                                        <TextBox Grid.Column="1" x:Name="PitchValueBox" Text="0" MaxLength="5" TextAlignment="Right" TextChanged="OnVoiceValueTextChanged" />
+                                        <TextBox Style="{ThemeResource VoiSee.Style.TextBox}" Grid.Column="1" x:Name="PitchValueBox" Text="0" MaxLength="5" TextAlignment="Right" TextChanged="OnVoiceValueTextChanged" />
                                     </Grid>
-                                    <Slider x:Name="PitchSlider" Minimum="-100" Maximum="100" Value="0" StepFrequency="1" ValueChanged="OnVoiceSettingsChanged" />
+                                    <Slider Style="{ThemeResource VoiSee.Style.Slider}" x:Name="PitchSlider" Minimum="-100" Maximum="100" Value="0" StepFrequency="1" ValueChanged="OnVoiceSettingsChanged" />
                                 </StackPanel>
 
                                 <StackPanel Grid.Row="1" Grid.Column="0" Spacing="6">
                                     <Grid ColumnSpacing="8">
                                         <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="70" /></Grid.ColumnDefinitions>
                                         <TextBlock x:Name="FormantLabel" Text="Formant" FontWeight="SemiBold" VerticalAlignment="Center" />
-                                        <TextBox Grid.Column="1" x:Name="FormantValueBox" Text="0" MaxLength="5" TextAlignment="Right" TextChanged="OnVoiceValueTextChanged" />
+                                        <TextBox Style="{ThemeResource VoiSee.Style.TextBox}" Grid.Column="1" x:Name="FormantValueBox" Text="0" MaxLength="5" TextAlignment="Right" TextChanged="OnVoiceValueTextChanged" />
                                     </Grid>
-                                    <Slider x:Name="FormantSlider" Minimum="-100" Maximum="100" Value="0" StepFrequency="1" ValueChanged="OnVoiceSettingsChanged" />
+                                    <Slider Style="{ThemeResource VoiSee.Style.Slider}" x:Name="FormantSlider" Minimum="-100" Maximum="100" Value="0" StepFrequency="1" ValueChanged="OnVoiceSettingsChanged" />
                                 </StackPanel>
 
                                 <StackPanel Grid.Row="1" Grid.Column="1" Spacing="6">
                                     <Grid ColumnSpacing="8">
                                         <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="70" /></Grid.ColumnDefinitions>
                                         <TextBlock x:Name="BassLabel" Text="Bass" FontWeight="SemiBold" VerticalAlignment="Center" />
-                                        <TextBox Grid.Column="1" x:Name="BassValueBox" Text="0" MaxLength="5" TextAlignment="Right" TextChanged="OnVoiceValueTextChanged" />
+                                        <TextBox Style="{ThemeResource VoiSee.Style.TextBox}" Grid.Column="1" x:Name="BassValueBox" Text="0" MaxLength="5" TextAlignment="Right" TextChanged="OnVoiceValueTextChanged" />
                                     </Grid>
-                                    <Slider x:Name="BassSlider" Minimum="-100" Maximum="100" Value="0" StepFrequency="1" ValueChanged="OnVoiceSettingsChanged" />
+                                    <Slider Style="{ThemeResource VoiSee.Style.Slider}" x:Name="BassSlider" Minimum="-100" Maximum="100" Value="0" StepFrequency="1" ValueChanged="OnVoiceSettingsChanged" />
                                 </StackPanel>
 
                                 <StackPanel Grid.Row="1" Grid.Column="2" Spacing="6">
                                     <Grid ColumnSpacing="8">
                                         <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="70" /></Grid.ColumnDefinitions>
                                         <TextBlock x:Name="TrebleLabel" Text="Treble" FontWeight="SemiBold" VerticalAlignment="Center" />
-                                        <TextBox Grid.Column="1" x:Name="TrebleValueBox" Text="0" MaxLength="5" TextAlignment="Right" TextChanged="OnVoiceValueTextChanged" />
+                                        <TextBox Style="{ThemeResource VoiSee.Style.TextBox}" Grid.Column="1" x:Name="TrebleValueBox" Text="0" MaxLength="5" TextAlignment="Right" TextChanged="OnVoiceValueTextChanged" />
                                     </Grid>
-                                    <Slider x:Name="TrebleSlider" Minimum="-100" Maximum="100" Value="0" StepFrequency="1" ValueChanged="OnVoiceSettingsChanged" />
+                                    <Slider Style="{ThemeResource VoiSee.Style.Slider}" x:Name="TrebleSlider" Minimum="-100" Maximum="100" Value="0" StepFrequency="1" ValueChanged="OnVoiceSettingsChanged" />
                                 </StackPanel>
 
                                 <StackPanel Grid.Row="1" Grid.Column="3" Spacing="6">
                                     <Grid ColumnSpacing="8">
                                         <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="70" /></Grid.ColumnDefinitions>
                                         <TextBlock x:Name="DistortionLabel" Text="Distortion" FontWeight="SemiBold" VerticalAlignment="Center" />
-                                        <TextBox Grid.Column="1" x:Name="DistortionValueBox" Text="0" MaxLength="5" TextAlignment="Right" TextChanged="OnVoiceValueTextChanged" />
+                                        <TextBox Style="{ThemeResource VoiSee.Style.TextBox}" Grid.Column="1" x:Name="DistortionValueBox" Text="0" MaxLength="5" TextAlignment="Right" TextChanged="OnVoiceValueTextChanged" />
                                     </Grid>
-                                    <Slider x:Name="DistortionSlider" Minimum="-100" Maximum="100" Value="0" StepFrequency="1" ValueChanged="OnVoiceSettingsChanged" />
+                                    <Slider Style="{ThemeResource VoiSee.Style.Slider}" x:Name="DistortionSlider" Minimum="-100" Maximum="100" Value="0" StepFrequency="1" ValueChanged="OnVoiceSettingsChanged" />
                                 </StackPanel>
 
                                 <StackPanel Grid.Row="2" Grid.Column="0" Spacing="6">
                                     <Grid ColumnSpacing="8">
                                         <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="70" /></Grid.ColumnDefinitions>
                                         <TextBlock x:Name="RobotLabel" Text="Robot" FontWeight="SemiBold" VerticalAlignment="Center" />
-                                        <TextBox Grid.Column="1" x:Name="RobotValueBox" Text="0" MaxLength="5" TextAlignment="Right" TextChanged="OnVoiceValueTextChanged" />
+                                        <TextBox Style="{ThemeResource VoiSee.Style.TextBox}" Grid.Column="1" x:Name="RobotValueBox" Text="0" MaxLength="5" TextAlignment="Right" TextChanged="OnVoiceValueTextChanged" />
                                     </Grid>
-                                    <Slider x:Name="RobotSlider" Minimum="-100" Maximum="100" Value="0" StepFrequency="1" ValueChanged="OnVoiceSettingsChanged" />
+                                    <Slider Style="{ThemeResource VoiSee.Style.Slider}" x:Name="RobotSlider" Minimum="-100" Maximum="100" Value="0" StepFrequency="1" ValueChanged="OnVoiceSettingsChanged" />
                                 </StackPanel>
 
                                 <StackPanel Grid.Row="2" Grid.Column="1" Spacing="6">
                                     <Grid ColumnSpacing="8">
                                         <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="70" /></Grid.ColumnDefinitions>
                                         <TextBlock x:Name="TremoloLabel" Text="Tremolo" FontWeight="SemiBold" VerticalAlignment="Center" />
-                                        <TextBox Grid.Column="1" x:Name="TremoloValueBox" Text="0" MaxLength="5" TextAlignment="Right" TextChanged="OnVoiceValueTextChanged" />
+                                        <TextBox Style="{ThemeResource VoiSee.Style.TextBox}" Grid.Column="1" x:Name="TremoloValueBox" Text="0" MaxLength="5" TextAlignment="Right" TextChanged="OnVoiceValueTextChanged" />
                                     </Grid>
-                                    <Slider x:Name="TremoloSlider" Minimum="-100" Maximum="100" Value="0" StepFrequency="1" ValueChanged="OnVoiceSettingsChanged" />
+                                    <Slider Style="{ThemeResource VoiSee.Style.Slider}" x:Name="TremoloSlider" Minimum="-100" Maximum="100" Value="0" StepFrequency="1" ValueChanged="OnVoiceSettingsChanged" />
                                 </StackPanel>
 
                                 <StackPanel Grid.Row="2" Grid.Column="2" Spacing="6">
                                     <Grid ColumnSpacing="8">
                                         <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="70" /></Grid.ColumnDefinitions>
                                         <TextBlock x:Name="EchoLabel" Text="Echo" FontWeight="SemiBold" VerticalAlignment="Center" />
-                                        <TextBox Grid.Column="1" x:Name="EchoValueBox" Text="0" MaxLength="5" TextAlignment="Right" TextChanged="OnVoiceValueTextChanged" />
+                                        <TextBox Style="{ThemeResource VoiSee.Style.TextBox}" Grid.Column="1" x:Name="EchoValueBox" Text="0" MaxLength="5" TextAlignment="Right" TextChanged="OnVoiceValueTextChanged" />
                                     </Grid>
-                                    <Slider x:Name="EchoSlider" Minimum="-100" Maximum="100" Value="0" StepFrequency="1" ValueChanged="OnVoiceSettingsChanged" />
+                                    <Slider Style="{ThemeResource VoiSee.Style.Slider}" x:Name="EchoSlider" Minimum="-100" Maximum="100" Value="0" StepFrequency="1" ValueChanged="OnVoiceSettingsChanged" />
                                 </StackPanel>
 
                                 <StackPanel Grid.Row="2" Grid.Column="3" Spacing="6">
                                     <Grid ColumnSpacing="8">
                                         <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="70" /></Grid.ColumnDefinitions>
                                         <TextBlock x:Name="ReverbLabel" Text="Reverb" FontWeight="SemiBold" VerticalAlignment="Center" />
-                                        <TextBox Grid.Column="1" x:Name="ReverbValueBox" Text="0" MaxLength="5" TextAlignment="Right" TextChanged="OnVoiceValueTextChanged" />
+                                        <TextBox Style="{ThemeResource VoiSee.Style.TextBox}" Grid.Column="1" x:Name="ReverbValueBox" Text="0" MaxLength="5" TextAlignment="Right" TextChanged="OnVoiceValueTextChanged" />
                                     </Grid>
-                                    <Slider x:Name="ReverbSlider" Minimum="-100" Maximum="100" Value="0" StepFrequency="1" ValueChanged="OnVoiceSettingsChanged" />
+                                    <Slider Style="{ThemeResource VoiSee.Style.Slider}" x:Name="ReverbSlider" Minimum="-100" Maximum="100" Value="0" StepFrequency="1" ValueChanged="OnVoiceSettingsChanged" />
                                 </StackPanel>
 
                                 <StackPanel Grid.Row="3" Grid.Column="0" Spacing="6">
                                     <Grid ColumnSpacing="8">
                                         <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="70" /></Grid.ColumnDefinitions>
                                         <TextBlock x:Name="RadioLabel" Text="Radio" FontWeight="SemiBold" VerticalAlignment="Center" />
-                                        <TextBox Grid.Column="1" x:Name="RadioValueBox" Text="0" MaxLength="5" TextAlignment="Right" TextChanged="OnVoiceValueTextChanged" />
+                                        <TextBox Style="{ThemeResource VoiSee.Style.TextBox}" Grid.Column="1" x:Name="RadioValueBox" Text="0" MaxLength="5" TextAlignment="Right" TextChanged="OnVoiceValueTextChanged" />
                                     </Grid>
-                                    <Slider x:Name="RadioSlider" Minimum="-100" Maximum="100" Value="0" StepFrequency="1" ValueChanged="OnVoiceSettingsChanged" />
+                                    <Slider Style="{ThemeResource VoiSee.Style.Slider}" x:Name="RadioSlider" Minimum="-100" Maximum="100" Value="0" StepFrequency="1" ValueChanged="OnVoiceSettingsChanged" />
                                 </StackPanel>
 
                                 <StackPanel Grid.Row="3" Grid.Column="1" Spacing="6">
                                     <Grid ColumnSpacing="8">
                                         <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="70" /></Grid.ColumnDefinitions>
                                         <TextBlock x:Name="BitCrusherLabel" Text="Bit Crusher" FontWeight="SemiBold" VerticalAlignment="Center" />
-                                        <TextBox Grid.Column="1" x:Name="BitCrusherValueBox" Text="0" MaxLength="5" TextAlignment="Right" TextChanged="OnVoiceValueTextChanged" />
+                                        <TextBox Style="{ThemeResource VoiSee.Style.TextBox}" Grid.Column="1" x:Name="BitCrusherValueBox" Text="0" MaxLength="5" TextAlignment="Right" TextChanged="OnVoiceValueTextChanged" />
                                     </Grid>
-                                    <Slider x:Name="BitCrusherSlider" Minimum="-100" Maximum="100" Value="0" StepFrequency="1" ValueChanged="OnVoiceSettingsChanged" />
+                                    <Slider Style="{ThemeResource VoiSee.Style.Slider}" x:Name="BitCrusherSlider" Minimum="-100" Maximum="100" Value="0" StepFrequency="1" ValueChanged="OnVoiceSettingsChanged" />
                                 </StackPanel>
 
                                 <StackPanel Grid.Row="3" Grid.Column="2" Spacing="6">
                                     <Grid ColumnSpacing="8">
                                         <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="70" /></Grid.ColumnDefinitions>
                                         <TextBlock x:Name="AlienLabel" Text="Alien" FontWeight="SemiBold" VerticalAlignment="Center" />
-                                        <TextBox Grid.Column="1" x:Name="AlienValueBox" Text="0" MaxLength="5" TextAlignment="Right" TextChanged="OnVoiceValueTextChanged" />
+                                        <TextBox Style="{ThemeResource VoiSee.Style.TextBox}" Grid.Column="1" x:Name="AlienValueBox" Text="0" MaxLength="5" TextAlignment="Right" TextChanged="OnVoiceValueTextChanged" />
                                     </Grid>
-                                    <Slider x:Name="AlienSlider" Minimum="-100" Maximum="100" Value="0" StepFrequency="1" ValueChanged="OnVoiceSettingsChanged" />
+                                    <Slider Style="{ThemeResource VoiSee.Style.Slider}" x:Name="AlienSlider" Minimum="-100" Maximum="100" Value="0" StepFrequency="1" ValueChanged="OnVoiceSettingsChanged" />
                                 </StackPanel>
 
                             </Grid>
@@ -510,7 +510,7 @@
 
                             <StackPanel Grid.Column="0" Spacing="10">
                                 <TextBlock Text="Saved scenes" FontSize="18" FontWeight="SemiBold" />
-                                <ListView x:Name="ScenesListView" Height="300" SelectionChanged="OnSceneSelectionChanged">
+                                <ListView Style="{ThemeResource VoiSee.Style.ListView}" ItemContainerStyle="{ThemeResource VoiSee.Style.ListViewItem}" x:Name="ScenesListView" Height="300" SelectionChanged="OnSceneSelectionChanged">
                                     <ListView.ItemTemplate>
                                         <DataTemplate>
                                             <Grid Padding="4" ColumnSpacing="8">
@@ -539,11 +539,11 @@
                                         <RowDefinition Height="Auto" />
                                         <RowDefinition Height="Auto" />
                                     </Grid.RowDefinitions>
-                                    <Button Grid.Row="0" Grid.Column="0" x:Name="SceneApplyButton" Content="Apply" HorizontalAlignment="Stretch" Click="OnApplySceneClick" />
-                                    <Button Grid.Row="0" Grid.Column="1" x:Name="SceneDisableButton" Content="Disable" HorizontalAlignment="Stretch" Click="OnDisableScenesClick" />
-                                    <Button Grid.Row="1" Grid.Column="0" x:Name="SceneDeleteButton" Content="Delete" HorizontalAlignment="Stretch" Click="OnDeleteSceneClick" />
-                                    <Button Grid.Row="1" Grid.Column="1" x:Name="SceneRenameButton" Content="Rename" HorizontalAlignment="Stretch" Click="OnRenameSceneClick" />
-                                    <Button Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="2" x:Name="SceneCreateNewButton" Content="Create New" HorizontalAlignment="Stretch" Click="OnCreateNewSceneClick" />
+                                    <Button Style="{ThemeResource VoiSee.Style.Button.SceneAction}" Grid.Row="0" Grid.Column="0" x:Name="SceneApplyButton" Content="Apply" HorizontalAlignment="Stretch" Click="OnApplySceneClick" />
+                                    <Button Style="{ThemeResource VoiSee.Style.Button.SceneAction}" Grid.Row="0" Grid.Column="1" x:Name="SceneDisableButton" Content="Disable" HorizontalAlignment="Stretch" Click="OnDisableScenesClick" />
+                                    <Button Style="{ThemeResource VoiSee.Style.Button.SceneAction}" Grid.Row="1" Grid.Column="0" x:Name="SceneDeleteButton" Content="Delete" HorizontalAlignment="Stretch" Click="OnDeleteSceneClick" />
+                                    <Button Style="{ThemeResource VoiSee.Style.Button.SceneAction}" Grid.Row="1" Grid.Column="1" x:Name="SceneRenameButton" Content="Rename" HorizontalAlignment="Stretch" Click="OnRenameSceneClick" />
+                                    <Button Style="{ThemeResource VoiSee.Style.Button.SceneAction}" Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="2" x:Name="SceneCreateNewButton" Content="Create New" HorizontalAlignment="Stretch" Click="OnCreateNewSceneClick" />
                                 </Grid>
                             </StackPanel>
 
@@ -578,12 +578,12 @@
                                                 <TextBlock Grid.Column="0" Text="Looped Sound" FontWeight="SemiBold" VerticalAlignment="Center" />
                                                 <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
                                                     <TextBlock Text="HP" Opacity="0.72" FontSize="12" VerticalAlignment="Center" />
-                                                    <Slider x:Name="SceneLoopHeadphonesVolumeSlider" Minimum="0" Maximum="1.5" Value="1" StepFrequency="0.01" Width="84" ValueChanged="OnSceneVolumeChanged" />
+                                                    <Slider Style="{ThemeResource VoiSee.Style.Slider}" x:Name="SceneLoopHeadphonesVolumeSlider" Minimum="0" Maximum="1.5" Value="1" StepFrequency="0.01" Width="84" ValueChanged="OnSceneVolumeChanged" />
                                                     <TextBlock x:Name="SceneLoopHeadphonesVolumeValueBox" Text="100%" Opacity="0.72" FontSize="12" Width="36" VerticalAlignment="Center" />
                                                 </StackPanel>
                                                 <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
                                                     <TextBlock Text="Mic" Opacity="0.72" FontSize="12" VerticalAlignment="Center" />
-                                                    <Slider x:Name="SceneLoopVirtualMicVolumeSlider" Minimum="0" Maximum="1.5" Value="1" StepFrequency="0.01" Width="84" ValueChanged="OnSceneVolumeChanged" />
+                                                    <Slider Style="{ThemeResource VoiSee.Style.Slider}" x:Name="SceneLoopVirtualMicVolumeSlider" Minimum="0" Maximum="1.5" Value="1" StepFrequency="0.01" Width="84" ValueChanged="OnSceneVolumeChanged" />
                                                     <TextBlock x:Name="SceneLoopVirtualMicVolumeValueBox" Text="100%" Opacity="0.72" FontSize="12" Width="36" VerticalAlignment="Center" />
                                                 </StackPanel>
                                             </Grid>
@@ -596,13 +596,13 @@
                                                       x:Name="LoopedSceneSoundsPanel"
                                                       Height="88" />
                                                 <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="4" VerticalAlignment="Top">
-                                                    <Button x:Name="SceneLoopPlayLoopButton" Content="∞" Width="42" Height="42" Click="OnSceneLoopPlayLoopClick" ToolTipService.ToolTip="Start loop" />
-                                                    <Button x:Name="SceneLoopPlayOnceButton" Content="&#xE768;" FontFamily="Segoe MDL2 Assets" Width="42" Height="42" FontSize="16" Click="OnSceneLoopPlayOnceClick" ToolTipService.ToolTip="Play / pause looped sound" />
-                                                    <Button x:Name="SceneLoopRemoveButton" Content="✕" Width="42" Height="42" Click="OnSceneLoopRemoveClick" ToolTipService.ToolTip="Remove sound" />
-                                                    <Button x:Name="SceneLoopChooseButton" Content="⮏" Width="42" Height="42" Click="OnSceneLoopChooseClick" ToolTipService.ToolTip="Choose another sound" />
+                                                    <Button Style="{ThemeResource VoiSee.Style.Button}" x:Name="SceneLoopPlayLoopButton" Content="∞" Width="42" Height="42" Click="OnSceneLoopPlayLoopClick" ToolTipService.ToolTip="Start loop" />
+                                                    <Button Style="{ThemeResource VoiSee.Style.Button}" x:Name="SceneLoopPlayOnceButton" Content="&#xE768;" FontFamily="Segoe MDL2 Assets" Width="42" Height="42" FontSize="16" Click="OnSceneLoopPlayOnceClick" ToolTipService.ToolTip="Play / pause looped sound" />
+                                                    <Button Style="{ThemeResource VoiSee.Style.Button}" x:Name="SceneLoopRemoveButton" Content="✕" Width="42" Height="42" Click="OnSceneLoopRemoveClick" ToolTipService.ToolTip="Remove sound" />
+                                                    <Button Style="{ThemeResource VoiSee.Style.Button}" x:Name="SceneLoopChooseButton" Content="⮏" Width="42" Height="42" Click="OnSceneLoopChooseClick" ToolTipService.ToolTip="Choose another sound" />
                                                 </StackPanel>
                                             </Grid>
-                                            <CheckBox x:Name="SceneAutostartLoopsCheckBox"
+                                            <CheckBox Style="{ThemeResource VoiSee.Style.CheckBox}" x:Name="SceneAutostartLoopsCheckBox"
                                                       Content="Start looped sound when scene is enabled"
                                                       Checked="OnSceneAutostartLoopsChanged"
                                                       Unchecked="OnSceneAutostartLoopsChanged" />
@@ -610,15 +610,15 @@
 
                                         <StackPanel Grid.Column="1" Spacing="8">
                                             <TextBlock Text="Voice settings" FontWeight="SemiBold" />
-                                            <ComboBox x:Name="SceneVoicePresetComboBox"
+                                            <ComboBox Style="{ThemeResource VoiSee.Style.ComboBox}" x:Name="SceneVoicePresetComboBox"
                                                       DisplayMemberPath="Name"
                                                       PlaceholderText="Voice preset"
                                                       HorizontalAlignment="Stretch"
                                                       SelectionChanged="OnSceneVoicePresetSelectionChanged" />
                                             <StackPanel Orientation="Horizontal" Spacing="8">
-                                                <Button x:Name="SceneVoicePresetClearButton" Content="Clear" MinWidth="78" Click="OnSceneVoicePresetClearClick" />
-                                                <Button x:Name="SceneVoicePresetCreateButton" Content="Create new" MinWidth="104" Click="OnSceneVoicePresetCreateClick" />
-                                                <Button x:Name="SceneVoiceMonitorButton"
+                                                <Button Style="{ThemeResource VoiSee.Style.Button}" x:Name="SceneVoicePresetClearButton" Content="Clear" MinWidth="78" Click="OnSceneVoicePresetClearClick" />
+                                                <Button Style="{ThemeResource VoiSee.Style.Button}" x:Name="SceneVoicePresetCreateButton" Content="Create new" MinWidth="104" Click="OnSceneVoicePresetCreateClick" />
+                                                <Button Style="{ThemeResource VoiSee.Style.Button}" x:Name="SceneVoiceMonitorButton"
                                                         Content="Voice Monitor: Off"
                                                         MinWidth="150"
                                                         Click="OnToggleVoiceMonitorClick" />
@@ -665,10 +665,10 @@
                                     <StackPanel Spacing="8">
                                         <TextBlock Text="Virtual microphone bridge" FontSize="18" FontWeight="SemiBold" />
                                         <TextBlock x:Name="VBCableStatusTextBlock" Text="VB-CABLE is not installed." TextWrapping="WrapWholeWords" Opacity="0.92" FontWeight="SemiBold" />
-                                        <TextBlock x:Name="VBCableBridgeInfoTextBlock" Text="Install VB-CABLE to create the virtual microphone bridge. The audio engine will stay disabled until CABLE Input is detected." TextWrapping="WrapWholeWords" Opacity="0.72" />
+                                        <TextBlock Style="{ThemeResource VoiSee.Style.Text.Secondary}" x:Name="VBCableBridgeInfoTextBlock" Text="Install VB-CABLE to create the virtual microphone bridge. The audio engine will stay disabled until CABLE Input is detected." TextWrapping="WrapWholeWords" Opacity="0.72" />
                                         <StackPanel Orientation="Horizontal" Spacing="10">
-                                            <Button x:Name="InstallVBCableButton" Content="Install VB-CABLE" Padding="14,6" MinHeight="32" Click="OnInstallVBCableClick" />
-                                            <Button Content="Refresh Devices" Padding="14,6" MinHeight="32" Click="OnRefreshDevicesClick" />
+                                            <Button Style="{ThemeResource VoiSee.Style.Button.SettingsAction}" x:Name="InstallVBCableButton" Content="Install VB-CABLE" Padding="14,6" MinHeight="32" Click="OnInstallVBCableClick" />
+                                            <Button Style="{ThemeResource VoiSee.Style.Button}" Content="Refresh Devices" Padding="14,6" MinHeight="32" Click="OnRefreshDevicesClick" />
                                         </StackPanel>
                                     </StackPanel>
                                 </Border>
@@ -680,42 +680,42 @@
                                         <ColumnDefinition Width="Auto" />
                                         <ColumnDefinition Width="*" />
                                     </Grid.ColumnDefinitions>
-                                    <Button Grid.Column="0" Content="Refresh Devices" Click="OnRefreshDevicesClick" VerticalAlignment="Center" />
+                                    <Button Style="{ThemeResource VoiSee.Style.Button}" Grid.Column="0" Content="Refresh Devices" Click="OnRefreshDevicesClick" VerticalAlignment="Center" />
                                     <StackPanel Grid.Column="1" Spacing="6" VerticalAlignment="Center">
                                         <TextBlock x:Name="VirtualOutputVolumeLabel" Text="Virtual Mic Master: 100%" FontWeight="SemiBold" />
-                                        <Slider x:Name="VirtualOutputVolumeSlider" Minimum="0" Maximum="1.5" Value="1" StepFrequency="0.01" ValueChanged="OnOutputVolumeChanged" />
+                                        <Slider Style="{ThemeResource VoiSee.Style.Slider}" x:Name="VirtualOutputVolumeSlider" Minimum="0" Maximum="1.5" Value="1" StepFrequency="0.01" ValueChanged="OnOutputVolumeChanged" />
                                     </StackPanel>
                                 </Grid>
 
                                 <StackPanel Spacing="6">
                                     <TextBlock Text="Input Microphone" />
-                                    <ComboBox x:Name="InputDeviceComboBox" PlaceholderText="Choose microphone" DisplayMemberPath="FriendlyName" HorizontalAlignment="Stretch" SelectionChanged="OnRouteSettingChanged" />
+                                    <ComboBox Style="{ThemeResource VoiSee.Style.ComboBox}" x:Name="InputDeviceComboBox" PlaceholderText="Choose microphone" DisplayMemberPath="FriendlyName" HorizontalAlignment="Stretch" SelectionChanged="OnRouteSettingChanged" />
                                 </StackPanel>
-                                <ComboBox x:Name="VirtualOutputComboBox" PlaceholderText="Choose CABLE Input" DisplayMemberPath="FriendlyName" HorizontalAlignment="Stretch" SelectionChanged="OnRouteSettingChanged" Visibility="Collapsed" />
+                                <ComboBox Style="{ThemeResource VoiSee.Style.ComboBox}" x:Name="VirtualOutputComboBox" PlaceholderText="Choose CABLE Input" DisplayMemberPath="FriendlyName" HorizontalAlignment="Stretch" SelectionChanged="OnRouteSettingChanged" Visibility="Collapsed" />
                                 <StackPanel Spacing="6">
                                     <TextBlock Text="Monitor Output" />
-                                    <ComboBox x:Name="MonitorOutputComboBox" PlaceholderText="Choose headphones" DisplayMemberPath="FriendlyName" HorizontalAlignment="Stretch" SelectionChanged="OnRouteSettingChanged" />
+                                    <ComboBox Style="{ThemeResource VoiSee.Style.ComboBox}" x:Name="MonitorOutputComboBox" PlaceholderText="Choose headphones" DisplayMemberPath="FriendlyName" HorizontalAlignment="Stretch" SelectionChanged="OnRouteSettingChanged" />
                                 </StackPanel>
 
                                 <TextBlock Text="Output" FontSize="18" FontWeight="SemiBold" />
                                 <StackPanel x:Name="SettingsLogArea" Orientation="Horizontal" Spacing="10" Background="Transparent">
-                                    <Button Content="Open logs" Padding="14,6" MinHeight="32" Click="OnOpenLogFullscreenClick" />
+                                    <Button Style="{ThemeResource VoiSee.Style.Button}" Content="Open logs" Padding="14,6" MinHeight="32" Click="OnOpenLogFullscreenClick" />
                                     <TextBlock Text="Application log opens in a separate window." VerticalAlignment="Center" Opacity="0.7" />
                                 </StackPanel>
 
                                 <TextBlock Text="Hotkeys" FontSize="18" FontWeight="SemiBold" />
                                 <StackPanel Spacing="8" Background="Transparent">
                                     <StackPanel Orientation="Horizontal" Spacing="10">
-                                        <Button Content="Hotkeys" Padding="14,6" MinHeight="32" Click="OnConfigureTransportHotkeysClick" />
+                                        <Button Style="{ThemeResource VoiSee.Style.Button}" Content="Hotkeys" Padding="14,6" MinHeight="32" Click="OnConfigureTransportHotkeysClick" />
                                         <TextBlock Text="Transport and Virtual Mic Mute hotkeys. While a scene is active, Play/Pause and Stop control only scene one-shot sounds." VerticalAlignment="Center" Opacity="0.7" TextWrapping="WrapWholeWords" />
                                     </StackPanel>
-                                    <TextBlock x:Name="TransportHotkeysSummaryTextBlock" Text="Transport hotkeys: not configured" Opacity="0.72" TextWrapping="Wrap" />
+                                    <TextBlock Style="{ThemeResource VoiSee.Style.Text.Secondary}" x:Name="TransportHotkeysSummaryTextBlock" Text="Transport hotkeys: not configured" Opacity="0.72" TextWrapping="Wrap" />
                                 </StackPanel>
 
                                 <TextBlock Text="SoundBoard" FontSize="18" FontWeight="SemiBold" />
                                 <StackPanel Spacing="8">
                                     <TextBlock x:Name="DelayLabel" Text="SoundBoard Virtual Mic Delay: 85 ms" FontWeight="SemiBold" />
-                                    <Slider x:Name="SoundVirtualDelaySlider" Minimum="0" Maximum="300" Value="85" StepFrequency="1" ValueChanged="OnDelayChanged" />
+                                    <Slider Style="{ThemeResource VoiSee.Style.Slider}" x:Name="SoundVirtualDelaySlider" Minimum="0" Maximum="300" Value="85" StepFrequency="1" ValueChanged="OnDelayChanged" />
                                     <TextBlock Text="SoundBoard plays in headphones immediately, then reaches the virtual microphone bridge after this delay. Changes apply on next Play Sound." Opacity="0.7" TextWrapping="Wrap" />
                                 </StackPanel>
 
@@ -731,35 +731,35 @@
                                     </Grid>
                                     <TextBlock Text="The engine starts automatically when VoiSee opens. Use these buttons only for manual troubleshooting." Opacity="0.7" TextWrapping="Wrap" />
                                     <StackPanel Orientation="Horizontal" Spacing="10">
-                                        <Button x:Name="StartEngineButton" Content="Start Engine" MinWidth="154" Height="42" Padding="18,8" Click="OnStartEngineClick" />
-                                        <Button x:Name="StopEngineButton" Content="Stop Engine" MinWidth="154" Height="42" Padding="18,8" Click="OnStopEngineClick" />
+                                        <Button Style="{ThemeResource VoiSee.Style.Button.SettingsAction}" x:Name="StartEngineButton" Content="Start Engine" MinWidth="154" Height="42" Padding="18,8" Click="OnStartEngineClick" />
+                                        <Button Style="{ThemeResource VoiSee.Style.Button.SettingsAction}" x:Name="StopEngineButton" Content="Stop Engine" MinWidth="154" Height="42" Padding="18,8" Click="OnStopEngineClick" />
                                     </StackPanel>
                                 </StackPanel>
                             </StackPanel>
 
-                            <Border x:Name="SettingsThemesPanel" Grid.Column="1" Background="{ThemeResource VoiSee.PanelBackgroundBrush}" BorderBrush="{ThemeResource VoiSee.PanelBorderBrush}" BorderThickness="1" CornerRadius="{ThemeResource VoiSee.CornerRadius.Large}" Padding="18" VerticalAlignment="Top">
+                            <Border Style="{ThemeResource VoiSee.Style.Panel.SettingsCard}" x:Name="SettingsThemesPanel" Grid.Column="1" VerticalAlignment="Top">
                                 <StackPanel Spacing="12">
                                     <TextBlock Text="Appearance / Themes" FontSize="18" FontWeight="SemiBold" />
                                     <TextBlock Text="Create a .voiseetheme.xaml file, edit it as a native WinUI ResourceDictionary, and save it. VoiSee validates and applies the dictionary automatically. If the XAML is invalid, the last working theme stays active." TextWrapping="WrapWholeWords" Opacity="0.72" />
                                     <StackPanel Spacing="6">
                                         <TextBlock Text="Current theme" Opacity="0.72" />
-                                        <ComboBox x:Name="ThemeComboBox" HorizontalAlignment="Stretch" SelectionChanged="OnThemeSelectionChanged" DropDownOpened="OnThemeComboBoxDropDownOpened" />
+                                        <ComboBox Style="{ThemeResource VoiSee.Style.ComboBox}" x:Name="ThemeComboBox" HorizontalAlignment="Stretch" SelectionChanged="OnThemeSelectionChanged" DropDownOpened="OnThemeComboBoxDropDownOpened" />
                                     </StackPanel>
                                     <StackPanel Orientation="Horizontal" Spacing="10">
-                                        <Button Content="Create New Theme" Padding="14,6" MinHeight="32" Click="OnCreateNewThemeClick" />
-                                        <Button Content="Open Theme File" Padding="14,6" MinHeight="32" Click="OnOpenThemeFileClick" />
+                                        <Button Style="{ThemeResource VoiSee.Style.Button.ThemeAction}" Content="Create New Theme" Padding="14,6" MinHeight="32" Click="OnCreateNewThemeClick" />
+                                        <Button Style="{ThemeResource VoiSee.Style.Button.ThemeAction}" Content="Open Theme File" Padding="14,6" MinHeight="32" Click="OnOpenThemeFileClick" />
                                     </StackPanel>
                                     <StackPanel Orientation="Horizontal" Spacing="10">
-                                        <Button Content="Open Theme Folder" Padding="14,6" MinHeight="32" Click="OnOpenThemeFolderClick" />
-                                        <Button x:Name="RenameThemeButton" Content="Rename Theme" Padding="14,6" MinHeight="32" IsEnabled="False" Click="OnRenameThemeClick" />
-                                        <Button x:Name="DeleteThemeButton" Content="Delete Theme" Padding="14,6" MinHeight="32" IsEnabled="False" Click="OnDeleteThemeClick" />
+                                        <Button Style="{ThemeResource VoiSee.Style.Button.ThemeAction}" Content="Open Theme Folder" Padding="14,6" MinHeight="32" Click="OnOpenThemeFolderClick" />
+                                        <Button Style="{ThemeResource VoiSee.Style.Button.ThemeAction}" x:Name="RenameThemeButton" Content="Rename Theme" Padding="14,6" MinHeight="32" IsEnabled="False" Click="OnRenameThemeClick" />
+                                        <Button Style="{ThemeResource VoiSee.Style.Button.ThemeAction}" x:Name="DeleteThemeButton" Content="Delete Theme" Padding="14,6" MinHeight="32" IsEnabled="False" Click="OnDeleteThemeClick" />
                                     </StackPanel>
-                                    <TextBlock x:Name="ThemeStatusTextBlock" Text="Theme: Default Dark" TextWrapping="WrapWholeWords" Opacity="0.72" />
-                                    <TextBlock Text="Theme files use semantic resource keys such as VoiSee.AppBackgroundBrush, VoiSee.PanelBackgroundBrush, VoiSee.PrimaryTextBrush and VoiSee.AccentBrush. You can also override ordinary WinUI brushes and Styles directly. See the sample XAML theme for the full contract." TextWrapping="WrapWholeWords" Opacity="0.62" />
+                                    <TextBlock Style="{ThemeResource VoiSee.Style.Text.Secondary}" x:Name="ThemeStatusTextBlock" Text="Theme: Default Dark" TextWrapping="WrapWholeWords" Opacity="0.72" />
+                                    <TextBlock Text="A newly created theme is a structured XAML catalogue containing only connected VoiSee resources: global colors and radii, then buttons, sliders, inputs, lists, and finally named VoiSee panels and actions. Edit values without changing x:Key names; live reload shows the result." TextWrapping="WrapWholeWords" Opacity="0.62" />
                                 </StackPanel>
                             </Border>
 
-                            <Border x:Name="AboutMePanel" Grid.Column="2" Background="{ThemeResource VoiSee.PanelBackgroundBrush}" BorderBrush="{ThemeResource VoiSee.PanelBorderBrush}" BorderThickness="1" CornerRadius="{ThemeResource VoiSee.CornerRadius.Large}" Padding="18" VerticalAlignment="Top">
+                            <Border Style="{ThemeResource VoiSee.Style.Panel.SettingsCard}" x:Name="AboutMePanel" Grid.Column="2" VerticalAlignment="Top">
                                 <StackPanel Spacing="14">
                                     <TextBlock Text="About me" FontSize="18" FontWeight="SemiBold" />
                                     <TextBlock Text="Links" Opacity="0.72" />

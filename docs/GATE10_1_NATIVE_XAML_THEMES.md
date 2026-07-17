@@ -1,8 +1,8 @@
-# VoiSee 10.1.0 — Native WinUI XAML themes
+# VoiSee 10.1.1 — Native WinUI XAML themes
 
 ## Base
 
-This branch is based on the accepted VoiSee 9.2.7 release candidate. The unverified VoiSee 10.0 audio-monitor isolation experiment remains a separate test branch and is not included in 10.1.0.
+This branch is based on the accepted VoiSee 9.2.7 release candidate. The unverified VoiSee 10.0 audio-monitor isolation experiment remains a separate test branch and is not included in 10.1.1.
 
 ## Goal
 
@@ -117,7 +117,7 @@ The sample documents the complete semantic contract and demonstrates direct over
 
 ## Windows smoke tests
 
-1. Build and launch VoiSee 10.1.0.
+1. Build and launch VoiSee 10.1.1.
 2. Confirm Default Dark matches the accepted 9.2.7 appearance.
 3. Create a new theme and verify `.voiseetheme.xaml` is produced and opened.
 4. Change `VoiSee.AppBackgroundBrush`, save, and confirm live reload.

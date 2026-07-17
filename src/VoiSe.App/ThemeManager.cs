@@ -11,7 +11,7 @@ using Windows.UI;
 namespace VoiSe.App;
 
 /// <summary>
-/// VoiSee 10.1 native theme loader.
+/// VoiSee 10.1.1 native theme loader and connected resource catalogue.
 ///
 /// User themes are ordinary WinUI ResourceDictionary XAML files. The manager
 /// validates a candidate dictionary before it atomically replaces the active
@@ -223,68 +223,14 @@ public sealed class ThemeManager
 
     public static string CreateTemplateXaml(string themeName)
     {
-        return $$"""
-<ResourceDictionary
-    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+        var templatePath = Path.Combine(AppContext.BaseDirectory, "Themes", "UserThemeTemplate.voiseetheme.template");
+        if (!File.Exists(templatePath))
+        {
+            throw new FileNotFoundException("The built-in VoiSee XAML theme template was not found.", templatePath);
+        }
 
-    <!-- VoiSee native XAML theme: {{themeName}} -->
-    <!-- Required semantic resources -->
-    <SolidColorBrush x:Key="VoiSee.AppBackgroundBrush" Color="#FF05070A" />
-    <SolidColorBrush x:Key="VoiSee.TitleBarBackgroundBrush" Color="#FF05070A" />
-    <SolidColorBrush x:Key="VoiSee.TitleBarForegroundBrush" Color="#FFF2FEFF" />
-    <SolidColorBrush x:Key="VoiSee.TitleBarHoverBrush" Color="#FF20343D" />
-    <SolidColorBrush x:Key="VoiSee.TitleBarPressedBrush" Color="#FF10242C" />
-
-    <SolidColorBrush x:Key="VoiSee.PanelBackgroundBrush" Color="#CC0B1018" />
-    <SolidColorBrush x:Key="VoiSee.PanelBorderBrush" Color="#6600E5FF" />
-    <SolidColorBrush x:Key="VoiSee.PrimaryTextBrush" Color="#FFF2FEFF" />
-    <SolidColorBrush x:Key="VoiSee.SecondaryTextBrush" Color="#B8F2FEFF" />
-    <SolidColorBrush x:Key="VoiSee.AccentBrush" Color="#FF00E5FF" />
-    <SolidColorBrush x:Key="VoiSee.DangerBrush" Color="#FFFF3366" />
-    <SolidColorBrush x:Key="VoiSee.SuccessBrush" Color="#FF37FF9B" />
-    <SolidColorBrush x:Key="VoiSee.WarningBrush" Color="#FFFFD166" />
-
-    <SolidColorBrush x:Key="VoiSee.ButtonBackgroundBrush" Color="#FF18242C" />
-    <SolidColorBrush x:Key="VoiSee.ButtonHoverBrush" Color="#FF243642" />
-    <SolidColorBrush x:Key="VoiSee.ButtonPressedBrush" Color="#FF001B22" />
-    <SolidColorBrush x:Key="VoiSee.ButtonBorderBrush" Color="#7700E5FF" />
-    <SolidColorBrush x:Key="VoiSee.InputBackgroundBrush" Color="#CC10161D" />
-
-    <SolidColorBrush x:Key="VoiSee.TimelineHostBrush" Color="#01000000" />
-    <SolidColorBrush x:Key="VoiSee.TransparentHitTestBrush" Color="#01000000" />
-    <SolidColorBrush x:Key="VoiSee.TimelineTrackBrush" Color="#33FFFFFF" />
-    <SolidColorBrush x:Key="VoiSee.TimelineFillBrush" Color="#99FFFFFF" />
-    <SolidColorBrush x:Key="VoiSee.TimelineThumbBrush" Color="#FFFFFFFF" />
-    <SolidColorBrush x:Key="VoiSee.MuteBannerBackgroundBrush" Color="#44220000" />
-    <SolidColorBrush x:Key="VoiSee.MuteBannerBorderBrush" Color="#88FF4D4D" />
-    <SolidColorBrush x:Key="VoiSee.DropOverlayBackgroundBrush" Color="#E0202020" />
-    <SolidColorBrush x:Key="VoiSee.DropOverlayBorderBrush" Color="#66FFFFFF" />
-    <SolidColorBrush x:Key="VoiSee.DropOverlayInnerBackgroundBrush" Color="#DD202020" />
-    <SolidColorBrush x:Key="VoiSee.DropOverlayInnerBorderBrush" Color="#55FFFFFF" />
-    <SolidColorBrush x:Key="VoiSee.CardValueBackgroundBrush" Color="#22FFFFFF" />
-    <SolidColorBrush x:Key="VoiSee.CardValueBorderBrush" Color="#44FFFFFF" />
-    <SolidColorBrush x:Key="VoiSee.VBCableNoticeBackgroundBrush" Color="#22141414" />
-    <SolidColorBrush x:Key="VoiSee.VBCableNoticeBorderBrush" Color="#55D68B00" />
-
-    <CornerRadius x:Key="VoiSee.CornerRadius.Small">6</CornerRadius>
-    <CornerRadius x:Key="VoiSee.CornerRadius.Medium">10</CornerRadius>
-    <CornerRadius x:Key="VoiSee.CornerRadius.Large">14</CornerRadius>
-
-    <!-- Common WinUI resource overrides. Add or remove ordinary WinUI
-         resources and Styles here; the file is loaded directly as a
-         ResourceDictionary, with no CSS conversion layer. -->
-    <SolidColorBrush x:Key="ApplicationPageBackgroundThemeBrush" Color="#FF05070A" />
-    <SolidColorBrush x:Key="TextFillColorPrimaryBrush" Color="#FFF2FEFF" />
-    <SolidColorBrush x:Key="TextFillColorSecondaryBrush" Color="#B8F2FEFF" />
-    <SolidColorBrush x:Key="AccentFillColorDefaultBrush" Color="#FF00E5FF" />
-    <SolidColorBrush x:Key="ControlFillColorDefaultBrush" Color="#FF18242C" />
-    <SolidColorBrush x:Key="ControlFillColorSecondaryBrush" Color="#FF243642" />
-    <SolidColorBrush x:Key="ControlFillColorTertiaryBrush" Color="#FF001B22" />
-    <SolidColorBrush x:Key="ControlStrokeColorDefaultBrush" Color="#7700E5FF" />
-
-</ResourceDictionary>
-""";
+        var template = File.ReadAllText(templatePath, Encoding.UTF8);
+        return template.Replace("__THEME_NAME__", string.IsNullOrWhiteSpace(themeName) ? "My Theme" : themeName.Trim(), StringComparison.Ordinal);
     }
 
     private static void ValidateSemanticContract(ResourceDictionary dictionary)

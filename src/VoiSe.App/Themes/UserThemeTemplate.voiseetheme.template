@@ -3,7 +3,7 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
 
     <!--
-      VoiSee native XAML theme: Neon Cyan
+      VoiSee native XAML theme: __THEME_NAME__
 
       This file is an editable catalogue of resources that are connected to the
       current VoiSee interface. Change values, save the file, and VoiSee will

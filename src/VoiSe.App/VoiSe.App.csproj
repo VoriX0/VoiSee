@@ -13,10 +13,10 @@
     <EnableMsixTooling>true</EnableMsixTooling>
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>
     <ApplicationIcon>Assets\AppIcon.ico</ApplicationIcon>
-    <Version>10.1.0</Version>
-    <AssemblyVersion>10.1.0.0</AssemblyVersion>
-    <FileVersion>10.1.0.0</FileVersion>
-    <InformationalVersion>10.1.0</InformationalVersion>
+    <Version>10.1.1</Version>
+    <AssemblyVersion>10.1.1.0</AssemblyVersion>
+    <FileVersion>10.1.1.0</FileVersion>
+    <InformationalVersion>10.1.1</InformationalVersion>
   </PropertyGroup>
   <ItemGroup>
     <!-- User-generated data must never be published or packed into the installer.
@@ -33,6 +33,10 @@
       <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
     </Content>
     <Content Include="ThirdParty\VB-CABLE\**\*">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+    </Content>
+    <Content Include="Themes\UserThemeTemplate.voiseetheme.template">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
     </Content>
