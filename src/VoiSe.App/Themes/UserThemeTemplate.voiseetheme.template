@@ -248,16 +248,16 @@
     <!-- 4. TEXT FIELDS AND DROP-DOWN LISTS                              -->
     <!-- ================================================================ -->
     <!-- TextBox input states. -->
-    <Color x:Key="VoiSee.Color.InputBackground">#FF090E16</Color>
+    <Color x:Key="VoiSee.Color.InputBackground">#0FFFFFFF</Color>
     <Color x:Key="VoiSee.Color.InputBorder">#00000000</Color>
     <Color x:Key="VoiSee.Color.InputText">#FFF3F7FF</Color>
-    <Color x:Key="VoiSee.Color.InputHoverBackground">#FF111821</Color>
+    <Color x:Key="VoiSee.Color.InputHoverBackground">#15FFFFFF</Color>
     <Color x:Key="VoiSee.Color.InputHoverBorder">#00000000</Color>
     <Color x:Key="VoiSee.Color.InputHoverText">#FFF3F7FF</Color>
-    <Color x:Key="VoiSee.Color.InputFocusedBackground">#FF0D1420</Color>
+    <Color x:Key="VoiSee.Color.InputFocusedBackground">#B31E1E1E</Color>
     <Color x:Key="VoiSee.Color.InputFocusedBorder">#00000000</Color>
     <Color x:Key="VoiSee.Color.InputFocusedText">#FFF3F7FF</Color>
-    <Color x:Key="VoiSee.Color.InputDisabledBackground">#FF070A0F</Color>
+    <Color x:Key="VoiSee.Color.InputDisabledBackground">#0BFFFFFF</Color>
     <Color x:Key="VoiSee.Color.InputDisabledBorder">#00000000</Color>
     <Color x:Key="VoiSee.Color.InputDisabledText">#66FFFFFF</Color>
 
@@ -283,19 +283,19 @@
     <SolidColorBrush x:Key="TextControlForegroundDisabled" Color="{StaticResource VoiSee.Color.InputDisabledText}" />
 
     <!-- ComboBox itself, its popup and every dropdown item state. -->
-    <Color x:Key="VoiSee.Color.ComboBoxBackground">#FF090E16</Color>
+    <Color x:Key="VoiSee.Color.ComboBoxBackground">#0FFFFFFF</Color>
     <Color x:Key="VoiSee.Color.ComboBoxBorder">#00000000</Color>
     <Color x:Key="VoiSee.Color.ComboBoxText">#FFF3F7FF</Color>
-    <Color x:Key="VoiSee.Color.ComboBoxHoverBackground">#FF111821</Color>
+    <Color x:Key="VoiSee.Color.ComboBoxHoverBackground">#15FFFFFF</Color>
     <Color x:Key="VoiSee.Color.ComboBoxHoverBorder">#00000000</Color>
     <Color x:Key="VoiSee.Color.ComboBoxHoverText">#FFF3F7FF</Color>
-    <Color x:Key="VoiSee.Color.ComboBoxPressedBackground">#FF151D28</Color>
+    <Color x:Key="VoiSee.Color.ComboBoxPressedBackground">#08FFFFFF</Color>
     <Color x:Key="VoiSee.Color.ComboBoxPressedBorder">#00000000</Color>
     <Color x:Key="VoiSee.Color.ComboBoxPressedText">#FFF3F7FF</Color>
-    <Color x:Key="VoiSee.Color.ComboBoxFocusedBackground">#FF0D1420</Color>
+    <Color x:Key="VoiSee.Color.ComboBoxFocusedBackground">#0FFFFFFF</Color>
     <Color x:Key="VoiSee.Color.ComboBoxFocusedBorder">#00000000</Color>
     <Color x:Key="VoiSee.Color.ComboBoxFocusedText">#FFF3F7FF</Color>
-    <Color x:Key="VoiSee.Color.ComboBoxDisabledBackground">#FF070A0F</Color>
+    <Color x:Key="VoiSee.Color.ComboBoxDisabledBackground">#0BFFFFFF</Color>
     <Color x:Key="VoiSee.Color.ComboBoxDisabledBorder">#00000000</Color>
     <Color x:Key="VoiSee.Color.ComboBoxDisabledText">#66FFFFFF</Color>
     <Color x:Key="VoiSee.Color.ComboBoxDropDownBackground">#FF202020</Color>
