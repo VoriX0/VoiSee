@@ -12,6 +12,7 @@ internal sealed class WindowCaptureService
     private const int DwmwaCloaked = 14;
     private const int PwRenderFullContent = 2;
     private const int Srccopy = 0x00CC0020;
+    private static readonly IntPtr DpiAwarenessContextPerMonitorAwareV2 = new IntPtr(-4);
 
     public IReadOnlyList<CapturableWindowInfo> EnumerateCapturableWindows()
     {
@@ -70,6 +71,22 @@ internal sealed class WindowCaptureService
     }
 
     public byte[]? CapturePreviewPng(CapturableWindowInfo window, int maxWidth = 1280, int maxHeight = 720)
+    {
+        var previousDpiContext = SetThreadDpiAwarenessContext(DpiAwarenessContextPerMonitorAwareV2);
+        try
+        {
+            return CapturePreviewPngCore(window, maxWidth, maxHeight);
+        }
+        finally
+        {
+            if (previousDpiContext != IntPtr.Zero)
+            {
+                SetThreadDpiAwarenessContext(previousDpiContext);
+            }
+        }
+    }
+
+    private byte[]? CapturePreviewPngCore(CapturableWindowInfo window, int maxWidth, int maxHeight)
     {
         if (!IsWindow(window.Handle) || !GetWindowRect(window.Handle, out var rect))
         {
@@ -164,6 +181,9 @@ internal sealed class WindowCaptureService
 
     [DllImport("user32.dll")]
     private static extern bool EnumWindows(EnumWindowsProc callback, IntPtr parameter);
+
+    [DllImport("user32.dll")]
+    private static extern IntPtr SetThreadDpiAwarenessContext(IntPtr dpiContext);
 
     [DllImport("user32.dll")]
     private static extern bool IsWindowVisible(IntPtr handle);

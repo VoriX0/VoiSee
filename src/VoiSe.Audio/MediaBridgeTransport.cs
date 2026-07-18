@@ -8,8 +8,10 @@ internal sealed class MediaBridgeTransport
     private readonly object _sync = new();
     private float _volume = 1.0f;
     private bool _paused;
-    private float _peak;
-    private DateTime _lastPeakUpdateUtc = DateTime.MinValue;
+    private float _sourcePeak;
+    private float _outputPeak;
+    private DateTime _lastSourcePeakUpdateUtc = DateTime.MinValue;
+    private DateTime _lastOutputPeakUpdateUtc = DateTime.MinValue;
 
     public MediaBridgeTransport(WaveFormat waveFormat)
     {
@@ -44,8 +46,8 @@ internal sealed class MediaBridgeTransport
 
         lock (_sync)
         {
-            _peak = Math.Clamp(peak, 0.0f, 1.0f);
-            _lastPeakUpdateUtc = DateTime.UtcNow;
+            _sourcePeak = Math.Clamp(peak, 0.0f, 1.0f);
+            _lastSourcePeakUpdateUtc = DateTime.UtcNow;
         }
 
         if (!paused)
@@ -68,13 +70,26 @@ internal sealed class MediaBridgeTransport
         {
             Array.Clear(buffer, offset, count);
             _queue.Clear();
+            lock (_sync)
+            {
+                _outputPeak = 0.0f;
+                _lastOutputPeakUpdateUtc = DateTime.UtcNow;
+            }
             return;
         }
 
         _queue.Read(buffer, offset, count);
+        var outputPeak = 0.0f;
         for (var i = 0; i < count; i++)
         {
             buffer[offset + i] *= volume;
+            outputPeak = Math.Max(outputPeak, Math.Abs(buffer[offset + i]));
+        }
+
+        lock (_sync)
+        {
+            _outputPeak = Math.Clamp(outputPeak, 0.0f, 1.0f);
+            _lastOutputPeakUpdateUtc = DateTime.UtcNow;
         }
     }
 
@@ -96,16 +111,29 @@ internal sealed class MediaBridgeTransport
         _queue.Clear();
     }
 
-    public float GetDisplayPeak()
+    public float GetSourceDisplayPeak()
     {
         lock (_sync)
         {
-            if ((DateTime.UtcNow - _lastPeakUpdateUtc).TotalMilliseconds > 500)
+            if ((DateTime.UtcNow - _lastSourcePeakUpdateUtc).TotalMilliseconds > 500)
             {
-                _peak = 0.0f;
+                _sourcePeak = 0.0f;
             }
 
-            return _peak;
+            return _sourcePeak;
+        }
+    }
+
+    public float GetOutputDisplayPeak()
+    {
+        lock (_sync)
+        {
+            if ((DateTime.UtcNow - _lastOutputPeakUpdateUtc).TotalMilliseconds > 500)
+            {
+                _outputPeak = 0.0f;
+            }
+
+            return _outputPeak;
         }
     }
 
@@ -115,8 +143,10 @@ internal sealed class MediaBridgeTransport
         lock (_sync)
         {
             _paused = false;
-            _peak = 0.0f;
-            _lastPeakUpdateUtc = DateTime.MinValue;
+            _sourcePeak = 0.0f;
+            _outputPeak = 0.0f;
+            _lastSourcePeakUpdateUtc = DateTime.MinValue;
+            _lastOutputPeakUpdateUtc = DateTime.MinValue;
         }
     }
 }

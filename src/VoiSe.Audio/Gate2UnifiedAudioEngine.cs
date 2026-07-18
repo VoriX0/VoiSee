@@ -170,7 +170,8 @@ public sealed class Gate2UnifiedAudioEngine : IDisposable
 
     public bool IsMediaBridgeBroadcasting => _mediaBridgeCapture?.IsCapturing == true;
     public bool IsMediaBridgePaused => _mediaBridge.IsPaused;
-    public float MediaBridgePeak => _mediaBridge.GetDisplayPeak();
+    public float MediaBridgeSourcePeak => _mediaBridge.GetSourceDisplayPeak();
+    public float MediaBridgeOutputPeak => _mediaBridge.GetOutputDisplayPeak();
     public string? MediaBridgeError => _mediaBridgeError;
 
     public void PlaySound(string filePath, float virtualVolume, float monitorVolume, int virtualDelayMs, bool loop = false, string? playbackKey = null)

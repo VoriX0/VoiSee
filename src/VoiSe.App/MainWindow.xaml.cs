@@ -204,7 +204,7 @@ public sealed partial class MainWindow : Window
         _mediaBridgeUiTimer.Tick += OnMediaBridgeUiTimerTick;
         _mediaBridgeUiTimer.Start();
 
-        AppendLog("VoiSee Version 11.0.2 UI started.");
+        AppendLog("VoiSee Version 11.0.3 UI started.");
         AppendLog($"Settings path: {_settingsStore.SettingsPath}");
         StartupLog.Write("MainWindow initialized; waiting for first activation.");
     }
@@ -1397,8 +1397,9 @@ public sealed partial class MainWindow : Window
             MediaBridgePreviewPlaceholder.Visibility = Visibility.Visible;
         }
 
-        UpdateMediaBridgeLevelMeter(0);
+        UpdateMediaBridgeLevelMeters(0, 0);
         MediaBridgeLevelTextBlock.Text = "Silent";
+        MediaBridgeMicLevelTextBlock.Text = "Silent";
         MediaBridgeDurationTextBlock.Text = "00:00:00";
         UpdateMediaBridgeUiState(status);
         if (writeLog && previous is not null)
@@ -1407,18 +1408,34 @@ public sealed partial class MainWindow : Window
         }
     }
 
-    private void UpdateMediaBridgeLevelMeter(double peak)
+    private void UpdateMediaBridgeLevelMeters(double sourcePeak, double outputPeak)
+    {
+        UpdateMediaBridgeLevelMeter(
+            sourcePeak,
+            MediaBridgeLevelProgressBar,
+            MediaBridgeLevelMask);
+
+        UpdateMediaBridgeLevelMeter(
+            outputPeak,
+            MediaBridgeMicLevelProgressBar,
+            MediaBridgeMicLevelMask);
+    }
+
+    private static void UpdateMediaBridgeLevelMeter(
+        double peak,
+        ProgressBar? progressBar,
+        Border? mask)
     {
         var clampedPeak = Math.Clamp(peak, 0.0, 1.0);
-        if (MediaBridgeLevelProgressBar is not null)
+        if (progressBar is not null)
         {
-            MediaBridgeLevelProgressBar.Value = clampedPeak;
+            progressBar.Value = clampedPeak;
         }
 
-        if (MediaBridgeLevelMask is not null)
+        if (mask is not null)
         {
             const double meterHeight = 300.0;
-            MediaBridgeLevelMask.Height = meterHeight * (1.0 - clampedPeak);
+            mask.Height = meterHeight * (1.0 - clampedPeak);
         }
     }
 
@@ -1454,14 +1471,17 @@ public sealed partial class MainWindow : Window
         {
             var elapsed = DateTimeOffset.Now - _mediaBridgeStartedAt.Value;
             MediaBridgeDurationTextBlock.Text = elapsed.ToString(@"hh\:mm\:ss");
-            var peak = Math.Clamp(engine!.MediaBridgePeak, 0.0f, 1.0f);
-            UpdateMediaBridgeLevelMeter(peak);
-            MediaBridgeLevelTextBlock.Text = peak < 0.005f ? "Silent" : $"{(int)Math.Round(peak * 100)}%";
+            var sourcePeak = Math.Clamp(engine!.MediaBridgeSourcePeak, 0.0f, 1.0f);
+            var outputPeak = Math.Clamp(engine.MediaBridgeOutputPeak, 0.0f, 1.0f);
+            UpdateMediaBridgeLevelMeters(sourcePeak, outputPeak);
+            MediaBridgeLevelTextBlock.Text = sourcePeak < 0.005f ? "Silent" : $"{(int)Math.Round(sourcePeak * 100)}%";
+            MediaBridgeMicLevelTextBlock.Text = outputPeak < 0.005f ? "Silent" : $"{(int)Math.Round(outputPeak * 100)}%";
         }
         else
         {
-            UpdateMediaBridgeLevelMeter(0);
+            UpdateMediaBridgeLevelMeters(0, 0);
             MediaBridgeLevelTextBlock.Text = "Silent";
+            MediaBridgeMicLevelTextBlock.Text = "Silent";
         }
 
         if (engine is not null && !string.IsNullOrWhiteSpace(engine.MediaBridgeError))

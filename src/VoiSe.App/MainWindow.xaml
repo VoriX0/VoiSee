@@ -6,7 +6,7 @@
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     mc:Ignorable="d"
-    Title="VoiSee Version 11.0.2">
+    Title="VoiSee Version 11.0.3">
 
     <Grid x:Name="RootGrid" RequestedTheme="Dark" Background="{ThemeResource VoiSee.AppBackgroundBrush}" SizeChanged="OnRootGridSizeChanged">
         <Grid.RowDefinitions>
@@ -21,7 +21,7 @@
             </Grid.ColumnDefinitions>
             <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center" Margin="10,0,0,0">
                 <Image Source="ms-appx:///Assets/AppIcon_24.png" Width="16" Height="16" VerticalAlignment="Center" />
-                <TextBlock x:Name="TitleBarVersionTextBlock" Text="VoiSee Version 11.0.2" FontSize="12" Foreground="{ThemeResource VoiSee.PrimaryTextBrush}" VerticalAlignment="Center" />
+                <TextBlock x:Name="TitleBarVersionTextBlock" Text="VoiSee Version 11.0.3" FontSize="12" Foreground="{ThemeResource VoiSee.PrimaryTextBrush}" VerticalAlignment="Center" />
             </StackPanel>
         </Grid>
 
@@ -39,7 +39,7 @@
                 </Grid.ColumnDefinitions>
                 <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
                     <Image Source="ms-appx:///Assets/AppIcon_48.png" Width="34" Height="34" VerticalAlignment="Center" />
-                    <TextBlock x:Name="MainTitle" Text="VoiSee Version 11.0.2" FontSize="28" FontWeight="SemiBold" Foreground="{ThemeResource VoiSee.PrimaryTextBrush}" VerticalAlignment="Center" />
+                    <TextBlock x:Name="MainTitle" Text="VoiSee Version 11.0.3" FontSize="28" FontWeight="SemiBold" Foreground="{ThemeResource VoiSee.PrimaryTextBrush}" VerticalAlignment="Center" />
                 </StackPanel>
                 <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center" HorizontalAlignment="Right">
                     <TextBlock Text="Mic Output" Foreground="{ThemeResource VoiSee.PrimaryTextBrush}" Opacity="0.62" VerticalAlignment="Center" />
@@ -654,62 +654,72 @@
                                 <ColumnDefinition Width="2*" MinWidth="310" />
                             </Grid.ColumnDefinitions>
 
-                            <Border Grid.Column="0"
-                                    Style="{ThemeResource VoiSee.Style.Panel.SettingsCard}"
-                                    Padding="12"
-                                    MinHeight="430">
-                                <Button x:Name="MediaBridgePreviewButton"
-                                        Background="Transparent"
-                                        BorderThickness="0"
-                                        Padding="0"
-                                        HorizontalAlignment="Stretch"
-                                        VerticalAlignment="Stretch"
-                                        HorizontalContentAlignment="Stretch"
-                                        VerticalContentAlignment="Stretch"
-                                        ToolTipService.ToolTip="Select or change the capture window"
-                                        Click="OnMediaBridgeSelectWindowClick">
-                                    <Grid Background="{ThemeResource VoiSee.AppBackgroundBrush}">
-                                        <Viewbox Stretch="Uniform"
-                                                 StretchDirection="Both"
-                                                 HorizontalAlignment="Stretch"
-                                                 VerticalAlignment="Stretch">
+                            <Grid Grid.Column="0" RowSpacing="10">
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="*" />
+                                </Grid.RowDefinitions>
+
+                                <Button Grid.Row="0"
+                                        x:Name="MediaBridgeStopButton"
+                                        Style="{ThemeResource VoiSee.Style.Button}"
+                                        Content="Stop Broadcast"
+                                        HorizontalAlignment="Left"
+                                        MinWidth="150"
+                                        Visibility="Collapsed"
+                                        Click="OnMediaBridgeStopClick" />
+
+                                <Border Grid.Row="1"
+                                        Style="{ThemeResource VoiSee.Style.Panel.SettingsCard}"
+                                        Padding="12"
+                                        MinHeight="430">
+                                    <Button x:Name="MediaBridgePreviewButton"
+                                            Background="Transparent"
+                                            BorderThickness="0"
+                                            Padding="0"
+                                            HorizontalAlignment="Stretch"
+                                            VerticalAlignment="Stretch"
+                                            HorizontalContentAlignment="Stretch"
+                                            VerticalContentAlignment="Stretch"
+                                            ToolTipService.ToolTip="Select or change the capture window"
+                                            Click="OnMediaBridgeSelectWindowClick">
+                                        <Grid Background="{ThemeResource VoiSee.AppBackgroundBrush}">
                                             <Image x:Name="MediaBridgePreviewImage"
-                                                   Stretch="Fill"
-                                                   HorizontalAlignment="Center"
-                                                   VerticalAlignment="Center" />
-                                        </Viewbox>
+                                                   Stretch="Uniform"
+                                                   HorizontalAlignment="Stretch"
+                                                   VerticalAlignment="Stretch" />
 
-                                        <StackPanel x:Name="MediaBridgePreviewPlaceholder"
-                                                    HorizontalAlignment="Center"
-                                                    VerticalAlignment="Center"
-                                                    Spacing="14">
-                                            <Border Width="76"
-                                                    Height="76"
-                                                    CornerRadius="38"
-                                                    Background="{ThemeResource VoiSee.PanelBackgroundBrush}"
-                                                    BorderBrush="{ThemeResource VoiSee.AccentBrush}"
-                                                    BorderThickness="1"
-                                                    HorizontalAlignment="Center">
-                                                <FontIcon Glyph="&#xE710;"
-                                                          FontSize="34"
-                                                          HorizontalAlignment="Center"
-                                                          VerticalAlignment="Center" />
-                                            </Border>
-                                            <TextBlock Text="Select a window"
-                                                       FontSize="18"
-                                                       FontWeight="SemiBold"
-                                                       HorizontalAlignment="Center" />
-                                            <TextBlock x:Name="MediaBridgeSavedProfileTextBlock"
-                                                       Text="No saved media profile"
-                                                       Style="{ThemeResource VoiSee.Style.Text.Secondary}"
-                                                       TextAlignment="Center"
-                                                       TextWrapping="Wrap"
-                                                       MaxWidth="430" />
-                                        </StackPanel>
-
-                                    </Grid>
-                                </Button>
-                            </Border>
+                                            <StackPanel x:Name="MediaBridgePreviewPlaceholder"
+                                                        HorizontalAlignment="Center"
+                                                        VerticalAlignment="Center"
+                                                        Spacing="14">
+                                                <Border Width="76"
+                                                        Height="76"
+                                                        CornerRadius="38"
+                                                        Background="{ThemeResource VoiSee.PanelBackgroundBrush}"
+                                                        BorderBrush="{ThemeResource VoiSee.AccentBrush}"
+                                                        BorderThickness="1"
+                                                        HorizontalAlignment="Center">
+                                                    <FontIcon Glyph="&#xE710;"
+                                                              FontSize="34"
+                                                              HorizontalAlignment="Center"
+                                                              VerticalAlignment="Center" />
+                                                </Border>
+                                                <TextBlock Text="Select a window"
+                                                           FontSize="18"
+                                                           FontWeight="SemiBold"
+                                                           HorizontalAlignment="Center" />
+                                                <TextBlock x:Name="MediaBridgeSavedProfileTextBlock"
+                                                           Text="No saved media profile"
+                                                           Style="{ThemeResource VoiSee.Style.Text.Secondary}"
+                                                           TextAlignment="Center"
+                                                           TextWrapping="Wrap"
+                                                           MaxWidth="430" />
+                                            </StackPanel>
+                                        </Grid>
+                                    </Button>
+                                </Border>
+                            </Grid>
 
                             <Border Grid.Column="1"
                                     Style="{ThemeResource VoiSee.Style.Panel.SettingsCard}"
@@ -722,27 +732,14 @@
                                         <RowDefinition Height="*" />
                                     </Grid.RowDefinitions>
 
-                                    <Grid Grid.Row="0" ColumnSpacing="10">
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="*" />
-                                            <ColumnDefinition Width="*" />
-                                        </Grid.ColumnDefinitions>
-                                        <Button Grid.Column="0"
-                                                x:Name="MediaBridgePauseButton"
-                                                Style="{ThemeResource VoiSee.Style.Button}"
-                                                Content="Play"
-                                                HorizontalAlignment="Stretch"
-                                                Visibility="Collapsed"
-                                                IsEnabled="False"
-                                                Click="OnMediaBridgePauseResumeClick" />
-                                        <Button Grid.Column="1"
-                                                x:Name="MediaBridgeStopButton"
-                                                Style="{ThemeResource VoiSee.Style.Button}"
-                                                Content="Stop"
-                                                HorizontalAlignment="Stretch"
-                                                Visibility="Collapsed"
-                                                Click="OnMediaBridgeStopClick" />
-                                    </Grid>
+                                    <Button Grid.Row="0"
+                                            x:Name="MediaBridgePauseButton"
+                                            Style="{ThemeResource VoiSee.Style.Button}"
+                                            Content="Play"
+                                            HorizontalAlignment="Stretch"
+                                            Visibility="Collapsed"
+                                            IsEnabled="False"
+                                            Click="OnMediaBridgePauseResumeClick" />
 
                                     <StackPanel Grid.Row="1" Spacing="5">
                                         <TextBlock x:Name="MediaBridgeSourceTitleTextBlock"
@@ -781,58 +778,112 @@
                                             <ColumnDefinition Width="*" />
                                         </Grid.ColumnDefinitions>
 
-                                        <Grid Grid.Column="0"
-                                              MinWidth="86"
-                                              HorizontalAlignment="Center">
-                                            <Grid.RowDefinitions>
-                                                <RowDefinition Height="Auto" />
-                                                <RowDefinition Height="*" />
-                                                <RowDefinition Height="Auto" />
-                                            </Grid.RowDefinitions>
+                                        <StackPanel Grid.Column="0"
+                                                    Orientation="Horizontal"
+                                                    Spacing="16"
+                                                    HorizontalAlignment="Center">
+                                            <Grid MinWidth="74">
+                                                <Grid.RowDefinitions>
+                                                    <RowDefinition Height="Auto" />
+                                                    <RowDefinition Height="*" />
+                                                    <RowDefinition Height="Auto" />
+                                                </Grid.RowDefinitions>
 
-                                            <TextBlock Grid.Row="0"
-                                                       Text="Source level"
-                                                       FontWeight="SemiBold"
-                                                       HorizontalAlignment="Center" />
+                                                <TextBlock Grid.Row="0"
+                                                           Text="Source"
+                                                           FontWeight="SemiBold"
+                                                           HorizontalAlignment="Center" />
 
-                                            <Grid Grid.Row="1"
-                                                  x:Name="MediaBridgeLevelMeter"
-                                                  Width="36"
-                                                  Height="300"
-                                                  Margin="0,12"
-                                                  HorizontalAlignment="Center"
-                                                  VerticalAlignment="Center">
-                                                <Border CornerRadius="18">
-                                                    <Border.Background>
-                                                        <LinearGradientBrush StartPoint="0,1" EndPoint="0,0">
-                                                            <GradientStop Color="#FF22C55E" Offset="0" />
-                                                            <GradientStop Color="#FFFACC15" Offset="0.62" />
-                                                            <GradientStop Color="#FFEF4444" Offset="1" />
-                                                        </LinearGradientBrush>
-                                                    </Border.Background>
-                                                </Border>
-                                                <Border x:Name="MediaBridgeLevelMask"
-                                                        Height="300"
-                                                        VerticalAlignment="Top"
-                                                        Background="{ThemeResource VoiSee.PanelBackgroundBrush}" />
-                                                <Border CornerRadius="18"
-                                                        BorderBrush="{ThemeResource VoiSee.PanelBorderBrush}"
-                                                        BorderThickness="1"
-                                                        IsHitTestVisible="False" />
-                                                <ProgressBar x:Name="MediaBridgeLevelProgressBar"
-                                                             Minimum="0"
-                                                             Maximum="1"
-                                                             Value="0"
-                                                             Visibility="Collapsed" />
+                                                <Grid Grid.Row="1"
+                                                      x:Name="MediaBridgeLevelMeter"
+                                                      Width="36"
+                                                      Height="300"
+                                                      Margin="0,12"
+                                                      HorizontalAlignment="Center"
+                                                      VerticalAlignment="Center">
+                                                    <Border CornerRadius="18">
+                                                        <Border.Background>
+                                                            <LinearGradientBrush StartPoint="0,1" EndPoint="0,0">
+                                                                <GradientStop Color="#FF22C55E" Offset="0" />
+                                                                <GradientStop Color="#FFFACC15" Offset="0.62" />
+                                                                <GradientStop Color="#FFEF4444" Offset="1" />
+                                                            </LinearGradientBrush>
+                                                        </Border.Background>
+                                                    </Border>
+                                                    <Border x:Name="MediaBridgeLevelMask"
+                                                            Height="300"
+                                                            VerticalAlignment="Top"
+                                                            Background="{ThemeResource VoiSee.PanelBackgroundBrush}" />
+                                                    <Border CornerRadius="18"
+                                                            BorderBrush="{ThemeResource VoiSee.PanelBorderBrush}"
+                                                            BorderThickness="1"
+                                                            IsHitTestVisible="False" />
+                                                    <ProgressBar x:Name="MediaBridgeLevelProgressBar"
+                                                                 Minimum="0"
+                                                                 Maximum="1"
+                                                                 Value="0"
+                                                                 Visibility="Collapsed" />
+                                                </Grid>
+
+                                                <TextBlock Grid.Row="2"
+                                                           x:Name="MediaBridgeLevelTextBlock"
+                                                           Text="Silent"
+                                                           MinWidth="64"
+                                                           TextAlignment="Center"
+                                                           Style="{ThemeResource VoiSee.Style.Text.Secondary}" />
                                             </Grid>
 
-                                            <TextBlock Grid.Row="2"
-                                                       x:Name="MediaBridgeLevelTextBlock"
-                                                       Text="Silent"
-                                                       MinWidth="64"
-                                                       TextAlignment="Center"
-                                                       Style="{ThemeResource VoiSee.Style.Text.Secondary}" />
-                                        </Grid>
+                                            <Grid MinWidth="74">
+                                                <Grid.RowDefinitions>
+                                                    <RowDefinition Height="Auto" />
+                                                    <RowDefinition Height="*" />
+                                                    <RowDefinition Height="Auto" />
+                                                </Grid.RowDefinitions>
+
+                                                <TextBlock Grid.Row="0"
+                                                           Text="To Mic"
+                                                           FontWeight="SemiBold"
+                                                           HorizontalAlignment="Center" />
+
+                                                <Grid Grid.Row="1"
+                                                      x:Name="MediaBridgeMicLevelMeter"
+                                                      Width="36"
+                                                      Height="300"
+                                                      Margin="0,12"
+                                                      HorizontalAlignment="Center"
+                                                      VerticalAlignment="Center">
+                                                    <Border CornerRadius="18">
+                                                        <Border.Background>
+                                                            <LinearGradientBrush StartPoint="0,1" EndPoint="0,0">
+                                                                <GradientStop Color="#FF22C55E" Offset="0" />
+                                                                <GradientStop Color="#FFFACC15" Offset="0.62" />
+                                                                <GradientStop Color="#FFEF4444" Offset="1" />
+                                                            </LinearGradientBrush>
+                                                        </Border.Background>
+                                                    </Border>
+                                                    <Border x:Name="MediaBridgeMicLevelMask"
+                                                            Height="300"
+                                                            VerticalAlignment="Top"
+                                                            Background="{ThemeResource VoiSee.PanelBackgroundBrush}" />
+                                                    <Border CornerRadius="18"
+                                                            BorderBrush="{ThemeResource VoiSee.PanelBorderBrush}"
+                                                            BorderThickness="1"
+                                                            IsHitTestVisible="False" />
+                                                    <ProgressBar x:Name="MediaBridgeMicLevelProgressBar"
+                                                                 Minimum="0"
+                                                                 Maximum="1"
+                                                                 Value="0"
+                                                                 Visibility="Collapsed" />
+                                                </Grid>
+
+                                                <TextBlock Grid.Row="2"
+                                                           x:Name="MediaBridgeMicLevelTextBlock"
+                                                           Text="Silent"
+                                                           MinWidth="64"
+                                                           TextAlignment="Center"
+                                                           Style="{ThemeResource VoiSee.Style.Text.Secondary}" />
+                                            </Grid>
+                                        </StackPanel>
 
                                         <StackPanel Grid.Column="1" Spacing="14">
                                             <TextBlock Text="Broadcast settings"
