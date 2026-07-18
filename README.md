@@ -1,13 +1,19 @@
-﻿# VoiSee 11.2.4
+# VoiSee 11.2.5
+
+## VoiSee 11.2.5
+
+- Restores hard Voice Monitor route disconnect from the pre-11.2.4 behavior.
+- Keeps the full-width SoundBoard Create / Rename / Delete category buttons.
+- Does not include a speculative screen-share audio fix.
+
 
 VoiSee is a WinUI 3 application for real-time voice processing, SoundBoard playback into a virtual microphone, scenes, presets, global hotkeys, themes, and non-destructive sound editing.
 
-## VoiSee 11.2.4 — Voice Monitor gain routing and SoundBoard category layout
+## VoiSee 11.2.5 — Screen-share voice monitor isolation
 
-- Voice Monitor now stays connected to the monitor mixer and uses gain-only control: Off = 0%, On = 100%.
-- The experimental hard route disconnect from 11.2.3 has been removed for this screen-share diagnostic variant.
-- SoundBoard Create / Rename / Delete category buttons once again fill the whole category panel width in three equal columns.
-- Media Bridge, scenes, SoundBoard playback, and virtual microphone routing are otherwise unchanged.
+When Voice Monitor is Off, processed microphone samples are now hard-disconnected from the physical monitor route instead of merely being multiplied by zero in the final monitor mixer. The monitor microphone queue is cleared immediately when monitoring is disabled. SoundBoard-to-headphones monitoring remains independent. Diagnostic logs report either `Voice monitor route: connected` or `Voice monitor route: hard disconnected`.
+
+This build targets the reported case where sharing the VoiSee window with application audio can add a second processed voice copy. It does not change the virtual microphone, SoundBoard, scenes, or Media Bridge routes.
 
 ## VoiSee 11.0.0 — Media Bridge Core
 
@@ -91,13 +97,13 @@ Set-ExecutionPolicy -Scope Process Bypass
 Expected installer:
 
 ```text
-artifacts\installer\VoiSee-Setup-11.2.4-x64.exe
+artifacts\installer\VoiSee-Setup-11.2.5-x64.exe
 ```
 
 Portable build:
 
 ```text
-artifacts\installer\VoiSee-Portable-11.2.4-x64.zip
+artifacts\installer\VoiSee-Portable-11.2.5-x64.zip
 ```
 
 ## Native XAML themes (VoiSee 10.1)

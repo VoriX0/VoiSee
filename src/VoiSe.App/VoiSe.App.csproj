@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
     <TargetFramework>net8.0-windows10.0.19041.0</TargetFramework>
@@ -13,10 +13,10 @@
     <EnableMsixTooling>true</EnableMsixTooling>
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>
     <ApplicationIcon>Assets\AppIcon.ico</ApplicationIcon>
-    <Version>11.2.4</Version>
-    <AssemblyVersion>11.2.4.0</AssemblyVersion>
-    <FileVersion>11.2.4.0</FileVersion>
-    <InformationalVersion>11.2.4</InformationalVersion>
+    <Version>11.2.5</Version>
+    <AssemblyVersion>11.2.5.0</AssemblyVersion>
+    <FileVersion>11.2.5.0</FileVersion>
+    <InformationalVersion>11.2.5</InformationalVersion>
   </PropertyGroup>
   <ItemGroup>
     <!-- User-generated data must never be published or packed into the installer.
