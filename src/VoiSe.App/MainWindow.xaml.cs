@@ -198,12 +198,12 @@ public sealed partial class MainWindow : Window
 
         _mediaBridgeUiTimer = new DispatcherTimer
         {
-            Interval = TimeSpan.FromMilliseconds(200)
+            Interval = TimeSpan.FromMilliseconds(50)
         };
         _mediaBridgeUiTimer.Tick += OnMediaBridgeUiTimerTick;
         _mediaBridgeUiTimer.Start();
 
-        AppendLog("VoiSee Version 11.0.4 UI started.");
+        AppendLog("VoiSee Version 11.0.5 UI started.");
         AppendLog($"Settings path: {_settingsStore.SettingsPath}");
         StartupLog.Write("MainWindow initialized; waiting for first activation.");
     }
@@ -1397,8 +1397,8 @@ public sealed partial class MainWindow : Window
         }
 
         UpdateMediaBridgeLevelMeters(0, 0);
-        MediaBridgeLevelTextBlock.Text = "Silent";
-        MediaBridgeMicLevelTextBlock.Text = "Silent";
+        MediaBridgeLevelTextBlock.Text = "−∞ dBFS";
+        MediaBridgeMicLevelTextBlock.Text = "−∞ dBFS";
         MediaBridgeDurationTextBlock.Text = "00:00:00";
         UpdateMediaBridgeUiState(status);
         if (writeLog && previous is not null)
@@ -1429,26 +1429,49 @@ public sealed partial class MainWindow : Window
         Border? marker)
     {
         var clampedPeak = Math.Clamp(peak, 0.0, 1.0);
+        var dbFs = PeakToDbFs(clampedPeak);
+        var meterValue = Math.Clamp((dbFs + 60.0) / 60.0, 0.0, 1.0);
         if (progressBar is not null)
         {
-            progressBar.Value = clampedPeak;
+            progressBar.Value = meterValue;
         }
 
         const double meterHeight = 300.0;
         if (mask is not null)
         {
-            mask.Height = meterHeight * (1.0 - clampedPeak);
+            mask.Height = meterHeight * (1.0 - meterValue);
         }
 
         if (marker is not null)
         {
             const double markerHeight = 3.0;
             var bottomOffset = Math.Clamp(
-                clampedPeak * meterHeight - markerHeight / 2.0,
+                meterValue * meterHeight - markerHeight / 2.0,
                 0.0,
                 meterHeight - markerHeight);
             marker.Margin = new Thickness(0, 0, 0, bottomOffset);
         }
+    }
+
+    private static double PeakToDbFs(double peak)
+    {
+        if (peak <= 0.000001)
+        {
+            return -60.0;
+        }
+
+        return Math.Max(-60.0, 20.0 * Math.Log10(Math.Clamp(peak, 0.0, 1.0)));
+    }
+
+    private static string FormatMediaBridgeDbFs(double peak)
+    {
+        if (peak <= 0.000001)
+        {
+            return "−∞ dBFS";
+        }
+
+        var dbFs = PeakToDbFs(peak);
+        return $"{dbFs:0.0} dBFS";
     }
 
     private void OnMediaBridgeVolumeChanged(object sender, RangeBaseValueChangedEventArgs e)
@@ -1486,14 +1509,14 @@ public sealed partial class MainWindow : Window
             var sourcePeak = Math.Clamp(engine!.MediaBridgeSourcePeak, 0.0f, 1.0f);
             var outputPeak = Math.Clamp(engine.MediaBridgeOutputPeak, 0.0f, 1.0f);
             UpdateMediaBridgeLevelMeters(sourcePeak, outputPeak);
-            MediaBridgeLevelTextBlock.Text = sourcePeak < 0.005f ? "Silent" : $"{(int)Math.Round(sourcePeak * 100)}%";
-            MediaBridgeMicLevelTextBlock.Text = outputPeak < 0.005f ? "Silent" : $"{(int)Math.Round(outputPeak * 100)}%";
+            MediaBridgeLevelTextBlock.Text = FormatMediaBridgeDbFs(sourcePeak);
+            MediaBridgeMicLevelTextBlock.Text = FormatMediaBridgeDbFs(outputPeak);
         }
         else
         {
             UpdateMediaBridgeLevelMeters(0, 0);
-            MediaBridgeLevelTextBlock.Text = "Silent";
-            MediaBridgeMicLevelTextBlock.Text = "Silent";
+            MediaBridgeLevelTextBlock.Text = "−∞ dBFS";
+            MediaBridgeMicLevelTextBlock.Text = "−∞ dBFS";
         }
 
         if (engine is not null && !string.IsNullOrWhiteSpace(engine.MediaBridgeError))
@@ -1506,7 +1529,7 @@ public sealed partial class MainWindow : Window
         }
 
         _mediaBridgePreviewTick++;
-        if (_mediaBridgePreviewTick >= 5)
+        if (_mediaBridgePreviewTick >= 20)
         {
             _mediaBridgePreviewTick = 0;
             if (MainTabView.SelectedItem == MediaBridgeTabViewItem && selected is not null)

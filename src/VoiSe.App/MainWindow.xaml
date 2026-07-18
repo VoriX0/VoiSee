@@ -6,7 +6,7 @@
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     mc:Ignorable="d"
-    Title="VoiSee Version 11.0.4">
+    Title="VoiSee Version 11.0.5">
 
     <Grid x:Name="RootGrid" RequestedTheme="Dark" Background="{ThemeResource VoiSee.AppBackgroundBrush}" SizeChanged="OnRootGridSizeChanged">
         <Grid.RowDefinitions>
@@ -21,7 +21,7 @@
             </Grid.ColumnDefinitions>
             <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center" Margin="10,0,0,0">
                 <Image Source="ms-appx:///Assets/AppIcon_24.png" Width="16" Height="16" VerticalAlignment="Center" />
-                <TextBlock x:Name="TitleBarVersionTextBlock" Text="VoiSee Version 11.0.4" FontSize="12" Foreground="{ThemeResource VoiSee.PrimaryTextBrush}" VerticalAlignment="Center" />
+                <TextBlock x:Name="TitleBarVersionTextBlock" Text="VoiSee Version 11.0.5" FontSize="12" Foreground="{ThemeResource VoiSee.PrimaryTextBrush}" VerticalAlignment="Center" />
             </StackPanel>
         </Grid>
 
@@ -39,7 +39,7 @@
                 </Grid.ColumnDefinitions>
                 <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
                     <Image Source="ms-appx:///Assets/AppIcon_48.png" Width="34" Height="34" VerticalAlignment="Center" />
-                    <TextBlock x:Name="MainTitle" Text="VoiSee Version 11.0.4" FontSize="28" FontWeight="SemiBold" Foreground="{ThemeResource VoiSee.PrimaryTextBrush}" VerticalAlignment="Center" />
+                    <TextBlock x:Name="MainTitle" Text="VoiSee Version 11.0.5" FontSize="28" FontWeight="SemiBold" Foreground="{ThemeResource VoiSee.PrimaryTextBrush}" VerticalAlignment="Center" />
                 </StackPanel>
                 <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center" HorizontalAlignment="Right">
                     <TextBlock Text="Mic Output" Foreground="{ThemeResource VoiSee.PrimaryTextBrush}" Opacity="0.62" VerticalAlignment="Center" />
@@ -778,11 +778,16 @@
                                             <ColumnDefinition Width="*" />
                                         </Grid.ColumnDefinitions>
 
-                                        <StackPanel Grid.Column="0"
-                                                    Orientation="Horizontal"
-                                                    Spacing="16"
-                                                    HorizontalAlignment="Center">
-                                            <Grid MinWidth="74">
+                                        <Grid Grid.Column="0"
+                                              ColumnSpacing="6"
+                                              HorizontalAlignment="Center">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="Auto" />
+                                                <ColumnDefinition Width="Auto" />
+                                                <ColumnDefinition Width="Auto" />
+                                            </Grid.ColumnDefinitions>
+
+                                            <Grid Grid.Column="0" MinWidth="52">
                                                 <Grid.RowDefinitions>
                                                     <RowDefinition Height="Auto" />
                                                     <RowDefinition Height="*" />
@@ -796,16 +801,17 @@
 
                                                 <Grid Grid.Row="1"
                                                       x:Name="MediaBridgeLevelMeter"
-                                                      Width="18"
+                                                      Width="16"
                                                       Height="300"
                                                       Margin="0,12"
                                                       HorizontalAlignment="Center"
                                                       VerticalAlignment="Center">
-                                                    <Border CornerRadius="9">
+                                                    <Border CornerRadius="8">
                                                         <Border.Background>
                                                             <LinearGradientBrush StartPoint="0,1" EndPoint="0,0">
                                                                 <GradientStop Color="#FF22C55E" Offset="0" />
-                                                                <GradientStop Color="#FFFACC15" Offset="0.62" />
+                                                                <GradientStop Color="#FF22C55E" Offset="0.78" />
+                                                                <GradientStop Color="#FFFACC15" Offset="0.90" />
                                                                 <GradientStop Color="#FFEF4444" Offset="1" />
                                                             </LinearGradientBrush>
                                                         </Border.Background>
@@ -814,12 +820,19 @@
                                                             Height="300"
                                                             VerticalAlignment="Top"
                                                             Background="{ThemeResource VoiSee.PanelBackgroundBrush}" />
-                                                    <Border CornerRadius="9"
+                                                    <Canvas Width="16" Height="300" IsHitTestVisible="False">
+                                                        <Rectangle Width="16" Height="1" Fill="#55FFFFFF" Canvas.Top="30" />
+                                                        <Rectangle Width="16" Height="1" Fill="#55FFFFFF" Canvas.Top="60" />
+                                                        <Rectangle Width="16" Height="1" Fill="#45FFFFFF" Canvas.Top="120" />
+                                                        <Rectangle Width="16" Height="1" Fill="#35FFFFFF" Canvas.Top="180" />
+                                                        <Rectangle Width="16" Height="1" Fill="#25FFFFFF" Canvas.Top="240" />
+                                                    </Canvas>
+                                                    <Border CornerRadius="8"
                                                             BorderBrush="{ThemeResource VoiSee.PanelBorderBrush}"
                                                             BorderThickness="1"
                                                             IsHitTestVisible="False" />
                                                     <Border x:Name="MediaBridgeLevelMarker"
-                                                            Width="28"
+                                                            Width="22"
                                                             Height="3"
                                                             HorizontalAlignment="Center"
                                                             VerticalAlignment="Bottom"
@@ -835,13 +848,14 @@
 
                                                 <TextBlock Grid.Row="2"
                                                            x:Name="MediaBridgeLevelTextBlock"
-                                                           Text="Silent"
-                                                           MinWidth="64"
+                                                           Text="−∞ dBFS"
+                                                           MinWidth="52"
                                                            TextAlignment="Center"
+                                                           FontSize="12"
                                                            Style="{ThemeResource VoiSee.Style.Text.Secondary}" />
                                             </Grid>
 
-                                            <Grid MinWidth="74">
+                                            <Grid Grid.Column="1" MinWidth="52">
                                                 <Grid.RowDefinitions>
                                                     <RowDefinition Height="Auto" />
                                                     <RowDefinition Height="*" />
@@ -855,16 +869,17 @@
 
                                                 <Grid Grid.Row="1"
                                                       x:Name="MediaBridgeMicLevelMeter"
-                                                      Width="18"
+                                                      Width="16"
                                                       Height="300"
                                                       Margin="0,12"
                                                       HorizontalAlignment="Center"
                                                       VerticalAlignment="Center">
-                                                    <Border CornerRadius="9">
+                                                    <Border CornerRadius="8">
                                                         <Border.Background>
                                                             <LinearGradientBrush StartPoint="0,1" EndPoint="0,0">
                                                                 <GradientStop Color="#FF22C55E" Offset="0" />
-                                                                <GradientStop Color="#FFFACC15" Offset="0.62" />
+                                                                <GradientStop Color="#FF22C55E" Offset="0.78" />
+                                                                <GradientStop Color="#FFFACC15" Offset="0.90" />
                                                                 <GradientStop Color="#FFEF4444" Offset="1" />
                                                             </LinearGradientBrush>
                                                         </Border.Background>
@@ -873,12 +888,19 @@
                                                             Height="300"
                                                             VerticalAlignment="Top"
                                                             Background="{ThemeResource VoiSee.PanelBackgroundBrush}" />
-                                                    <Border CornerRadius="9"
+                                                    <Canvas Width="16" Height="300" IsHitTestVisible="False">
+                                                        <Rectangle Width="16" Height="1" Fill="#55FFFFFF" Canvas.Top="30" />
+                                                        <Rectangle Width="16" Height="1" Fill="#55FFFFFF" Canvas.Top="60" />
+                                                        <Rectangle Width="16" Height="1" Fill="#45FFFFFF" Canvas.Top="120" />
+                                                        <Rectangle Width="16" Height="1" Fill="#35FFFFFF" Canvas.Top="180" />
+                                                        <Rectangle Width="16" Height="1" Fill="#25FFFFFF" Canvas.Top="240" />
+                                                    </Canvas>
+                                                    <Border CornerRadius="8"
                                                             BorderBrush="{ThemeResource VoiSee.PanelBorderBrush}"
                                                             BorderThickness="1"
                                                             IsHitTestVisible="False" />
                                                     <Border x:Name="MediaBridgeMicLevelMarker"
-                                                            Width="28"
+                                                            Width="22"
                                                             Height="3"
                                                             HorizontalAlignment="Center"
                                                             VerticalAlignment="Bottom"
@@ -894,12 +916,36 @@
 
                                                 <TextBlock Grid.Row="2"
                                                            x:Name="MediaBridgeMicLevelTextBlock"
-                                                           Text="Silent"
-                                                           MinWidth="64"
+                                                           Text="−∞ dBFS"
+                                                           MinWidth="52"
                                                            TextAlignment="Center"
+                                                           FontSize="12"
                                                            Style="{ThemeResource VoiSee.Style.Text.Secondary}" />
                                             </Grid>
-                                        </StackPanel>
+
+                                            <Grid Grid.Column="2"
+                                                  Width="38"
+                                                  Height="300"
+                                                  Margin="2,42,0,29"
+                                                  VerticalAlignment="Center"
+                                                  IsHitTestVisible="False">
+                                                <Canvas Width="38" Height="300">
+                                                    <TextBlock Text="0" FontSize="11" Canvas.Top="-8" />
+                                                    <TextBlock Text="−6" FontSize="11" Canvas.Top="22" />
+                                                    <TextBlock Text="−12" FontSize="11" Canvas.Top="52" />
+                                                    <TextBlock Text="−24" FontSize="11" Canvas.Top="112" />
+                                                    <TextBlock Text="−36" FontSize="11" Canvas.Top="172" />
+                                                    <TextBlock Text="−48" FontSize="11" Canvas.Top="232" />
+                                                    <TextBlock Text="−60" FontSize="11" Canvas.Top="282" />
+                                                </Canvas>
+                                                <TextBlock Text="dBFS"
+                                                           FontSize="10"
+                                                           HorizontalAlignment="Right"
+                                                           VerticalAlignment="Bottom"
+                                                           Margin="0,0,0,-22"
+                                                           Style="{ThemeResource VoiSee.Style.Text.Secondary}" />
+                                            </Grid>
+                                        </Grid>
 
                                         <StackPanel Grid.Column="1" Spacing="14">
                                             <TextBlock Text="Broadcast settings"
