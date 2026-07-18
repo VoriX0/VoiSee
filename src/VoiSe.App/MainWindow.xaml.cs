@@ -1,4 +1,4 @@
-using Microsoft.UI.Windowing;
+﻿using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Controls.Primitives;
@@ -204,7 +204,7 @@ public sealed partial class MainWindow : Window
         _mediaBridgeUiTimer.Tick += OnMediaBridgeUiTimerTick;
         _mediaBridgeUiTimer.Start();
 
-        AppendLog("VoiSee Version 11.0.0 UI started.");
+        AppendLog("VoiSee Version 11.0.1 UI started.");
         AppendLog($"Settings path: {_settingsStore.SettingsPath}");
         StartupLog.Write("MainWindow initialized; waiting for first activation.");
     }
@@ -1292,7 +1292,7 @@ public sealed partial class MainWindow : Window
         await UpdateMediaBridgePreviewAsync();
     }
 
-    private async void OnMediaBridgeStartClick(object sender, RoutedEventArgs e)
+    private async Task StartMediaBridgeBroadcastAsync()
     {
         var selected = _mediaBridgeWindow;
         if (selected is null || !_windowCaptureService.IsAvailable(selected))
@@ -1348,9 +1348,15 @@ public sealed partial class MainWindow : Window
         }
     }
 
-    private void OnMediaBridgePauseResumeClick(object sender, RoutedEventArgs e)
+    private async void OnMediaBridgePauseResumeClick(object sender, RoutedEventArgs e)
     {
-        ToggleMediaBridgePauseResume("UI");
+        if (_engine?.IsMediaBridgeBroadcasting == true)
+        {
+            ToggleMediaBridgePauseResume("UI");
+            return;
+        }
+
+        await StartMediaBridgeBroadcastAsync();
     }
 
     private void ToggleMediaBridgePauseResume(string source)
@@ -1389,6 +1395,7 @@ public sealed partial class MainWindow : Window
             _mediaBridgeWindow = null;
             MediaBridgePreviewImage.Source = null;
             MediaBridgePreviewPlaceholder.Visibility = Visibility.Visible;
+            MediaBridgePreviewActionBadge.Visibility = Visibility.Collapsed;
         }
 
         MediaBridgeLevelProgressBar.Value = 0;
@@ -1500,6 +1507,7 @@ public sealed partial class MainWindow : Window
             {
                 MediaBridgePreviewImage.Source = bitmap;
                 MediaBridgePreviewPlaceholder.Visibility = Visibility.Collapsed;
+                MediaBridgePreviewActionBadge.Visibility = Visibility.Visible;
             }
         }
         catch (Exception ex)
@@ -1545,25 +1553,28 @@ public sealed partial class MainWindow : Window
         var broadcasting = _engine?.IsMediaBridgeBroadcasting == true;
         var paused = broadcasting && _engine?.IsMediaBridgePaused == true;
 
-        MediaBridgeStopButton.Visibility = selected is null ? Visibility.Collapsed : Visibility.Visible;
-        MediaBridgeSelectWindowButton.IsEnabled = !_mediaBridgeStarting;
-        MediaBridgeStartButton.IsEnabled = hasSource && !broadcasting && !_mediaBridgeStarting;
-        MediaBridgePauseButton.IsEnabled = broadcasting && !_mediaBridgeStarting;
-        MediaBridgePauseButton.Content = paused ? "Resume" : "Pause";
+        var transportVisibility = selected is null ? Visibility.Collapsed : Visibility.Visible;
+        MediaBridgeStopButton.Visibility = transportVisibility;
+        MediaBridgePauseButton.Visibility = transportVisibility;
+        MediaBridgePreviewButton.IsEnabled = !_mediaBridgeStarting;
+        MediaBridgePauseButton.IsEnabled = hasSource && !_mediaBridgeStarting;
+        MediaBridgePauseButton.Content = broadcasting && !paused ? "Pause" : "Play";
 
         if (selected is null)
         {
             MediaBridgeSourceTitleTextBlock.Text = "No window selected";
             MediaBridgeSourceDetailsTextBlock.Text =
-                "Choose an application window. VoiSee will not reconnect to it automatically after restart.";
+                "Click the preview panel to choose an application window. VoiSee will not reconnect to it automatically after restart.";
             MediaBridgePreviewImage.Source = null;
             MediaBridgePreviewPlaceholder.Visibility = Visibility.Visible;
+            MediaBridgePreviewActionBadge.Visibility = Visibility.Collapsed;
         }
         else
         {
             MediaBridgeSourceTitleTextBlock.Text = selected.WindowTitle;
             MediaBridgeSourceDetailsTextBlock.Text =
                 $"{selected.ProcessName} · PID {selected.ProcessId} · audio is sent only to the virtual microphone";
+            MediaBridgePreviewActionBadge.Visibility = Visibility.Visible;
         }
 
         MediaBridgeStatusTextBlock.Text = explicitStatus ??
