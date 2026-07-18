@@ -1,20 +1,21 @@
-# VoiSee 11.2.8
+# VoiSee 11.2.9
 
-## VoiSee 11.2.8 — WASAPI route diagnostics
+## VoiSee 11.2.9 — Discord CABLE Input session isolation
 
-- Adds a live endpoint and render-session report to Advanced Settings.
-- Shows endpoint role, state, level, volume, mute state, process name, PID and session state.
-- Adds independent diagnostic hard switches for Virtual Mic Output and Monitor Output.
-- Route switches physically stop the selected WASAPI render stream and reset after an engine restart.
+- Keeps the live endpoint and render-session report from 11.2.8.
+- Adds a narrowly targeted temporary mute for only `Discord → CABLE Input`.
+- Does not mute the VoiSee session on CABLE Input, Discord on physical headphones, or the CABLE Output input endpoint.
+- Remembers and restores the original Discord session mute state.
+- Re-applies the mute when Discord recreates its CABLE Input session while Advanced Settings remains open.
+- Keeps independent diagnostic hard switches for Virtual Mic Output and Monitor Output.
 - Keeps the original hard Voice Monitor disconnect from 11.2.5.
-- Keeps the full-width SoundBoard Create / Rename / Delete category buttons.
 - Does not include the unsuccessful 11.2.6 or 11.2.7 process-isolation experiments.
 
 VoiSee is a WinUI 3 application for real-time voice processing, SoundBoard playback into a virtual microphone, scenes, presets, global hotkeys, themes, and non-destructive sound editing.
 
 ## Screen-share diagnostic workflow
 
-Open `Settings → Advanced Settings`. While the screen-share problem is active, compare the live sessions on the physical headphones endpoint and `CABLE Input`. Disable only `Monitor Output` or only `Virtual Mic Output` to determine which render route contributes the duplicated voice. These switches are diagnostic and are not saved.
+Open `Settings → Advanced Settings` while the screen-share problem is active. Enable `Mute Discord session on CABLE Input` and repeat the voice test. This control targets only Discord's render session on the normal CABLE Input endpoint and automatically restores its previous mute state when disabled or when the dialog closes.
 
 Voice Monitor retains the 11.2.5 behavior: when it is Off, processed microphone samples are hard-disconnected from the physical monitor voice queue. SoundBoard-to-headphones monitoring remains independent until the complete Monitor Output route is disabled through the diagnostic switch.
 
@@ -100,13 +101,13 @@ Set-ExecutionPolicy -Scope Process Bypass
 Expected installer:
 
 ```text
-artifacts\installer\VoiSee-Setup-11.2.8-x64.exe
+artifacts\installer\VoiSee-Setup-11.2.9-x64.exe
 ```
 
 Portable build:
 
 ```text
-artifacts\installer\VoiSee-Portable-11.2.8-x64.zip
+artifacts\installer\VoiSee-Portable-11.2.9-x64.zip
 ```
 
 ## Native XAML themes (VoiSee 10.1)

@@ -30,14 +30,36 @@ public sealed record AudioDiagnosticsSnapshot(
     IReadOnlyList<AudioEndpointDiagnosticInfo> Endpoints,
     string? Error);
 
+public sealed record AudioSessionMuteOperationResult(
+    int MatchedSessions,
+    int ChangedSessions,
+    bool MuteRequested,
+    string Message);
+
 /// <summary>
-/// Produces read-only snapshots of active Windows Core Audio endpoints and
-/// their render sessions. This service never changes endpoint or session volume.
+/// Produces snapshots of active Windows Core Audio endpoints and render sessions.
+/// It also contains one deliberately narrow diagnostic action: temporarily mute
+/// only Discord render sessions on the VB-CABLE "CABLE Input" endpoint.
 /// </summary>
 public sealed class AudioDiagnosticsService : IDisposable
 {
     private readonly MMDeviceEnumerator _enumerator = new();
+    private readonly object _discordCableMuteSync = new();
+    private readonly Dictionary<string, bool> _discordCableOriginalMuteStates =
+        new(StringComparer.OrdinalIgnoreCase);
+    private bool _discordCableMuteArmed;
     private bool _disposed;
+
+    public bool DiscordCableInputMuteArmed
+    {
+        get
+        {
+            lock (_discordCableMuteSync)
+            {
+                return _discordCableMuteArmed;
+            }
+        }
+    }
 
     public AudioDiagnosticsSnapshot CaptureSnapshot()
     {
@@ -69,6 +91,143 @@ public sealed class AudioDiagnosticsService : IDisposable
                 DateTimeOffset.Now,
                 Array.Empty<AudioEndpointDiagnosticInfo>(),
                 ex.Message);
+        }
+    }
+
+    /// <summary>
+    /// Arms or disarms the narrow Discord-on-CABLE diagnostic mute.
+    /// When armed, only render sessions whose process is Discord and whose endpoint
+    /// is exactly the normal "CABLE Input" endpoint are muted. Discord sessions on
+    /// physical headphones and the VoiSee session on CABLE Input are not changed.
+    /// Original session mute states are remembered and restored when disarmed.
+    /// </summary>
+    public AudioSessionMuteOperationResult SetDiscordCableInputSessionMuted(bool muted)
+    {
+        lock (_discordCableMuteSync)
+        {
+            if (_disposed)
+            {
+                return new AudioSessionMuteOperationResult(0, 0, muted, "Audio diagnostics service is disposed.");
+            }
+
+            _discordCableMuteArmed = muted;
+            return ApplyDiscordCableInputSessionMute(muted, restoreOriginalState: !muted);
+        }
+    }
+
+    /// <summary>
+    /// Re-applies the armed mute to sessions created or recreated by Discord while
+    /// the diagnostic dialog is open.
+    /// </summary>
+    public AudioSessionMuteOperationResult RefreshDiscordCableInputSessionMute()
+    {
+        lock (_discordCableMuteSync)
+        {
+            if (_disposed || !_discordCableMuteArmed)
+            {
+                return new AudioSessionMuteOperationResult(0, 0, false, "Discord CABLE Input mute is not armed.");
+            }
+
+            return ApplyDiscordCableInputSessionMute(muted: true, restoreOriginalState: false);
+        }
+    }
+
+    private AudioSessionMuteOperationResult ApplyDiscordCableInputSessionMute(
+        bool muted,
+        bool restoreOriginalState)
+    {
+        var matched = 0;
+        var changed = 0;
+        var endpointFound = false;
+
+        try
+        {
+            var devices = _enumerator.EnumerateAudioEndPoints(DataFlow.Render, DeviceState.Active);
+            for (var deviceIndex = 0; deviceIndex < devices.Count; deviceIndex++)
+            {
+                using var device = devices[deviceIndex];
+                var friendlyName = SafeRead(() => device.FriendlyName, string.Empty);
+                if (!IsNormalCableInputEndpoint(friendlyName))
+                {
+                    continue;
+                }
+
+                endpointFound = true;
+                var sessions = device.AudioSessionManager.Sessions;
+                if (sessions is null)
+                {
+                    continue;
+                }
+
+                for (var sessionIndex = 0; sessionIndex < sessions.Count; sessionIndex++)
+                {
+                    using var session = sessions[sessionIndex];
+                    var processId = ReadOrDefault(() => session.GetProcessID);
+                    if (!ResolveProcessName(processId).Equals("Discord", StringComparison.OrdinalIgnoreCase))
+                    {
+                        continue;
+                    }
+
+                    var volume = session.SimpleAudioVolume;
+                    if (volume is null)
+                    {
+                        continue;
+                    }
+
+                    matched++;
+                    var sessionKey = BuildSessionKey(device.ID, session, processId);
+                    var currentMuted = ReadOrDefault(() => volume.Mute);
+
+                    if (muted)
+                    {
+                        if (!_discordCableOriginalMuteStates.ContainsKey(sessionKey))
+                        {
+                            _discordCableOriginalMuteStates[sessionKey] = currentMuted;
+                        }
+
+                        if (!currentMuted)
+                        {
+                            volume.Mute = true;
+                            changed++;
+                        }
+                    }
+                    else if (restoreOriginalState
+                             && _discordCableOriginalMuteStates.TryGetValue(sessionKey, out var originalMuted)
+                             && currentMuted != originalMuted)
+                    {
+                        volume.Mute = originalMuted;
+                        changed++;
+                    }
+                }
+            }
+
+            if (!muted && restoreOriginalState)
+            {
+                _discordCableOriginalMuteStates.Clear();
+            }
+
+            var message = !endpointFound
+                ? "CABLE Input render endpoint was not found."
+                : matched == 0
+                    ? "No Discord render session is currently present on CABLE Input."
+                    : muted
+                        ? $"Discord on CABLE Input: {matched} session(s) matched, {changed} newly muted."
+                        : $"Discord on CABLE Input: {matched} session(s) matched, {changed} restored.";
+
+            return new AudioSessionMuteOperationResult(matched, changed, muted, message);
+        }
+        catch (Exception ex)
+        {
+            if (!muted && restoreOriginalState)
+            {
+                _discordCableOriginalMuteStates.Clear();
+            }
+
+            return new AudioSessionMuteOperationResult(
+                matched,
+                changed,
+                muted,
+                $"Discord CABLE Input session mute error: {ex.Message}");
         }
     }
 
@@ -222,6 +381,20 @@ public sealed class AudioDiagnosticsService : IDisposable
         }
     }
 
+    private static bool IsNormalCableInputEndpoint(string friendlyName)
+    {
+        return friendlyName.StartsWith("CABLE Input", StringComparison.OrdinalIgnoreCase)
+               && !friendlyName.StartsWith("CABLE In 16ch", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static string BuildSessionKey(string endpointId, AudioSessionControl session, uint processId)
+    {
+        var instanceId = SafeRead(() => session.GetSessionInstanceIdentifier, string.Empty);
+        return string.IsNullOrWhiteSpace(instanceId)
+            ? $"{endpointId}|PID:{processId}"
+            : $"{endpointId}|{instanceId}";
+    }
+
     private static string ResolveProcessName(uint processId)
     {
         if (processId == 0)
@@ -269,6 +442,22 @@ public sealed class AudioDiagnosticsService : IDisposable
         if (_disposed)
         {
             return;
+        }
+
+        lock (_discordCableMuteSync)
+        {
+            if (_discordCableMuteArmed)
+            {
+                try
+                {
+                    _discordCableMuteArmed = false;
+                    ApplyDiscordCableInputSessionMute(muted: false, restoreOriginalState: true);
+                }
+                catch
+                {
+                    // Best-effort restore during shutdown.
+                }
+            }
         }
 
         _enumerator.Dispose();

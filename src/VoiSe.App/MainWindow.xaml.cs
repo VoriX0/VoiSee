@@ -139,6 +139,8 @@ public sealed partial class MainWindow : Window
     private TextBlock? _advancedAudioDiagnosticsTextBlock;
     private CheckBox? _advancedVirtualOutputRouteCheckBox;
     private CheckBox? _advancedMonitorOutputRouteCheckBox;
+    private CheckBox? _advancedDiscordCableSessionMuteCheckBox;
+    private TextBlock? _advancedDiscordCableSessionStatusTextBlock;
     private bool _updatingAdvancedAudioDiagnosticControls;
     private readonly WindowCaptureService _windowCaptureService = new();
     private readonly DispatcherTimer _mediaBridgeUiTimer;
@@ -218,7 +220,7 @@ public sealed partial class MainWindow : Window
         };
         _audioDiagnosticsTimer.Tick += OnAudioDiagnosticsTimerTick;
 
-        AppendLog("VoiSee Version 11.2.8 UI started.");
+        AppendLog("VoiSee Version 11.2.9 UI started.");
         AppendLog($"Settings path: {_settingsStore.SettingsPath}");
         StartupLog.Write("MainWindow initialized; waiting for first activation.");
     }
@@ -2177,6 +2179,42 @@ public sealed partial class MainWindow : Window
             diagnosticRoutePanel.Children.Add(_advancedVirtualOutputRouteCheckBox);
             diagnosticRoutePanel.Children.Add(_advancedMonitorOutputRouteCheckBox);
 
+            _advancedDiscordCableSessionMuteCheckBox = new CheckBox
+            {
+                Content = "Mute Discord session on CABLE Input",
+                IsThreeState = false,
+                Margin = new Thickness(0, 8, 0, 0)
+            };
+            _advancedDiscordCableSessionMuteCheckBox.Checked += OnAdvancedDiscordCableSessionMuteCheckBoxChanged;
+            _advancedDiscordCableSessionMuteCheckBox.Unchecked += OnAdvancedDiscordCableSessionMuteCheckBoxChanged;
+
+            _advancedDiscordCableSessionStatusTextBlock = new TextBlock
+            {
+                Text = "Discord → CABLE Input: waiting for snapshot",
+                Opacity = 0.82,
+                TextWrapping = TextWrapping.WrapWholeWords
+            };
+
+            var discordCableSessionPanel = new StackPanel
+            {
+                Spacing = 6,
+                Margin = new Thickness(0, 12, 0, 0)
+            };
+            discordCableSessionPanel.Children.Add(new TextBlock
+            {
+                Text = "Discord CABLE Input session isolation",
+                FontSize = 16,
+                FontWeight = Microsoft.UI.Text.FontWeights.SemiBold
+            });
+            discordCableSessionPanel.Children.Add(new TextBlock
+            {
+                Text = "This temporarily mutes only Discord's render session on CABLE Input. It does not mute VoiSee on CABLE Input, Discord on headphones, or the CABLE Output microphone endpoint. New Discord sessions are muted while this switch remains enabled.",
+                Opacity = 0.7,
+                TextWrapping = TextWrapping.WrapWholeWords
+            });
+            discordCableSessionPanel.Children.Add(_advancedDiscordCableSessionMuteCheckBox);
+            discordCableSessionPanel.Children.Add(_advancedDiscordCableSessionStatusTextBlock);
+
             _advancedAudioDiagnosticsTextBlock = new TextBlock
             {
                 FontFamily = new FontFamily("Consolas"),
@@ -2253,6 +2291,7 @@ public sealed partial class MainWindow : Window
             });
             enginePanel.Children.Add(_advancedRouteStatusTextBlock);
             enginePanel.Children.Add(diagnosticRoutePanel);
+            enginePanel.Children.Add(discordCableSessionPanel);
             enginePanel.Children.Add(audioDiagnosticsPanel);
 
             var engineScrollViewer = new ScrollViewer
@@ -2424,6 +2463,11 @@ public sealed partial class MainWindow : Window
             finally
             {
                 _audioDiagnosticsTimer.Stop();
+                if (_audioDiagnosticsService.DiscordCableInputMuteArmed)
+                {
+                    var restoreResult = _audioDiagnosticsService.SetDiscordCableInputSessionMuted(false);
+                    AppendLog($"Diagnostic session mute restored on dialog close: {restoreResult.Message}");
+                }
                 _advancedEngineStatusTextBlock = null;
                 _advancedRouteStatusTextBlock = null;
                 _advancedLogTextBlock = null;
@@ -2431,6 +2475,8 @@ public sealed partial class MainWindow : Window
                 _advancedAudioDiagnosticsTextBlock = null;
                 _advancedVirtualOutputRouteCheckBox = null;
                 _advancedMonitorOutputRouteCheckBox = null;
+                _advancedDiscordCableSessionMuteCheckBox = null;
+                _advancedDiscordCableSessionStatusTextBlock = null;
                 _activeIconPickerScrollViewer = null;
                 _activeIconPickerWheelZoneElement = null;
                 _activeModalWheelZoneLeftExtensionRatio = 0.0;
@@ -2504,6 +2550,12 @@ public sealed partial class MainWindow : Window
                 _advancedMonitorOutputRouteCheckBox.IsEnabled = engine?.MonitorOutputDeviceId is not null;
                 _advancedMonitorOutputRouteCheckBox.IsChecked = engine?.MonitorOutputRouteEnabled == true;
             }
+
+            if (_advancedDiscordCableSessionMuteCheckBox is not null)
+            {
+                _advancedDiscordCableSessionMuteCheckBox.IsEnabled = true;
+                _advancedDiscordCableSessionMuteCheckBox.IsChecked = _audioDiagnosticsService.DiscordCableInputMuteArmed;
+            }
         }
         finally
         {
@@ -2563,6 +2615,19 @@ public sealed partial class MainWindow : Window
         RefreshAdvancedSettingsStatus();
     }
 
+    private void OnAdvancedDiscordCableSessionMuteCheckBoxChanged(object sender, RoutedEventArgs e)
+    {
+        if (_updatingAdvancedAudioDiagnosticControls || sender is not CheckBox checkBox)
+        {
+            return;
+        }
+
+        var muted = checkBox.IsChecked == true;
+        var result = _audioDiagnosticsService.SetDiscordCableInputSessionMuted(muted);
+        AppendLog($"Diagnostic session mute: {result.Message}");
+        RefreshAdvancedAudioDiagnostics();
+    }
+
     private void RefreshAdvancedAudioDiagnostics()
     {
         if (_advancedAudioDiagnosticsTextBlock is null)
@@ -2572,13 +2637,54 @@ public sealed partial class MainWindow : Window
 
         try
         {
+            if (_audioDiagnosticsService.DiscordCableInputMuteArmed)
+            {
+                _audioDiagnosticsService.RefreshDiscordCableInputSessionMute();
+            }
+
             var snapshot = _audioDiagnosticsService.CaptureSnapshot();
             _advancedAudioDiagnosticsTextBlock.Text = FormatAudioDiagnosticsReport(snapshot);
+            UpdateAdvancedDiscordCableSessionStatus(snapshot);
         }
         catch (Exception ex)
         {
             _advancedAudioDiagnosticsTextBlock.Text = $"Audio diagnostics error: {ex.Message}";
         }
+    }
+
+    private void UpdateAdvancedDiscordCableSessionStatus(AudioDiagnosticsSnapshot snapshot)
+    {
+        if (_advancedDiscordCableSessionStatusTextBlock is null)
+        {
+            return;
+        }
+
+        var endpoint = snapshot.Endpoints.FirstOrDefault(item =>
+            item.DataFlow.Equals(DataFlow.Render.ToString(), StringComparison.OrdinalIgnoreCase)
+            && item.FriendlyName.StartsWith("CABLE Input", StringComparison.OrdinalIgnoreCase)
+            && !item.FriendlyName.StartsWith("CABLE In 16ch", StringComparison.OrdinalIgnoreCase));
+
+        if (endpoint is null)
+        {
+            _advancedDiscordCableSessionStatusTextBlock.Text = "Discord → CABLE Input: endpoint not found";
+            return;
+        }
+
+        var sessions = endpoint.Sessions
+            .Where(session => session.ProcessName.Equals("Discord", StringComparison.OrdinalIgnoreCase))
+            .ToList();
+
+        if (sessions.Count == 0)
+        {
+            _advancedDiscordCableSessionStatusTextBlock.Text =
+                $"Discord → CABLE Input: no session | diagnostic mute {(_audioDiagnosticsService.DiscordCableInputMuteArmed ? "ARMED" : "off")}";
+            return;
+        }
+
+        var sessionText = string.Join("; ", sessions.Select(session =>
+            $"PID {session.ProcessId}, {session.State}, mute {(session.Muted ? "yes" : "no")}, peak {FormatDiagnosticPercent(session.Peak)}"));
+        _advancedDiscordCableSessionStatusTextBlock.Text =
+            $"Discord → CABLE Input: {sessionText} | diagnostic mute {(_audioDiagnosticsService.DiscordCableInputMuteArmed ? "ARMED" : "off")}";
     }
 
     private string FormatAudioDiagnosticsReport(AudioDiagnosticsSnapshot snapshot)
@@ -2589,6 +2695,7 @@ public sealed partial class MainWindow : Window
         report.AppendLine($"Snapshot: {snapshot.CapturedAt:HH:mm:ss.fff}");
         report.AppendLine($"VoiSee process: {Environment.ProcessId}");
         report.AppendLine($"Engine: {(engine is null ? "Stopped" : "Running")}");
+        report.AppendLine($"Discord CABLE Input diagnostic mute: {(_audioDiagnosticsService.DiscordCableInputMuteArmed ? "ARMED" : "off")}");
         if (engine is not null)
         {
             report.AppendLine($"Virtual route: {(engine.VirtualOutputRouteEnabled ? "ENABLED" : "DISABLED")} | {engine.VirtualOutputPlaybackState}");
