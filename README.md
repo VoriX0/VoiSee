@@ -1,24 +1,22 @@
-# VoiSee 11.2.7
+# VoiSee 11.2.8
 
-## VoiSee 11.2.7 — Audio Engine Process Isolation
+## VoiSee 11.2.8 — WASAPI route diagnostics
 
-- Adds a separate hidden `VoiSe.AudioHost.exe` process with its own executable identity.
-- Moves microphone capture, Voice Changer DSP, SoundBoard playback, scene audio, Media Bridge capture, physical monitoring, and VB-CABLE output into Audio Host.
-- Keeps the WinUI `VoiSe.App.exe` process free of WASAPI capture and render sessions.
-- Starts Audio Host with Windows Explorer as its explicit parent, outside the VoiSee UI process tree.
-- Uses a private named-pipe command channel between the UI and Audio Host.
-- Restores the original hard Voice Monitor route disconnect from 11.2.5.
+- Adds a live endpoint and render-session report to Advanced Settings.
+- Shows endpoint role, state, level, volume, mute state, process name, PID and session state.
+- Adds independent diagnostic hard switches for Virtual Mic Output and Monitor Output.
+- Route switches physically stop the selected WASAPI render stream and reset after an engine restart.
+- Keeps the original hard Voice Monitor disconnect from 11.2.5.
 - Keeps the full-width SoundBoard Create / Rename / Delete category buttons.
+- Does not include the unsuccessful 11.2.6 or 11.2.7 process-isolation experiments.
 
 VoiSee is a WinUI 3 application for real-time voice processing, SoundBoard playback into a virtual microphone, scenes, presets, global hotkeys, themes, and non-destructive sound editing.
 
-The purpose of this diagnostic architecture is to prevent an application screen-share of the VoiSee window from treating the virtual microphone or monitor stream as audio owned by the shared UI application. The Audio Host exits when the UI closes or its private control pipe disappears.
+## Screen-share diagnostic workflow
 
-Runtime diagnostics are written to:
+Open `Settings → Advanced Settings`. While the screen-share problem is active, compare the live sessions on the physical headphones endpoint and `CABLE Input`. Disable only `Monitor Output` or only `Virtual Mic Output` to determine which render route contributes the duplicated voice. These switches are diagnostic and are not saved.
 
-```text
-%LOCALAPPDATA%\VoiSe\audio-host.log
-```
+Voice Monitor retains the 11.2.5 behavior: when it is Off, processed microphone samples are hard-disconnected from the physical monitor voice queue. SoundBoard-to-headphones monitoring remains independent until the complete Monitor Output route is disabled through the diagnostic switch.
 
 ## VoiSee 11.0.0 — Media Bridge Core
 
@@ -102,13 +100,13 @@ Set-ExecutionPolicy -Scope Process Bypass
 Expected installer:
 
 ```text
-artifacts\installer\VoiSee-Setup-11.2.7-x64.exe
+artifacts\installer\VoiSee-Setup-11.2.8-x64.exe
 ```
 
 Portable build:
 
 ```text
-artifacts\installer\VoiSee-Portable-11.2.7-x64.zip
+artifacts\installer\VoiSee-Portable-11.2.8-x64.zip
 ```
 
 ## Native XAML themes (VoiSee 10.1)

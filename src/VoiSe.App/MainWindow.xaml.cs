@@ -30,6 +30,7 @@ namespace VoiSe.App;
 public sealed partial class MainWindow : Window
 {
     private readonly AudioDeviceCatalog _catalog = new();
+    private readonly AudioDiagnosticsService _audioDiagnosticsService = new();
     private readonly DispatcherTimer _routeRestartTimer;
     private readonly DispatcherTimer _timelineTimer;
     private readonly SettingsStore _settingsStore = new();
@@ -51,7 +52,7 @@ public sealed partial class MainWindow : Window
     private bool _syncingVoiceControls;
     private readonly StringBuilder _logBuffer = new();
     private readonly DispatcherTimer _voiceSettingsApplyTimer;
-    private AudioEngineClient? _engine;
+    private Gate2UnifiedAudioEngine? _engine;
     private string? _soundFilePath;
     private SoundBoardSound? _selectedSound;
     private bool _loadingLibrary;
@@ -135,8 +136,13 @@ public sealed partial class MainWindow : Window
     private TextBlock? _advancedRouteStatusTextBlock;
     private TextBlock? _advancedLogTextBlock;
     private ScrollViewer? _advancedLogScrollViewer;
+    private TextBlock? _advancedAudioDiagnosticsTextBlock;
+    private CheckBox? _advancedVirtualOutputRouteCheckBox;
+    private CheckBox? _advancedMonitorOutputRouteCheckBox;
+    private bool _updatingAdvancedAudioDiagnosticControls;
     private readonly WindowCaptureService _windowCaptureService = new();
     private readonly DispatcherTimer _mediaBridgeUiTimer;
+    private readonly DispatcherTimer _audioDiagnosticsTimer;
     private CapturableWindowInfo? _mediaBridgeWindow;
     private DateTimeOffset? _mediaBridgeStartedAt;
     private bool _mediaBridgeStarting;
@@ -206,7 +212,13 @@ public sealed partial class MainWindow : Window
         _mediaBridgeUiTimer.Tick += OnMediaBridgeUiTimerTick;
         _mediaBridgeUiTimer.Start();
 
-        AppendLog("VoiSee Version 11.2.7 UI started.");
+        _audioDiagnosticsTimer = new DispatcherTimer
+        {
+            Interval = TimeSpan.FromMilliseconds(750)
+        };
+        _audioDiagnosticsTimer.Tick += OnAudioDiagnosticsTimerTick;
+
+        AppendLog("VoiSee Version 11.2.8 UI started.");
         AppendLog($"Settings path: {_settingsStore.SettingsPath}");
         StartupLog.Write("MainWindow initialized; waiting for first activation.");
     }
@@ -2129,6 +2141,94 @@ public sealed partial class MainWindow : Window
                 }
             };
 
+            _advancedVirtualOutputRouteCheckBox = new CheckBox
+            {
+                Content = "Enable Virtual Mic Output route",
+                IsThreeState = false
+            };
+            _advancedVirtualOutputRouteCheckBox.Checked += OnAdvancedVirtualOutputRouteCheckBoxChanged;
+            _advancedVirtualOutputRouteCheckBox.Unchecked += OnAdvancedVirtualOutputRouteCheckBoxChanged;
+
+            _advancedMonitorOutputRouteCheckBox = new CheckBox
+            {
+                Content = "Enable Monitor Output route",
+                IsThreeState = false
+            };
+            _advancedMonitorOutputRouteCheckBox.Checked += OnAdvancedMonitorOutputRouteCheckBoxChanged;
+            _advancedMonitorOutputRouteCheckBox.Unchecked += OnAdvancedMonitorOutputRouteCheckBoxChanged;
+
+            var diagnosticRoutePanel = new StackPanel
+            {
+                Spacing = 6,
+                Margin = new Thickness(0, 8, 0, 0)
+            };
+            diagnosticRoutePanel.Children.Add(new TextBlock
+            {
+                Text = "Independent output route switches",
+                FontSize = 16,
+                FontWeight = Microsoft.UI.Text.FontWeights.SemiBold
+            });
+            diagnosticRoutePanel.Children.Add(new TextBlock
+            {
+                Text = "These switches physically stop only the selected WASAPI render route. They are diagnostic-only and reset after an engine restart.",
+                Opacity = 0.7,
+                TextWrapping = TextWrapping.WrapWholeWords
+            });
+            diagnosticRoutePanel.Children.Add(_advancedVirtualOutputRouteCheckBox);
+            diagnosticRoutePanel.Children.Add(_advancedMonitorOutputRouteCheckBox);
+
+            _advancedAudioDiagnosticsTextBlock = new TextBlock
+            {
+                FontFamily = new FontFamily("Consolas"),
+                FontSize = 11,
+                TextWrapping = TextWrapping.Wrap,
+                IsTextSelectionEnabled = true
+            };
+
+            var audioDiagnosticsPanel = new StackPanel
+            {
+                Spacing = 8,
+                Margin = new Thickness(0, 10, 0, 0)
+            };
+            audioDiagnosticsPanel.Children.Add(new TextBlock
+            {
+                Text = "Live WASAPI endpoints and sessions",
+                FontSize = 16,
+                FontWeight = Microsoft.UI.Text.FontWeights.SemiBold
+            });
+            audioDiagnosticsPanel.Children.Add(new TextBlock
+            {
+                Text = "The list refreshes automatically while this window is open. Render sessions reveal which processes Windows currently associates with each playback endpoint.",
+                Opacity = 0.7,
+                TextWrapping = TextWrapping.WrapWholeWords
+            });
+
+            var copyAudioDiagnosticsButton = new Button
+            {
+                Content = "Copy Current Snapshot",
+                HorizontalAlignment = HorizontalAlignment.Left,
+                Padding = new Thickness(12, 6, 12, 6)
+            };
+            copyAudioDiagnosticsButton.Click += (_, _) =>
+            {
+                try
+                {
+                    var dataPackage = new DataPackage
+                    {
+                        RequestedOperation = DataPackageOperation.Copy
+                    };
+                    dataPackage.SetText(_advancedAudioDiagnosticsTextBlock?.Text ?? "No audio diagnostics snapshot.");
+                    Clipboard.SetContent(dataPackage);
+                    Clipboard.Flush();
+                }
+                catch (Exception ex)
+                {
+                    AppendLog($"Copy audio diagnostics error: {ex.Message}");
+                }
+            };
+            audioDiagnosticsPanel.Children.Add(copyAudioDiagnosticsButton);
+            audioDiagnosticsPanel.Children.Add(_advancedAudioDiagnosticsTextBlock);
+
             var enginePanel = new StackPanel
             {
                 Spacing = 12,
@@ -2152,6 +2252,8 @@ public sealed partial class MainWindow : Window
                 Margin = new Thickness(0, 8, 0, 0)
             });
             enginePanel.Children.Add(_advancedRouteStatusTextBlock);
+            enginePanel.Children.Add(diagnosticRoutePanel);
+            enginePanel.Children.Add(audioDiagnosticsPanel);
 
             var engineScrollViewer = new ScrollViewer
             {
@@ -2314,16 +2416,21 @@ public sealed partial class MainWindow : Window
             _advancedLogScrollViewer.Loaded += (_, _) => DispatcherQueue.TryEnqueue(() =>
                 _advancedLogScrollViewer?.ChangeView(null, _advancedLogScrollViewer.ScrollableHeight, null, disableAnimation: true));
 
+            _audioDiagnosticsTimer.Start();
             try
             {
                 await dialog.ShowAsync();
             }
             finally
             {
+                _audioDiagnosticsTimer.Stop();
                 _advancedEngineStatusTextBlock = null;
                 _advancedRouteStatusTextBlock = null;
                 _advancedLogTextBlock = null;
                 _advancedLogScrollViewer = null;
+                _advancedAudioDiagnosticsTextBlock = null;
+                _advancedVirtualOutputRouteCheckBox = null;
+                _advancedMonitorOutputRouteCheckBox = null;
                 _activeIconPickerScrollViewer = null;
                 _activeIconPickerWheelZoneElement = null;
                 _activeModalWheelZoneLeftExtensionRatio = 0.0;
@@ -2341,10 +2448,12 @@ public sealed partial class MainWindow : Window
 
     private void RefreshAdvancedSettingsStatus()
     {
+        var engine = _engine;
+
         if (_advancedEngineStatusTextBlock is not null)
         {
-            _advancedEngineStatusTextBlock.Text = _engine is not null
-                ? $"Engine status: Running in isolated Audio Host (PID {_engine.HostProcessId?.ToString() ?? "unknown"})"
+            _advancedEngineStatusTextBlock.Text = engine is not null
+                ? "Engine status: Running"
                 : IsVBCableReady()
                     ? "Engine status: Stopped"
                     : "Engine status: VB-CABLE required";
@@ -2355,19 +2464,198 @@ public sealed partial class MainWindow : Window
             var input = (InputDeviceComboBox?.SelectedItem as AudioDeviceInfo)?.FriendlyName ?? "Not selected";
             var bridge = IsVBCableReady() ? "Ready (automatic)" : "Not detected";
             var monitor = (MonitorOutputComboBox?.SelectedItem as AudioDeviceInfo)?.FriendlyName ?? "Disabled";
-            var routeState = _engine is not null
+            var routeState = engine is not null
                 ? "Active"
                 : IsVBCableReady() && InputDeviceComboBox?.SelectedItem is AudioDeviceInfo
                     ? "Ready"
                     : "Incomplete";
+
+            var virtualRoute = engine is null
+                ? "Not running"
+                : $"{(engine.VirtualOutputRouteEnabled ? "Enabled" : "Disabled")} / {engine.VirtualOutputPlaybackState}";
+            var monitorRoute = engine is null
+                ? "Not running"
+                : engine.MonitorOutputDeviceId is null
+                    ? "No monitor device"
+                    : $"{(engine.MonitorOutputRouteEnabled ? "Enabled" : "Disabled")} / {engine.MonitorOutputPlaybackState}";
 
             _advancedRouteStatusTextBlock.Text =
                 $"Input Device: {input}\n" +
                 $"VB-CABLE bridge: {bridge}\n" +
                 $"Monitor Device: {monitor}\n" +
                 $"Route state: {routeState}\n" +
-                $"Virtual Mic: {(_virtualMicMuted ? "Muted" : "Live")}";
+                $"Virtual Mic route: {virtualRoute}\n" +
+                $"Monitor output route: {monitorRoute}\n" +
+                $"Voice monitor feed: {(engine?.VoiceMonitorRouteEnabled == true ? "Connected" : "Hard disconnected")}\n" +
+                $"Virtual Mic mute: {(_virtualMicMuted ? "Muted" : "Live")}";
         }
+
+        _updatingAdvancedAudioDiagnosticControls = true;
+        try
+        {
+            if (_advancedVirtualOutputRouteCheckBox is not null)
+            {
+                _advancedVirtualOutputRouteCheckBox.IsEnabled = engine is not null;
+                _advancedVirtualOutputRouteCheckBox.IsChecked = engine?.VirtualOutputRouteEnabled == true;
+            }
+
+            if (_advancedMonitorOutputRouteCheckBox is not null)
+            {
+                _advancedMonitorOutputRouteCheckBox.IsEnabled = engine?.MonitorOutputDeviceId is not null;
+                _advancedMonitorOutputRouteCheckBox.IsChecked = engine?.MonitorOutputRouteEnabled == true;
+            }
+        }
+        finally
+        {
+            _updatingAdvancedAudioDiagnosticControls = false;
+        }
+
+        RefreshAdvancedAudioDiagnostics();
+    }
+
+    private void OnAudioDiagnosticsTimerTick(object? sender, object e)
+    {
+        if (_advancedAudioDiagnosticsTextBlock is not null)
+        {
+            RefreshAdvancedSettingsStatus();
+        }
+    }
+
+    private void OnAdvancedVirtualOutputRouteCheckBoxChanged(object sender, RoutedEventArgs e)
+    {
+        if (_updatingAdvancedAudioDiagnosticControls || sender is not CheckBox checkBox || _engine is null)
+        {
+            return;
+        }
+
+        var enabled = checkBox.IsChecked == true;
+        try
+        {
+            _engine.SetVirtualOutputRouteEnabled(enabled);
+            AppendLog($"Diagnostic route switch: Virtual Mic Output {(enabled ? "enabled" : "disabled")}.");
+        }
+        catch (Exception ex)
+        {
+            AppendLog($"Virtual Mic Output route switch error: {ex.Message}");
+        }
+
+        RefreshAdvancedSettingsStatus();
+    }
+
+    private void OnAdvancedMonitorOutputRouteCheckBoxChanged(object sender, RoutedEventArgs e)
+    {
+        if (_updatingAdvancedAudioDiagnosticControls || sender is not CheckBox checkBox || _engine is null)
+        {
+            return;
+        }
+
+        var enabled = checkBox.IsChecked == true;
+        try
+        {
+            _engine.SetMonitorOutputRouteEnabled(enabled);
+            AppendLog($"Diagnostic route switch: Monitor Output {(enabled ? "enabled" : "disabled")}.");
+        }
+        catch (Exception ex)
+        {
+            AppendLog($"Monitor Output route switch error: {ex.Message}");
+        }
+
+        RefreshAdvancedSettingsStatus();
+    }
+
+    private void RefreshAdvancedAudioDiagnostics()
+    {
+        if (_advancedAudioDiagnosticsTextBlock is null)
+        {
+            return;
+        }
+
+        try
+        {
+            var snapshot = _audioDiagnosticsService.CaptureSnapshot();
+            _advancedAudioDiagnosticsTextBlock.Text = FormatAudioDiagnosticsReport(snapshot);
+        }
+        catch (Exception ex)
+        {
+            _advancedAudioDiagnosticsTextBlock.Text = $"Audio diagnostics error: {ex.Message}";
+        }
+    }
+
+    private string FormatAudioDiagnosticsReport(AudioDiagnosticsSnapshot snapshot)
+    {
+        var report = new StringBuilder();
+        var engine = _engine;
+
+        report.AppendLine($"Snapshot: {snapshot.CapturedAt:HH:mm:ss.fff}");
+        report.AppendLine($"VoiSee process: {Environment.ProcessId}");
+        report.AppendLine($"Engine: {(engine is null ? "Stopped" : "Running")}");
+        if (engine is not null)
+        {
+            report.AppendLine($"Virtual route: {(engine.VirtualOutputRouteEnabled ? "ENABLED" : "DISABLED")} | {engine.VirtualOutputPlaybackState}");
+            report.AppendLine($"Monitor route: {(engine.MonitorOutputRouteEnabled ? "ENABLED" : "DISABLED")} | {engine.MonitorOutputPlaybackState}");
+            report.AppendLine($"Voice monitor feed: {(engine.VoiceMonitorRouteEnabled ? "CONNECTED" : "DISCONNECTED")}");
+        }
+
+        if (!string.IsNullOrWhiteSpace(snapshot.Error))
+        {
+            report.AppendLine($"Snapshot error: {snapshot.Error}");
+        }
+
+        report.AppendLine();
+        report.AppendLine("ACTIVE CORE AUDIO ENDPOINTS");
+
+        if (snapshot.Endpoints.Count == 0)
+        {
+            report.AppendLine("No active endpoints were returned.");
+            return report.ToString();
+        }
+
+        foreach (var endpoint in snapshot.Endpoints)
+        {
+            var roleText = endpoint.DefaultRoles.Count == 0
+                ? "none"
+                : string.Join(", ", endpoint.DefaultRoles);
+
+            report.AppendLine($"[{endpoint.DataFlow}] {endpoint.FriendlyName}");
+            report.AppendLine($"  state={endpoint.State} peak={FormatDiagnosticPercent(endpoint.Peak)} volume={FormatDiagnosticPercent(endpoint.Volume)} mute={(endpoint.Muted ? "yes" : "no")} default={roleText}");
+            report.AppendLine($"  id={endpoint.Id}");
+
+            if (!string.IsNullOrWhiteSpace(endpoint.Error))
+            {
+                report.AppendLine($"  endpoint error={endpoint.Error}");
+            }
+
+            if (endpoint.DataFlow.Equals(DataFlow.Render.ToString(), StringComparison.OrdinalIgnoreCase))
+            {
+                if (endpoint.Sessions.Count == 0)
+                {
+                    report.AppendLine("  sessions: none");
+                }
+                else
+                {
+                    report.AppendLine("  sessions:");
+                    foreach (var session in endpoint.Sessions)
+                    {
+                        var displayName = string.IsNullOrWhiteSpace(session.DisplayName)
+                            ? string.Empty
+                            : $" | {session.DisplayName}";
+                        report.AppendLine(
+                            $"    {session.State} | {session.ProcessName} (PID {session.ProcessId}){displayName} | " +
+                            $"peak {FormatDiagnosticPercent(session.Peak)} | volume {FormatDiagnosticPercent(session.Volume)} | mute {(session.Muted ? "yes" : "no")}");
+                    }
+                }
+            }
+
+            report.AppendLine();
+        }
+
+        return report.ToString().TrimEnd();
+    }
+
+    private static string FormatDiagnosticPercent(float value)
+    {
+        var percent = Math.Clamp(value, 0f, 1f) * 100f;
+        return $"{percent:0.0}%";
     }
 
     private string GetApplicationLogText()
@@ -3708,6 +3996,7 @@ public sealed partial class MainWindow : Window
         StopEngine(log: false);
         _timelineTimer.Stop();
         _mediaBridgeUiTimer.Stop();
+        _audioDiagnosticsTimer.Stop();
         _themeReloadTimer.Stop();
         _themeFileWatcher?.Dispose();
         _themeFileWatcher = null;
@@ -3725,6 +4014,7 @@ public sealed partial class MainWindow : Window
             _keyboardHookHandle = IntPtr.Zero;
         }
         _catalog.Dispose();
+        _audioDiagnosticsService.Dispose();
     }
 
     private void OnRefreshDevicesClick(object sender, RoutedEventArgs e)
@@ -6281,23 +6571,27 @@ public sealed partial class MainWindow : Window
             return false;
         }
 
+        var input = _catalog.FindCaptureDevice(inputInfo.Id);
+        var virtualOutput = _catalog.FindRenderDevice(virtualInfo.Id);
+        var monitor = monitorInfo is null ? null : _catalog.FindRenderDevice(monitorInfo.Id);
+
+        if (input is null || virtualOutput is null)
+        {
+            AppendLog("Selected devices are not available anymore. Refresh devices and try again.");
+            return false;
+        }
+
         try
         {
             SaveCurrentSettings();
-            _engine = new AudioEngineClient(
-                inputInfo.Id,
-                virtualInfo.Id,
-                monitorInfo?.Id,
-                CreateEffectSettings());
+            _engine = new Gate2UnifiedAudioEngine(input, virtualOutput, monitor, CreateEffectSettings());
             _engine.Start();
             _engine.SetVirtualMicMuted(_virtualMicMuted);
             _engine.UpdateMediaBridgeVolume((float)(MediaBridgeVolumeSlider?.Value ?? _settings.MediaBridgeVirtualMicVolume));
             EngineStatusTextBlock.Text = "Running";
-            var startResult = _engine.StartResult;
-            AppendLog($"Engine started in isolated Audio Host PID {_engine.HostProcessId?.ToString() ?? "unknown"}.");
-            AppendLog($"Input: {startResult?.InputFriendlyName ?? inputInfo.FriendlyName}");
-            AppendLog($"Virtual output: {startResult?.VirtualOutputFriendlyName ?? virtualInfo.FriendlyName}");
-            AppendLog($"Monitor: {startResult?.MonitorFriendlyName ?? monitorInfo?.FriendlyName ?? "disabled"}");
+            AppendLog($"Engine started. Input: {input.FriendlyName}");
+            AppendLog($"Virtual output: {virtualOutput.FriendlyName}");
+            AppendLog($"Monitor: {(monitor is null ? "disabled" : monitor.FriendlyName)}");
             AppendLog($"Voice monitor route: {(_engine.VoiceMonitorRouteEnabled ? "connected" : "hard disconnected")}");
             WarmSoundCacheInBackground();
             RefreshAdvancedSettingsStatus();

@@ -1,4 +1,4 @@
-﻿using NAudio.CoreAudioApi;
+using NAudio.CoreAudioApi;
 using NAudio.Wave;
 using NAudio.Wave.SampleProviders;
 
@@ -27,7 +27,10 @@ public sealed class Gate2UnifiedAudioEngine : IDisposable
     private string? _mediaBridgeError;
     private bool _virtualMicMuted;
     private readonly object _voiceMonitorRouteSync = new();
+    private readonly object _outputRouteSync = new();
     private bool _voiceMonitorRouteEnabled;
+    private bool _virtualOutputRouteEnabled = true;
+    private bool _monitorOutputRouteEnabled;
     private bool _disposed;
 
     public Gate2UnifiedAudioEngine(
@@ -41,6 +44,7 @@ public sealed class Gate2UnifiedAudioEngine : IDisposable
         _monitorDevice = monitorDevice;
         _settings = settings;
         _voiceMonitorRouteEnabled = settings.VoiceMonitorGain > 0.0001f;
+        _monitorOutputRouteEnabled = monitorDevice is not null;
         _mixFormat = WaveFormat.CreateIeeeFloatWaveFormat(48_000, 2);
 
         // Keep up to ~2 seconds of microphone route audio. If an output route falls behind,
@@ -64,6 +68,38 @@ public sealed class Gate2UnifiedAudioEngine : IDisposable
             }
         }
     }
+
+    public string InputDeviceId => _inputDevice.ID;
+    public string InputDeviceName => _inputDevice.FriendlyName;
+    public string VirtualOutputDeviceId => _virtualOutputDevice.ID;
+    public string VirtualOutputDeviceName => _virtualOutputDevice.FriendlyName;
+    public string? MonitorOutputDeviceId => _monitorDevice?.ID;
+    public string? MonitorOutputDeviceName => _monitorDevice?.FriendlyName;
+
+    public bool VirtualOutputRouteEnabled
+    {
+        get
+        {
+            lock (_outputRouteSync)
+            {
+                return _virtualOutputRouteEnabled;
+            }
+        }
+    }
+
+    public bool MonitorOutputRouteEnabled
+    {
+        get
+        {
+            lock (_outputRouteSync)
+            {
+                return _monitorDevice is not null && _monitorOutputRouteEnabled;
+            }
+        }
+    }
+
+    public string VirtualOutputPlaybackState => _virtualOutput?.PlaybackState.ToString() ?? "Not created";
+    public string MonitorOutputPlaybackState => _monitorOutput?.PlaybackState.ToString() ?? "Not created";
 
     public void Start()
     {
@@ -247,6 +283,73 @@ public sealed class Gate2UnifiedAudioEngine : IDisposable
         }
     }
 
+    /// <summary>
+    /// Diagnostic hard switch for the render stream that feeds the virtual microphone bridge.
+    /// Disabling this route stops the WASAPI render session instead of only muting its samples.
+    /// The state is intentionally session-only and resets when the engine restarts.
+    /// </summary>
+    public void SetVirtualOutputRouteEnabled(bool enabled)
+    {
+        lock (_outputRouteSync)
+        {
+            if (_virtualOutputRouteEnabled == enabled)
+            {
+                return;
+            }
+
+            _virtualOutputRouteEnabled = enabled;
+            _virtualMicQueue.Clear();
+
+            if (_virtualOutput is null)
+            {
+                return;
+            }
+
+            if (enabled)
+            {
+                _virtualOutput.Play();
+            }
+            else
+            {
+                _virtualOutput.Stop();
+            }
+        }
+    }
+
+    /// <summary>
+    /// Diagnostic hard switch for the complete physical monitor render stream.
+    /// This affects voice and SoundBoard monitoring but never the virtual microphone route.
+    /// The state is intentionally session-only and resets when the engine restarts.
+    /// </summary>
+    public void SetMonitorOutputRouteEnabled(bool enabled)
+    {
+        lock (_outputRouteSync)
+        {
+            var effectiveEnabled = enabled && _monitorDevice is not null;
+            if (_monitorOutputRouteEnabled == effectiveEnabled)
+            {
+                return;
+            }
+
+            _monitorOutputRouteEnabled = effectiveEnabled;
+            _monitorMicQueue.Clear();
+
+            if (_monitorOutput is null)
+            {
+                return;
+            }
+
+            if (effectiveEnabled)
+            {
+                _monitorOutput.Play();
+            }
+            else
+            {
+                _monitorOutput.Stop();
+            }
+        }
+    }
+
     public void UpdateSoundVolumes(float virtualVolume, float monitorVolume, string? playbackKey = null)
     {
         _soundboard.UpdateVolumes(virtualVolume, monitorVolume, playbackKey);
@@ -268,8 +371,13 @@ public sealed class Gate2UnifiedAudioEngine : IDisposable
         StopMediaBridge();
         _soundboard.Stop();
         _capture?.StopRecording();
-        _virtualOutput?.Stop();
-        _monitorOutput?.Stop();
+        lock (_outputRouteSync)
+        {
+            _virtualOutputRouteEnabled = false;
+            _monitorOutputRouteEnabled = false;
+            _virtualOutput?.Stop();
+            _monitorOutput?.Stop();
+        }
         _virtualMicQueue.Clear();
         _monitorMicQueue.Clear();
     }
@@ -290,7 +398,13 @@ public sealed class Gate2UnifiedAudioEngine : IDisposable
                 _mixFormat);
 
             _processor.ProcessInPlace(targetSamples);
-            _virtualMicQueue.Add(targetSamples);
+            lock (_outputRouteSync)
+            {
+                if (_virtualOutputRouteEnabled)
+                {
+                    _virtualMicQueue.Add(targetSamples);
+                }
+            }
 
             // Voice Monitor Off is a hard route disconnect, not only a zero gain.
             // This prevents processed microphone audio and stale queued samples
