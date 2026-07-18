@@ -206,7 +206,7 @@ public sealed partial class MainWindow : Window
         _mediaBridgeUiTimer.Tick += OnMediaBridgeUiTimerTick;
         _mediaBridgeUiTimer.Start();
 
-        AppendLog("VoiSee Version 11.2.1 UI started.");
+        AppendLog("VoiSee Version 11.2.3 UI started.");
         AppendLog($"Settings path: {_settingsStore.SettingsPath}");
         StartupLog.Write("MainWindow initialized; waiting for first activation.");
     }
@@ -6302,6 +6302,7 @@ public sealed partial class MainWindow : Window
             AppendLog($"Engine started. Input: {input.FriendlyName}");
             AppendLog($"Virtual output: {virtualOutput.FriendlyName}");
             AppendLog($"Monitor: {(monitor is null ? "disabled" : monitor.FriendlyName)}");
+            AppendLog($"Voice monitor route: {(_engine.VoiceMonitorRouteEnabled ? "connected" : "hard disconnected")}");
             WarmSoundCacheInBackground();
             RefreshAdvancedSettingsStatus();
             return true;
@@ -6834,6 +6835,10 @@ public sealed partial class MainWindow : Window
         _voiceMonitorEnabled = !_voiceMonitorEnabled;
         UpdateVoiceMonitorButton();
         ApplyLiveSettings(_voiceMonitorEnabled ? "voice monitor enabled" : "voice monitor disabled");
+        if (_engine is not null)
+        {
+            AppendLog($"Voice monitor route: {(_engine.VoiceMonitorRouteEnabled ? "connected" : "hard disconnected")}");
+        }
     }
 
     private void OnTimelineHostPointerPressed(object sender, PointerRoutedEventArgs e)
@@ -7035,7 +7040,6 @@ public sealed partial class MainWindow : Window
         if (SceneBackgroundTypeComboBox is not null) SceneBackgroundTypeComboBox.IsEnabled = enabled;
         if (SceneAutostartLoopsCheckBox is not null) SceneAutostartLoopsCheckBox.IsEnabled = enabled;
         if (SceneMediaProfileComboBox is not null) SceneMediaProfileComboBox.IsEnabled = enabled;
-        if (SceneMediaVirtualMicVolumeSlider is not null) SceneMediaVirtualMicVolumeSlider.IsEnabled = enabled;
         if (SceneCaptureMediaOnStartCheckBox is not null) SceneCaptureMediaOnStartCheckBox.IsEnabled = enabled;
         if (SceneLoopHeadphonesVolumeSlider is not null) SceneLoopHeadphonesVolumeSlider.IsEnabled = enabled;
         if (SceneLoopVirtualMicVolumeSlider is not null) SceneLoopVirtualMicVolumeSlider.IsEnabled = enabled;
@@ -7140,10 +7144,6 @@ public sealed partial class MainWindow : Window
         {
             SceneMediaLaunchSourceButton.IsEnabled = _selectedScene is not null && hasProfile;
         }
-        if (SceneMediaStopBroadcastButton is not null)
-        {
-            SceneMediaStopBroadcastButton.IsEnabled = _engine?.IsMediaBridgeBroadcasting == true;
-        }
     }
 
     private void RefreshSceneLoopAutostartCheckBox()
@@ -7167,8 +7167,7 @@ public sealed partial class MainWindow : Window
     private void RefreshSceneVolumeControls()
     {
         if (SceneLoopHeadphonesVolumeSlider is null ||
-            SceneLoopVirtualMicVolumeSlider is null ||
-            SceneMediaVirtualMicVolumeSlider is null)
+            SceneLoopVirtualMicVolumeSlider is null)
         {
             return;
         }
@@ -7178,7 +7177,6 @@ public sealed partial class MainWindow : Window
         {
             SceneLoopHeadphonesVolumeSlider.Value = Clamp(_selectedScene?.LoopedSoundHeadphonesVolume ?? 1.0, 0, 1.5);
             SceneLoopVirtualMicVolumeSlider.Value = Clamp(_selectedScene?.LoopedSoundVirtualMicVolume ?? 1.0, 0, 1.5);
-            SceneMediaVirtualMicVolumeSlider.Value = Clamp(_selectedScene?.MediaBridgeVirtualMicVolume ?? 1.0, 0, 1.5);
         }
         finally
         {
@@ -8881,25 +8879,6 @@ public sealed partial class MainWindow : Window
         RefreshSceneMediaActionButtons();
     }
 
-    private void OnSceneMediaVolumeChanged(object sender, RangeBaseValueChangedEventArgs e)
-    {
-        if (SceneMediaVirtualMicVolumeValueBox is not null)
-        {
-            SceneMediaVirtualMicVolumeValueBox.Text = $"{(int)Math.Round(e.NewValue * 100)}%";
-        }
-        if (_loadingSceneUi || _selectedScene is null)
-        {
-            return;
-        }
-
-        _selectedScene.MediaBridgeVirtualMicVolume = e.NewValue;
-        if (string.Equals(_sceneOwnedMediaBridgeSceneId, _selectedScene.Id, StringComparison.OrdinalIgnoreCase))
-        {
-            _engine?.UpdateMediaBridgeVolume((float)e.NewValue);
-        }
-        SaveSelectedSceneVolumeChange();
-    }
-
     private void OnSceneCaptureMediaOnStartChanged(object sender, RoutedEventArgs e)
     {
         if (_loadingSceneUi || _selectedScene is null || SceneCaptureMediaOnStartCheckBox is null)
@@ -8923,12 +8902,6 @@ public sealed partial class MainWindow : Window
         }
 
         LaunchMediaBridgeProfile(profile);
-    }
-
-    private void OnSceneMediaStopBroadcastClick(object sender, RoutedEventArgs e)
-    {
-        StopMediaBridgeBroadcast(clearSelectedWindow: true, status: "Stopped", writeLog: true);
-        RefreshSceneMediaActionButtons();
     }
 
     private MediaBridgeProfile? GetSelectedSceneMediaProfile()
@@ -8957,11 +8930,7 @@ public sealed partial class MainWindow : Window
 
         if (_engine?.IsMediaBridgeBroadcasting == true)
         {
-            if (string.Equals(_sceneOwnedMediaBridgeSceneId, scene.Id, StringComparison.OrdinalIgnoreCase))
-            {
-                _engine.UpdateMediaBridgeVolume((float)scene.MediaBridgeVirtualMicVolume);
-            }
-            else
+            if (!string.Equals(_sceneOwnedMediaBridgeSceneId, scene.Id, StringComparison.OrdinalIgnoreCase))
             {
                 AppendLog("Scene did not replace the manually running Media Bridge broadcast.");
             }
@@ -8980,13 +8949,9 @@ public sealed partial class MainWindow : Window
         _settings.MediaBridgeLastProcessName = window.ProcessName;
         _settings.MediaBridgeLastWindowTitle = window.WindowTitle;
         _settingsStore.Save(_settings);
-        if (MediaBridgeVolumeSlider is not null)
-        {
-            MediaBridgeVolumeSlider.Value = Clamp(scene.MediaBridgeVirtualMicVolume, 0, 1.5);
-        }
         UpdateMediaBridgeUiState("Ready");
         await UpdateMediaBridgePreviewAsync();
-        var started = await StartMediaBridgeBroadcastAsync(scene.Id, scene.MediaBridgeVirtualMicVolume);
+        var started = await StartMediaBridgeBroadcastAsync(scene.Id);
         if (started)
         {
             AppendLog($"Scene media started: {scene.Name} → {profile.DisplayName}.");
@@ -10215,11 +10180,6 @@ public sealed partial class MainWindow : Window
         if (SceneLoopVirtualMicVolumeValueBox is not null && SceneLoopVirtualMicVolumeSlider is not null)
         {
             SceneLoopVirtualMicVolumeValueBox.Text = $"{(int)Math.Round(SceneLoopVirtualMicVolumeSlider.Value * 100)}%";
-        }
-
-        if (SceneMediaVirtualMicVolumeValueBox is not null && SceneMediaVirtualMicVolumeSlider is not null)
-        {
-            SceneMediaVirtualMicVolumeValueBox.Text = $"{(int)Math.Round(SceneMediaVirtualMicVolumeSlider.Value * 100)}%";
         }
 
     }

@@ -1,6 +1,12 @@
-﻿# VoiSee 11.2.1
+﻿# VoiSee 11.2.3
 
 VoiSee is a WinUI 3 application for real-time voice processing, SoundBoard playback into a virtual microphone, scenes, presets, global hotkeys, themes, and non-destructive sound editing.
+
+## VoiSee 11.2.3 — Screen-share voice monitor isolation
+
+When Voice Monitor is Off, processed microphone samples are now hard-disconnected from the physical monitor route instead of merely being multiplied by zero in the final monitor mixer. The monitor microphone queue is cleared immediately when monitoring is disabled. SoundBoard-to-headphones monitoring remains independent. Diagnostic logs report either `Voice monitor route: connected` or `Voice monitor route: hard disconnected`.
+
+This build targets the reported case where sharing the VoiSee window with application audio can add a second processed voice copy. It does not change the virtual microphone, SoundBoard, scenes, or Media Bridge routes.
 
 ## VoiSee 11.0.0 — Media Bridge Core
 
@@ -10,7 +16,7 @@ Media Bridge is provider-independent: Yandex Music is the first target scenario,
 
 ## VoiSee 11.2 — Scene Media Backgrounds
 
-Scenes can now choose either `Looped Sound` or `Media Source` as their background. A Media Source uses a profile created when a window is selected on the Media Bridge tab. The scene editor hides the headphone control, keeps a dedicated virtual-microphone volume, provides `Launch Source` and `Stop Broadcast`, and can start capture when the scene is applied. Scene-owned capture stops with the scene; a Media Bridge broadcast that was already running manually is never replaced or stopped by scene deactivation.
+Scenes can now choose either `Looped Sound` or `Media Source` as their background. A Media Source uses a profile created when a window is selected on the Media Bridge tab. The scene editor only selects the profile, launches its application from the source card, and optionally starts capture when the scene is applied. Volume, Pause, Stop, meters, and all audio processing remain exclusively on the Media Bridge tab. Scene-owned capture stops with the scene; a Media Bridge broadcast that was already running manually is never replaced or stopped by scene deactivation.
 
 Known service profiles provide browser fallback for Yandex Music, Spotify, and YouTube. VoiSee stores descriptive profile data, never a PID or HWND.
 
@@ -84,13 +90,13 @@ Set-ExecutionPolicy -Scope Process Bypass
 Expected installer:
 
 ```text
-artifacts\installer\VoiSee-Setup-11.2.1-x64.exe
+artifacts\installer\VoiSee-Setup-11.2.3-x64.exe
 ```
 
 Portable build:
 
 ```text
-artifacts\installer\VoiSee-Portable-11.2.1-x64.zip
+artifacts\installer\VoiSee-Portable-11.2.3-x64.zip
 ```
 
 ## Native XAML themes (VoiSee 10.1)

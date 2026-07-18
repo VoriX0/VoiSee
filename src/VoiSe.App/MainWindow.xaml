@@ -6,7 +6,7 @@
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     mc:Ignorable="d"
-    Title="VoiSee Version 11.2.1">
+    Title="VoiSee Version 11.2.3">
 
     <Grid x:Name="RootGrid" RequestedTheme="Dark" Background="{ThemeResource VoiSee.AppBackgroundBrush}" SizeChanged="OnRootGridSizeChanged">
         <Grid.RowDefinitions>
@@ -21,7 +21,7 @@
             </Grid.ColumnDefinitions>
             <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center" Margin="10,0,0,0">
                 <Image Source="ms-appx:///Assets/AppIcon_24.png" Width="16" Height="16" VerticalAlignment="Center" />
-                <TextBlock x:Name="TitleBarVersionTextBlock" Text="VoiSee Version 11.2.1" FontSize="12" Foreground="{ThemeResource VoiSee.PrimaryTextBrush}" VerticalAlignment="Center" />
+                <TextBlock x:Name="TitleBarVersionTextBlock" Text="VoiSee Version 11.2.3" FontSize="12" Foreground="{ThemeResource VoiSee.PrimaryTextBrush}" VerticalAlignment="Center" />
             </StackPanel>
         </Grid>
 
@@ -39,7 +39,7 @@
                 </Grid.ColumnDefinitions>
                 <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
                     <Image Source="ms-appx:///Assets/AppIcon_48.png" Width="34" Height="34" VerticalAlignment="Center" />
-                    <TextBlock x:Name="MainTitle" Text="VoiSee Version 11.2.1" FontSize="28" FontWeight="SemiBold" Foreground="{ThemeResource VoiSee.PrimaryTextBrush}" VerticalAlignment="Center" />
+                    <TextBlock x:Name="MainTitle" Text="VoiSee Version 11.2.3" FontSize="28" FontWeight="SemiBold" Foreground="{ThemeResource VoiSee.PrimaryTextBrush}" VerticalAlignment="Center" />
                 </StackPanel>
                 <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center" HorizontalAlignment="Right">
                     <TextBlock Text="Mic Output" Foreground="{ThemeResource VoiSee.PrimaryTextBrush}" Opacity="0.62" VerticalAlignment="Center" />
@@ -603,31 +603,33 @@
                                             </StackPanel>
 
                                             <StackPanel x:Name="SceneMediaBackgroundPanel" Spacing="8" Visibility="Collapsed">
-                                                <Grid ColumnSpacing="8" VerticalAlignment="Center">
-                                                    <Grid.ColumnDefinitions>
-                                                        <ColumnDefinition Width="Auto" />
-                                                        <ColumnDefinition Width="*" />
-                                                    </Grid.ColumnDefinitions>
-                                                    <TextBlock Text="Media Source" FontWeight="SemiBold" VerticalAlignment="Center" />
-                                                    <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="4" HorizontalAlignment="Right" VerticalAlignment="Center">
-                                                        <TextBlock Text="Mic" Opacity="0.72" FontSize="12" VerticalAlignment="Center" />
-                                                        <Slider Style="{ThemeResource VoiSee.Style.Slider}" x:Name="SceneMediaVirtualMicVolumeSlider" Minimum="0" Maximum="1.5" Value="1" StepFrequency="0.01" Width="110" ValueChanged="OnSceneMediaVolumeChanged" />
-                                                        <TextBlock x:Name="SceneMediaVirtualMicVolumeValueBox" Text="100%" Opacity="0.72" FontSize="12" Width="40" VerticalAlignment="Center" />
-                                                    </StackPanel>
-                                                </Grid>
+                                                <TextBlock Text="Media Source" FontWeight="SemiBold" VerticalAlignment="Center" />
                                                 <ComboBox Style="{ThemeResource VoiSee.Style.ComboBox}"
                                                           x:Name="SceneMediaProfileComboBox"
                                                           DisplayMemberPath="DisplayName"
                                                           PlaceholderText="Select a profile created in Media Bridge"
                                                           HorizontalAlignment="Stretch"
                                                           SelectionChanged="OnSceneMediaProfileSelectionChanged" />
-                                                <Border Padding="12,10" Background="{ThemeResource VoiSee.CardValueBackgroundBrush}" BorderBrush="{ThemeResource VoiSee.CardValueBorderBrush}" BorderThickness="1" CornerRadius="{ThemeResource VoiSee.CornerRadius.Medium}">
-                                                    <TextBlock x:Name="SceneMediaSourceNameTextBlock" Text="No media source selected" TextWrapping="Wrap" />
+                                                <Border Padding="10,8" Background="{ThemeResource VoiSee.CardValueBackgroundBrush}" BorderBrush="{ThemeResource VoiSee.CardValueBorderBrush}" BorderThickness="1" CornerRadius="{ThemeResource VoiSee.CornerRadius.Medium}">
+                                                    <Grid ColumnSpacing="10">
+                                                        <Grid.ColumnDefinitions>
+                                                            <ColumnDefinition Width="Auto" />
+                                                            <ColumnDefinition Width="*" />
+                                                        </Grid.ColumnDefinitions>
+                                                        <Button Grid.Column="0"
+                                                                Style="{ThemeResource VoiSee.Style.Button}"
+                                                                x:Name="SceneMediaLaunchSourceButton"
+                                                                Content="Launch"
+                                                                MinWidth="82"
+                                                                Click="OnSceneMediaLaunchSourceClick"
+                                                                ToolTipService.ToolTip="Launch the selected application or open its browser fallback" />
+                                                        <TextBlock Grid.Column="1"
+                                                                   x:Name="SceneMediaSourceNameTextBlock"
+                                                                   Text="No media source selected"
+                                                                   TextWrapping="Wrap"
+                                                                   VerticalAlignment="Center" />
+                                                    </Grid>
                                                 </Border>
-                                                <StackPanel Orientation="Horizontal" Spacing="8">
-                                                    <Button Style="{ThemeResource VoiSee.Style.Button}" x:Name="SceneMediaLaunchSourceButton" Content="Launch Source" MinWidth="128" Click="OnSceneMediaLaunchSourceClick" />
-                                                    <Button Style="{ThemeResource VoiSee.Style.Button}" x:Name="SceneMediaStopBroadcastButton" Content="Stop Broadcast" MinWidth="132" Click="OnSceneMediaStopBroadcastClick" />
-                                                </StackPanel>
                                                 <CheckBox Style="{ThemeResource VoiSee.Style.CheckBox}" x:Name="SceneCaptureMediaOnStartCheckBox"
                                                           Content="Capture source when scene starts"
                                                           Checked="OnSceneCaptureMediaOnStartChanged"
