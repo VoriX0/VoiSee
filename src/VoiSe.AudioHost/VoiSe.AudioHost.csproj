@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows10.0.19041.0</TargetFramework>
+    <TargetPlatformMinVersion>10.0.19041.0</TargetPlatformMinVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <UseAppHost>true</UseAppHost>
+    <Version>11.2.7</Version>
+    <AssemblyVersion>11.2.7.0</AssemblyVersion>
+    <FileVersion>11.2.7.0</FileVersion>
+    <InformationalVersion>11.2.7</InformationalVersion>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\VoiSe.Audio\VoiSe.Audio.csproj" />
+  </ItemGroup>
+</Project>

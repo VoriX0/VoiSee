@@ -13,10 +13,10 @@
     <EnableMsixTooling>true</EnableMsixTooling>
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>
     <ApplicationIcon>Assets\AppIcon.ico</ApplicationIcon>
-    <Version>11.2.6</Version>
-    <AssemblyVersion>11.2.6.0</AssemblyVersion>
-    <FileVersion>11.2.6.0</FileVersion>
-    <InformationalVersion>11.2.6</InformationalVersion>
+    <Version>11.2.7</Version>
+    <AssemblyVersion>11.2.7.0</AssemblyVersion>
+    <FileVersion>11.2.7.0</FileVersion>
+    <InformationalVersion>11.2.7</InformationalVersion>
   </PropertyGroup>
   <ItemGroup>
     <!-- User-generated data must never be published or packed into the installer.
@@ -44,7 +44,22 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\VoiSe.Audio\VoiSe.Audio.csproj" />
+    <ProjectReference Include="..\VoiSe.AudioHost\VoiSe.AudioHost.csproj" ReferenceOutputAssembly="false" />
   </ItemGroup>
+  <Target Name="BuildAudioHostForLocalRun" BeforeTargets="CopyAudioHostForLocalRun" Condition="'$(DesignTimeBuild)' != 'true'">
+    <MSBuild Projects="$(MSBuildProjectDirectory)\..\VoiSe.AudioHost\VoiSe.AudioHost.csproj"
+             Targets="Build"
+             Properties="Configuration=$(Configuration);RuntimeIdentifier=win-x64" />
+  </Target>
+  <Target Name="CopyAudioHostForLocalRun" AfterTargets="Build" Condition="'$(DesignTimeBuild)' != 'true'">
+    <ItemGroup>
+      <_AudioHostBuildFiles Include="$(MSBuildProjectDirectory)\..\VoiSe.AudioHost\bin\$(Configuration)\net8.0-windows10.0.19041.0\win-x64\**\*" />
+    </ItemGroup>
+    <Copy SourceFiles="@(_AudioHostBuildFiles)"
+          DestinationFiles="@(_AudioHostBuildFiles->'$(OutDir)AudioHost\%(RecursiveDir)%(Filename)%(Extension)')"
+          SkipUnchangedFiles="true"
+          Condition="'@(_AudioHostBuildFiles)' != ''" />
+  </Target>
   <ItemGroup>
     <Manifest Include="$(ApplicationManifest)" />
   </ItemGroup>

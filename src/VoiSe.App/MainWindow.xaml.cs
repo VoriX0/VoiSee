@@ -1,4 +1,4 @@
-﻿using Microsoft.UI.Windowing;
+using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Controls.Primitives;
@@ -51,7 +51,7 @@ public sealed partial class MainWindow : Window
     private bool _syncingVoiceControls;
     private readonly StringBuilder _logBuffer = new();
     private readonly DispatcherTimer _voiceSettingsApplyTimer;
-    private Gate2UnifiedAudioEngine? _engine;
+    private AudioEngineClient? _engine;
     private string? _soundFilePath;
     private SoundBoardSound? _selectedSound;
     private bool _loadingLibrary;
@@ -206,7 +206,7 @@ public sealed partial class MainWindow : Window
         _mediaBridgeUiTimer.Tick += OnMediaBridgeUiTimerTick;
         _mediaBridgeUiTimer.Start();
 
-        AppendLog("VoiSee Version 11.2.6 UI started.");
+        AppendLog("VoiSee Version 11.2.7 UI started.");
         AppendLog($"Settings path: {_settingsStore.SettingsPath}");
         StartupLog.Write("MainWindow initialized; waiting for first activation.");
     }
@@ -2344,7 +2344,7 @@ public sealed partial class MainWindow : Window
         if (_advancedEngineStatusTextBlock is not null)
         {
             _advancedEngineStatusTextBlock.Text = _engine is not null
-                ? "Engine status: Running"
+                ? $"Engine status: Running in isolated Audio Host (PID {_engine.HostProcessId?.ToString() ?? "unknown"})"
                 : IsVBCableReady()
                     ? "Engine status: Stopped"
                     : "Engine status: VB-CABLE required";
@@ -6281,30 +6281,23 @@ public sealed partial class MainWindow : Window
             return false;
         }
 
-        var input = _catalog.FindCaptureDevice(inputInfo.Id);
-        var virtualOutput = _catalog.FindRenderDevice(virtualInfo.Id);
-        var monitor = monitorInfo is null ? null : _catalog.FindRenderDevice(monitorInfo.Id);
-
-        if (input is null || virtualOutput is null)
-        {
-            AppendLog("Selected devices are not available anymore. Refresh devices and try again.");
-            return false;
-        }
-
         try
         {
             SaveCurrentSettings();
-            _engine = new Gate2UnifiedAudioEngine(input, virtualOutput, monitor, CreateEffectSettings());
+            _engine = new AudioEngineClient(
+                inputInfo.Id,
+                virtualInfo.Id,
+                monitorInfo?.Id,
+                CreateEffectSettings());
             _engine.Start();
             _engine.SetVirtualMicMuted(_virtualMicMuted);
             _engine.UpdateMediaBridgeVolume((float)(MediaBridgeVolumeSlider?.Value ?? _settings.MediaBridgeVirtualMicVolume));
             EngineStatusTextBlock.Text = "Running";
-            AppendLog($"Engine started. Input: {input.FriendlyName}");
-            AppendLog($"Virtual output: {virtualOutput.FriendlyName}");
-            AppendLog(_engine.VirtualMicHostProcessId is int virtualMicHostPid
-                ? $"Virtual output isolation: detached host PID {virtualMicHostPid}."
-                : "Virtual output isolation: detached host started.");
-            AppendLog($"Monitor: {(monitor is null ? "disabled" : monitor.FriendlyName)}");
+            var startResult = _engine.StartResult;
+            AppendLog($"Engine started in isolated Audio Host PID {_engine.HostProcessId?.ToString() ?? "unknown"}.");
+            AppendLog($"Input: {startResult?.InputFriendlyName ?? inputInfo.FriendlyName}");
+            AppendLog($"Virtual output: {startResult?.VirtualOutputFriendlyName ?? virtualInfo.FriendlyName}");
+            AppendLog($"Monitor: {startResult?.MonitorFriendlyName ?? monitorInfo?.FriendlyName ?? "disabled"}");
             AppendLog($"Voice monitor route: {(_engine.VoiceMonitorRouteEnabled ? "connected" : "hard disconnected")}");
             WarmSoundCacheInBackground();
             RefreshAdvancedSettingsStatus();

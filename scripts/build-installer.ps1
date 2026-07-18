@@ -6,11 +6,13 @@ param(
 
 $ErrorActionPreference = "Stop"
 
-$Version = "11.2.6"
+$Version = "11.2.7"
 $Root = Resolve-Path (Join-Path $PSScriptRoot "..")
 $PublishDir = Join-Path $Root "artifacts\publish\VoiSe"
 $InstallerDir = Join-Path $Root "artifacts\installer"
 $Project = Join-Path $Root "src\VoiSe.App\VoiSe.App.csproj"
+$AudioHostProject = Join-Path $Root "src\VoiSe.AudioHost\VoiSe.AudioHost.csproj"
+$AudioHostPublishDir = Join-Path $PublishDir "AudioHost"
 $Iss = Join-Path $Root "installer\VoiSe.iss"
 
 function Remove-IfExists([string]$Path) {
@@ -158,14 +160,34 @@ dotnet publish $Project `
     -p:PublishSingleFile=false `
     -p:EnableCompressionInSingleFile=false `
     -p:Version=$Version `
-    -p:AssemblyVersion=11.2.6.0 `
-    -p:FileVersion=11.2.6.0 `
+    -p:AssemblyVersion=11.2.7.0 `
+    -p:FileVersion=11.2.7.0 `
     -p:InformationalVersion=$Version `
     -o $PublishDir
 
 $Exe = Join-Path $PublishDir "VoiSe.App.exe"
 if (-not (Test-Path $Exe)) {
     throw "Publish did not produce VoiSe.App.exe at $Exe"
+}
+
+Write-Host "Publishing isolated VoiSe.AudioHost.exe..." -ForegroundColor Cyan
+Remove-IfExists $AudioHostPublishDir
+New-Item -ItemType Directory -Force -Path $AudioHostPublishDir | Out-Null
+dotnet publish $AudioHostProject `
+    -c $Configuration `
+    -r $Runtime `
+    --self-contained true `
+    -p:PublishSingleFile=false `
+    -p:EnableCompressionInSingleFile=false `
+    -p:Version=$Version `
+    -p:AssemblyVersion=11.2.7.0 `
+    -p:FileVersion=11.2.7.0 `
+    -p:InformationalVersion=$Version `
+    -o $AudioHostPublishDir
+
+$AudioHostExe = Join-Path $AudioHostPublishDir "VoiSe.AudioHost.exe"
+if (-not (Test-Path $AudioHostExe)) {
+    throw "Publish did not produce VoiSe.AudioHost.exe at $AudioHostExe"
 }
 
 Write-Host "Sanitizing publish payload: user categories, presets, scenes, settings, and sounds are excluded." -ForegroundColor Cyan
