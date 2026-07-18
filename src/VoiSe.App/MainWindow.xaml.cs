@@ -30,7 +30,9 @@ namespace VoiSe.App;
 public sealed partial class MainWindow : Window
 {
     private readonly AudioDeviceCatalog _catalog = new();
-    private readonly AudioDiagnosticsService _audioDiagnosticsService = new();
+    private readonly DiscordCableSessionIsolationService _discordCableSessionIsolationService = new();
+    private readonly DispatcherTimer _discordCableSessionIsolationTimer;
+    private string? _lastDiscordCableSessionIsolationError;
     private readonly DispatcherTimer _routeRestartTimer;
     private readonly DispatcherTimer _timelineTimer;
     private readonly SettingsStore _settingsStore = new();
@@ -136,15 +138,8 @@ public sealed partial class MainWindow : Window
     private TextBlock? _advancedRouteStatusTextBlock;
     private TextBlock? _advancedLogTextBlock;
     private ScrollViewer? _advancedLogScrollViewer;
-    private TextBlock? _advancedAudioDiagnosticsTextBlock;
-    private CheckBox? _advancedVirtualOutputRouteCheckBox;
-    private CheckBox? _advancedMonitorOutputRouteCheckBox;
-    private CheckBox? _advancedDiscordCableSessionMuteCheckBox;
-    private TextBlock? _advancedDiscordCableSessionStatusTextBlock;
-    private bool _updatingAdvancedAudioDiagnosticControls;
     private readonly WindowCaptureService _windowCaptureService = new();
     private readonly DispatcherTimer _mediaBridgeUiTimer;
-    private readonly DispatcherTimer _audioDiagnosticsTimer;
     private CapturableWindowInfo? _mediaBridgeWindow;
     private DateTimeOffset? _mediaBridgeStartedAt;
     private bool _mediaBridgeStarting;
@@ -214,15 +209,48 @@ public sealed partial class MainWindow : Window
         _mediaBridgeUiTimer.Tick += OnMediaBridgeUiTimerTick;
         _mediaBridgeUiTimer.Start();
 
-        _audioDiagnosticsTimer = new DispatcherTimer
+        _discordCableSessionIsolationTimer = new DispatcherTimer
         {
             Interval = TimeSpan.FromMilliseconds(750)
         };
-        _audioDiagnosticsTimer.Tick += OnAudioDiagnosticsTimerTick;
+        _discordCableSessionIsolationTimer.Tick += OnDiscordCableSessionIsolationTimerTick;
 
-        AppendLog("VoiSee Version 11.2.9 UI started.");
+        AppendLog("VoiSee Version 11.3.0 UI started.");
         AppendLog($"Settings path: {_settingsStore.SettingsPath}");
+
+        var isolationResult = _discordCableSessionIsolationService.Enable();
+        AppendLog("Discord screen-share voice isolation is enabled.");
+        LogDiscordCableSessionIsolationResult(isolationResult);
+        _discordCableSessionIsolationTimer.Start();
+
         StartupLog.Write("MainWindow initialized; waiting for first activation.");
+    }
+
+    private void OnDiscordCableSessionIsolationTimerTick(object? sender, object e)
+    {
+        var result = _discordCableSessionIsolationService.Refresh();
+        LogDiscordCableSessionIsolationResult(result);
+    }
+
+    private void LogDiscordCableSessionIsolationResult(DiscordCableSessionIsolationResult result)
+    {
+        if (result.ChangedSessions > 0)
+        {
+            AppendLog($"Discord screen-share voice isolation muted {result.ChangedSessions} CABLE Input session(s).");
+        }
+
+        if (!string.IsNullOrWhiteSpace(result.Error))
+        {
+            if (!string.Equals(_lastDiscordCableSessionIsolationError, result.Error, StringComparison.Ordinal))
+            {
+                _lastDiscordCableSessionIsolationError = result.Error;
+                AppendLog($"Discord screen-share voice isolation warning: {result.Error}");
+            }
+        }
+        else
+        {
+            _lastDiscordCableSessionIsolationError = null;
+        }
     }
 
 
@@ -2143,130 +2171,6 @@ public sealed partial class MainWindow : Window
                 }
             };
 
-            _advancedVirtualOutputRouteCheckBox = new CheckBox
-            {
-                Content = "Enable Virtual Mic Output route",
-                IsThreeState = false
-            };
-            _advancedVirtualOutputRouteCheckBox.Checked += OnAdvancedVirtualOutputRouteCheckBoxChanged;
-            _advancedVirtualOutputRouteCheckBox.Unchecked += OnAdvancedVirtualOutputRouteCheckBoxChanged;
-
-            _advancedMonitorOutputRouteCheckBox = new CheckBox
-            {
-                Content = "Enable Monitor Output route",
-                IsThreeState = false
-            };
-            _advancedMonitorOutputRouteCheckBox.Checked += OnAdvancedMonitorOutputRouteCheckBoxChanged;
-            _advancedMonitorOutputRouteCheckBox.Unchecked += OnAdvancedMonitorOutputRouteCheckBoxChanged;
-
-            var diagnosticRoutePanel = new StackPanel
-            {
-                Spacing = 6,
-                Margin = new Thickness(0, 8, 0, 0)
-            };
-            diagnosticRoutePanel.Children.Add(new TextBlock
-            {
-                Text = "Independent output route switches",
-                FontSize = 16,
-                FontWeight = Microsoft.UI.Text.FontWeights.SemiBold
-            });
-            diagnosticRoutePanel.Children.Add(new TextBlock
-            {
-                Text = "These switches physically stop only the selected WASAPI render route. They are diagnostic-only and reset after an engine restart.",
-                Opacity = 0.7,
-                TextWrapping = TextWrapping.WrapWholeWords
-            });
-            diagnosticRoutePanel.Children.Add(_advancedVirtualOutputRouteCheckBox);
-            diagnosticRoutePanel.Children.Add(_advancedMonitorOutputRouteCheckBox);
-
-            _advancedDiscordCableSessionMuteCheckBox = new CheckBox
-            {
-                Content = "Mute Discord session on CABLE Input",
-                IsThreeState = false,
-                Margin = new Thickness(0, 8, 0, 0)
-            };
-            _advancedDiscordCableSessionMuteCheckBox.Checked += OnAdvancedDiscordCableSessionMuteCheckBoxChanged;
-            _advancedDiscordCableSessionMuteCheckBox.Unchecked += OnAdvancedDiscordCableSessionMuteCheckBoxChanged;
-
-            _advancedDiscordCableSessionStatusTextBlock = new TextBlock
-            {
-                Text = "Discord → CABLE Input: waiting for snapshot",
-                Opacity = 0.82,
-                TextWrapping = TextWrapping.WrapWholeWords
-            };
-
-            var discordCableSessionPanel = new StackPanel
-            {
-                Spacing = 6,
-                Margin = new Thickness(0, 12, 0, 0)
-            };
-            discordCableSessionPanel.Children.Add(new TextBlock
-            {
-                Text = "Discord CABLE Input session isolation",
-                FontSize = 16,
-                FontWeight = Microsoft.UI.Text.FontWeights.SemiBold
-            });
-            discordCableSessionPanel.Children.Add(new TextBlock
-            {
-                Text = "This temporarily mutes only Discord's render session on CABLE Input. It does not mute VoiSee on CABLE Input, Discord on headphones, or the CABLE Output microphone endpoint. New Discord sessions are muted while this switch remains enabled.",
-                Opacity = 0.7,
-                TextWrapping = TextWrapping.WrapWholeWords
-            });
-            discordCableSessionPanel.Children.Add(_advancedDiscordCableSessionMuteCheckBox);
-            discordCableSessionPanel.Children.Add(_advancedDiscordCableSessionStatusTextBlock);
-
-            _advancedAudioDiagnosticsTextBlock = new TextBlock
-            {
-                FontFamily = new FontFamily("Consolas"),
-                FontSize = 11,
-                TextWrapping = TextWrapping.Wrap,
-                IsTextSelectionEnabled = true
-            };
-
-            var audioDiagnosticsPanel = new StackPanel
-            {
-                Spacing = 8,
-                Margin = new Thickness(0, 10, 0, 0)
-            };
-            audioDiagnosticsPanel.Children.Add(new TextBlock
-            {
-                Text = "Live WASAPI endpoints and sessions",
-                FontSize = 16,
-                FontWeight = Microsoft.UI.Text.FontWeights.SemiBold
-            });
-            audioDiagnosticsPanel.Children.Add(new TextBlock
-            {
-                Text = "The list refreshes automatically while this window is open. Render sessions reveal which processes Windows currently associates with each playback endpoint.",
-                Opacity = 0.7,
-                TextWrapping = TextWrapping.WrapWholeWords
-            });
-
-            var copyAudioDiagnosticsButton = new Button
-            {
-                Content = "Copy Current Snapshot",
-                HorizontalAlignment = HorizontalAlignment.Left,
-                Padding = new Thickness(12, 6, 12, 6)
-            };
-            copyAudioDiagnosticsButton.Click += (_, _) =>
-            {
-                try
-                {
-                    var dataPackage = new DataPackage
-                    {
-                        RequestedOperation = DataPackageOperation.Copy
-                    };
-                    dataPackage.SetText(_advancedAudioDiagnosticsTextBlock?.Text ?? "No audio diagnostics snapshot.");
-                    Clipboard.SetContent(dataPackage);
-                    Clipboard.Flush();
-                }
-                catch (Exception ex)
-                {
-                    AppendLog($"Copy audio diagnostics error: {ex.Message}");
-                }
-            };
-            audioDiagnosticsPanel.Children.Add(copyAudioDiagnosticsButton);
-            audioDiagnosticsPanel.Children.Add(_advancedAudioDiagnosticsTextBlock);
-
             var enginePanel = new StackPanel
             {
                 Spacing = 12,
@@ -2290,9 +2194,6 @@ public sealed partial class MainWindow : Window
                 Margin = new Thickness(0, 8, 0, 0)
             });
             enginePanel.Children.Add(_advancedRouteStatusTextBlock);
-            enginePanel.Children.Add(diagnosticRoutePanel);
-            enginePanel.Children.Add(discordCableSessionPanel);
-            enginePanel.Children.Add(audioDiagnosticsPanel);
 
             var engineScrollViewer = new ScrollViewer
             {
@@ -2455,28 +2356,16 @@ public sealed partial class MainWindow : Window
             _advancedLogScrollViewer.Loaded += (_, _) => DispatcherQueue.TryEnqueue(() =>
                 _advancedLogScrollViewer?.ChangeView(null, _advancedLogScrollViewer.ScrollableHeight, null, disableAnimation: true));
 
-            _audioDiagnosticsTimer.Start();
             try
             {
                 await dialog.ShowAsync();
             }
             finally
             {
-                _audioDiagnosticsTimer.Stop();
-                if (_audioDiagnosticsService.DiscordCableInputMuteArmed)
-                {
-                    var restoreResult = _audioDiagnosticsService.SetDiscordCableInputSessionMuted(false);
-                    AppendLog($"Diagnostic session mute restored on dialog close: {restoreResult.Message}");
-                }
                 _advancedEngineStatusTextBlock = null;
                 _advancedRouteStatusTextBlock = null;
                 _advancedLogTextBlock = null;
                 _advancedLogScrollViewer = null;
-                _advancedAudioDiagnosticsTextBlock = null;
-                _advancedVirtualOutputRouteCheckBox = null;
-                _advancedMonitorOutputRouteCheckBox = null;
-                _advancedDiscordCableSessionMuteCheckBox = null;
-                _advancedDiscordCableSessionStatusTextBlock = null;
                 _activeIconPickerScrollViewer = null;
                 _activeIconPickerWheelZoneElement = null;
                 _activeModalWheelZoneLeftExtensionRatio = 0.0;
@@ -2494,11 +2383,9 @@ public sealed partial class MainWindow : Window
 
     private void RefreshAdvancedSettingsStatus()
     {
-        var engine = _engine;
-
         if (_advancedEngineStatusTextBlock is not null)
         {
-            _advancedEngineStatusTextBlock.Text = engine is not null
+            _advancedEngineStatusTextBlock.Text = _engine is not null
                 ? "Engine status: Running"
                 : IsVBCableReady()
                     ? "Engine status: Stopped"
@@ -2510,259 +2397,19 @@ public sealed partial class MainWindow : Window
             var input = (InputDeviceComboBox?.SelectedItem as AudioDeviceInfo)?.FriendlyName ?? "Not selected";
             var bridge = IsVBCableReady() ? "Ready (automatic)" : "Not detected";
             var monitor = (MonitorOutputComboBox?.SelectedItem as AudioDeviceInfo)?.FriendlyName ?? "Disabled";
-            var routeState = engine is not null
+            var routeState = _engine is not null
                 ? "Active"
                 : IsVBCableReady() && InputDeviceComboBox?.SelectedItem is AudioDeviceInfo
                     ? "Ready"
                     : "Incomplete";
-
-            var virtualRoute = engine is null
-                ? "Not running"
-                : $"{(engine.VirtualOutputRouteEnabled ? "Enabled" : "Disabled")} / {engine.VirtualOutputPlaybackState}";
-            var monitorRoute = engine is null
-                ? "Not running"
-                : engine.MonitorOutputDeviceId is null
-                    ? "No monitor device"
-                    : $"{(engine.MonitorOutputRouteEnabled ? "Enabled" : "Disabled")} / {engine.MonitorOutputPlaybackState}";
 
             _advancedRouteStatusTextBlock.Text =
                 $"Input Device: {input}\n" +
                 $"VB-CABLE bridge: {bridge}\n" +
                 $"Monitor Device: {monitor}\n" +
                 $"Route state: {routeState}\n" +
-                $"Virtual Mic route: {virtualRoute}\n" +
-                $"Monitor output route: {monitorRoute}\n" +
-                $"Voice monitor feed: {(engine?.VoiceMonitorRouteEnabled == true ? "Connected" : "Hard disconnected")}\n" +
-                $"Virtual Mic mute: {(_virtualMicMuted ? "Muted" : "Live")}";
+                $"Virtual Mic: {(_virtualMicMuted ? "Muted" : "Live")}";
         }
-
-        _updatingAdvancedAudioDiagnosticControls = true;
-        try
-        {
-            if (_advancedVirtualOutputRouteCheckBox is not null)
-            {
-                _advancedVirtualOutputRouteCheckBox.IsEnabled = engine is not null;
-                _advancedVirtualOutputRouteCheckBox.IsChecked = engine?.VirtualOutputRouteEnabled == true;
-            }
-
-            if (_advancedMonitorOutputRouteCheckBox is not null)
-            {
-                _advancedMonitorOutputRouteCheckBox.IsEnabled = engine?.MonitorOutputDeviceId is not null;
-                _advancedMonitorOutputRouteCheckBox.IsChecked = engine?.MonitorOutputRouteEnabled == true;
-            }
-
-            if (_advancedDiscordCableSessionMuteCheckBox is not null)
-            {
-                _advancedDiscordCableSessionMuteCheckBox.IsEnabled = true;
-                _advancedDiscordCableSessionMuteCheckBox.IsChecked = _audioDiagnosticsService.DiscordCableInputMuteArmed;
-            }
-        }
-        finally
-        {
-            _updatingAdvancedAudioDiagnosticControls = false;
-        }
-
-        RefreshAdvancedAudioDiagnostics();
-    }
-
-    private void OnAudioDiagnosticsTimerTick(object? sender, object e)
-    {
-        if (_advancedAudioDiagnosticsTextBlock is not null)
-        {
-            RefreshAdvancedSettingsStatus();
-        }
-    }
-
-    private void OnAdvancedVirtualOutputRouteCheckBoxChanged(object sender, RoutedEventArgs e)
-    {
-        if (_updatingAdvancedAudioDiagnosticControls || sender is not CheckBox checkBox || _engine is null)
-        {
-            return;
-        }
-
-        var enabled = checkBox.IsChecked == true;
-        try
-        {
-            _engine.SetVirtualOutputRouteEnabled(enabled);
-            AppendLog($"Diagnostic route switch: Virtual Mic Output {(enabled ? "enabled" : "disabled")}.");
-        }
-        catch (Exception ex)
-        {
-            AppendLog($"Virtual Mic Output route switch error: {ex.Message}");
-        }
-
-        RefreshAdvancedSettingsStatus();
-    }
-
-    private void OnAdvancedMonitorOutputRouteCheckBoxChanged(object sender, RoutedEventArgs e)
-    {
-        if (_updatingAdvancedAudioDiagnosticControls || sender is not CheckBox checkBox || _engine is null)
-        {
-            return;
-        }
-
-        var enabled = checkBox.IsChecked == true;
-        try
-        {
-            _engine.SetMonitorOutputRouteEnabled(enabled);
-            AppendLog($"Diagnostic route switch: Monitor Output {(enabled ? "enabled" : "disabled")}.");
-        }
-        catch (Exception ex)
-        {
-            AppendLog($"Monitor Output route switch error: {ex.Message}");
-        }
-
-        RefreshAdvancedSettingsStatus();
-    }
-
-    private void OnAdvancedDiscordCableSessionMuteCheckBoxChanged(object sender, RoutedEventArgs e)
-    {
-        if (_updatingAdvancedAudioDiagnosticControls || sender is not CheckBox checkBox)
-        {
-            return;
-        }
-
-        var muted = checkBox.IsChecked == true;
-        var result = _audioDiagnosticsService.SetDiscordCableInputSessionMuted(muted);
-        AppendLog($"Diagnostic session mute: {result.Message}");
-        RefreshAdvancedAudioDiagnostics();
-    }
-
-    private void RefreshAdvancedAudioDiagnostics()
-    {
-        if (_advancedAudioDiagnosticsTextBlock is null)
-        {
-            return;
-        }
-
-        try
-        {
-            if (_audioDiagnosticsService.DiscordCableInputMuteArmed)
-            {
-                _audioDiagnosticsService.RefreshDiscordCableInputSessionMute();
-            }
-
-            var snapshot = _audioDiagnosticsService.CaptureSnapshot();
-            _advancedAudioDiagnosticsTextBlock.Text = FormatAudioDiagnosticsReport(snapshot);
-            UpdateAdvancedDiscordCableSessionStatus(snapshot);
-        }
-        catch (Exception ex)
-        {
-            _advancedAudioDiagnosticsTextBlock.Text = $"Audio diagnostics error: {ex.Message}";
-        }
-    }
-
-    private void UpdateAdvancedDiscordCableSessionStatus(AudioDiagnosticsSnapshot snapshot)
-    {
-        if (_advancedDiscordCableSessionStatusTextBlock is null)
-        {
-            return;
-        }
-
-        var endpoint = snapshot.Endpoints.FirstOrDefault(item =>
-            item.DataFlow.Equals(DataFlow.Render.ToString(), StringComparison.OrdinalIgnoreCase)
-            && item.FriendlyName.StartsWith("CABLE Input", StringComparison.OrdinalIgnoreCase)
-            && !item.FriendlyName.StartsWith("CABLE In 16ch", StringComparison.OrdinalIgnoreCase));
-
-        if (endpoint is null)
-        {
-            _advancedDiscordCableSessionStatusTextBlock.Text = "Discord → CABLE Input: endpoint not found";
-            return;
-        }
-
-        var sessions = endpoint.Sessions
-            .Where(session => session.ProcessName.Equals("Discord", StringComparison.OrdinalIgnoreCase))
-            .ToList();
-
-        if (sessions.Count == 0)
-        {
-            _advancedDiscordCableSessionStatusTextBlock.Text =
-                $"Discord → CABLE Input: no session | diagnostic mute {(_audioDiagnosticsService.DiscordCableInputMuteArmed ? "ARMED" : "off")}";
-            return;
-        }
-
-        var sessionText = string.Join("; ", sessions.Select(session =>
-            $"PID {session.ProcessId}, {session.State}, mute {(session.Muted ? "yes" : "no")}, peak {FormatDiagnosticPercent(session.Peak)}"));
-        _advancedDiscordCableSessionStatusTextBlock.Text =
-            $"Discord → CABLE Input: {sessionText} | diagnostic mute {(_audioDiagnosticsService.DiscordCableInputMuteArmed ? "ARMED" : "off")}";
-    }
-
-    private string FormatAudioDiagnosticsReport(AudioDiagnosticsSnapshot snapshot)
-    {
-        var report = new StringBuilder();
-        var engine = _engine;
-
-        report.AppendLine($"Snapshot: {snapshot.CapturedAt:HH:mm:ss.fff}");
-        report.AppendLine($"VoiSee process: {Environment.ProcessId}");
-        report.AppendLine($"Engine: {(engine is null ? "Stopped" : "Running")}");
-        report.AppendLine($"Discord CABLE Input diagnostic mute: {(_audioDiagnosticsService.DiscordCableInputMuteArmed ? "ARMED" : "off")}");
-        if (engine is not null)
-        {
-            report.AppendLine($"Virtual route: {(engine.VirtualOutputRouteEnabled ? "ENABLED" : "DISABLED")} | {engine.VirtualOutputPlaybackState}");
-            report.AppendLine($"Monitor route: {(engine.MonitorOutputRouteEnabled ? "ENABLED" : "DISABLED")} | {engine.MonitorOutputPlaybackState}");
-            report.AppendLine($"Voice monitor feed: {(engine.VoiceMonitorRouteEnabled ? "CONNECTED" : "DISCONNECTED")}");
-        }
-
-        if (!string.IsNullOrWhiteSpace(snapshot.Error))
-        {
-            report.AppendLine($"Snapshot error: {snapshot.Error}");
-        }
-
-        report.AppendLine();
-        report.AppendLine("ACTIVE CORE AUDIO ENDPOINTS");
-
-        if (snapshot.Endpoints.Count == 0)
-        {
-            report.AppendLine("No active endpoints were returned.");
-            return report.ToString();
-        }
-
-        foreach (var endpoint in snapshot.Endpoints)
-        {
-            var roleText = endpoint.DefaultRoles.Count == 0
-                ? "none"
-                : string.Join(", ", endpoint.DefaultRoles);
-
-            report.AppendLine($"[{endpoint.DataFlow}] {endpoint.FriendlyName}");
-            report.AppendLine($"  state={endpoint.State} peak={FormatDiagnosticPercent(endpoint.Peak)} volume={FormatDiagnosticPercent(endpoint.Volume)} mute={(endpoint.Muted ? "yes" : "no")} default={roleText}");
-            report.AppendLine($"  id={endpoint.Id}");
-
-            if (!string.IsNullOrWhiteSpace(endpoint.Error))
-            {
-                report.AppendLine($"  endpoint error={endpoint.Error}");
-            }
-
-            if (endpoint.DataFlow.Equals(DataFlow.Render.ToString(), StringComparison.OrdinalIgnoreCase))
-            {
-                if (endpoint.Sessions.Count == 0)
-                {
-                    report.AppendLine("  sessions: none");
-                }
-                else
-                {
-                    report.AppendLine("  sessions:");
-                    foreach (var session in endpoint.Sessions)
-                    {
-                        var displayName = string.IsNullOrWhiteSpace(session.DisplayName)
-                            ? string.Empty
-                            : $" | {session.DisplayName}";
-                        report.AppendLine(
-                            $"    {session.State} | {session.ProcessName} (PID {session.ProcessId}){displayName} | " +
-                            $"peak {FormatDiagnosticPercent(session.Peak)} | volume {FormatDiagnosticPercent(session.Volume)} | mute {(session.Muted ? "yes" : "no")}");
-                    }
-                }
-            }
-
-            report.AppendLine();
-        }
-
-        return report.ToString().TrimEnd();
-    }
-
-    private static string FormatDiagnosticPercent(float value)
-    {
-        var percent = Math.Clamp(value, 0f, 1f) * 100f;
-        return $"{percent:0.0}%";
     }
 
     private string GetApplicationLogText()
@@ -4103,7 +3750,7 @@ public sealed partial class MainWindow : Window
         StopEngine(log: false);
         _timelineTimer.Stop();
         _mediaBridgeUiTimer.Stop();
-        _audioDiagnosticsTimer.Stop();
+        _discordCableSessionIsolationTimer.Stop();
         _themeReloadTimer.Stop();
         _themeFileWatcher?.Dispose();
         _themeFileWatcher = null;
@@ -4121,7 +3768,7 @@ public sealed partial class MainWindow : Window
             _keyboardHookHandle = IntPtr.Zero;
         }
         _catalog.Dispose();
-        _audioDiagnosticsService.Dispose();
+        _discordCableSessionIsolationService.Dispose();
     }
 
     private void OnRefreshDevicesClick(object sender, RoutedEventArgs e)

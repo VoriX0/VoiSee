@@ -1,23 +1,18 @@
-# VoiSee 11.2.9
+# VoiSee 11.3.0
 
-## VoiSee 11.2.9 — Discord CABLE Input session isolation
+## VoiSee 11.3.0 — Discord screen-share voice isolation
 
-- Keeps the live endpoint and render-session report from 11.2.8.
-- Adds a narrowly targeted temporary mute for only `Discord → CABLE Input`.
-- Does not mute the VoiSee session on CABLE Input, Discord on physical headphones, or the CABLE Output input endpoint.
-- Remembers and restores the original Discord session mute state.
-- Re-applies the mute when Discord recreates its CABLE Input session while Advanced Settings remains open.
-- Keeps independent diagnostic hard switches for Virtual Mic Output and Monitor Output.
-- Keeps the original hard Voice Monitor disconnect from 11.2.5.
-- Does not include the unsuccessful 11.2.6 or 11.2.7 process-isolation experiments.
+- Restores the Settings and Advanced Settings interface to the VoiSee 11.2.5 layout.
+- Permanently enables the validated protection against duplicated processed voice in Discord screen sharing.
+- Automatically mutes only Discord render sessions attached to the normal VB-CABLE `CABLE Input` endpoint.
+- Does not mute VoiSee on `CABLE Input`, Discord on physical headphones, or the `CABLE Output` microphone endpoint.
+- Re-applies the protection when Discord recreates its screen-share audio session.
+- Keeps the original hard Voice Monitor route disconnect and the full-width SoundBoard category buttons from 11.2.5.
+- Removes the temporary WASAPI report, route switches, snapshot controls, and public isolation checkbox used in 11.2.8–11.2.9.
 
 VoiSee is a WinUI 3 application for real-time voice processing, SoundBoard playback into a virtual microphone, scenes, presets, global hotkeys, themes, and non-destructive sound editing.
 
-## Screen-share diagnostic workflow
-
-Open `Settings → Advanced Settings` while the screen-share problem is active. Enable `Mute Discord session on CABLE Input` and repeat the voice test. This control targets only Discord's render session on the normal CABLE Input endpoint and automatically restores its previous mute state when disabled or when the dialog closes.
-
-Voice Monitor retains the 11.2.5 behavior: when it is Off, processed microphone samples are hard-disconnected from the physical monitor voice queue. SoundBoard-to-headphones monitoring remains independent until the complete Monitor Output route is disabled through the diagnostic switch.
+The screen-share protection is internal and always active while VoiSee is running. When VoiSee exits, it restores the original mute state of Discord sessions that it changed.
 
 ## VoiSee 11.0.0 — Media Bridge Core
 
@@ -101,13 +96,13 @@ Set-ExecutionPolicy -Scope Process Bypass
 Expected installer:
 
 ```text
-artifacts\installer\VoiSee-Setup-11.2.9-x64.exe
+artifacts\installer\VoiSee-Setup-11.3.0-x64.exe
 ```
 
 Portable build:
 
 ```text
-artifacts\installer\VoiSee-Portable-11.2.9-x64.zip
+artifacts\installer\VoiSee-Portable-11.3.0-x64.zip
 ```
 
 ## Native XAML themes (VoiSee 10.1)
