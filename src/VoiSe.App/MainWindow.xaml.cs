@@ -1,4 +1,4 @@
-using Microsoft.UI.Windowing;
+﻿using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Controls.Primitives;
@@ -206,7 +206,7 @@ public sealed partial class MainWindow : Window
         _mediaBridgeUiTimer.Tick += OnMediaBridgeUiTimerTick;
         _mediaBridgeUiTimer.Start();
 
-        AppendLog("VoiSee Version 11.2.0 UI started.");
+        AppendLog("VoiSee Version 11.2.1 UI started.");
         AppendLog($"Settings path: {_settingsStore.SettingsPath}");
         StartupLog.Write("MainWindow initialized; waiting for first activation.");
     }
@@ -1150,7 +1150,7 @@ public sealed partial class MainWindow : Window
         var engine = _engine;
         if (engine is null)
         {
-            return false;
+            return;
         }
 
         var soundPaths = (paths ?? _library.Sounds.Select(sound => sound.FilePath))
@@ -1222,7 +1222,7 @@ public sealed partial class MainWindow : Window
     private void OnMainTabSelectionChanged(object sender, SelectionChangedEventArgs e)
     {
         UpdateSoundInputOverlayBounds();
-        if (MainTabView.SelectedItem == MediaBridgeTabViewItem && _mediaBridgeWindow is not null)
+        if (ReferenceEquals(MainTabView.SelectedItem, MediaBridgeTabViewItem) && _mediaBridgeWindow is not null)
         {
             _ = UpdateMediaBridgePreviewAsync();
         }
@@ -1530,7 +1530,7 @@ public sealed partial class MainWindow : Window
         if (_mediaBridgePreviewTick >= 20)
         {
             _mediaBridgePreviewTick = 0;
-            if (MainTabView.SelectedItem == MediaBridgeTabViewItem && selected is not null)
+            if (ReferenceEquals(MainTabView.SelectedItem, MediaBridgeTabViewItem) && selected is not null)
             {
                 _ = UpdateMediaBridgePreviewAsync();
             }
