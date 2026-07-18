@@ -95,7 +95,6 @@ public sealed partial class MainWindow : Window
     private const double ModalWheelZoneExpandLeftRatio = 0.50;
     private const double ModalWheelZoneExpandRightRatio = 0.50;
     private const double ModalWheelZoneExpandBottomRatio = 1.00;
-    private const double SettingsWheelZoneExpandRightRatio = 0.50;
     private const double SceneSoundButtonsWheelZoneExpandRightRatio = 0.50;
     private const double SceneListWheelZoneExpandRightRatio = 0.15;
     private const double IconPickerWheelZoneShiftRightRatio = 0.15;
@@ -204,7 +203,7 @@ public sealed partial class MainWindow : Window
         _mediaBridgeUiTimer.Tick += OnMediaBridgeUiTimerTick;
         _mediaBridgeUiTimer.Start();
 
-        AppendLog("VoiSee Version 11.0.3 UI started.");
+        AppendLog("VoiSee Version 11.0.4 UI started.");
         AppendLog($"Settings path: {_settingsStore.SettingsPath}");
         StartupLog.Write("MainWindow initialized; waiting for first activation.");
     }
@@ -1413,18 +1412,21 @@ public sealed partial class MainWindow : Window
         UpdateMediaBridgeLevelMeter(
             sourcePeak,
             MediaBridgeLevelProgressBar,
-            MediaBridgeLevelMask);
+            MediaBridgeLevelMask,
+            MediaBridgeLevelMarker);
 
         UpdateMediaBridgeLevelMeter(
             outputPeak,
             MediaBridgeMicLevelProgressBar,
-            MediaBridgeMicLevelMask);
+            MediaBridgeMicLevelMask,
+            MediaBridgeMicLevelMarker);
     }
 
     private static void UpdateMediaBridgeLevelMeter(
         double peak,
         ProgressBar? progressBar,
-        Border? mask)
+        Border? mask,
+        Border? marker)
     {
         var clampedPeak = Math.Clamp(peak, 0.0, 1.0);
         if (progressBar is not null)
@@ -1432,10 +1434,20 @@ public sealed partial class MainWindow : Window
             progressBar.Value = clampedPeak;
         }
 
+        const double meterHeight = 300.0;
         if (mask is not null)
         {
-            const double meterHeight = 300.0;
             mask.Height = meterHeight * (1.0 - clampedPeak);
+        }
+
+        if (marker is not null)
+        {
+            const double markerHeight = 3.0;
+            var bottomOffset = Math.Clamp(
+                clampedPeak * meterHeight - markerHeight / 2.0,
+                0.0,
+                meterHeight - markerHeight);
+            marker.Margin = new Thickness(0, 0, 0, bottomOffset);
         }
     }
 
@@ -1804,7 +1816,9 @@ public sealed partial class MainWindow : Window
             0 => IsPointInSoundBoardWheelZone(xDip, yDip) && TryScrollSoundOverlay(delta),
             1 => IsPointInVoiceChangerWheelZone(yDip) && TryScrollVoiceChanger(delta),
             2 => TryHandleScenesWheel(xDip, yDip, delta),
-            3 => TryHandleSettingsWheel(xDip, yDip, delta),
+            3 => false,
+            4 => IsPointInExtendedVerticalWheelZone(SettingsScrollViewer, yDip)
+                && TryScrollViewer(SettingsScrollViewer, delta, 42.0),
             _ => false
         };
     }
@@ -1978,16 +1992,6 @@ public sealed partial class MainWindow : Window
         if (IsPointInElementWheelZone(SceneSoundButtonsScrollViewer, xDip, yDip, extendBottom: true, rightExtensionRatio: SceneSoundButtonsWheelZoneExpandRightRatio))
         {
             return TryScrollViewer(SceneSoundButtonsScrollViewer, wheelDelta, 42.0);
-        }
-
-        return false;
-    }
-
-    private bool TryHandleSettingsWheel(double xDip, double yDip, int wheelDelta)
-    {
-        if (IsPointInElementWheelZone(SettingsScrollViewer, xDip, yDip, extendBottom: true, rightExtensionRatio: SettingsWheelZoneExpandRightRatio))
-        {
-            return TryScrollViewer(SettingsScrollViewer, wheelDelta, 42.0);
         }
 
         return false;

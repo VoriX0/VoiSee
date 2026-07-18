@@ -13,10 +13,10 @@
     <EnableMsixTooling>true</EnableMsixTooling>
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>
     <ApplicationIcon>Assets\AppIcon.ico</ApplicationIcon>
-    <Version>11.0.3</Version>
-    <AssemblyVersion>11.0.3.0</AssemblyVersion>
-    <FileVersion>11.0.3.0</FileVersion>
-    <InformationalVersion>11.0.3</InformationalVersion>
+    <Version>11.0.4</Version>
+    <AssemblyVersion>11.0.4.0</AssemblyVersion>
+    <FileVersion>11.0.4.0</FileVersion>
+    <InformationalVersion>11.0.4</InformationalVersion>
   </PropertyGroup>
   <ItemGroup>
     <!-- User-generated data must never be published or packed into the installer.
