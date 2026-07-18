@@ -1,4 +1,4 @@
-﻿using Microsoft.UI.Windowing;
+using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Controls.Primitives;
@@ -204,7 +204,7 @@ public sealed partial class MainWindow : Window
         _mediaBridgeUiTimer.Tick += OnMediaBridgeUiTimerTick;
         _mediaBridgeUiTimer.Start();
 
-        AppendLog("VoiSee Version 11.0.1 UI started.");
+        AppendLog("VoiSee Version 11.0.2 UI started.");
         AppendLog($"Settings path: {_settingsStore.SettingsPath}");
         StartupLog.Write("MainWindow initialized; waiting for first activation.");
     }
@@ -1395,16 +1395,30 @@ public sealed partial class MainWindow : Window
             _mediaBridgeWindow = null;
             MediaBridgePreviewImage.Source = null;
             MediaBridgePreviewPlaceholder.Visibility = Visibility.Visible;
-            MediaBridgePreviewActionBadge.Visibility = Visibility.Collapsed;
         }
 
-        MediaBridgeLevelProgressBar.Value = 0;
+        UpdateMediaBridgeLevelMeter(0);
         MediaBridgeLevelTextBlock.Text = "Silent";
         MediaBridgeDurationTextBlock.Text = "00:00:00";
         UpdateMediaBridgeUiState(status);
         if (writeLog && previous is not null)
         {
             AppendLog($"Media Bridge stopped: {previous.DisplayName}.");
+        }
+    }
+
+    private void UpdateMediaBridgeLevelMeter(double peak)
+    {
+        var clampedPeak = Math.Clamp(peak, 0.0, 1.0);
+        if (MediaBridgeLevelProgressBar is not null)
+        {
+            MediaBridgeLevelProgressBar.Value = clampedPeak;
+        }
+
+        if (MediaBridgeLevelMask is not null)
+        {
+            const double meterHeight = 300.0;
+            MediaBridgeLevelMask.Height = meterHeight * (1.0 - clampedPeak);
         }
     }
 
@@ -1441,12 +1455,12 @@ public sealed partial class MainWindow : Window
             var elapsed = DateTimeOffset.Now - _mediaBridgeStartedAt.Value;
             MediaBridgeDurationTextBlock.Text = elapsed.ToString(@"hh\:mm\:ss");
             var peak = Math.Clamp(engine!.MediaBridgePeak, 0.0f, 1.0f);
-            MediaBridgeLevelProgressBar.Value = peak;
+            UpdateMediaBridgeLevelMeter(peak);
             MediaBridgeLevelTextBlock.Text = peak < 0.005f ? "Silent" : $"{(int)Math.Round(peak * 100)}%";
         }
         else
         {
-            MediaBridgeLevelProgressBar.Value = 0;
+            UpdateMediaBridgeLevelMeter(0);
             MediaBridgeLevelTextBlock.Text = "Silent";
         }
 
@@ -1507,7 +1521,6 @@ public sealed partial class MainWindow : Window
             {
                 MediaBridgePreviewImage.Source = bitmap;
                 MediaBridgePreviewPlaceholder.Visibility = Visibility.Collapsed;
-                MediaBridgePreviewActionBadge.Visibility = Visibility.Visible;
             }
         }
         catch (Exception ex)
@@ -1567,14 +1580,13 @@ public sealed partial class MainWindow : Window
                 "Click the preview panel to choose an application window. VoiSee will not reconnect to it automatically after restart.";
             MediaBridgePreviewImage.Source = null;
             MediaBridgePreviewPlaceholder.Visibility = Visibility.Visible;
-            MediaBridgePreviewActionBadge.Visibility = Visibility.Collapsed;
         }
         else
         {
             MediaBridgeSourceTitleTextBlock.Text = selected.WindowTitle;
             MediaBridgeSourceDetailsTextBlock.Text =
                 $"{selected.ProcessName} · PID {selected.ProcessId} · audio is sent only to the virtual microphone";
-            MediaBridgePreviewActionBadge.Visibility = Visibility.Visible;
+            MediaBridgePreviewPlaceholder.Visibility = Visibility.Collapsed;
         }
 
         MediaBridgeStatusTextBlock.Text = explicitStatus ??
