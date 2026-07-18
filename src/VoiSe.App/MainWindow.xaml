@@ -6,7 +6,7 @@
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     mc:Ignorable="d"
-    Title="VoiSee Version 10.5.0">
+    Title="VoiSee Version 11.0.0">
 
     <Grid x:Name="RootGrid" RequestedTheme="Dark" Background="{ThemeResource VoiSee.AppBackgroundBrush}" SizeChanged="OnRootGridSizeChanged">
         <Grid.RowDefinitions>
@@ -21,7 +21,7 @@
             </Grid.ColumnDefinitions>
             <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center" Margin="10,0,0,0">
                 <Image Source="ms-appx:///Assets/AppIcon_24.png" Width="16" Height="16" VerticalAlignment="Center" />
-                <TextBlock x:Name="TitleBarVersionTextBlock" Text="VoiSee Version 10.5.0" FontSize="12" Foreground="{ThemeResource VoiSee.PrimaryTextBrush}" VerticalAlignment="Center" />
+                <TextBlock x:Name="TitleBarVersionTextBlock" Text="VoiSee Version 11.0.0" FontSize="12" Foreground="{ThemeResource VoiSee.PrimaryTextBrush}" VerticalAlignment="Center" />
             </StackPanel>
         </Grid>
 
@@ -39,7 +39,7 @@
                 </Grid.ColumnDefinitions>
                 <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
                     <Image Source="ms-appx:///Assets/AppIcon_48.png" Width="34" Height="34" VerticalAlignment="Center" />
-                    <TextBlock x:Name="MainTitle" Text="VoiSee Version 10.5.0" FontSize="28" FontWeight="SemiBold" Foreground="{ThemeResource VoiSee.PrimaryTextBrush}" VerticalAlignment="Center" />
+                    <TextBlock x:Name="MainTitle" Text="VoiSee Version 11.0.0" FontSize="28" FontWeight="SemiBold" Foreground="{ThemeResource VoiSee.PrimaryTextBrush}" VerticalAlignment="Center" />
                 </StackPanel>
                 <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center" HorizontalAlignment="Right">
                     <TextBlock Text="Mic Output" Foreground="{ThemeResource VoiSee.PrimaryTextBrush}" Opacity="0.62" VerticalAlignment="Center" />
@@ -631,6 +631,180 @@
                                 </Grid>
                             </Border>
                         </Grid>
+                    </Grid>
+                </TabViewItem>
+
+                <TabViewItem x:Name="MediaBridgeTabViewItem" Header="Media Bridge" IsClosable="False">
+                    <Grid x:Name="MediaBridgeTabRoot" Padding="0,16,48,24" RowSpacing="14">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="*" />
+                            <RowDefinition Height="Auto" />
+                        </Grid.RowDefinitions>
+
+                        <Grid Grid.Row="0" ColumnSpacing="12">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <StackPanel Grid.Column="0" Spacing="4">
+                                <TextBlock Text="Media Bridge" FontSize="20" FontWeight="SemiBold" />
+                                <TextBlock Text="Capture audio from one application and mix it into the virtual microphone without adding a second headphone monitor." Opacity="0.72" TextWrapping="Wrap" />
+                            </StackPanel>
+                            <Button Grid.Column="1"
+                                    x:Name="MediaBridgeStopButton"
+                                    Style="{ThemeResource VoiSee.Style.Button}"
+                                    Content="Stop"
+                                    MinWidth="92"
+                                    VerticalAlignment="Top"
+                                    Visibility="Collapsed"
+                                    Click="OnMediaBridgeStopClick" />
+                        </Grid>
+
+                        <Border Grid.Row="1"
+                                Style="{ThemeResource VoiSee.Style.Panel.SettingsCard}"
+                                Padding="12"
+                                MinHeight="360">
+                            <Grid Background="{ThemeResource VoiSee.AppBackgroundBrush}">
+                                <Image x:Name="MediaBridgePreviewImage"
+                                       Stretch="Uniform"
+                                       HorizontalAlignment="Stretch"
+                                       VerticalAlignment="Stretch" />
+                                <StackPanel x:Name="MediaBridgePreviewPlaceholder"
+                                            HorizontalAlignment="Center"
+                                            VerticalAlignment="Center"
+                                            Spacing="12">
+                                    <FontIcon Glyph="&#xE7F4;" FontSize="54" Opacity="0.62" />
+                                    <TextBlock Text="Select a window to preview its source"
+                                               FontSize="18"
+                                               FontWeight="SemiBold"
+                                               HorizontalAlignment="Center" />
+                                    <TextBlock x:Name="MediaBridgeSavedProfileTextBlock"
+                                               Text="No saved media profile"
+                                               Style="{ThemeResource VoiSee.Style.Text.Secondary}"
+                                               TextAlignment="Center"
+                                               TextWrapping="Wrap"
+                                               MaxWidth="560" />
+                                </StackPanel>
+                            </Grid>
+                        </Border>
+
+                        <Border Grid.Row="2" Style="{ThemeResource VoiSee.Style.Panel.SettingsCard}">
+                            <Grid RowSpacing="14">
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="Auto" />
+                                </Grid.RowDefinitions>
+
+                                <Grid Grid.Row="0" ColumnSpacing="16">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel Grid.Column="0" Spacing="3">
+                                        <TextBlock x:Name="MediaBridgeSourceTitleTextBlock"
+                                                   Text="No window selected"
+                                                   FontSize="18"
+                                                   FontWeight="SemiBold"
+                                                   TextTrimming="CharacterEllipsis" />
+                                        <TextBlock x:Name="MediaBridgeSourceDetailsTextBlock"
+                                                   Text="Choose an application window. VoiSee will not reconnect to it automatically after restart."
+                                                   Style="{ThemeResource VoiSee.Style.Text.Secondary}"
+                                                   TextWrapping="Wrap" />
+                                    </StackPanel>
+                                    <StackPanel Grid.Column="1" Spacing="3" HorizontalAlignment="Right">
+                                        <TextBlock x:Name="MediaBridgeStatusTextBlock"
+                                                   Text="Not selected"
+                                                   FontWeight="SemiBold"
+                                                   HorizontalAlignment="Right" />
+                                        <TextBlock x:Name="MediaBridgeDurationTextBlock"
+                                                   Text="00:00:00"
+                                                   Style="{ThemeResource VoiSee.Style.Text.Secondary}"
+                                                   HorizontalAlignment="Right" />
+                                    </StackPanel>
+                                </Grid>
+
+                                <Grid Grid.Row="1" ColumnSpacing="12">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="*" />
+                                    </Grid.ColumnDefinitions>
+                                    <Button Grid.Column="0"
+                                            x:Name="MediaBridgeSelectWindowButton"
+                                            Style="{ThemeResource VoiSee.Style.Button}"
+                                            Content="Select Window"
+                                            MinWidth="126"
+                                            Click="OnMediaBridgeSelectWindowClick" />
+                                    <Button Grid.Column="1"
+                                            x:Name="MediaBridgeStartButton"
+                                            Style="{ThemeResource VoiSee.Style.Button}"
+                                            Content="Start Broadcast"
+                                            MinWidth="132"
+                                            IsEnabled="False"
+                                            Click="OnMediaBridgeStartClick" />
+                                    <Button Grid.Column="2"
+                                            x:Name="MediaBridgePauseButton"
+                                            Style="{ThemeResource VoiSee.Style.Button}"
+                                            Content="Pause"
+                                            MinWidth="100"
+                                            IsEnabled="False"
+                                            Click="OnMediaBridgePauseResumeClick" />
+                                    <StackPanel Grid.Column="3" Spacing="5" VerticalAlignment="Center">
+                                        <Grid ColumnSpacing="10">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="Auto" />
+                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="Auto" />
+                                            </Grid.ColumnDefinitions>
+                                            <TextBlock Grid.Column="0" Text="Source level" VerticalAlignment="Center" />
+                                            <ProgressBar Grid.Column="1"
+                                                         x:Name="MediaBridgeLevelProgressBar"
+                                                         Minimum="0"
+                                                         Maximum="1"
+                                                         Value="0"
+                                                         Height="8"
+                                                         VerticalAlignment="Center" />
+                                            <TextBlock Grid.Column="2"
+                                                       x:Name="MediaBridgeLevelTextBlock"
+                                                       Text="Silent"
+                                                       Width="56"
+                                                       TextAlignment="Right"
+                                                       Style="{ThemeResource VoiSee.Style.Text.Secondary}"
+                                                       VerticalAlignment="Center" />
+                                        </Grid>
+                                    </StackPanel>
+                                </Grid>
+
+                                <Grid Grid.Row="2" ColumnSpacing="14">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Grid.Column="0"
+                                               Text="Volume in Microphone"
+                                               FontWeight="SemiBold"
+                                               VerticalAlignment="Center" />
+                                    <Slider Grid.Column="1"
+                                            x:Name="MediaBridgeVolumeSlider"
+                                            Style="{ThemeResource VoiSee.Style.Slider}"
+                                            Minimum="0"
+                                            Maximum="1.5"
+                                            Value="1"
+                                            StepFrequency="0.01"
+                                            ValueChanged="OnMediaBridgeVolumeChanged" />
+                                    <TextBlock Grid.Column="2"
+                                               x:Name="MediaBridgeVolumeValueTextBlock"
+                                               Text="100%"
+                                               Width="52"
+                                               TextAlignment="Right"
+                                               VerticalAlignment="Center" />
+                                </Grid>
+                            </Grid>
+                        </Border>
                     </Grid>
                 </TabViewItem>
 

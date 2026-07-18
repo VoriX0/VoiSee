@@ -2,7 +2,7 @@ namespace VoiSe.App;
 
 public sealed class VoiSeUserSettings
 {
-    public int SchemaVersion { get; set; } = 5;
+    public int SchemaVersion { get; set; } = 6;
 
     public string? InputDeviceId { get; set; }
     public string? InputDeviceName { get; set; }
@@ -62,6 +62,13 @@ public sealed class VoiSeUserSettings
     public string? SoundBoardPreviousHotkey { get; set; }
     public string? DisableSceneHotkey { get; set; }
     public string? VirtualMicMuteHotkey { get; set; }
+
+    // VoiSee 11 Media Bridge. The profile is descriptive only: no PID or HWND is persisted,
+    // and capture never reconnects automatically after application restart.
+    public string? MediaBridgeLastProcessName { get; set; }
+    public string? MediaBridgeLastWindowTitle { get; set; }
+    public double MediaBridgeVirtualMicVolume { get; set; } = 1.0;
+    public string? MediaBridgePauseHotkey { get; set; }
 
     // VoiSee 10.1 native XAML ResourceDictionary theme. Null means built-in Default Dark.
     public string? ThemeFilePath { get; set; }

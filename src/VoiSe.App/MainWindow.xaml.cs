@@ -4,6 +4,7 @@ using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Controls.Primitives;
 using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
+using Microsoft.UI.Xaml.Media.Imaging;
 using XamlLine = Microsoft.UI.Xaml.Shapes.Line;
 using XamlRectangle = Microsoft.UI.Xaml.Shapes.Rectangle;
 using NAudio.CoreAudioApi;
@@ -20,6 +21,7 @@ using System.Threading.Tasks;
 using VoiSe.Audio;
 using Windows.ApplicationModel.DataTransfer;
 using Windows.Storage.Pickers;
+using Windows.Storage.Streams;
 using Windows.System;
 using WinRT.Interop;
 
@@ -134,6 +136,13 @@ public sealed partial class MainWindow : Window
     private TextBlock? _advancedRouteStatusTextBlock;
     private TextBlock? _advancedLogTextBlock;
     private ScrollViewer? _advancedLogScrollViewer;
+    private readonly WindowCaptureService _windowCaptureService = new();
+    private readonly DispatcherTimer _mediaBridgeUiTimer;
+    private CapturableWindowInfo? _mediaBridgeWindow;
+    private DateTimeOffset? _mediaBridgeStartedAt;
+    private bool _mediaBridgeStarting;
+    private bool _mediaBridgePreviewUpdating;
+    private int _mediaBridgePreviewTick;
 
     public MainWindow()
     {
@@ -188,7 +197,14 @@ public sealed partial class MainWindow : Window
         _timelineTimer.Tick += OnTimelineTimerTick;
         _timelineTimer.Start();
 
-        AppendLog("VoiSee Version 10.5.0 UI started.");
+        _mediaBridgeUiTimer = new DispatcherTimer
+        {
+            Interval = TimeSpan.FromMilliseconds(200)
+        };
+        _mediaBridgeUiTimer.Tick += OnMediaBridgeUiTimerTick;
+        _mediaBridgeUiTimer.Start();
+
+        AppendLog("VoiSee Version 11.0.0 UI started.");
         AppendLog($"Settings path: {_settingsStore.SettingsPath}");
         StartupLog.Write("MainWindow initialized; waiting for first activation.");
     }
@@ -1169,6 +1185,9 @@ public sealed partial class MainWindow : Window
         SoundVirtualVolumeSlider.Value = Clamp(_settings.SoundBoardVirtualMicVolume, 0, 1.5);
         SoundMonitorVolumeSlider.Value = Clamp(_settings.SoundBoardHeadphonesVolume, 0, 1.5);
         SoundVirtualDelaySlider.Value = Clamp(_settings.SoundBoardVirtualMicDelayMs, 0, 300);
+        MediaBridgeVolumeSlider.Value = Clamp(_settings.MediaBridgeVirtualMicVolume, 0, 1.5);
+        UpdateMediaBridgeSavedProfileText();
+        UpdateMediaBridgeUiState();
         SetVoiceControl(VoiceGainSlider, VoiceGainValueBox, _settings.VoiceGain);
         SetVoiceControl(GateThresholdSlider, GateThresholdValueBox, _settings.VoiceGate);
         SetVoiceControl(CompressorThresholdSlider, CompressorThresholdValueBox, _settings.VoiceCompressor);
@@ -1201,6 +1220,356 @@ public sealed partial class MainWindow : Window
     private void OnMainTabSelectionChanged(object sender, SelectionChangedEventArgs e)
     {
         UpdateSoundInputOverlayBounds();
+        if (MainTabView.SelectedItem == MediaBridgeTabViewItem && _mediaBridgeWindow is not null)
+        {
+            _ = UpdateMediaBridgePreviewAsync();
+        }
+    }
+
+    private async void OnMediaBridgeSelectWindowClick(object sender, RoutedEventArgs e)
+    {
+        IReadOnlyList<CapturableWindowInfo> windows;
+        try
+        {
+            windows = _windowCaptureService.EnumerateCapturableWindows();
+        }
+        catch (Exception ex)
+        {
+            AppendLog($"Media Bridge window enumeration error: {ex.Message}");
+            await ShowMessageDialogAsync("Media Bridge", "VoiSee could not enumerate application windows.");
+            return;
+        }
+
+        if (windows.Count == 0)
+        {
+            await ShowMessageDialogAsync("Media Bridge", "No capturable application windows were found. Open the source application and try again.");
+            return;
+        }
+
+        var selector = new ComboBox
+        {
+            ItemsSource = windows,
+            DisplayMemberPath = nameof(CapturableWindowInfo.DisplayName),
+            HorizontalAlignment = HorizontalAlignment.Stretch,
+            MinWidth = 560,
+            PlaceholderText = "Choose a window"
+        };
+        selector.SelectedIndex = 0;
+
+        var panel = new StackPanel { Spacing = 10 };
+        panel.Children.Add(new TextBlock
+        {
+            Text = "VoiSee captures the selected window's process and its child processes. The selection is not automatically reconnected after restart.",
+            TextWrapping = TextWrapping.Wrap,
+            Opacity = 0.74
+        });
+        panel.Children.Add(selector);
+
+        var dialog = new ContentDialog
+        {
+            Title = "Select Media Bridge window",
+            Content = panel,
+            PrimaryButtonText = "Select",
+            CloseButtonText = "Cancel",
+            DefaultButton = ContentDialogButton.Primary,
+            XamlRoot = ((FrameworkElement)Content).XamlRoot
+        };
+
+        var result = await dialog.ShowAsync();
+        if (result != ContentDialogResult.Primary || selector.SelectedItem is not CapturableWindowInfo selected)
+        {
+            return;
+        }
+
+        StopMediaBridgeBroadcast(clearSelectedWindow: true, status: "Source changed", writeLog: false);
+        _mediaBridgeWindow = selected;
+        _settings.MediaBridgeLastProcessName = selected.ProcessName;
+        _settings.MediaBridgeLastWindowTitle = selected.WindowTitle;
+        _settingsStore.Save(_settings);
+        UpdateMediaBridgeSavedProfileText();
+        UpdateMediaBridgeUiState("Ready");
+        AppendLog($"Media Bridge source selected: {selected.DisplayName} (PID {selected.ProcessId}).");
+        await UpdateMediaBridgePreviewAsync();
+    }
+
+    private async void OnMediaBridgeStartClick(object sender, RoutedEventArgs e)
+    {
+        var selected = _mediaBridgeWindow;
+        if (selected is null || !_windowCaptureService.IsAvailable(selected))
+        {
+            UpdateMediaBridgeUiState("Source window is unavailable");
+            return;
+        }
+
+        if (!OperatingSystem.IsWindowsVersionAtLeast(10, 0, 20348))
+        {
+            await ShowMessageDialogAsync(
+                "Media Bridge is unavailable",
+                "Application audio capture requires Windows 10 build 20348 or newer.");
+            return;
+        }
+
+        if (_engine is null && !StartEngine(logAlreadyRunning: false))
+        {
+            await ShowMessageDialogAsync(
+                "Audio engine is not running",
+                "Start the VoiSee audio engine and make sure VB-CABLE is available before starting Media Bridge.");
+            return;
+        }
+
+        var engine = _engine;
+        if (engine is null)
+        {
+            return;
+        }
+
+        _mediaBridgeStarting = true;
+        UpdateMediaBridgeUiState("Starting...");
+        try
+        {
+            engine.UpdateMediaBridgeVolume((float)MediaBridgeVolumeSlider.Value);
+            await engine.StartMediaBridgeAsync(selected.ProcessId);
+            _mediaBridgeStartedAt = DateTimeOffset.Now;
+            UpdateMediaBridgeUiState("Broadcasting");
+            AppendLog($"Media Bridge broadcast started: {selected.DisplayName}.");
+        }
+        catch (Exception ex)
+        {
+            engine.StopMediaBridge();
+            _mediaBridgeStartedAt = null;
+            UpdateMediaBridgeUiState("Capture could not be started");
+            AppendLog($"Media Bridge start error: {ex.Message}");
+            await ShowMessageDialogAsync("Media Bridge error", ex.Message);
+        }
+        finally
+        {
+            _mediaBridgeStarting = false;
+            UpdateMediaBridgeUiState();
+        }
+    }
+
+    private void OnMediaBridgePauseResumeClick(object sender, RoutedEventArgs e)
+    {
+        ToggleMediaBridgePauseResume("UI");
+    }
+
+    private void ToggleMediaBridgePauseResume(string source)
+    {
+        var engine = _engine;
+        if (engine?.IsMediaBridgeBroadcasting != true)
+        {
+            return;
+        }
+
+        var paused = engine.ToggleMediaBridgePause();
+        UpdateMediaBridgeUiState(paused ? "Paused" : "Broadcasting");
+        AppendLog($"Media Bridge {(paused ? "paused" : "resumed")} ({source}).");
+    }
+
+    private void OnMediaBridgeStopClick(object sender, RoutedEventArgs e)
+    {
+        StopMediaBridgeBroadcast(clearSelectedWindow: true, status: "Stopped", writeLog: true);
+    }
+
+    private void StopMediaBridgeBroadcast(bool clearSelectedWindow, string status, bool writeLog)
+    {
+        var previous = _mediaBridgeWindow;
+        try
+        {
+            _engine?.StopMediaBridge();
+        }
+        catch (Exception ex)
+        {
+            AppendLog($"Media Bridge stop error: {ex.Message}");
+        }
+
+        _mediaBridgeStartedAt = null;
+        if (clearSelectedWindow)
+        {
+            _mediaBridgeWindow = null;
+            MediaBridgePreviewImage.Source = null;
+            MediaBridgePreviewPlaceholder.Visibility = Visibility.Visible;
+        }
+
+        MediaBridgeLevelProgressBar.Value = 0;
+        MediaBridgeLevelTextBlock.Text = "Silent";
+        MediaBridgeDurationTextBlock.Text = "00:00:00";
+        UpdateMediaBridgeUiState(status);
+        if (writeLog && previous is not null)
+        {
+            AppendLog($"Media Bridge stopped: {previous.DisplayName}.");
+        }
+    }
+
+    private void OnMediaBridgeVolumeChanged(object sender, RangeBaseValueChangedEventArgs e)
+    {
+        if (MediaBridgeVolumeValueTextBlock is null)
+        {
+            return;
+        }
+
+        MediaBridgeVolumeValueTextBlock.Text = $"{(int)Math.Round(e.NewValue * 100)}%";
+        _engine?.UpdateMediaBridgeVolume((float)e.NewValue);
+        if (!_loadingSettings)
+        {
+            _settings.MediaBridgeVirtualMicVolume = e.NewValue;
+            _settingsStore.Save(_settings);
+        }
+    }
+
+    private void OnMediaBridgeUiTimerTick(object? sender, object e)
+    {
+        var selected = _mediaBridgeWindow;
+        if (selected is not null && !_windowCaptureService.IsAvailable(selected))
+        {
+            StopMediaBridgeBroadcast(clearSelectedWindow: true, status: "Source window was closed", writeLog: false);
+            AppendLog($"Media Bridge source window was closed: {selected.DisplayName}.");
+            return;
+        }
+
+        var engine = _engine;
+        var broadcasting = engine?.IsMediaBridgeBroadcasting == true;
+        if (broadcasting && _mediaBridgeStartedAt.HasValue)
+        {
+            var elapsed = DateTimeOffset.Now - _mediaBridgeStartedAt.Value;
+            MediaBridgeDurationTextBlock.Text = elapsed.ToString(@"hh\:mm\:ss");
+            var peak = Math.Clamp(engine!.MediaBridgePeak, 0.0f, 1.0f);
+            MediaBridgeLevelProgressBar.Value = peak;
+            MediaBridgeLevelTextBlock.Text = peak < 0.005f ? "Silent" : $"{(int)Math.Round(peak * 100)}%";
+        }
+        else
+        {
+            MediaBridgeLevelProgressBar.Value = 0;
+            MediaBridgeLevelTextBlock.Text = "Silent";
+        }
+
+        if (engine is not null && !string.IsNullOrWhiteSpace(engine.MediaBridgeError))
+        {
+            UpdateMediaBridgeUiState("Capture stopped with an error");
+        }
+        else
+        {
+            UpdateMediaBridgeUiState();
+        }
+
+        _mediaBridgePreviewTick++;
+        if (_mediaBridgePreviewTick >= 5)
+        {
+            _mediaBridgePreviewTick = 0;
+            if (MainTabView.SelectedItem == MediaBridgeTabViewItem && selected is not null)
+            {
+                _ = UpdateMediaBridgePreviewAsync();
+            }
+        }
+    }
+
+    private async Task UpdateMediaBridgePreviewAsync()
+    {
+        if (_mediaBridgePreviewUpdating)
+        {
+            return;
+        }
+
+        var selected = _mediaBridgeWindow;
+        if (selected is null || !_windowCaptureService.IsAvailable(selected))
+        {
+            return;
+        }
+
+        _mediaBridgePreviewUpdating = true;
+        try
+        {
+            var png = await Task.Run(() => _windowCaptureService.CapturePreviewPng(selected));
+            if (png is null || _mediaBridgeWindow?.Handle != selected.Handle)
+            {
+                return;
+            }
+
+            using var randomAccessStream = new InMemoryRandomAccessStream();
+            using (var writer = new DataWriter(randomAccessStream.GetOutputStreamAt(0)))
+            {
+                writer.WriteBytes(png);
+                await writer.StoreAsync();
+                writer.DetachStream();
+            }
+
+            randomAccessStream.Seek(0);
+            var bitmap = new BitmapImage();
+            await bitmap.SetSourceAsync(randomAccessStream);
+            if (_mediaBridgeWindow?.Handle == selected.Handle)
+            {
+                MediaBridgePreviewImage.Source = bitmap;
+                MediaBridgePreviewPlaceholder.Visibility = Visibility.Collapsed;
+            }
+        }
+        catch (Exception ex)
+        {
+            AppendLog($"Media Bridge preview error: {ex.Message}");
+        }
+        finally
+        {
+            _mediaBridgePreviewUpdating = false;
+        }
+    }
+
+    private void UpdateMediaBridgeSavedProfileText()
+    {
+        if (MediaBridgeSavedProfileTextBlock is null)
+        {
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(_settings.MediaBridgeLastProcessName) &&
+            string.IsNullOrWhiteSpace(_settings.MediaBridgeLastWindowTitle))
+        {
+            MediaBridgeSavedProfileTextBlock.Text = "No saved media profile";
+            return;
+        }
+
+        var title = string.IsNullOrWhiteSpace(_settings.MediaBridgeLastWindowTitle)
+            ? _settings.MediaBridgeLastProcessName
+            : _settings.MediaBridgeLastWindowTitle;
+        MediaBridgeSavedProfileTextBlock.Text =
+            $"Saved profile: {title} — {_settings.MediaBridgeLastProcessName}. Select the window again to reconnect.";
+    }
+
+    private void UpdateMediaBridgeUiState(string? explicitStatus = null)
+    {
+        if (MediaBridgeStopButton is null)
+        {
+            return;
+        }
+
+        var selected = _mediaBridgeWindow;
+        var hasSource = selected is not null && _windowCaptureService.IsAvailable(selected);
+        var broadcasting = _engine?.IsMediaBridgeBroadcasting == true;
+        var paused = broadcasting && _engine?.IsMediaBridgePaused == true;
+
+        MediaBridgeStopButton.Visibility = selected is null ? Visibility.Collapsed : Visibility.Visible;
+        MediaBridgeSelectWindowButton.IsEnabled = !_mediaBridgeStarting;
+        MediaBridgeStartButton.IsEnabled = hasSource && !broadcasting && !_mediaBridgeStarting;
+        MediaBridgePauseButton.IsEnabled = broadcasting && !_mediaBridgeStarting;
+        MediaBridgePauseButton.Content = paused ? "Resume" : "Pause";
+
+        if (selected is null)
+        {
+            MediaBridgeSourceTitleTextBlock.Text = "No window selected";
+            MediaBridgeSourceDetailsTextBlock.Text =
+                "Choose an application window. VoiSee will not reconnect to it automatically after restart.";
+            MediaBridgePreviewImage.Source = null;
+            MediaBridgePreviewPlaceholder.Visibility = Visibility.Visible;
+        }
+        else
+        {
+            MediaBridgeSourceTitleTextBlock.Text = selected.WindowTitle;
+            MediaBridgeSourceDetailsTextBlock.Text =
+                $"{selected.ProcessName} · PID {selected.ProcessId} · audio is sent only to the virtual microphone";
+        }
+
+        MediaBridgeStatusTextBlock.Text = explicitStatus ??
+            (_mediaBridgeStarting ? "Starting..." :
+             broadcasting ? (paused ? "Paused" : "Broadcasting") :
+             hasSource ? "Ready" : "Not selected");
     }
 
     private void OnSettingsTabRootSizeChanged(object sender, SizeChangedEventArgs e)
@@ -2158,6 +2527,7 @@ public sealed partial class MainWindow : Window
         }
 
         if (TryHandleVirtualMicMuteHotkey(current)) return true;
+        if (TryHandleMediaBridgeHotkey(current)) return true;
         if (TryHandleTransportHotkey(current)) return true;
         if (TryHandleSceneHotkey(current)) return true;
         if (TryHandleSoundHotkey(current)) return true;
@@ -2181,6 +2551,22 @@ public sealed partial class MainWindow : Window
         }
 
         DispatcherQueue.TryEnqueue(() => ToggleVirtualMicMute("Hotkey"));
+        return true;
+    }
+
+    private bool TryHandleMediaBridgeHotkey(HotkeyGesture current)
+    {
+        if (!HotkeyGesture.TryParse(_settings.MediaBridgePauseHotkey, out var mediaHotkey) || !mediaHotkey.Equals(current))
+        {
+            return false;
+        }
+
+        if (_engine?.IsMediaBridgeBroadcasting != true)
+        {
+            return false;
+        }
+
+        DispatcherQueue.TryEnqueue(() => ToggleMediaBridgePauseResume("Hotkey"));
         return true;
     }
 
@@ -2515,6 +2901,7 @@ public sealed partial class MainWindow : Window
         panel.Children.Add(CreateHotkeyCaptureRow("Previous", _settings.SoundBoardPreviousHotkey, out var previousButton));
         panel.Children.Add(CreateHotkeyCaptureRow("Disable scene", _settings.DisableSceneHotkey, out var disableSceneButton));
         panel.Children.Add(CreateHotkeyCaptureRow("Virtual Mic Mute", _settings.VirtualMicMuteHotkey, out var virtualMicMuteButton));
+        panel.Children.Add(CreateHotkeyCaptureRow("Pause / Resume Media Bridge", _settings.MediaBridgePauseHotkey, out var mediaBridgePauseButton));
 
         var dialog = new ContentDialog
         {
@@ -2547,6 +2934,7 @@ public sealed partial class MainWindow : Window
         _settings.SoundBoardPreviousHotkey = NormalizeOptionalHotkey(GetHotkeyButtonValue(previousButton));
         _settings.DisableSceneHotkey = NormalizeOptionalHotkey(GetHotkeyButtonValue(disableSceneButton));
         _settings.VirtualMicMuteHotkey = NormalizeOptionalHotkey(GetHotkeyButtonValue(virtualMicMuteButton));
+        _settings.MediaBridgePauseHotkey = NormalizeOptionalHotkey(GetHotkeyButtonValue(mediaBridgePauseButton));
         _settingsStore.Save(_settings);
         UpdateTransportHotkeySummary();
         AppendLog("Hotkeys updated.");
@@ -2753,7 +3141,8 @@ public sealed partial class MainWindow : Window
             $"Next: {(_settings.SoundBoardNextHotkey ?? "—")}",
             $"Prev: {(_settings.SoundBoardPreviousHotkey ?? "—")}",
             $"Disable scene: {(_settings.DisableSceneHotkey ?? "—")}",
-            $"Virtual Mic Mute: {(_settings.VirtualMicMuteHotkey ?? "—")}"
+            $"Virtual Mic Mute: {(_settings.VirtualMicMuteHotkey ?? "—")}",
+            $"Media Bridge Pause/Resume: {(_settings.MediaBridgePauseHotkey ?? "—")}"
         };
         TransportHotkeysSummaryTextBlock.Text = "Hotkeys: " + string.Join("    ", parts);
     }
@@ -3249,6 +3638,7 @@ public sealed partial class MainWindow : Window
         SaveCurrentSettings();
         StopEngine(log: false);
         _timelineTimer.Stop();
+        _mediaBridgeUiTimer.Stop();
         _themeReloadTimer.Stop();
         _themeFileWatcher?.Dispose();
         _themeFileWatcher = null;
@@ -5838,6 +6228,7 @@ public sealed partial class MainWindow : Window
             _engine = new Gate2UnifiedAudioEngine(input, virtualOutput, monitor, CreateEffectSettings());
             _engine.Start();
             _engine.SetVirtualMicMuted(_virtualMicMuted);
+            _engine.UpdateMediaBridgeVolume((float)(MediaBridgeVolumeSlider?.Value ?? _settings.MediaBridgeVirtualMicVolume));
             EngineStatusTextBlock.Text = "Running";
             AppendLog($"Engine started. Input: {input.FriendlyName}");
             AppendLog($"Virtual output: {virtualOutput.FriendlyName}");
@@ -5864,6 +6255,7 @@ public sealed partial class MainWindow : Window
         try
         {
             _engine.Dispose();
+            _mediaBridgeStartedAt = null;
             if (log) AppendLog("Engine stopped.");
         }
         catch (Exception ex)
@@ -5876,6 +6268,7 @@ public sealed partial class MainWindow : Window
             EngineStatusTextBlock.Text = "Stopped";
             UpdateVBCableUiState();
             RefreshAdvancedSettingsStatus();
+            UpdateMediaBridgeUiState("Audio engine stopped");
         }
     }
 
@@ -9429,6 +9822,8 @@ public sealed partial class MainWindow : Window
     {
         if (_loadingSettings) return;
 
+        _settings.SchemaVersion = 6;
+
         var input = InputDeviceComboBox?.SelectedItem as AudioDeviceInfo;
         var virtualOutput = VirtualOutputComboBox?.SelectedItem as AudioDeviceInfo;
         var monitor = MonitorOutputComboBox?.SelectedItem as AudioDeviceInfo;
@@ -9448,6 +9843,7 @@ public sealed partial class MainWindow : Window
         _settings.SoundBoardVirtualMicVolume = SoundVirtualVolumeSlider?.Value ?? 1.0;
         _settings.SoundBoardHeadphonesVolume = SoundMonitorVolumeSlider?.Value ?? 1.0;
         _settings.SoundBoardVirtualMicDelayMs = SoundVirtualDelaySlider?.Value ?? 85.0;
+        _settings.MediaBridgeVirtualMicVolume = MediaBridgeVolumeSlider?.Value ?? 1.0;
         _settings.VoiceGain = GetVoiceValue(VoiceGainSlider, VoiceGainValueBox);
         _settings.VoiceGate = GetVoiceValue(GateThresholdSlider, GateThresholdValueBox);
         _settings.VoiceCompressor = GetVoiceValue(CompressorThresholdSlider, CompressorThresholdValueBox);

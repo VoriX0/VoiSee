@@ -1,13 +1,12 @@
-# VoiSee 10.5.0
+# VoiSee 11.0.0
 
 VoiSee is a WinUI 3 application for real-time voice processing, SoundBoard playback into a virtual microphone, scenes, presets, global hotkeys, themes, and non-destructive sound editing.
 
-## VoiSee 10.5.0 interim release
+## VoiSee 11.0.0 — Media Bridge Core
 
-This is the stable project checkpoint before the separate Yandex Music integration work.
-The SoundBoard list toolbar now contains only `Add Track` and `Delete Track`; sound
-editing remains available from the track context menu. No Yandex Music code or
-dependencies are included in this checkpoint.
+VoiSee 11 introduces **Media Bridge**: select an application window, preview it, and mix that process audio into the virtual microphone without adding a duplicate headphone monitor. The first core stage includes one selected source, Start/Pause/Resume/Stop, source duration and level, a dedicated virtual-mic volume, saved descriptive profile data, and a global Pause/Resume hotkey. Media Bridge does not reconnect automatically after VoiSee restarts.
+
+Media Bridge is provider-independent: Yandex Music is the first target scenario, while the same process-capture route can be used with other desktop media applications and browsers. The SoundBoard toolbar remains limited to `Add Track` and `Delete Track`; sound editing stays in the track context menu.
 
 ## Sound Editor highlights
 
@@ -79,13 +78,13 @@ Set-ExecutionPolicy -Scope Process Bypass
 Expected installer:
 
 ```text
-artifacts\installer\VoiSee-Setup-10.5.0-x64.exe
+artifacts\installer\VoiSee-Setup-11.0.0-x64.exe
 ```
 
 Portable build:
 
 ```text
-artifacts\installer\VoiSee-Portable-10.5.0-x64.zip
+artifacts\installer\VoiSee-Portable-11.0.0-x64.zip
 ```
 
 ## Native XAML themes (VoiSee 10.1)

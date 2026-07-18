@@ -15,6 +15,7 @@ public sealed class Gate2UnifiedAudioEngine : IDisposable
     private readonly FloatSampleQueue _virtualMicQueue;
     private readonly FloatSampleQueue _monitorMicQueue;
     private readonly SoundboardTransport _soundboard;
+    private readonly MediaBridgeTransport _mediaBridge;
 
     private WasapiCapture? _capture;
     private WasapiOut? _virtualOutput;
@@ -22,6 +23,8 @@ public sealed class Gate2UnifiedAudioEngine : IDisposable
     private SimpleVoiceProcessor? _processor;
     private RouteMixSampleProvider? _virtualProvider;
     private RouteMixSampleProvider? _monitorProvider;
+    private ProcessLoopbackCapture? _mediaBridgeCapture;
+    private string? _mediaBridgeError;
     private bool _virtualMicMuted;
     private bool _disposed;
 
@@ -43,6 +46,7 @@ public sealed class Gate2UnifiedAudioEngine : IDisposable
         _virtualMicQueue = new FloatSampleQueue(maxSamples);
         _monitorMicQueue = new FloatSampleQueue(maxSamples);
         _soundboard = new SoundboardTransport(_mixFormat);
+        _mediaBridge = new MediaBridgeTransport(_mixFormat);
     }
 
     public WaveFormat MixFormat => _mixFormat;
@@ -72,6 +76,7 @@ public sealed class Gate2UnifiedAudioEngine : IDisposable
             AudioRoute.VirtualMicrophone,
             _virtualMicQueue,
             _soundboard,
+            _mediaBridge,
             _settings);
         _virtualProvider.SetVirtualMicMuted(_virtualMicMuted);
 
@@ -86,6 +91,7 @@ public sealed class Gate2UnifiedAudioEngine : IDisposable
                 AudioRoute.Monitor,
                 _monitorMicQueue,
                 _soundboard,
+                _mediaBridge,
                 _settings);
 
             _monitorOutput = new WasapiOut(_monitorDevice, AudioClientShareMode.Shared, true, 50);
@@ -95,6 +101,77 @@ public sealed class Gate2UnifiedAudioEngine : IDisposable
 
         _capture.StartRecording();
     }
+
+
+    public async Task StartMediaBridgeAsync(int processId)
+    {
+        if (processId <= 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(processId));
+        }
+
+        StopMediaBridge();
+        _mediaBridgeError = null;
+        _mediaBridge.Clear();
+
+        var capture = new ProcessLoopbackCapture();
+        capture.SamplesAvailable += samples => _mediaBridge.AddSamples(samples);
+        capture.CaptureStopped += error =>
+        {
+            if (error is not null)
+            {
+                _mediaBridgeError = error.Message;
+            }
+        };
+
+        try
+        {
+            await capture.StartAsync((uint)processId).ConfigureAwait(false);
+            _mediaBridgeCapture = capture;
+        }
+        catch
+        {
+            capture.Dispose();
+            throw;
+        }
+    }
+
+    public void StopMediaBridge()
+    {
+        var capture = _mediaBridgeCapture;
+        _mediaBridgeCapture = null;
+        _mediaBridgeError = null;
+        try
+        {
+            capture?.Dispose();
+        }
+        finally
+        {
+            _mediaBridge.Clear();
+        }
+    }
+
+    public bool ToggleMediaBridgePause()
+    {
+        var paused = !_mediaBridge.IsPaused;
+        _mediaBridge.SetPaused(paused);
+        return paused;
+    }
+
+    public void SetMediaBridgePaused(bool paused)
+    {
+        _mediaBridge.SetPaused(paused);
+    }
+
+    public void UpdateMediaBridgeVolume(float volume)
+    {
+        _mediaBridge.SetVolume(volume);
+    }
+
+    public bool IsMediaBridgeBroadcasting => _mediaBridgeCapture?.IsCapturing == true;
+    public bool IsMediaBridgePaused => _mediaBridge.IsPaused;
+    public float MediaBridgePeak => _mediaBridge.GetDisplayPeak();
+    public string? MediaBridgeError => _mediaBridgeError;
 
     public void PlaySound(string filePath, float virtualVolume, float monitorVolume, int virtualDelayMs, bool loop = false, string? playbackKey = null)
     {
@@ -152,6 +229,7 @@ public sealed class Gate2UnifiedAudioEngine : IDisposable
 
     public void Stop()
     {
+        StopMediaBridge();
         _soundboard.Stop();
         _capture?.StopRecording();
         _virtualOutput?.Stop();

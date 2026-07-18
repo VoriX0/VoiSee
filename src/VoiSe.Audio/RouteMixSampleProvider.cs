@@ -8,6 +8,7 @@ internal sealed class RouteMixSampleProvider : ISampleProvider
     private readonly AudioRoute _route;
     private readonly FloatSampleQueue _micQueue;
     private readonly SoundboardTransport _soundboard;
+    private readonly MediaBridgeTransport _mediaBridge;
     private readonly object _settingsSync = new();
     private bool _limiterEnabled;
     private float _limiterCeiling;
@@ -16,18 +17,21 @@ internal sealed class RouteMixSampleProvider : ISampleProvider
     private bool _virtualMicMuted;
     private float[] _micScratch = Array.Empty<float>();
     private float[] _soundScratch = Array.Empty<float>();
+    private float[] _mediaScratch = Array.Empty<float>();
 
     public RouteMixSampleProvider(
         WaveFormat waveFormat,
         AudioRoute route,
         FloatSampleQueue micQueue,
         SoundboardTransport soundboard,
+        MediaBridgeTransport mediaBridge,
         EffectSettings settings)
     {
         WaveFormat = waveFormat;
         _route = route;
         _micQueue = micQueue;
         _soundboard = soundboard;
+        _mediaBridge = mediaBridge;
         UpdateSettings(settings);
     }
 
@@ -58,6 +62,14 @@ internal sealed class RouteMixSampleProvider : ISampleProvider
 
         _micQueue.Read(_micScratch, 0, count);
         _soundboard.Read(_route, _soundScratch, 0, count);
+        if (_route == AudioRoute.VirtualMicrophone)
+        {
+            _mediaBridge.Read(_mediaScratch, 0, count);
+        }
+        else
+        {
+            Array.Clear(_mediaScratch, 0, count);
+        }
 
         bool limiterEnabled;
         float limiterCeiling;
@@ -76,7 +88,7 @@ internal sealed class RouteMixSampleProvider : ISampleProvider
         for (var i = 0; i < count; i++)
         {
             var mixed = _route == AudioRoute.VirtualMicrophone
-                ? (virtualMicMuted ? 0.0f : (_micScratch[i] + _soundScratch[i]) * virtualMasterGain)
+                ? (virtualMicMuted ? 0.0f : (_micScratch[i] + _soundScratch[i] + _mediaScratch[i]) * virtualMasterGain)
                 : (_micScratch[i] * voiceMonitorGain) + _soundScratch[i];
 
             buffer[offset + i] = limiterEnabled
@@ -97,6 +109,11 @@ internal sealed class RouteMixSampleProvider : ISampleProvider
         if (_soundScratch.Length < count)
         {
             _soundScratch = new float[count];
+        }
+
+        if (_mediaScratch.Length < count)
+        {
+            _mediaScratch = new float[count];
         }
     }
 }
