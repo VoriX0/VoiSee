@@ -7,7 +7,7 @@ namespace VoiSe.App;
 
 public sealed class VoiSeScene
 {
-    public int SchemaVersion { get; set; } = 8;
+    public int SchemaVersion { get; set; } = 9;
     public string Id { get; set; } = Guid.NewGuid().ToString("N");
     public string Name { get; set; } = "Scene";
     public string Icon { get; set; } = "🎬";
@@ -30,6 +30,13 @@ public sealed class VoiSeScene
     public double LoopedSoundHeadphonesVolume { get; set; } = 1.0;
     public double SceneButtonsVirtualMicVolume { get; set; } = 1.0;
     public double SceneButtonsHeadphonesVolume { get; set; } = 1.0;
+
+    // VoiSee 11.2 scene background source. Old scenes remain LoopedSound by default.
+    public string BackgroundSourceKind { get; set; } = "LoopedSound";
+    public string? MediaBridgeProfileId { get; set; }
+    public string? MediaBridgeProfileName { get; set; }
+    public double MediaBridgeVirtualMicVolume { get; set; } = 1.0;
+    public bool CaptureMediaBridgeOnSceneStart { get; set; }
 
     public string? StopOneShotSoundsHotkey { get; set; }
     public string? PauseOneShotSoundsHotkey { get; set; }
@@ -56,6 +63,9 @@ public sealed class VoiSeScene
     public double ActiveOpacity => IsActive ? 1.0 : 0.0;
 
     [JsonIgnore]
+    public bool UsesMediaSource => string.Equals(BackgroundSourceKind, "MediaSource", StringComparison.OrdinalIgnoreCase);
+
+    [JsonIgnore]
     public string SceneListSubtitle
     {
         get
@@ -69,7 +79,9 @@ public sealed class VoiSeScene
             var normalCount = SoundButtons.Count(b => !b.IsLooped);
             var loop = SoundButtons.FirstOrDefault(b => b.IsLooped);
             parts.Add($"Sounds: {normalCount}");
-            parts.Add(loop is null ? "Loop: none" : "Loop: set");
+            parts.Add(UsesMediaSource
+                ? $"Media: {MediaBridgeProfileName ?? "none"}"
+                : loop is null ? "Loop: none" : "Loop: set");
             if (IsActive)
             {
                 parts.Insert(0, "ACTIVE");

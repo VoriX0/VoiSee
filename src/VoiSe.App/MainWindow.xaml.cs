@@ -142,11 +142,14 @@ public sealed partial class MainWindow : Window
     private bool _mediaBridgeStarting;
     private bool _mediaBridgePreviewUpdating;
     private int _mediaBridgePreviewTick;
+    private string? _sceneOwnedMediaBridgeSceneId;
 
     public MainWindow()
     {
         StartupLog.Write("MainWindow constructor started.");
         _settings = _settingsStore.Load();
+        _settings.MediaBridgeProfiles ??= new List<MediaBridgeProfile>();
+        MigrateLegacyMediaBridgeProfile();
         _libraryStore = new SoundBoardLibraryStore(_settingsStore.DataDirectory);
         _voicePresetStore = new VoicePresetStore(_settingsStore.DataDirectory);
         _sceneStore = new SceneStore(_settingsStore.DataDirectory);
@@ -203,7 +206,7 @@ public sealed partial class MainWindow : Window
         _mediaBridgeUiTimer.Tick += OnMediaBridgeUiTimerTick;
         _mediaBridgeUiTimer.Start();
 
-        AppendLog("VoiSee Version 11.0.5 UI started.");
+        AppendLog("VoiSee Version 11.2.0 UI started.");
         AppendLog($"Settings path: {_settingsStore.SettingsPath}");
         StartupLog.Write("MainWindow initialized; waiting for first activation.");
     }
@@ -1147,7 +1150,7 @@ public sealed partial class MainWindow : Window
         var engine = _engine;
         if (engine is null)
         {
-            return;
+            return false;
         }
 
         var soundPaths = (paths ?? _library.Sounds.Select(sound => sound.FilePath))
@@ -1284,20 +1287,23 @@ public sealed partial class MainWindow : Window
         _mediaBridgeWindow = selected;
         _settings.MediaBridgeLastProcessName = selected.ProcessName;
         _settings.MediaBridgeLastWindowTitle = selected.WindowTitle;
+        var profile = UpsertMediaBridgeProfile(selected);
+        _settings.MediaBridgeLastProfileId = profile.Id;
         _settingsStore.Save(_settings);
         UpdateMediaBridgeSavedProfileText();
+        RefreshSceneMediaProfileComboBox();
         UpdateMediaBridgeUiState("Ready");
         AppendLog($"Media Bridge source selected: {selected.DisplayName} (PID {selected.ProcessId}).");
         await UpdateMediaBridgePreviewAsync();
     }
 
-    private async Task StartMediaBridgeBroadcastAsync()
+    private async Task<bool> StartMediaBridgeBroadcastAsync(string? ownerSceneId = null, double? volumeOverride = null)
     {
         var selected = _mediaBridgeWindow;
         if (selected is null || !_windowCaptureService.IsAvailable(selected))
         {
             UpdateMediaBridgeUiState("Source window is unavailable");
-            return;
+            return false;
         }
 
         if (!OperatingSystem.IsWindowsVersionAtLeast(10, 0, 20348))
@@ -1305,7 +1311,7 @@ public sealed partial class MainWindow : Window
             await ShowMessageDialogAsync(
                 "Media Bridge is unavailable",
                 "Application audio capture requires Windows 10 build 20348 or newer.");
-            return;
+            return false;
         }
 
         if (_engine is null && !StartEngine(logAlreadyRunning: false))
@@ -1313,24 +1319,27 @@ public sealed partial class MainWindow : Window
             await ShowMessageDialogAsync(
                 "Audio engine is not running",
                 "Start the VoiSee audio engine and make sure VB-CABLE is available before starting Media Bridge.");
-            return;
+            return false;
         }
 
         var engine = _engine;
         if (engine is null)
         {
-            return;
+            return false;
         }
 
         _mediaBridgeStarting = true;
         UpdateMediaBridgeUiState("Starting...");
         try
         {
-            engine.UpdateMediaBridgeVolume((float)MediaBridgeVolumeSlider.Value);
+            var effectiveVolume = Clamp(volumeOverride ?? MediaBridgeVolumeSlider.Value, 0, 1.5);
+            engine.UpdateMediaBridgeVolume((float)effectiveVolume);
             await engine.StartMediaBridgeAsync(selected.ProcessId);
             _mediaBridgeStartedAt = DateTimeOffset.Now;
+            _sceneOwnedMediaBridgeSceneId = ownerSceneId;
             UpdateMediaBridgeUiState("Broadcasting");
             AppendLog($"Media Bridge broadcast started: {selected.DisplayName}.");
+            return true;
         }
         catch (Exception ex)
         {
@@ -1339,6 +1348,7 @@ public sealed partial class MainWindow : Window
             UpdateMediaBridgeUiState("Capture could not be started");
             AppendLog($"Media Bridge start error: {ex.Message}");
             await ShowMessageDialogAsync("Media Bridge error", ex.Message);
+            return false;
         }
         finally
         {
@@ -1389,6 +1399,7 @@ public sealed partial class MainWindow : Window
         }
 
         _mediaBridgeStartedAt = null;
+        _sceneOwnedMediaBridgeSceneId = null;
         if (clearSelectedWindow)
         {
             _mediaBridgeWindow = null;
@@ -1397,8 +1408,8 @@ public sealed partial class MainWindow : Window
         }
 
         UpdateMediaBridgeLevelMeters(0, 0);
-        MediaBridgeLevelTextBlock.Text = "−∞ dBFS";
-        MediaBridgeMicLevelTextBlock.Text = "−∞ dBFS";
+        MediaBridgeLevelTextBlock.Text = "0%";
+        MediaBridgeMicLevelTextBlock.Text = "0%";
         MediaBridgeDurationTextBlock.Text = "00:00:00";
         UpdateMediaBridgeUiState(status);
         if (writeLog && previous is not null)
@@ -1428,9 +1439,9 @@ public sealed partial class MainWindow : Window
         Border? mask,
         Border? marker)
     {
-        var clampedPeak = Math.Clamp(peak, 0.0, 1.0);
-        var dbFs = PeakToDbFs(clampedPeak);
-        var meterValue = Math.Clamp((dbFs + 60.0) / 60.0, 0.0, 1.0);
+        // User-facing meters use a direct 0-100% scale.
+        // 100% corresponds to 0 dBFS, the maximum digital level before clipping.
+        var meterValue = Math.Clamp(peak, 0.0, 1.0);
         if (progressBar is not null)
         {
             progressBar.Value = meterValue;
@@ -1453,25 +1464,12 @@ public sealed partial class MainWindow : Window
         }
     }
 
-    private static double PeakToDbFs(double peak)
+    private static string FormatMediaBridgePercent(double peak)
     {
-        if (peak <= 0.000001)
-        {
-            return -60.0;
-        }
-
-        return Math.Max(-60.0, 20.0 * Math.Log10(Math.Clamp(peak, 0.0, 1.0)));
-    }
-
-    private static string FormatMediaBridgeDbFs(double peak)
-    {
-        if (peak <= 0.000001)
-        {
-            return "−∞ dBFS";
-        }
-
-        var dbFs = PeakToDbFs(peak);
-        return $"{dbFs:0.0} dBFS";
+        var percent = Math.Clamp(peak, 0.0, 1.0) * 100.0;
+        return percent >= 99.5
+            ? "100% MAX"
+            : $"{percent:0}%";
     }
 
     private void OnMediaBridgeVolumeChanged(object sender, RangeBaseValueChangedEventArgs e)
@@ -1509,14 +1507,14 @@ public sealed partial class MainWindow : Window
             var sourcePeak = Math.Clamp(engine!.MediaBridgeSourcePeak, 0.0f, 1.0f);
             var outputPeak = Math.Clamp(engine.MediaBridgeOutputPeak, 0.0f, 1.0f);
             UpdateMediaBridgeLevelMeters(sourcePeak, outputPeak);
-            MediaBridgeLevelTextBlock.Text = FormatMediaBridgeDbFs(sourcePeak);
-            MediaBridgeMicLevelTextBlock.Text = FormatMediaBridgeDbFs(outputPeak);
+            MediaBridgeLevelTextBlock.Text = FormatMediaBridgePercent(sourcePeak);
+            MediaBridgeMicLevelTextBlock.Text = FormatMediaBridgePercent(outputPeak);
         }
         else
         {
             UpdateMediaBridgeLevelMeters(0, 0);
-            MediaBridgeLevelTextBlock.Text = "−∞ dBFS";
-            MediaBridgeMicLevelTextBlock.Text = "−∞ dBFS";
+            MediaBridgeLevelTextBlock.Text = "0%";
+            MediaBridgeMicLevelTextBlock.Text = "0%";
         }
 
         if (engine is not null && !string.IsNullOrWhiteSpace(engine.MediaBridgeError))
@@ -1644,6 +1642,7 @@ public sealed partial class MainWindow : Window
             MediaBridgePreviewPlaceholder.Visibility = Visibility.Collapsed;
         }
 
+        RefreshSceneMediaActionButtons();
         MediaBridgeStatusTextBlock.Text = explicitStatus ??
             (_mediaBridgeStarting ? "Starting..." :
              broadcasting ? (paused ? "Paused" : "Broadcasting") :
@@ -7021,6 +7020,7 @@ public sealed partial class MainWindow : Window
         }
 
         RefreshSceneVoicePresetComboBox();
+        RefreshSceneBackgroundEditor();
         RefreshSceneLoopAutostartCheckBox();
         RefreshSceneVolumeControls();
         RebuildSceneSoundButtons();
@@ -7032,7 +7032,11 @@ public sealed partial class MainWindow : Window
         if (SceneVoicePresetClearButton is not null) SceneVoicePresetClearButton.IsEnabled = enabled;
         if (SceneVoicePresetCreateButton is not null) SceneVoicePresetCreateButton.IsEnabled = enabled;
         if (SceneVoiceMonitorButton is not null) SceneVoiceMonitorButton.IsEnabled = enabled;
+        if (SceneBackgroundTypeComboBox is not null) SceneBackgroundTypeComboBox.IsEnabled = enabled;
         if (SceneAutostartLoopsCheckBox is not null) SceneAutostartLoopsCheckBox.IsEnabled = enabled;
+        if (SceneMediaProfileComboBox is not null) SceneMediaProfileComboBox.IsEnabled = enabled;
+        if (SceneMediaVirtualMicVolumeSlider is not null) SceneMediaVirtualMicVolumeSlider.IsEnabled = enabled;
+        if (SceneCaptureMediaOnStartCheckBox is not null) SceneCaptureMediaOnStartCheckBox.IsEnabled = enabled;
         if (SceneLoopHeadphonesVolumeSlider is not null) SceneLoopHeadphonesVolumeSlider.IsEnabled = enabled;
         if (SceneLoopVirtualMicVolumeSlider is not null) SceneLoopVirtualMicVolumeSlider.IsEnabled = enabled;
         RefreshSceneLoopActionButtons();
@@ -7061,6 +7065,87 @@ public sealed partial class MainWindow : Window
         }
     }
 
+    private void RefreshSceneBackgroundEditor()
+    {
+        if (SceneBackgroundTypeComboBox is null)
+        {
+            return;
+        }
+
+        _loadingSceneUi = true;
+        try
+        {
+            SceneBackgroundTypeComboBox.ItemsSource = new[] { "Looped Sound", "Media Source" };
+            var mediaMode = _selectedScene?.UsesMediaSource == true;
+            SceneBackgroundTypeComboBox.SelectedIndex = mediaMode ? 1 : 0;
+            if (SceneLoopBackgroundPanel is not null)
+            {
+                SceneLoopBackgroundPanel.Visibility = mediaMode ? Visibility.Collapsed : Visibility.Visible;
+            }
+            if (SceneMediaBackgroundPanel is not null)
+            {
+                SceneMediaBackgroundPanel.Visibility = mediaMode ? Visibility.Visible : Visibility.Collapsed;
+            }
+            RefreshSceneMediaProfileComboBox();
+            if (SceneCaptureMediaOnStartCheckBox is not null)
+            {
+                SceneCaptureMediaOnStartCheckBox.IsChecked = _selectedScene?.CaptureMediaBridgeOnSceneStart ?? false;
+            }
+        }
+        finally
+        {
+            _loadingSceneUi = false;
+        }
+
+        RefreshSceneMediaActionButtons();
+    }
+
+    private void RefreshSceneMediaProfileComboBox()
+    {
+        if (SceneMediaProfileComboBox is null)
+        {
+            return;
+        }
+
+        var wasLoading = _loadingSceneUi;
+        _loadingSceneUi = true;
+        try
+        {
+            _settings.MediaBridgeProfiles ??= new List<MediaBridgeProfile>();
+            var profiles = _settings.MediaBridgeProfiles
+                .OrderBy(profile => profile.DisplayName, StringComparer.CurrentCultureIgnoreCase)
+                .ToList();
+            SceneMediaProfileComboBox.ItemsSource = profiles;
+            var profileId = _selectedScene?.MediaBridgeProfileId;
+            SceneMediaProfileComboBox.SelectedItem = string.IsNullOrWhiteSpace(profileId)
+                ? null
+                : profiles.FirstOrDefault(profile => string.Equals(profile.Id, profileId, StringComparison.OrdinalIgnoreCase));
+            if (SceneMediaSourceNameTextBlock is not null)
+            {
+                SceneMediaSourceNameTextBlock.Text = SceneMediaProfileComboBox.SelectedItem is MediaBridgeProfile selected
+                    ? (string.IsNullOrWhiteSpace(selected.WindowTitleHint) ? selected.DisplayName : selected.WindowTitleHint)
+                    : "No media source selected";
+            }
+        }
+        finally
+        {
+            _loadingSceneUi = wasLoading;
+        }
+    }
+
+    private void RefreshSceneMediaActionButtons()
+    {
+        var hasProfile = GetSelectedSceneMediaProfile() is not null;
+        if (SceneMediaLaunchSourceButton is not null)
+        {
+            SceneMediaLaunchSourceButton.IsEnabled = _selectedScene is not null && hasProfile;
+        }
+        if (SceneMediaStopBroadcastButton is not null)
+        {
+            SceneMediaStopBroadcastButton.IsEnabled = _engine?.IsMediaBridgeBroadcasting == true;
+        }
+    }
+
     private void RefreshSceneLoopAutostartCheckBox()
     {
         if (SceneAutostartLoopsCheckBox is null)
@@ -7082,7 +7167,8 @@ public sealed partial class MainWindow : Window
     private void RefreshSceneVolumeControls()
     {
         if (SceneLoopHeadphonesVolumeSlider is null ||
-            SceneLoopVirtualMicVolumeSlider is null)
+            SceneLoopVirtualMicVolumeSlider is null ||
+            SceneMediaVirtualMicVolumeSlider is null)
         {
             return;
         }
@@ -7092,6 +7178,7 @@ public sealed partial class MainWindow : Window
         {
             SceneLoopHeadphonesVolumeSlider.Value = Clamp(_selectedScene?.LoopedSoundHeadphonesVolume ?? 1.0, 0, 1.5);
             SceneLoopVirtualMicVolumeSlider.Value = Clamp(_selectedScene?.LoopedSoundVirtualMicVolume ?? 1.0, 0, 1.5);
+            SceneMediaVirtualMicVolumeSlider.Value = Clamp(_selectedScene?.MediaBridgeVirtualMicVolume ?? 1.0, 0, 1.5);
         }
         finally
         {
@@ -7108,7 +7195,10 @@ public sealed partial class MainWindow : Window
         return string.Join(Environment.NewLine,
             $"Voice preset: {scene.VoicePresetName ?? "none"}",
             $"Scene buttons: {normalCount}",
+            $"Background source: {(scene.UsesMediaSource ? "Media Source" : "Looped Sound")}",
             $"Looped sound: {(hasLoop ? "set" : "none")}",
+            $"Media profile: {scene.MediaBridgeProfileName ?? "none"}",
+            $"Capture media on scene start: {(scene.CaptureMediaBridgeOnSceneStart ? "on" : "off")}",
             $"Autostart loop: {(scene.AutoStartLoopedSounds ? "on" : "off")}",
             $"Looped → Virtual Mic: {scene.LoopedSoundVirtualMicVolume:P0}",
             $"Looped → Headphones: {scene.LoopedSoundHeadphonesVolume:P0}",
@@ -7137,6 +7227,11 @@ public sealed partial class MainWindow : Window
             scene.BackgroundSoundId = null;
             scene.BackgroundSoundName = null;
             scene.SoundButtons.Clear();
+            scene.BackgroundSourceKind = "LoopedSound";
+            scene.MediaBridgeProfileId = null;
+            scene.MediaBridgeProfileName = null;
+            scene.MediaBridgeVirtualMicVolume = 1.0;
+            scene.CaptureMediaBridgeOnSceneStart = false;
             scene.AutoStartLoopedSounds = false;
             scene.LoopedSoundVirtualMicVolume = 1.0;
             scene.LoopedSoundHeadphonesVolume = 1.0;
@@ -7163,6 +7258,8 @@ public sealed partial class MainWindow : Window
 
     private void DisableActiveScene(string logMessage)
     {
+        var disabledSceneId = _activeSceneId;
+        StopSceneOwnedMediaBridge(disabledSceneId, "Scene media stopped");
         _activeSceneId = null;
         UpdateSceneActiveFlags();
         RefreshSceneListBinding();
@@ -7198,6 +7295,11 @@ public sealed partial class MainWindow : Window
             var previousAutostartLoops = _selectedScene.AutoStartLoopedSounds;
             var previousLoopVirtualVolume = _selectedScene.LoopedSoundVirtualMicVolume;
             var previousLoopHeadphonesVolume = _selectedScene.LoopedSoundHeadphonesVolume;
+            var previousBackgroundSourceKind = _selectedScene.BackgroundSourceKind;
+            var previousMediaProfileId = _selectedScene.MediaBridgeProfileId;
+            var previousMediaProfileName = _selectedScene.MediaBridgeProfileName;
+            var previousMediaVolume = _selectedScene.MediaBridgeVirtualMicVolume;
+            var previousCaptureMedia = _selectedScene.CaptureMediaBridgeOnSceneStart;
             var updated = CaptureCurrentScene(_selectedScene.Name);
             updated.Id = _selectedScene.Id;
             updated.Icon = _selectedScene.Icon;
@@ -7207,6 +7309,11 @@ public sealed partial class MainWindow : Window
             updated.AutoStartLoopedSounds = previousAutostartLoops;
             updated.LoopedSoundVirtualMicVolume = previousLoopVirtualVolume;
             updated.LoopedSoundHeadphonesVolume = previousLoopHeadphonesVolume;
+            updated.BackgroundSourceKind = previousBackgroundSourceKind;
+            updated.MediaBridgeProfileId = previousMediaProfileId;
+            updated.MediaBridgeProfileName = previousMediaProfileName;
+            updated.MediaBridgeVirtualMicVolume = previousMediaVolume;
+            updated.CaptureMediaBridgeOnSceneStart = previousCaptureMedia;
             _sceneStore.OverwriteScene(updated);
             _selectedScene = updated;
             LoadScenesIntoUi();
@@ -7277,6 +7384,7 @@ public sealed partial class MainWindow : Window
             _sceneStore.DeleteScene(scene);
             if (string.Equals(_activeSceneId, scene.Id, StringComparison.OrdinalIgnoreCase))
             {
+                StopSceneOwnedMediaBridge(scene.Id, "Scene media stopped");
                 _activeSceneId = null;
                 RestoreVoiceChangerStateBeforeScene();
             }
@@ -7342,6 +7450,9 @@ public sealed partial class MainWindow : Window
             LoopedSoundHeadphonesVolume = SoundMonitorVolumeSlider?.Value ?? 1.0,
             SceneButtonsVirtualMicVolume = SoundVirtualVolumeSlider?.Value ?? 1.0,
             SceneButtonsHeadphonesVolume = SoundMonitorVolumeSlider?.Value ?? 1.0,
+            BackgroundSourceKind = "LoopedSound",
+            MediaBridgeVirtualMicVolume = 1.0,
+            CaptureMediaBridgeOnSceneStart = false,
             VirtualMicMasterVolume = VirtualOutputVolumeSlider?.Value ?? 1.0,
             SoundBoardVirtualMicVolume = SoundVirtualVolumeSlider?.Value ?? 1.0,
             SoundBoardHeadphonesVolume = SoundMonitorVolumeSlider?.Value ?? 1.0,
@@ -7380,11 +7491,18 @@ public sealed partial class MainWindow : Window
                 _engine.UpdateSoundVolumes((float)SoundVirtualVolumeSlider.Value, (float)SoundMonitorVolumeSlider.Value);
             }
 
+            var previousActiveSceneId = _activeSceneId;
+            if (!string.IsNullOrWhiteSpace(previousActiveSceneId) &&
+                !string.Equals(previousActiveSceneId, scene.Id, StringComparison.OrdinalIgnoreCase))
+            {
+                StopSceneOwnedMediaBridge(previousActiveSceneId, "Previous scene media stopped");
+            }
+
             _activeSceneId = scene.Id;
             UpdateSceneActiveFlags();
             RefreshSceneListBinding();
 
-            if (scene.AutoStartLoopedSounds)
+            if (!scene.UsesMediaSource && scene.AutoStartLoopedSounds)
             {
                 _engine?.StopSound();
                 var loopedButton = scene.SoundButtons
@@ -7397,6 +7515,11 @@ public sealed partial class MainWindow : Window
                     PlaySceneSound(scene, loopedButton, loopedSound, true, "Scene looped sound");
                     AppendLog("Looped sound autostart requested. Scene looped sound started in loop mode.");
                 }
+            }
+
+            if (scene.UsesMediaSource && scene.CaptureMediaBridgeOnSceneStart)
+            {
+                _ = StartSceneMediaBridgeAsync(scene);
             }
 
             AppendLog($"Scene applied: {scene.Name}");
@@ -8720,6 +8843,317 @@ public sealed partial class MainWindow : Window
         AppendLog(shouldPause ? "Scene one-shot sounds paused." : "Scene one-shot sounds resumed.");
     }
 
+    private void OnSceneBackgroundTypeSelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (_loadingSceneUi || _selectedScene is null || SceneBackgroundTypeComboBox is null)
+        {
+            return;
+        }
+
+        _selectedScene.BackgroundSourceKind = SceneBackgroundTypeComboBox.SelectedIndex == 1
+            ? "MediaSource"
+            : "LoopedSound";
+        SaveSelectedSceneEditorChange(_selectedScene.UsesMediaSource
+            ? "Scene background changed to Media Source."
+            : "Scene background changed to Looped Sound.");
+        RefreshSceneBackgroundEditor();
+    }
+
+    private void OnSceneMediaProfileSelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (_loadingSceneUi || _selectedScene is null)
+        {
+            return;
+        }
+
+        var profile = SceneMediaProfileComboBox?.SelectedItem as MediaBridgeProfile;
+        _selectedScene.MediaBridgeProfileId = profile?.Id;
+        _selectedScene.MediaBridgeProfileName = profile?.DisplayName;
+        if (SceneMediaSourceNameTextBlock is not null)
+        {
+            SceneMediaSourceNameTextBlock.Text = profile is null
+                ? "No media source selected"
+                : string.IsNullOrWhiteSpace(profile.WindowTitleHint) ? profile.DisplayName : profile.WindowTitleHint;
+        }
+        SaveSelectedSceneEditorChange(profile is null
+            ? "Scene media profile cleared."
+            : $"Scene media profile selected: {profile.DisplayName}");
+        RefreshSceneMediaActionButtons();
+    }
+
+    private void OnSceneMediaVolumeChanged(object sender, RangeBaseValueChangedEventArgs e)
+    {
+        if (SceneMediaVirtualMicVolumeValueBox is not null)
+        {
+            SceneMediaVirtualMicVolumeValueBox.Text = $"{(int)Math.Round(e.NewValue * 100)}%";
+        }
+        if (_loadingSceneUi || _selectedScene is null)
+        {
+            return;
+        }
+
+        _selectedScene.MediaBridgeVirtualMicVolume = e.NewValue;
+        if (string.Equals(_sceneOwnedMediaBridgeSceneId, _selectedScene.Id, StringComparison.OrdinalIgnoreCase))
+        {
+            _engine?.UpdateMediaBridgeVolume((float)e.NewValue);
+        }
+        SaveSelectedSceneVolumeChange();
+    }
+
+    private void OnSceneCaptureMediaOnStartChanged(object sender, RoutedEventArgs e)
+    {
+        if (_loadingSceneUi || _selectedScene is null || SceneCaptureMediaOnStartCheckBox is null)
+        {
+            return;
+        }
+
+        _selectedScene.CaptureMediaBridgeOnSceneStart = SceneCaptureMediaOnStartCheckBox.IsChecked == true;
+        SaveSelectedSceneEditorChange(_selectedScene.CaptureMediaBridgeOnSceneStart
+            ? "Scene media autostart enabled."
+            : "Scene media autostart disabled.");
+    }
+
+    private void OnSceneMediaLaunchSourceClick(object sender, RoutedEventArgs e)
+    {
+        var profile = GetSelectedSceneMediaProfile();
+        if (profile is null)
+        {
+            AppendLog("Select a Media Bridge profile for this scene.");
+            return;
+        }
+
+        LaunchMediaBridgeProfile(profile);
+    }
+
+    private void OnSceneMediaStopBroadcastClick(object sender, RoutedEventArgs e)
+    {
+        StopMediaBridgeBroadcast(clearSelectedWindow: true, status: "Stopped", writeLog: true);
+        RefreshSceneMediaActionButtons();
+    }
+
+    private MediaBridgeProfile? GetSelectedSceneMediaProfile()
+    {
+        var profileId = _selectedScene?.MediaBridgeProfileId;
+        return string.IsNullOrWhiteSpace(profileId)
+            ? null
+            : _settings.MediaBridgeProfiles.FirstOrDefault(profile =>
+                string.Equals(profile.Id, profileId, StringComparison.OrdinalIgnoreCase));
+    }
+
+    private async Task StartSceneMediaBridgeAsync(VoiSeScene scene)
+    {
+        if (!IsSceneActiveForPlayback(scene))
+        {
+            return;
+        }
+
+        var profile = _settings.MediaBridgeProfiles.FirstOrDefault(item =>
+            string.Equals(item.Id, scene.MediaBridgeProfileId, StringComparison.OrdinalIgnoreCase));
+        if (profile is null)
+        {
+            AppendLog($"Scene media profile is missing: {scene.MediaBridgeProfileName ?? "unknown"}.");
+            return;
+        }
+
+        if (_engine?.IsMediaBridgeBroadcasting == true)
+        {
+            if (string.Equals(_sceneOwnedMediaBridgeSceneId, scene.Id, StringComparison.OrdinalIgnoreCase))
+            {
+                _engine.UpdateMediaBridgeVolume((float)scene.MediaBridgeVirtualMicVolume);
+            }
+            else
+            {
+                AppendLog("Scene did not replace the manually running Media Bridge broadcast.");
+            }
+            return;
+        }
+
+        var window = ResolveWindowForMediaBridgeProfile(profile);
+        if (window is null)
+        {
+            AppendLog($"Media source is not open: {profile.DisplayName}. Use Launch Source, then apply the scene again.");
+            return;
+        }
+
+        _mediaBridgeWindow = window;
+        _settings.MediaBridgeLastProfileId = profile.Id;
+        _settings.MediaBridgeLastProcessName = window.ProcessName;
+        _settings.MediaBridgeLastWindowTitle = window.WindowTitle;
+        _settingsStore.Save(_settings);
+        if (MediaBridgeVolumeSlider is not null)
+        {
+            MediaBridgeVolumeSlider.Value = Clamp(scene.MediaBridgeVirtualMicVolume, 0, 1.5);
+        }
+        UpdateMediaBridgeUiState("Ready");
+        await UpdateMediaBridgePreviewAsync();
+        var started = await StartMediaBridgeBroadcastAsync(scene.Id, scene.MediaBridgeVirtualMicVolume);
+        if (started)
+        {
+            AppendLog($"Scene media started: {scene.Name} → {profile.DisplayName}.");
+        }
+        RefreshSceneMediaActionButtons();
+    }
+
+    private void StopSceneOwnedMediaBridge(string? sceneId, string status)
+    {
+        if (string.IsNullOrWhiteSpace(sceneId) ||
+            !string.Equals(_sceneOwnedMediaBridgeSceneId, sceneId, StringComparison.OrdinalIgnoreCase))
+        {
+            return;
+        }
+
+        StopMediaBridgeBroadcast(clearSelectedWindow: true, status: status, writeLog: true);
+    }
+
+    private void MigrateLegacyMediaBridgeProfile()
+    {
+        if (_settings.MediaBridgeProfiles.Count != 0 ||
+            string.IsNullOrWhiteSpace(_settings.MediaBridgeLastProcessName))
+        {
+            return;
+        }
+
+        var processName = _settings.MediaBridgeLastProcessName;
+        var windowTitle = _settings.MediaBridgeLastWindowTitle ?? processName;
+        var profile = new MediaBridgeProfile
+        {
+            DisplayName = GetMediaProfileDisplayName(processName, windowTitle),
+            ProcessName = processName,
+            WindowTitleHint = windowTitle,
+            BrowserFallbackUrl = GetDefaultMediaFallbackUrl(processName, windowTitle),
+            UpdatedAtUtc = DateTime.UtcNow
+        };
+        _settings.MediaBridgeProfiles.Add(profile);
+        _settings.MediaBridgeLastProfileId = profile.Id;
+    }
+
+    private MediaBridgeProfile UpsertMediaBridgeProfile(CapturableWindowInfo window)
+    {
+        _settings.MediaBridgeProfiles ??= new List<MediaBridgeProfile>();
+        var fallback = GetDefaultMediaFallbackUrl(window.ProcessName, window.WindowTitle);
+        var existing = _settings.MediaBridgeProfiles.FirstOrDefault(profile =>
+            string.Equals(profile.ProcessName, window.ProcessName, StringComparison.OrdinalIgnoreCase) &&
+            string.Equals(profile.BrowserFallbackUrl ?? string.Empty, fallback ?? string.Empty, StringComparison.OrdinalIgnoreCase));
+
+        if (existing is null)
+        {
+            existing = new MediaBridgeProfile();
+            _settings.MediaBridgeProfiles.Add(existing);
+        }
+
+        existing.DisplayName = GetMediaProfileDisplayName(window.ProcessName, window.WindowTitle);
+        existing.ProcessName = window.ProcessName;
+        existing.ExecutablePath = window.ExecutablePath;
+        existing.WindowTitleHint = window.WindowTitle;
+        existing.BrowserFallbackUrl = fallback;
+        existing.UpdatedAtUtc = DateTime.UtcNow;
+        return existing;
+    }
+
+    private CapturableWindowInfo? ResolveWindowForMediaBridgeProfile(MediaBridgeProfile profile)
+    {
+        IReadOnlyList<CapturableWindowInfo> windows;
+        try
+        {
+            windows = _windowCaptureService.EnumerateCapturableWindows();
+        }
+        catch
+        {
+            return null;
+        }
+
+        var processMatches = windows.Where(window =>
+            string.Equals(window.ProcessName, profile.ProcessName, StringComparison.OrdinalIgnoreCase)).ToList();
+        if (processMatches.Count == 0)
+        {
+            return null;
+        }
+
+        var serviceToken = GetMediaServiceToken(profile);
+        if (!string.IsNullOrWhiteSpace(serviceToken))
+        {
+            var serviceMatch = processMatches.FirstOrDefault(window =>
+                window.WindowTitle.Contains(serviceToken, StringComparison.CurrentCultureIgnoreCase));
+            if (serviceMatch is not null)
+            {
+                return serviceMatch;
+            }
+        }
+
+        var exactTitle = processMatches.FirstOrDefault(window =>
+            string.Equals(window.WindowTitle, profile.WindowTitleHint, StringComparison.CurrentCultureIgnoreCase));
+        return exactTitle ?? processMatches.First();
+    }
+
+    private void LaunchMediaBridgeProfile(MediaBridgeProfile profile)
+    {
+        try
+        {
+            var browserProfile = IsBrowserProcess(profile.ProcessName);
+            if (!browserProfile && !string.IsNullOrWhiteSpace(profile.ExecutablePath) && File.Exists(profile.ExecutablePath))
+            {
+                Process.Start(new ProcessStartInfo { FileName = profile.ExecutablePath, UseShellExecute = true });
+                AppendLog($"Media source launched: {profile.DisplayName}.");
+                return;
+            }
+
+            if (!string.IsNullOrWhiteSpace(profile.BrowserFallbackUrl))
+            {
+                Process.Start(new ProcessStartInfo { FileName = profile.BrowserFallbackUrl, UseShellExecute = true });
+                AppendLog($"Media source opened in browser: {profile.DisplayName}.");
+                return;
+            }
+
+            if (!string.IsNullOrWhiteSpace(profile.ExecutablePath) && File.Exists(profile.ExecutablePath))
+            {
+                Process.Start(new ProcessStartInfo { FileName = profile.ExecutablePath, UseShellExecute = true });
+                AppendLog($"Media source launched: {profile.DisplayName}.");
+                return;
+            }
+
+            AppendLog($"Media source cannot be launched: {profile.DisplayName}.");
+        }
+        catch (Exception ex)
+        {
+            AppendLog($"Launch media source error: {ex.Message}");
+        }
+    }
+
+    private static string GetMediaProfileDisplayName(string processName, string windowTitle)
+    {
+        var combined = $"{processName} {windowTitle}";
+        if (combined.Contains("yandex", StringComparison.OrdinalIgnoreCase) || combined.Contains("яндекс", StringComparison.CurrentCultureIgnoreCase)) return "Yandex Music";
+        if (combined.Contains("spotify", StringComparison.OrdinalIgnoreCase)) return "Spotify";
+        if (combined.Contains("youtube", StringComparison.OrdinalIgnoreCase)) return "YouTube";
+        return string.IsNullOrWhiteSpace(windowTitle) ? processName : windowTitle;
+    }
+
+    private static string? GetDefaultMediaFallbackUrl(string processName, string windowTitle)
+    {
+        var combined = $"{processName} {windowTitle}";
+        if (combined.Contains("yandex", StringComparison.OrdinalIgnoreCase) || combined.Contains("яндекс", StringComparison.CurrentCultureIgnoreCase)) return "https://music.yandex.ru/";
+        if (combined.Contains("spotify", StringComparison.OrdinalIgnoreCase)) return "https://open.spotify.com/";
+        if (combined.Contains("youtube", StringComparison.OrdinalIgnoreCase)) return "https://www.youtube.com/";
+        return null;
+    }
+
+    private static bool IsBrowserProcess(string processName)
+    {
+        return processName.Equals("chrome", StringComparison.OrdinalIgnoreCase) ||
+               processName.Equals("msedge", StringComparison.OrdinalIgnoreCase) ||
+               processName.Equals("firefox", StringComparison.OrdinalIgnoreCase) ||
+               processName.Equals("opera", StringComparison.OrdinalIgnoreCase) ||
+               processName.Equals("brave", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static string? GetMediaServiceToken(MediaBridgeProfile profile)
+    {
+        if (string.Equals(profile.DisplayName, "Yandex Music", StringComparison.OrdinalIgnoreCase)) return "Yandex";
+        if (string.Equals(profile.DisplayName, "Spotify", StringComparison.OrdinalIgnoreCase)) return "Spotify";
+        if (string.Equals(profile.DisplayName, "YouTube", StringComparison.OrdinalIgnoreCase)) return "YouTube";
+        return null;
+    }
+
     private void OnSceneVoicePresetSelectionChanged(object sender, SelectionChangedEventArgs e)
     {
         if (_loadingSceneUi || _selectedScene is null)
@@ -9783,6 +10217,11 @@ public sealed partial class MainWindow : Window
             SceneLoopVirtualMicVolumeValueBox.Text = $"{(int)Math.Round(SceneLoopVirtualMicVolumeSlider.Value * 100)}%";
         }
 
+        if (SceneMediaVirtualMicVolumeValueBox is not null && SceneMediaVirtualMicVolumeSlider is not null)
+        {
+            SceneMediaVirtualMicVolumeValueBox.Text = $"{(int)Math.Round(SceneMediaVirtualMicVolumeSlider.Value * 100)}%";
+        }
+
     }
 
     private void UpdateOutputVolumeLabels()
@@ -9892,7 +10331,7 @@ public sealed partial class MainWindow : Window
     {
         if (_loadingSettings) return;
 
-        _settings.SchemaVersion = 6;
+        _settings.SchemaVersion = 7;
 
         var input = InputDeviceComboBox?.SelectedItem as AudioDeviceInfo;
         var virtualOutput = VirtualOutputComboBox?.SelectedItem as AudioDeviceInfo;

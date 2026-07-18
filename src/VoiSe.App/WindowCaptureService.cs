@@ -46,6 +46,7 @@ internal sealed class WindowCaptureService
                     Handle = handle,
                     ProcessId = (int)processId,
                     ProcessName = process.ProcessName,
+                    ExecutablePath = TryGetExecutablePath(process),
                     WindowTitle = title.Trim()
                 });
             }
@@ -148,6 +149,19 @@ internal sealed class WindowCaptureService
             DeleteObject(bitmapHandle);
             DeleteDC(memoryDc);
             ReleaseDC(window.Handle, windowDc);
+        }
+    }
+
+
+    private static string? TryGetExecutablePath(Process process)
+    {
+        try
+        {
+            return process.MainModule?.FileName;
+        }
+        catch
+        {
+            return null;
         }
     }
 

@@ -1,4 +1,4 @@
-# VoiSee 11.0.5
+# VoiSee 11.2.0
 
 VoiSee is a WinUI 3 application for real-time voice processing, SoundBoard playback into a virtual microphone, scenes, presets, global hotkeys, themes, and non-destructive sound editing.
 
@@ -7,6 +7,12 @@ VoiSee is a WinUI 3 application for real-time voice processing, SoundBoard playb
 VoiSee 11 introduces **Media Bridge**: select an application window, preview it, and mix that process audio into the virtual microphone without adding a duplicate headphone monitor. The first core stage includes one selected source, Start/Pause/Resume/Stop, source duration and level, a dedicated virtual-mic volume, saved descriptive profile data, and a global Pause/Resume hotkey. Media Bridge does not reconnect automatically after VoiSee restarts.
 
 Media Bridge is provider-independent: Yandex Music is the first target scenario, while the same process-capture route can be used with other desktop media applications and browsers. The SoundBoard toolbar remains limited to `Add Track` and `Delete Track`; sound editing stays in the track context menu.
+
+## VoiSee 11.2 — Scene Media Backgrounds
+
+Scenes can now choose either `Looped Sound` or `Media Source` as their background. A Media Source uses a profile created when a window is selected on the Media Bridge tab. The scene editor hides the headphone control, keeps a dedicated virtual-microphone volume, provides `Launch Source` and `Stop Broadcast`, and can start capture when the scene is applied. Scene-owned capture stops with the scene; a Media Bridge broadcast that was already running manually is never replaced or stopped by scene deactivation.
+
+Known service profiles provide browser fallback for Yandex Music, Spotify, and YouTube. VoiSee stores descriptive profile data, never a PID or HWND.
 
 ## Sound Editor highlights
 
@@ -78,13 +84,13 @@ Set-ExecutionPolicy -Scope Process Bypass
 Expected installer:
 
 ```text
-artifacts\installer\VoiSee-Setup-11.0.5-x64.exe
+artifacts\installer\VoiSee-Setup-11.2.0-x64.exe
 ```
 
 Portable build:
 
 ```text
-artifacts\installer\VoiSee-Portable-11.0.5-x64.zip
+artifacts\installer\VoiSee-Portable-11.2.0-x64.zip
 ```
 
 ## Native XAML themes (VoiSee 10.1)

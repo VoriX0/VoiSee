@@ -47,6 +47,7 @@ public sealed class SceneStore
                 MigrateLegacySceneSounds(scene);
                 EnforceSingleLoopedSound(scene);
                 NormalizeSceneSoundVolumes(scene);
+                NormalizeSceneBackground(scene);
                 scene.FilePath = file;
                 scenes.Add(scene);
             }
@@ -112,7 +113,7 @@ public sealed class SceneStore
 
     private static void PrepareSceneForSave(VoiSeScene scene)
     {
-        scene.SchemaVersion = Math.Max(7, scene.SchemaVersion);
+        scene.SchemaVersion = Math.Max(9, scene.SchemaVersion);
         scene.Id = string.IsNullOrWhiteSpace(scene.Id) ? Guid.NewGuid().ToString("N") : scene.Id;
         scene.Icon = string.IsNullOrWhiteSpace(scene.Icon) ? "🎬" : scene.Icon;
         scene.VoiceSliders ??= new Dictionary<string, double>();
@@ -121,6 +122,7 @@ public sealed class SceneStore
         MigrateLegacySceneSounds(scene);
         EnforceSingleLoopedSound(scene);
         NormalizeSceneSoundVolumes(scene);
+        NormalizeSceneBackground(scene);
         scene.CreatedAtUtc = scene.CreatedAtUtc == default ? DateTime.UtcNow : scene.CreatedAtUtc;
         scene.UpdatedAtUtc = DateTime.UtcNow;
     }
@@ -170,6 +172,7 @@ public sealed class SceneStore
         scene.LoopedSoundVirtualMicVolume = NormalizeVolume(scene.LoopedSoundVirtualMicVolume);
         scene.SceneButtonsHeadphonesVolume = NormalizeVolume(scene.SceneButtonsHeadphonesVolume);
         scene.SceneButtonsVirtualMicVolume = NormalizeVolume(scene.SceneButtonsVirtualMicVolume);
+        scene.MediaBridgeVirtualMicVolume = NormalizeVolume(scene.MediaBridgeVirtualMicVolume);
 
         foreach (var button in scene.SoundButtons)
         {
@@ -188,6 +191,22 @@ public sealed class SceneStore
         return Math.Max(0.0, Math.Min(1.5, value));
     }
 
+    private static void NormalizeSceneBackground(VoiSeScene scene)
+    {
+        scene.BackgroundSourceKind = string.Equals(scene.BackgroundSourceKind, "MediaSource", StringComparison.OrdinalIgnoreCase)
+            ? "MediaSource"
+            : "LoopedSound";
+
+        if (string.IsNullOrWhiteSpace(scene.MediaBridgeProfileId))
+        {
+            scene.MediaBridgeProfileId = null;
+        }
+
+        if (string.IsNullOrWhiteSpace(scene.MediaBridgeProfileName))
+        {
+            scene.MediaBridgeProfileName = null;
+        }
+    }
 
     private static void EnforceSingleLoopedSound(VoiSeScene scene)
     {

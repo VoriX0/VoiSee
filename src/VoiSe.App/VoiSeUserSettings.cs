@@ -1,3 +1,5 @@
+using System.Collections.Generic;
+
 namespace VoiSe.App;
 
 public sealed class VoiSeUserSettings
@@ -67,6 +69,8 @@ public sealed class VoiSeUserSettings
     // and capture never reconnects automatically after application restart.
     public string? MediaBridgeLastProcessName { get; set; }
     public string? MediaBridgeLastWindowTitle { get; set; }
+    public string? MediaBridgeLastProfileId { get; set; }
+    public List<MediaBridgeProfile> MediaBridgeProfiles { get; set; } = new();
     public double MediaBridgeVirtualMicVolume { get; set; } = 1.0;
     public string? MediaBridgePauseHotkey { get; set; }
 
