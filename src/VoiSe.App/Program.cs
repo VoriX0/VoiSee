@@ -4,6 +4,7 @@ using System;
 using System.Linq;
 using System.Threading;
 using WinRT;
+using VoiSe.Audio;
 
 namespace VoiSe.App;
 
@@ -15,6 +16,12 @@ public static class Program
     [STAThread]
     public static void Main(string[] args)
     {
+        if (VirtualMicOutputHost.TryRun(args, out var hostExitCode))
+        {
+            Environment.ExitCode = hostExitCode;
+            return;
+        }
+
         try
         {
             StartupLog.Write("Program.Main started.");

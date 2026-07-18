@@ -1,4 +1,4 @@
-using Microsoft.UI.Windowing;
+﻿using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Controls.Primitives;
@@ -206,7 +206,7 @@ public sealed partial class MainWindow : Window
         _mediaBridgeUiTimer.Tick += OnMediaBridgeUiTimerTick;
         _mediaBridgeUiTimer.Start();
 
-        AppendLog("VoiSee Version 11.2.5 UI started.");
+        AppendLog("VoiSee Version 11.2.6 UI started.");
         AppendLog($"Settings path: {_settingsStore.SettingsPath}");
         StartupLog.Write("MainWindow initialized; waiting for first activation.");
     }
@@ -6301,6 +6301,9 @@ public sealed partial class MainWindow : Window
             EngineStatusTextBlock.Text = "Running";
             AppendLog($"Engine started. Input: {input.FriendlyName}");
             AppendLog($"Virtual output: {virtualOutput.FriendlyName}");
+            AppendLog(_engine.VirtualMicHostProcessId is int virtualMicHostPid
+                ? $"Virtual output isolation: detached host PID {virtualMicHostPid}."
+                : "Virtual output isolation: detached host started.");
             AppendLog($"Monitor: {(monitor is null ? "disabled" : monitor.FriendlyName)}");
             AppendLog($"Voice monitor route: {(_engine.VoiceMonitorRouteEnabled ? "connected" : "hard disconnected")}");
             WarmSoundCacheInBackground();

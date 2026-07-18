@@ -18,7 +18,7 @@ public sealed class Gate2UnifiedAudioEngine : IDisposable
     private readonly MediaBridgeTransport _mediaBridge;
 
     private WasapiCapture? _capture;
-    private WasapiOut? _virtualOutput;
+    private IsolatedVirtualMicOutput? _isolatedVirtualOutput;
     private WasapiOut? _monitorOutput;
     private SimpleVoiceProcessor? _processor;
     private RouteMixSampleProvider? _virtualProvider;
@@ -65,6 +65,10 @@ public sealed class Gate2UnifiedAudioEngine : IDisposable
         }
     }
 
+    public bool VirtualMicOutputIsolated => _isolatedVirtualOutput is not null;
+    public int? VirtualMicHostProcessId => _isolatedVirtualOutput?.HostProcessId;
+    public string? VirtualMicHostError => _isolatedVirtualOutput?.LastError;
+
     public void Start()
     {
         _capture = new WasapiCapture(_inputDevice, true, 20);
@@ -94,9 +98,11 @@ public sealed class Gate2UnifiedAudioEngine : IDisposable
             _settings);
         _virtualProvider.SetVirtualMicMuted(_virtualMicMuted);
 
-        _virtualOutput = new WasapiOut(_virtualOutputDevice, AudioClientShareMode.Shared, true, 50);
-        _virtualOutput.Init(new SampleToWaveProvider(_virtualProvider));
-        _virtualOutput.Play();
+        // The virtual microphone render session lives in a detached helper process.
+        // This keeps VB-CABLE audio outside the VoiSee UI process tree so an
+        // application-window screen share cannot capture it as VoiSee app audio.
+        _isolatedVirtualOutput = new IsolatedVirtualMicOutput(_virtualProvider, _virtualOutputDevice.ID);
+        _isolatedVirtualOutput.Start();
 
         if (_monitorDevice is not null)
         {
@@ -268,7 +274,7 @@ public sealed class Gate2UnifiedAudioEngine : IDisposable
         StopMediaBridge();
         _soundboard.Stop();
         _capture?.StopRecording();
-        _virtualOutput?.Stop();
+        _isolatedVirtualOutput?.Stop();
         _monitorOutput?.Stop();
         _virtualMicQueue.Clear();
         _monitorMicQueue.Clear();
@@ -319,7 +325,7 @@ public sealed class Gate2UnifiedAudioEngine : IDisposable
 
         Stop();
         _capture?.Dispose();
-        _virtualOutput?.Dispose();
+        _isolatedVirtualOutput?.Dispose();
         _monitorOutput?.Dispose();
         _disposed = true;
     }

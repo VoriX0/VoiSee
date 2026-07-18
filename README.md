@@ -1,19 +1,17 @@
-# VoiSee 11.2.5
+# VoiSee 11.2.6
 
-## VoiSee 11.2.5
+## VoiSee 11.2.6 — Isolated Virtual Mic Output
 
-- Restores hard Voice Monitor route disconnect from the pre-11.2.4 behavior.
-- Keeps the full-width SoundBoard Create / Rename / Delete category buttons.
-- Does not include a speculative screen-share audio fix.
-
+- Moves the VB-CABLE render session out of the VoiSee UI process.
+- Starts a hidden detached helper process with Windows Explorer as its explicit parent.
+- Sends the final 48 kHz stereo virtual-microphone mix to that helper through a per-session named pipe.
+- Keeps the restored hard Voice Monitor route disconnect and the full-width SoundBoard category buttons.
 
 VoiSee is a WinUI 3 application for real-time voice processing, SoundBoard playback into a virtual microphone, scenes, presets, global hotkeys, themes, and non-destructive sound editing.
 
-## VoiSee 11.2.5 — Screen-share voice monitor isolation
+This build is a diagnostic attempt to eliminate a reported screen-sharing path where Discord may capture the VoiSee virtual-output render session as application audio. The UI process no longer opens the VB-CABLE `WasapiOut` stream. The detached host owns that render stream instead, while microphone processing, Voice Changer, SoundBoard, scenes, Media Bridge controls, and the physical headphone monitor remain in the main application.
 
-When Voice Monitor is Off, processed microphone samples are now hard-disconnected from the physical monitor route instead of merely being multiplied by zero in the final monitor mixer. The monitor microphone queue is cleared immediately when monitoring is disabled. SoundBoard-to-headphones monitoring remains independent. Diagnostic logs report either `Voice monitor route: connected` or `Voice monitor route: hard disconnected`.
-
-This build targets the reported case where sharing the VoiSee window with application audio can add a second processed voice copy. It does not change the virtual microphone, SoundBoard, scenes, or Media Bridge routes.
+The engine log reports `Virtual output isolation: detached host PID ...` after a successful start. The hidden host writes diagnostic entries to `%LOCALAPPDATA%\VoiSe\virtual-mic-host.log`.
 
 ## VoiSee 11.0.0 — Media Bridge Core
 
@@ -97,13 +95,13 @@ Set-ExecutionPolicy -Scope Process Bypass
 Expected installer:
 
 ```text
-artifacts\installer\VoiSee-Setup-11.2.5-x64.exe
+artifacts\installer\VoiSee-Setup-11.2.6-x64.exe
 ```
 
 Portable build:
 
 ```text
-artifacts\installer\VoiSee-Portable-11.2.5-x64.zip
+artifacts\installer\VoiSee-Portable-11.2.6-x64.zip
 ```
 
 ## Native XAML themes (VoiSee 10.1)
