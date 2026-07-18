@@ -1,4 +1,4 @@
-﻿using NAudio.CoreAudioApi;
+using NAudio.CoreAudioApi;
 using NAudio.Wave;
 using NAudio.Wave.SampleProviders;
 
@@ -26,8 +26,6 @@ public sealed class Gate2UnifiedAudioEngine : IDisposable
     private ProcessLoopbackCapture? _mediaBridgeCapture;
     private string? _mediaBridgeError;
     private bool _virtualMicMuted;
-    private readonly object _voiceMonitorRouteSync = new();
-    private bool _voiceMonitorRouteEnabled;
     private bool _disposed;
 
     public Gate2UnifiedAudioEngine(
@@ -40,7 +38,6 @@ public sealed class Gate2UnifiedAudioEngine : IDisposable
         _virtualOutputDevice = virtualOutputDevice;
         _monitorDevice = monitorDevice;
         _settings = settings;
-        _voiceMonitorRouteEnabled = settings.VoiceMonitorGain > 0.0001f;
         _mixFormat = WaveFormat.CreateIeeeFloatWaveFormat(48_000, 2);
 
         // Keep up to ~2 seconds of microphone route audio. If an output route falls behind,
@@ -53,17 +50,6 @@ public sealed class Gate2UnifiedAudioEngine : IDisposable
     }
 
     public WaveFormat MixFormat => _mixFormat;
-
-    public bool VoiceMonitorRouteEnabled
-    {
-        get
-        {
-            lock (_voiceMonitorRouteSync)
-            {
-                return _voiceMonitorRouteEnabled;
-            }
-        }
-    }
 
     public void Start()
     {
@@ -221,30 +207,9 @@ public sealed class Gate2UnifiedAudioEngine : IDisposable
     public void UpdateEffectSettings(EffectSettings settings)
     {
         _settings = settings;
-        SetVoiceMonitorEnabled(settings.VoiceMonitorGain > 0.0001f);
         _processor?.UpdateSettings(settings);
         _virtualProvider?.UpdateSettings(settings);
         _monitorProvider?.UpdateSettings(settings);
-    }
-
-    /// <summary>
-    /// Hard-connects or disconnects processed microphone audio from the physical
-    /// monitor route. When disabled, processed voice samples are not queued for
-    /// the monitor output at all. VoiceMonitorGain remains a second safety layer.
-    /// SoundBoard monitoring stays independent.
-    /// </summary>
-    public void SetVoiceMonitorEnabled(bool enabled)
-    {
-        lock (_voiceMonitorRouteSync)
-        {
-            if (_voiceMonitorRouteEnabled == enabled)
-            {
-                return;
-            }
-
-            _voiceMonitorRouteEnabled = enabled;
-            _monitorMicQueue.Clear();
-        }
     }
 
     public void UpdateSoundVolumes(float virtualVolume, float monitorVolume, string? playbackKey = null)
@@ -291,18 +256,7 @@ public sealed class Gate2UnifiedAudioEngine : IDisposable
 
             _processor.ProcessInPlace(targetSamples);
             _virtualMicQueue.Add(targetSamples);
-
-            // Voice Monitor Off is a hard route disconnect, not only a zero gain.
-            // This prevents processed microphone audio and stale queued samples
-            // from reaching a physical render session that an application screen
-            // share may capture. SoundBoard monitoring uses its own route.
-            lock (_voiceMonitorRouteSync)
-            {
-                if (_voiceMonitorRouteEnabled)
-                {
-                    _monitorMicQueue.Add(targetSamples);
-                }
-            }
+            _monitorMicQueue.Add(targetSamples);
         }
         catch (NotSupportedException ex)
         {
