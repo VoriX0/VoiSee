@@ -13,10 +13,12 @@
     <EnableMsixTooling>true</EnableMsixTooling>
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>
     <ApplicationIcon>Assets\AppIcon.ico</ApplicationIcon>
-    <Version>12.0.1</Version>
-    <AssemblyVersion>12.0.1.0</AssemblyVersion>
-    <FileVersion>12.0.1.0</FileVersion>
-    <InformationalVersion>12.0.1</InformationalVersion>
+    <Version>12.1.0</Version>
+    <AssemblyVersion>12.1.0.0</AssemblyVersion>
+    <FileVersion>12.1.0.0</FileVersion>
+    <InformationalVersion>12.1.0</InformationalVersion>
+    <DeepFilterNetNativePath>$(MSBuildProjectDirectory)\..\VoiSe.Audio\runtimes\win-x64\native\deep_filter_ladspa.dll</DeepFilterNetNativePath>
+    <DeepFilterNetFetchScript>$(MSBuildProjectDirectory)\..\..\scripts\fetch-deepfilternet.ps1</DeepFilterNetFetchScript>
   </PropertyGroup>
   <ItemGroup>
     <!-- User-generated data must never be published or packed into the installer.
@@ -41,10 +43,13 @@
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
     </Content>
-    <Content Include="ThirdPartyLicenses\**\*">
+    <!-- License texts are ordinary copied files, not PRI resources. Keeping them
+         as None prevents Windows App SDK from parsing filename fragments such
+         as NET-MIT as resource qualifiers (PRI249). -->
+    <None Update="ThirdPartyLicenses\**\*">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
-    </Content>
+    </None>
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\VoiSe.Audio\VoiSe.Audio.csproj" />
@@ -52,4 +57,28 @@
   <ItemGroup>
     <Manifest Include="$(ApplicationManifest)" />
   </ItemGroup>
+  <Target Name="FetchDeepFilterNetNative"
+          BeforeTargets="PrepareForBuild"
+          Condition="'$(OS)' == 'Windows_NT'">
+    <Exec Command="powershell.exe -NoProfile -ExecutionPolicy Bypass -File &quot;$(DeepFilterNetFetchScript)&quot; -DestinationPath &quot;$(DeepFilterNetNativePath)&quot;" />
+  </Target>
+
+  <Target Name="CopyDeepFilterNetNativeToOutput"
+          AfterTargets="Build"
+          DependsOnTargets="FetchDeepFilterNetNative"
+          Condition="Exists('$(DeepFilterNetNativePath)')">
+    <Copy SourceFiles="$(DeepFilterNetNativePath)"
+          DestinationFiles="$(TargetDir)deep_filter_ladspa.dll"
+          SkipUnchangedFiles="true" />
+  </Target>
+
+  <Target Name="CopyDeepFilterNetNativeToPublish"
+          AfterTargets="Publish"
+          DependsOnTargets="FetchDeepFilterNetNative"
+          Condition="Exists('$(DeepFilterNetNativePath)')">
+    <Copy SourceFiles="$(DeepFilterNetNativePath)"
+          DestinationFiles="$(PublishDir)deep_filter_ladspa.dll"
+          SkipUnchangedFiles="true" />
+  </Target>
+
 </Project>

@@ -4,7 +4,7 @@ namespace VoiSe.App;
 
 public sealed class VoiSeUserSettings
 {
-    public int SchemaVersion { get; set; } = 9;
+    public int SchemaVersion { get; set; } = 10;
 
     public string? InputDeviceId { get; set; }
     public string? InputDeviceName { get; set; }
@@ -24,13 +24,12 @@ public sealed class VoiSeUserSettings
     public double SoundBoardHeadphonesVolume { get; set; } = 1.0;
     public double SoundBoardVirtualMicDelayMs { get; set; } = 85.0;
 
-    // VoiSee 12 voice cleanup. This setting is global and independent from voice presets.
+    // VoiSee 12.1 microphone cleanup. Global and independent from voice presets.
+    // Null means an older settings file; NoiseSuppressionEnabled is kept only
+    // to migrate VoiSee 12.0 users to RNNoise without losing their preference.
+    public string? NoiseSuppressionMode { get; set; }
     public bool NoiseSuppressionEnabled { get; set; } = false;
     public double NoiseSuppressionStrength { get; set; } = 70.0;
-
-    // VoiSee 12.0.1 low-frequency cleanup. Global and independent from voice presets.
-    public bool RumbleFilterEnabled { get; set; } = false;
-    public double RumbleFilterCutoffHz { get; set; } = 90.0;
 
     // Legacy dB values are kept for backward compatibility with Gate 4/5 settings files.
     public double VoiceGainDb { get; set; } = 0.0;

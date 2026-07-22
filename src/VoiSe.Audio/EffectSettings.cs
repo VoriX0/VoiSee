@@ -2,13 +2,10 @@ namespace VoiSe.Audio;
 
 public sealed class EffectSettings
 {
-    // VoiSee 12 voice cleanup. RNNoise runs before gate, compressor and voice effects.
-    public bool NoiseSuppressionEnabled { get; set; } = false;
+    // VoiSee 12.1 global microphone cleanup. The selected engine runs before
+    // gate, compressor and the preset-controlled voice effects.
+    public NoiseSuppressionMode NoiseSuppressionMode { get; set; } = NoiseSuppressionMode.Off;
     public float NoiseSuppressionStrength { get; set; } = 0.70f;
-
-    // Global microphone-only high-pass cleanup before RNNoise and voice effects.
-    public bool RumbleFilterEnabled { get; set; } = false;
-    public float RumbleFilterCutoffHz { get; set; } = 90.0f;
 
     public float InputGainDb { get; set; } = 0.0f;
     public bool GateEnabled { get; set; } = true;

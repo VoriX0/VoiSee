@@ -1,25 +1,25 @@
-# VoiSee 12.0.1
+# VoiSee 12.1.0
 
-## VoiSee 12.0.1 — RNNoise + low-frequency cleanup
+## VoiSee 12.1.0 — Dual noise suppression
 
-- Adds real-time RNNoise suppression to the Voice Changer microphone path.
-- Keeps the first user-facing control set intentionally small: `On / Off` and `Strength` from 0 to 100%.
-- Runs before the existing gate, compressor, pitch, formant, EQ-style tone controls and entertainment effects.
-- Processes microphone audio only; SoundBoard, scene sounds and Media Bridge audio remain untouched.
-- Stores noise suppression as a global microphone-cleanup setting rather than inside individual voice presets.
-- Starts disabled by default with a saved default strength of 70%.
-- Uses 480-sample RNNoise frames at 48 kHz and adds approximately 10 ms of processing latency while enabled.
+- Keeps the validated RNNoise microphone cleanup introduced in VoiSee 12.0.0.
+- Adds **DeepFilterNet** as a second real-time 48 kHz noise-suppression engine.
+- Replaces separate cleanup cards with one compact engine selector and one Strength slider.
+- Splits the Voice Changer page into three clear sections: **Noise suppression**, **Effects**, and **Presets**.
+- Keeps noise suppression global and independent from voice-effect presets.
+- Processes only physical microphone audio; SoundBoard, scene sounds, and Media Bridge audio remain untouched.
+- Removes the experimental Low-frequency cleanup from VoiSee 12.0.1.
 - Keeps the validated Discord screen-share isolation introduced in VoiSee 11.3.0.
 
-The first VoiSee 12 stage intentionally focuses only on stable voice cleanup. The planned draggable effect-chain panels are not included yet; their interaction model will be designed separately before additional effects are added.
+Available cleanup modes:
 
-### New in 12.0.1
+- `Off` — no neural noise suppression;
+- `RNNoise` — lightweight low-latency cleanup;
+- `DeepFilterNet` — full-band neural speech enhancement with higher CPU use and latency.
 
-- Added a global microphone-only **Low-frequency cleanup** stage.
-- One simple control: cutoff from 50 to 160 Hz, default 90 Hz.
-- Runs before RNNoise, gate/compressor and voice effects.
-- No additional native dependency and no added buffering latency.
+The first Windows build downloads the official DeepFilterNet 0.5.6 x64 LADSPA library through `scripts\fetch-deepfilternet.ps1` and places it in the application output. The installer build includes the downloaded library automatically.
 
+License texts are copied as ordinary files instead of Windows PRI resources. This also removes the `PRI249 ... Invalid qualifier: NET-MIT` warning caused by the previous license filename/resource treatment.
 
 ## VoiSee 11.3.0 — Discord screen-share voice isolation
 
@@ -117,13 +117,13 @@ Set-ExecutionPolicy -Scope Process Bypass
 Expected installer:
 
 ```text
-artifacts\installer\VoiSee-Setup-12.0.1-x64.exe
+artifacts\installer\VoiSee-Setup-12.1.0-x64.exe
 ```
 
 Portable build:
 
 ```text
-artifacts\installer\VoiSee-Portable-12.0.1-x64.zip
+artifacts\installer\VoiSee-Portable-12.1.0-x64.zip
 ```
 
 ## Native XAML themes (VoiSee 10.1)

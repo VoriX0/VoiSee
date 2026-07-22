@@ -21,8 +21,8 @@ public sealed class Gate2UnifiedAudioEngine : IDisposable
     private WasapiOut? _virtualOutput;
     private WasapiOut? _monitorOutput;
     private SimpleVoiceProcessor? _processor;
-    private HighPassCleanupProcessor? _highPassCleanup;
-    private RnNoiseSuppressionProcessor? _noiseSuppressor;
+    private RnNoiseSuppressionProcessor? _rnNoiseSuppressor;
+    private DeepFilterNetSuppressionProcessor? _deepFilterNetSuppressor;
     private RouteMixSampleProvider? _virtualProvider;
     private RouteMixSampleProvider? _monitorProvider;
     private ProcessLoopbackCapture? _mediaBridgeCapture;
@@ -56,8 +56,26 @@ public sealed class Gate2UnifiedAudioEngine : IDisposable
 
     public WaveFormat MixFormat => _mixFormat;
 
-    public bool NoiseSuppressionAvailable => _noiseSuppressor?.IsAvailable ?? true;
-    public string? NoiseSuppressionError => _noiseSuppressor?.InitializationError;
+    public bool NoiseSuppressionAvailable => _settings.NoiseSuppressionMode switch
+    {
+        NoiseSuppressionMode.RnNoise => _rnNoiseSuppressor?.IsAvailable ?? false,
+        NoiseSuppressionMode.DeepFilterNet => _deepFilterNetSuppressor?.IsAvailable ?? false,
+        _ => true,
+    };
+
+    public string? NoiseSuppressionError => _settings.NoiseSuppressionMode switch
+    {
+        NoiseSuppressionMode.RnNoise => _rnNoiseSuppressor?.InitializationError,
+        NoiseSuppressionMode.DeepFilterNet => _deepFilterNetSuppressor?.InitializationError,
+        _ => null,
+    };
+
+    public string ActiveNoiseSuppressionName => _settings.NoiseSuppressionMode switch
+    {
+        NoiseSuppressionMode.RnNoise => "RNNoise",
+        NoiseSuppressionMode.DeepFilterNet => "DeepFilterNet",
+        _ => "Off",
+    };
 
     public bool VoiceMonitorRouteEnabled
     {
@@ -88,11 +106,11 @@ public sealed class Gate2UnifiedAudioEngine : IDisposable
             Console.WriteLine("Gate 2 expects IEEE float 32-bit or PCM 16-bit capture format.");
         }
 
-        _highPassCleanup = new HighPassCleanupProcessor(
-            _settings.RumbleFilterEnabled,
-            _settings.RumbleFilterCutoffHz);
-        _noiseSuppressor = new RnNoiseSuppressionProcessor(
-            _settings.NoiseSuppressionEnabled,
+        _rnNoiseSuppressor = new RnNoiseSuppressionProcessor(
+            _settings.NoiseSuppressionMode == NoiseSuppressionMode.RnNoise,
+            _settings.NoiseSuppressionStrength);
+        _deepFilterNetSuppressor = new DeepFilterNetSuppressionProcessor(
+            _settings.NoiseSuppressionMode == NoiseSuppressionMode.DeepFilterNet,
             _settings.NoiseSuppressionStrength);
         _processor = new SimpleVoiceProcessor(_settings);
 
@@ -233,8 +251,12 @@ public sealed class Gate2UnifiedAudioEngine : IDisposable
     {
         _settings = settings;
         SetVoiceMonitorEnabled(settings.VoiceMonitorGain > 0.0001f);
-        _highPassCleanup?.UpdateSettings(settings.RumbleFilterEnabled, settings.RumbleFilterCutoffHz);
-        _noiseSuppressor?.UpdateSettings(settings.NoiseSuppressionEnabled, settings.NoiseSuppressionStrength);
+        _rnNoiseSuppressor?.UpdateSettings(
+            settings.NoiseSuppressionMode == NoiseSuppressionMode.RnNoise,
+            settings.NoiseSuppressionStrength);
+        _deepFilterNetSuppressor?.UpdateSettings(
+            settings.NoiseSuppressionMode == NoiseSuppressionMode.DeepFilterNet,
+            settings.NoiseSuppressionStrength);
         _processor?.UpdateSettings(settings);
         _virtualProvider?.UpdateSettings(settings);
         _monitorProvider?.UpdateSettings(settings);
@@ -302,10 +324,18 @@ public sealed class Gate2UnifiedAudioEngine : IDisposable
                 _capture.WaveFormat,
                 _mixFormat);
 
-            // Voice cleanup is intentionally microphone-only. The high-pass
-            // rumble filter runs first, then RNNoise, gate/compressor and effects.
-            _highPassCleanup?.ProcessInPlace(targetSamples);
-            _noiseSuppressor?.ProcessInPlace(targetSamples);
+            // Noise suppression is intentionally microphone-only and remains
+            // outside voice presets. Exactly one cleanup engine runs before
+            // gate/compressor and the preset-controlled effects.
+            switch (_settings.NoiseSuppressionMode)
+            {
+                case NoiseSuppressionMode.RnNoise:
+                    _rnNoiseSuppressor?.ProcessInPlace(targetSamples);
+                    break;
+                case NoiseSuppressionMode.DeepFilterNet:
+                    _deepFilterNetSuppressor?.ProcessInPlace(targetSamples);
+                    break;
+            }
             _processor.ProcessInPlace(targetSamples);
             _virtualMicQueue.Add(targetSamples);
 
@@ -338,7 +368,8 @@ public sealed class Gate2UnifiedAudioEngine : IDisposable
         _capture?.Dispose();
         _virtualOutput?.Dispose();
         _monitorOutput?.Dispose();
-        _noiseSuppressor?.Dispose();
+        _rnNoiseSuppressor?.Dispose();
+        _deepFilterNetSuppressor?.Dispose();
         _disposed = true;
     }
 }

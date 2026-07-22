@@ -215,7 +215,7 @@ public sealed partial class MainWindow : Window
         };
         _discordCableSessionIsolationTimer.Tick += OnDiscordCableSessionIsolationTimerTick;
 
-        AppendLog("VoiSee Version 12.0.1 UI started.");
+        AppendLog("VoiSee Version 12.1.0 UI started.");
         AppendLog($"Settings path: {_settingsStore.SettingsPath}");
 
         var isolationResult = _discordCableSessionIsolationService.Enable();
@@ -1230,12 +1230,14 @@ public sealed partial class MainWindow : Window
         SoundMonitorVolumeSlider.Value = Clamp(_settings.SoundBoardHeadphonesVolume, 0, 1.5);
         SoundVirtualDelaySlider.Value = Clamp(_settings.SoundBoardVirtualMicDelayMs, 0, 300);
         MediaBridgeVolumeSlider.Value = Clamp(_settings.MediaBridgeVirtualMicVolume, 0, 1.5);
-        NoiseSuppressionToggle.IsOn = _settings.NoiseSuppressionEnabled;
+        var storedNoiseMode = ParseNoiseSuppressionMode(_settings.NoiseSuppressionMode);
+        if (string.IsNullOrWhiteSpace(_settings.NoiseSuppressionMode) && _settings.NoiseSuppressionEnabled)
+        {
+            storedNoiseMode = NoiseSuppressionMode.RnNoise;
+        }
+        SetNoiseSuppressionModeSelection(storedNoiseMode);
         NoiseSuppressionStrengthSlider.Value = Clamp(_settings.NoiseSuppressionStrength, 0, 100);
-        RumbleFilterToggle.IsOn = _settings.RumbleFilterEnabled;
-        RumbleFilterCutoffSlider.Value = Clamp(_settings.RumbleFilterCutoffHz, 50, 160);
         UpdateNoiseSuppressionUi();
-        UpdateRumbleFilterUi();
         UpdateMediaBridgeSavedProfileText();
         UpdateMediaBridgeUiState();
         SetVoiceControl(VoiceGainSlider, VoiceGainValueBox, _settings.VoiceGain);
@@ -6353,16 +6355,12 @@ public sealed partial class MainWindow : Window
             AppendLog($"Virtual output: {virtualOutput.FriendlyName}");
             AppendLog($"Monitor: {(monitor is null ? "disabled" : monitor.FriendlyName)}");
             AppendLog($"Voice monitor route: {(_engine.VoiceMonitorRouteEnabled ? "connected" : "hard disconnected")}");
-            if (NoiseSuppressionToggle?.IsOn == true)
+            var noiseMode = GetSelectedNoiseSuppressionMode();
+            if (noiseMode != NoiseSuppressionMode.Off)
             {
                 AppendLog(_engine.NoiseSuppressionAvailable
-                    ? $"Noise suppression: active at {(int)Math.Round(NoiseSuppressionStrengthSlider?.Value ?? 70.0)}%."
-                    : $"Noise suppression unavailable: {_engine.NoiseSuppressionError ?? "RNNoise could not be initialized"}.");
-            }
-
-            if (RumbleFilterToggle?.IsOn == true)
-            {
-                AppendLog($"Low-frequency cleanup: active at {(int)Math.Round(RumbleFilterCutoffSlider?.Value ?? 90.0)} Hz.");
+                    ? $"Noise suppression: {_engine.ActiveNoiseSuppressionName} active at {(int)Math.Round(NoiseSuppressionStrengthSlider?.Value ?? 70.0)}%."
+                    : $"Noise suppression unavailable: {_engine.NoiseSuppressionError ?? $"{_engine.ActiveNoiseSuppressionName} could not be initialized"}.");
             }
             WarmSoundCacheInBackground();
             RefreshAdvancedSettingsStatus();
@@ -6516,10 +6514,8 @@ public sealed partial class MainWindow : Window
 
         return new EffectSettings
         {
-            NoiseSuppressionEnabled = NoiseSuppressionToggle?.IsOn == true,
+            NoiseSuppressionMode = GetSelectedNoiseSuppressionMode(),
             NoiseSuppressionStrength = (float)Clamp((NoiseSuppressionStrengthSlider?.Value ?? 70.0) / 100.0, 0.0, 1.0),
-            RumbleFilterEnabled = RumbleFilterToggle?.IsOn == true,
-            RumbleFilterCutoffHz = (float)Clamp(RumbleFilterCutoffSlider?.Value ?? 90.0, 50.0, 160.0),
             InputGainDb = 0.0f,
             VoiceGainDb = (float)MapCentered(GetVoiceValue(VoiceGainSlider, VoiceGainValueBox), 0, -24, 18),
             GateThresholdDb = (float)MapCentered(GetVoiceValue(GateThresholdSlider, GateThresholdValueBox), -45, -80, -15),
@@ -6824,7 +6820,7 @@ public sealed partial class MainWindow : Window
         if (!_loadingSettings) ApplyLiveSettings("master output volume changed");
     }
 
-    private void OnNoiseSuppressionToggled(object sender, RoutedEventArgs e)
+    private void OnNoiseSuppressionModeChanged(object sender, SelectionChangedEventArgs e)
     {
         UpdateNoiseSuppressionUi();
         if (_loadingSettings)
@@ -6832,13 +6828,13 @@ public sealed partial class MainWindow : Window
             return;
         }
 
-        ApplyLiveSettings(NoiseSuppressionToggle.IsOn
-            ? "noise suppression enabled"
-            : "noise suppression disabled");
-
-        if (_engine is not null && NoiseSuppressionToggle.IsOn && !_engine.NoiseSuppressionAvailable)
+        SaveCurrentSettings();
+        var mode = GetSelectedNoiseSuppressionMode();
+        if (_engine is not null)
         {
-            AppendLog($"Noise suppression unavailable: {_engine.NoiseSuppressionError ?? "RNNoise could not be initialized"}.");
+            // Engine changes can load or unload a native model. Restarting keeps
+            // that work away from the live audio callback and resets latency.
+            ScheduleEngineRestart($"noise suppression engine changed to {GetNoiseSuppressionDisplayName(mode)}");
         }
     }
 
@@ -6853,48 +6849,69 @@ public sealed partial class MainWindow : Window
 
     private void UpdateNoiseSuppressionUi()
     {
-        if (NoiseSuppressionStrengthSlider is null || NoiseSuppressionStrengthValueText is null || NoiseSuppressionToggle is null)
+        if (NoiseSuppressionStrengthSlider is null ||
+            NoiseSuppressionStrengthValueText is null ||
+            NoiseSuppressionModeComboBox is null ||
+            NoiseSuppressionStatusText is null)
         {
             return;
         }
 
-        NoiseSuppressionStrengthSlider.IsEnabled = NoiseSuppressionToggle.IsOn;
+        var mode = GetSelectedNoiseSuppressionMode();
+        var enabled = mode != NoiseSuppressionMode.Off;
+        NoiseSuppressionStrengthSlider.IsEnabled = enabled;
         NoiseSuppressionStrengthValueText.Text = $"{(int)Math.Round(NoiseSuppressionStrengthSlider.Value)}%";
-        NoiseSuppressionStrengthValueText.Opacity = NoiseSuppressionToggle.IsOn ? 0.78 : 0.45;
+        NoiseSuppressionStrengthValueText.Opacity = enabled ? 0.78 : 0.45;
+        NoiseSuppressionStatusText.Text = enabled
+            ? $"{GetNoiseSuppressionDisplayName(mode)} processes only the microphone before effects"
+            : "Noise suppression is off";
     }
 
-    private void OnRumbleFilterToggled(object sender, RoutedEventArgs e)
+    private NoiseSuppressionMode GetSelectedNoiseSuppressionMode()
     {
-        UpdateRumbleFilterUi();
-        if (_loadingSettings)
+        if (NoiseSuppressionModeComboBox?.SelectedItem is ComboBoxItem item && item.Tag is string tag)
+        {
+            return ParseNoiseSuppressionMode(tag);
+        }
+
+        return NoiseSuppressionMode.Off;
+    }
+
+    private void SetNoiseSuppressionModeSelection(NoiseSuppressionMode mode)
+    {
+        if (NoiseSuppressionModeComboBox is null)
         {
             return;
         }
 
-        ApplyLiveSettings(RumbleFilterToggle.IsOn
-            ? "low-frequency cleanup enabled"
-            : "low-frequency cleanup disabled");
-    }
-
-    private void OnRumbleFilterCutoffChanged(object sender, Microsoft.UI.Xaml.Controls.Primitives.RangeBaseValueChangedEventArgs e)
-    {
-        UpdateRumbleFilterUi();
-        if (!_loadingSettings)
+        var tag = mode.ToString();
+        foreach (var candidate in NoiseSuppressionModeComboBox.Items.OfType<ComboBoxItem>())
         {
-            ScheduleVoiceSettingsApply();
-        }
-    }
-
-    private void UpdateRumbleFilterUi()
-    {
-        if (RumbleFilterCutoffSlider is null || RumbleFilterCutoffValueText is null || RumbleFilterToggle is null)
-        {
-            return;
+            if (string.Equals(candidate.Tag as string, tag, StringComparison.OrdinalIgnoreCase))
+            {
+                NoiseSuppressionModeComboBox.SelectedItem = candidate;
+                return;
+            }
         }
 
-        RumbleFilterCutoffSlider.IsEnabled = RumbleFilterToggle.IsOn;
-        RumbleFilterCutoffValueText.Text = $"{(int)Math.Round(RumbleFilterCutoffSlider.Value)} Hz";
-        RumbleFilterCutoffValueText.Opacity = RumbleFilterToggle.IsOn ? 0.78 : 0.45;
+        NoiseSuppressionModeComboBox.SelectedIndex = 0;
+    }
+
+    private static NoiseSuppressionMode ParseNoiseSuppressionMode(string? value)
+    {
+        return Enum.TryParse<NoiseSuppressionMode>(value, ignoreCase: true, out var mode)
+            ? mode
+            : NoiseSuppressionMode.Off;
+    }
+
+    private static string GetNoiseSuppressionDisplayName(NoiseSuppressionMode mode)
+    {
+        return mode switch
+        {
+            NoiseSuppressionMode.RnNoise => "RNNoise",
+            NoiseSuppressionMode.DeepFilterNet => "DeepFilterNet",
+            _ => "Off",
+        };
     }
 
     private void OnVoiceSettingsChanged(object sender, Microsoft.UI.Xaml.Controls.Primitives.RangeBaseValueChangedEventArgs e)
@@ -10288,7 +10305,6 @@ public sealed partial class MainWindow : Window
         UpdateSceneVolumeLabels();
         UpdateOutputVolumeLabels();
         UpdateNoiseSuppressionUi();
-        UpdateRumbleFilterUi();
         UpdateVoiceSettingLabels();
         UpdateVoiceMonitorButton();
         UpdateBottomStats();
@@ -10431,7 +10447,7 @@ public sealed partial class MainWindow : Window
     {
         if (_loadingSettings) return;
 
-        _settings.SchemaVersion = 8;
+        _settings.SchemaVersion = 10;
 
         var input = InputDeviceComboBox?.SelectedItem as AudioDeviceInfo;
         var virtualOutput = VirtualOutputComboBox?.SelectedItem as AudioDeviceInfo;
@@ -10453,10 +10469,10 @@ public sealed partial class MainWindow : Window
         _settings.SoundBoardHeadphonesVolume = SoundMonitorVolumeSlider?.Value ?? 1.0;
         _settings.SoundBoardVirtualMicDelayMs = SoundVirtualDelaySlider?.Value ?? 85.0;
         _settings.MediaBridgeVirtualMicVolume = MediaBridgeVolumeSlider?.Value ?? 1.0;
-        _settings.NoiseSuppressionEnabled = NoiseSuppressionToggle?.IsOn == true;
+        var noiseMode = GetSelectedNoiseSuppressionMode();
+        _settings.NoiseSuppressionMode = noiseMode.ToString();
+        _settings.NoiseSuppressionEnabled = noiseMode != NoiseSuppressionMode.Off;
         _settings.NoiseSuppressionStrength = NoiseSuppressionStrengthSlider?.Value ?? 70.0;
-        _settings.RumbleFilterEnabled = RumbleFilterToggle?.IsOn == true;
-        _settings.RumbleFilterCutoffHz = RumbleFilterCutoffSlider?.Value ?? 90.0;
         _settings.VoiceGain = GetVoiceValue(VoiceGainSlider, VoiceGainValueBox);
         _settings.VoiceGate = GetVoiceValue(GateThresholdSlider, GateThresholdValueBox);
         _settings.VoiceCompressor = GetVoiceValue(CompressorThresholdSlider, CompressorThresholdValueBox);

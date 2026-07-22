@@ -11,7 +11,7 @@ using Windows.UI;
 namespace VoiSe.App;
 
 /// <summary>
-/// VoiSee 12.0.1 native theme loader and exact Default Dark copy workflow.
+/// VoiSee 12.1.0 native theme loader and exact Default Dark copy workflow.
 ///
 /// User themes are ordinary WinUI ResourceDictionary XAML files. The manager
 /// validates a candidate dictionary before it atomically replaces the active
