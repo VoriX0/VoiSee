@@ -7,5 +7,6 @@
   <ItemGroup>
     <PackageReference Include="NAudio" Version="2.*" />
     <PackageReference Include="NAudio.Vorbis" Version="1.*" />
+    <PackageReference Include="YellowDogMan.RRNoise.NET" Version="0.1.9" />
   </ItemGroup>
 </Project>

@@ -1,4 +1,4 @@
-﻿using NAudio.CoreAudioApi;
+using NAudio.CoreAudioApi;
 using NAudio.Wave;
 using NAudio.Wave.SampleProviders;
 
@@ -21,6 +21,7 @@ public sealed class Gate2UnifiedAudioEngine : IDisposable
     private WasapiOut? _virtualOutput;
     private WasapiOut? _monitorOutput;
     private SimpleVoiceProcessor? _processor;
+    private RnNoiseSuppressionProcessor? _noiseSuppressor;
     private RouteMixSampleProvider? _virtualProvider;
     private RouteMixSampleProvider? _monitorProvider;
     private ProcessLoopbackCapture? _mediaBridgeCapture;
@@ -54,6 +55,9 @@ public sealed class Gate2UnifiedAudioEngine : IDisposable
 
     public WaveFormat MixFormat => _mixFormat;
 
+    public bool NoiseSuppressionAvailable => _noiseSuppressor?.IsAvailable ?? true;
+    public string? NoiseSuppressionError => _noiseSuppressor?.InitializationError;
+
     public bool VoiceMonitorRouteEnabled
     {
         get
@@ -83,6 +87,9 @@ public sealed class Gate2UnifiedAudioEngine : IDisposable
             Console.WriteLine("Gate 2 expects IEEE float 32-bit or PCM 16-bit capture format.");
         }
 
+        _noiseSuppressor = new RnNoiseSuppressionProcessor(
+            _settings.NoiseSuppressionEnabled,
+            _settings.NoiseSuppressionStrength);
         _processor = new SimpleVoiceProcessor(_settings);
 
         _virtualProvider = new RouteMixSampleProvider(
@@ -222,6 +229,7 @@ public sealed class Gate2UnifiedAudioEngine : IDisposable
     {
         _settings = settings;
         SetVoiceMonitorEnabled(settings.VoiceMonitorGain > 0.0001f);
+        _noiseSuppressor?.UpdateSettings(settings.NoiseSuppressionEnabled, settings.NoiseSuppressionStrength);
         _processor?.UpdateSettings(settings);
         _virtualProvider?.UpdateSettings(settings);
         _monitorProvider?.UpdateSettings(settings);
@@ -289,6 +297,9 @@ public sealed class Gate2UnifiedAudioEngine : IDisposable
                 _capture.WaveFormat,
                 _mixFormat);
 
+            // Voice cleanup is intentionally microphone-only and runs before
+            // gate/compressor, pitch, formant and entertainment effects.
+            _noiseSuppressor?.ProcessInPlace(targetSamples);
             _processor.ProcessInPlace(targetSamples);
             _virtualMicQueue.Add(targetSamples);
 
@@ -321,6 +332,7 @@ public sealed class Gate2UnifiedAudioEngine : IDisposable
         _capture?.Dispose();
         _virtualOutput?.Dispose();
         _monitorOutput?.Dispose();
+        _noiseSuppressor?.Dispose();
         _disposed = true;
     }
 }

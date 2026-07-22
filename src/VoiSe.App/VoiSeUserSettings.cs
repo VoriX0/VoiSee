@@ -4,7 +4,7 @@ namespace VoiSe.App;
 
 public sealed class VoiSeUserSettings
 {
-    public int SchemaVersion { get; set; } = 6;
+    public int SchemaVersion { get; set; } = 8;
 
     public string? InputDeviceId { get; set; }
     public string? InputDeviceName { get; set; }
@@ -23,6 +23,10 @@ public sealed class VoiSeUserSettings
     public double SoundBoardVirtualMicVolume { get; set; } = 1.0;
     public double SoundBoardHeadphonesVolume { get; set; } = 1.0;
     public double SoundBoardVirtualMicDelayMs { get; set; } = 85.0;
+
+    // VoiSee 12 voice cleanup. This setting is global and independent from voice presets.
+    public bool NoiseSuppressionEnabled { get; set; } = false;
+    public double NoiseSuppressionStrength { get; set; } = 70.0;
 
     // Legacy dB values are kept for backward compatibility with Gate 4/5 settings files.
     public double VoiceGainDb { get; set; } = 0.0;

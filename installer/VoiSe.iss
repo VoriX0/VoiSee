@@ -2,7 +2,7 @@
 ; Build with Inno Setup 6 using scripts\build-installer.ps1
 
 #define MyAppName "VoiSee"
-#define MyAppVersion "11.3.0"
+#define MyAppVersion "12.0.0"
 #define MyAppPublisher "VoriX"
 #define MyAppURL "https://github.com/VoriX0/VoiSe"
 #define MyAppExeName "VoiSe.App.exe"

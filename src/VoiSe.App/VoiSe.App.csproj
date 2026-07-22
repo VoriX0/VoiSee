@@ -13,10 +13,10 @@
     <EnableMsixTooling>true</EnableMsixTooling>
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>
     <ApplicationIcon>Assets\AppIcon.ico</ApplicationIcon>
-    <Version>11.3.0</Version>
-    <AssemblyVersion>11.3.0.0</AssemblyVersion>
-    <FileVersion>11.3.0.0</FileVersion>
-    <InformationalVersion>11.3.0</InformationalVersion>
+    <Version>12.0.0</Version>
+    <AssemblyVersion>12.0.0.0</AssemblyVersion>
+    <FileVersion>12.0.0.0</FileVersion>
+    <InformationalVersion>12.0.0</InformationalVersion>
   </PropertyGroup>
   <ItemGroup>
     <!-- User-generated data must never be published or packed into the installer.
@@ -38,6 +38,10 @@
       <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
     </Content>
     <Content Include="Themes\UserThemeTemplate.voiseetheme.template">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+    </Content>
+    <Content Include="ThirdPartyLicenses\**\*">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
     </Content>

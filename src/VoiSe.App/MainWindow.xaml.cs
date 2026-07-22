@@ -215,7 +215,7 @@ public sealed partial class MainWindow : Window
         };
         _discordCableSessionIsolationTimer.Tick += OnDiscordCableSessionIsolationTimerTick;
 
-        AppendLog("VoiSee Version 11.3.0 UI started.");
+        AppendLog("VoiSee Version 12.0.0 UI started.");
         AppendLog($"Settings path: {_settingsStore.SettingsPath}");
 
         var isolationResult = _discordCableSessionIsolationService.Enable();
@@ -1230,6 +1230,9 @@ public sealed partial class MainWindow : Window
         SoundMonitorVolumeSlider.Value = Clamp(_settings.SoundBoardHeadphonesVolume, 0, 1.5);
         SoundVirtualDelaySlider.Value = Clamp(_settings.SoundBoardVirtualMicDelayMs, 0, 300);
         MediaBridgeVolumeSlider.Value = Clamp(_settings.MediaBridgeVirtualMicVolume, 0, 1.5);
+        NoiseSuppressionToggle.IsOn = _settings.NoiseSuppressionEnabled;
+        NoiseSuppressionStrengthSlider.Value = Clamp(_settings.NoiseSuppressionStrength, 0, 100);
+        UpdateNoiseSuppressionUi();
         UpdateMediaBridgeSavedProfileText();
         UpdateMediaBridgeUiState();
         SetVoiceControl(VoiceGainSlider, VoiceGainValueBox, _settings.VoiceGain);
@@ -6347,6 +6350,12 @@ public sealed partial class MainWindow : Window
             AppendLog($"Virtual output: {virtualOutput.FriendlyName}");
             AppendLog($"Monitor: {(monitor is null ? "disabled" : monitor.FriendlyName)}");
             AppendLog($"Voice monitor route: {(_engine.VoiceMonitorRouteEnabled ? "connected" : "hard disconnected")}");
+            if (NoiseSuppressionToggle?.IsOn == true)
+            {
+                AppendLog(_engine.NoiseSuppressionAvailable
+                    ? $"Noise suppression: active at {(int)Math.Round(NoiseSuppressionStrengthSlider?.Value ?? 70.0)}%."
+                    : $"Noise suppression unavailable: {_engine.NoiseSuppressionError ?? "RNNoise could not be initialized"}.");
+            }
             WarmSoundCacheInBackground();
             RefreshAdvancedSettingsStatus();
             return true;
@@ -6499,6 +6508,8 @@ public sealed partial class MainWindow : Window
 
         return new EffectSettings
         {
+            NoiseSuppressionEnabled = NoiseSuppressionToggle?.IsOn == true,
+            NoiseSuppressionStrength = (float)Clamp((NoiseSuppressionStrengthSlider?.Value ?? 70.0) / 100.0, 0.0, 1.0),
             InputGainDb = 0.0f,
             VoiceGainDb = (float)MapCentered(GetVoiceValue(VoiceGainSlider, VoiceGainValueBox), 0, -24, 18),
             GateThresholdDb = (float)MapCentered(GetVoiceValue(GateThresholdSlider, GateThresholdValueBox), -45, -80, -15),
@@ -6801,6 +6812,45 @@ public sealed partial class MainWindow : Window
     {
         UpdateOutputVolumeLabels();
         if (!_loadingSettings) ApplyLiveSettings("master output volume changed");
+    }
+
+    private void OnNoiseSuppressionToggled(object sender, RoutedEventArgs e)
+    {
+        UpdateNoiseSuppressionUi();
+        if (_loadingSettings)
+        {
+            return;
+        }
+
+        ApplyLiveSettings(NoiseSuppressionToggle.IsOn
+            ? "noise suppression enabled"
+            : "noise suppression disabled");
+
+        if (_engine is not null && NoiseSuppressionToggle.IsOn && !_engine.NoiseSuppressionAvailable)
+        {
+            AppendLog($"Noise suppression unavailable: {_engine.NoiseSuppressionError ?? "RNNoise could not be initialized"}.");
+        }
+    }
+
+    private void OnNoiseSuppressionStrengthChanged(object sender, Microsoft.UI.Xaml.Controls.Primitives.RangeBaseValueChangedEventArgs e)
+    {
+        UpdateNoiseSuppressionUi();
+        if (!_loadingSettings)
+        {
+            ScheduleVoiceSettingsApply();
+        }
+    }
+
+    private void UpdateNoiseSuppressionUi()
+    {
+        if (NoiseSuppressionStrengthSlider is null || NoiseSuppressionStrengthValueText is null || NoiseSuppressionToggle is null)
+        {
+            return;
+        }
+
+        NoiseSuppressionStrengthSlider.IsEnabled = NoiseSuppressionToggle.IsOn;
+        NoiseSuppressionStrengthValueText.Text = $"{(int)Math.Round(NoiseSuppressionStrengthSlider.Value)}%";
+        NoiseSuppressionStrengthValueText.Opacity = NoiseSuppressionToggle.IsOn ? 0.78 : 0.45;
     }
 
     private void OnVoiceSettingsChanged(object sender, Microsoft.UI.Xaml.Controls.Primitives.RangeBaseValueChangedEventArgs e)
@@ -10193,6 +10243,7 @@ public sealed partial class MainWindow : Window
         UpdateSoundVolumeLabels();
         UpdateSceneVolumeLabels();
         UpdateOutputVolumeLabels();
+        UpdateNoiseSuppressionUi();
         UpdateVoiceSettingLabels();
         UpdateVoiceMonitorButton();
         UpdateBottomStats();
@@ -10335,7 +10386,7 @@ public sealed partial class MainWindow : Window
     {
         if (_loadingSettings) return;
 
-        _settings.SchemaVersion = 7;
+        _settings.SchemaVersion = 8;
 
         var input = InputDeviceComboBox?.SelectedItem as AudioDeviceInfo;
         var virtualOutput = VirtualOutputComboBox?.SelectedItem as AudioDeviceInfo;
@@ -10357,6 +10408,8 @@ public sealed partial class MainWindow : Window
         _settings.SoundBoardHeadphonesVolume = SoundMonitorVolumeSlider?.Value ?? 1.0;
         _settings.SoundBoardVirtualMicDelayMs = SoundVirtualDelaySlider?.Value ?? 85.0;
         _settings.MediaBridgeVirtualMicVolume = MediaBridgeVolumeSlider?.Value ?? 1.0;
+        _settings.NoiseSuppressionEnabled = NoiseSuppressionToggle?.IsOn == true;
+        _settings.NoiseSuppressionStrength = NoiseSuppressionStrengthSlider?.Value ?? 70.0;
         _settings.VoiceGain = GetVoiceValue(VoiceGainSlider, VoiceGainValueBox);
         _settings.VoiceGate = GetVoiceValue(GateThresholdSlider, GateThresholdValueBox);
         _settings.VoiceCompressor = GetVoiceValue(CompressorThresholdSlider, CompressorThresholdValueBox);

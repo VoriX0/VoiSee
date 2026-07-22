@@ -2,6 +2,10 @@ namespace VoiSe.Audio;
 
 public sealed class EffectSettings
 {
+    // VoiSee 12 voice cleanup. RNNoise runs before gate, compressor and voice effects.
+    public bool NoiseSuppressionEnabled { get; set; } = false;
+    public float NoiseSuppressionStrength { get; set; } = 0.70f;
+
     public float InputGainDb { get; set; } = 0.0f;
     public bool GateEnabled { get; set; } = true;
     public float GateThresholdDb { get; set; } = -45.0f;
