@@ -21,6 +21,7 @@ public sealed class Gate2UnifiedAudioEngine : IDisposable
     private WasapiOut? _virtualOutput;
     private WasapiOut? _monitorOutput;
     private SimpleVoiceProcessor? _processor;
+    private HighPassCleanupProcessor? _highPassCleanup;
     private RnNoiseSuppressionProcessor? _noiseSuppressor;
     private RouteMixSampleProvider? _virtualProvider;
     private RouteMixSampleProvider? _monitorProvider;
@@ -87,6 +88,9 @@ public sealed class Gate2UnifiedAudioEngine : IDisposable
             Console.WriteLine("Gate 2 expects IEEE float 32-bit or PCM 16-bit capture format.");
         }
 
+        _highPassCleanup = new HighPassCleanupProcessor(
+            _settings.RumbleFilterEnabled,
+            _settings.RumbleFilterCutoffHz);
         _noiseSuppressor = new RnNoiseSuppressionProcessor(
             _settings.NoiseSuppressionEnabled,
             _settings.NoiseSuppressionStrength);
@@ -229,6 +233,7 @@ public sealed class Gate2UnifiedAudioEngine : IDisposable
     {
         _settings = settings;
         SetVoiceMonitorEnabled(settings.VoiceMonitorGain > 0.0001f);
+        _highPassCleanup?.UpdateSettings(settings.RumbleFilterEnabled, settings.RumbleFilterCutoffHz);
         _noiseSuppressor?.UpdateSettings(settings.NoiseSuppressionEnabled, settings.NoiseSuppressionStrength);
         _processor?.UpdateSettings(settings);
         _virtualProvider?.UpdateSettings(settings);
@@ -297,8 +302,9 @@ public sealed class Gate2UnifiedAudioEngine : IDisposable
                 _capture.WaveFormat,
                 _mixFormat);
 
-            // Voice cleanup is intentionally microphone-only and runs before
-            // gate/compressor, pitch, formant and entertainment effects.
+            // Voice cleanup is intentionally microphone-only. The high-pass
+            // rumble filter runs first, then RNNoise, gate/compressor and effects.
+            _highPassCleanup?.ProcessInPlace(targetSamples);
             _noiseSuppressor?.ProcessInPlace(targetSamples);
             _processor.ProcessInPlace(targetSamples);
             _virtualMicQueue.Add(targetSamples);

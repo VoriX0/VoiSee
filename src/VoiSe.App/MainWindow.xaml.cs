@@ -215,7 +215,7 @@ public sealed partial class MainWindow : Window
         };
         _discordCableSessionIsolationTimer.Tick += OnDiscordCableSessionIsolationTimerTick;
 
-        AppendLog("VoiSee Version 12.0.0 UI started.");
+        AppendLog("VoiSee Version 12.0.1 UI started.");
         AppendLog($"Settings path: {_settingsStore.SettingsPath}");
 
         var isolationResult = _discordCableSessionIsolationService.Enable();
@@ -1232,7 +1232,10 @@ public sealed partial class MainWindow : Window
         MediaBridgeVolumeSlider.Value = Clamp(_settings.MediaBridgeVirtualMicVolume, 0, 1.5);
         NoiseSuppressionToggle.IsOn = _settings.NoiseSuppressionEnabled;
         NoiseSuppressionStrengthSlider.Value = Clamp(_settings.NoiseSuppressionStrength, 0, 100);
+        RumbleFilterToggle.IsOn = _settings.RumbleFilterEnabled;
+        RumbleFilterCutoffSlider.Value = Clamp(_settings.RumbleFilterCutoffHz, 50, 160);
         UpdateNoiseSuppressionUi();
+        UpdateRumbleFilterUi();
         UpdateMediaBridgeSavedProfileText();
         UpdateMediaBridgeUiState();
         SetVoiceControl(VoiceGainSlider, VoiceGainValueBox, _settings.VoiceGain);
@@ -6356,6 +6359,11 @@ public sealed partial class MainWindow : Window
                     ? $"Noise suppression: active at {(int)Math.Round(NoiseSuppressionStrengthSlider?.Value ?? 70.0)}%."
                     : $"Noise suppression unavailable: {_engine.NoiseSuppressionError ?? "RNNoise could not be initialized"}.");
             }
+
+            if (RumbleFilterToggle?.IsOn == true)
+            {
+                AppendLog($"Low-frequency cleanup: active at {(int)Math.Round(RumbleFilterCutoffSlider?.Value ?? 90.0)} Hz.");
+            }
             WarmSoundCacheInBackground();
             RefreshAdvancedSettingsStatus();
             return true;
@@ -6510,6 +6518,8 @@ public sealed partial class MainWindow : Window
         {
             NoiseSuppressionEnabled = NoiseSuppressionToggle?.IsOn == true,
             NoiseSuppressionStrength = (float)Clamp((NoiseSuppressionStrengthSlider?.Value ?? 70.0) / 100.0, 0.0, 1.0),
+            RumbleFilterEnabled = RumbleFilterToggle?.IsOn == true,
+            RumbleFilterCutoffHz = (float)Clamp(RumbleFilterCutoffSlider?.Value ?? 90.0, 50.0, 160.0),
             InputGainDb = 0.0f,
             VoiceGainDb = (float)MapCentered(GetVoiceValue(VoiceGainSlider, VoiceGainValueBox), 0, -24, 18),
             GateThresholdDb = (float)MapCentered(GetVoiceValue(GateThresholdSlider, GateThresholdValueBox), -45, -80, -15),
@@ -6851,6 +6861,40 @@ public sealed partial class MainWindow : Window
         NoiseSuppressionStrengthSlider.IsEnabled = NoiseSuppressionToggle.IsOn;
         NoiseSuppressionStrengthValueText.Text = $"{(int)Math.Round(NoiseSuppressionStrengthSlider.Value)}%";
         NoiseSuppressionStrengthValueText.Opacity = NoiseSuppressionToggle.IsOn ? 0.78 : 0.45;
+    }
+
+    private void OnRumbleFilterToggled(object sender, RoutedEventArgs e)
+    {
+        UpdateRumbleFilterUi();
+        if (_loadingSettings)
+        {
+            return;
+        }
+
+        ApplyLiveSettings(RumbleFilterToggle.IsOn
+            ? "low-frequency cleanup enabled"
+            : "low-frequency cleanup disabled");
+    }
+
+    private void OnRumbleFilterCutoffChanged(object sender, Microsoft.UI.Xaml.Controls.Primitives.RangeBaseValueChangedEventArgs e)
+    {
+        UpdateRumbleFilterUi();
+        if (!_loadingSettings)
+        {
+            ScheduleVoiceSettingsApply();
+        }
+    }
+
+    private void UpdateRumbleFilterUi()
+    {
+        if (RumbleFilterCutoffSlider is null || RumbleFilterCutoffValueText is null || RumbleFilterToggle is null)
+        {
+            return;
+        }
+
+        RumbleFilterCutoffSlider.IsEnabled = RumbleFilterToggle.IsOn;
+        RumbleFilterCutoffValueText.Text = $"{(int)Math.Round(RumbleFilterCutoffSlider.Value)} Hz";
+        RumbleFilterCutoffValueText.Opacity = RumbleFilterToggle.IsOn ? 0.78 : 0.45;
     }
 
     private void OnVoiceSettingsChanged(object sender, Microsoft.UI.Xaml.Controls.Primitives.RangeBaseValueChangedEventArgs e)
@@ -10244,6 +10288,7 @@ public sealed partial class MainWindow : Window
         UpdateSceneVolumeLabels();
         UpdateOutputVolumeLabels();
         UpdateNoiseSuppressionUi();
+        UpdateRumbleFilterUi();
         UpdateVoiceSettingLabels();
         UpdateVoiceMonitorButton();
         UpdateBottomStats();
@@ -10410,6 +10455,8 @@ public sealed partial class MainWindow : Window
         _settings.MediaBridgeVirtualMicVolume = MediaBridgeVolumeSlider?.Value ?? 1.0;
         _settings.NoiseSuppressionEnabled = NoiseSuppressionToggle?.IsOn == true;
         _settings.NoiseSuppressionStrength = NoiseSuppressionStrengthSlider?.Value ?? 70.0;
+        _settings.RumbleFilterEnabled = RumbleFilterToggle?.IsOn == true;
+        _settings.RumbleFilterCutoffHz = RumbleFilterCutoffSlider?.Value ?? 90.0;
         _settings.VoiceGain = GetVoiceValue(VoiceGainSlider, VoiceGainValueBox);
         _settings.VoiceGate = GetVoiceValue(GateThresholdSlider, GateThresholdValueBox);
         _settings.VoiceCompressor = GetVoiceValue(CompressorThresholdSlider, CompressorThresholdValueBox);

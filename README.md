@@ -1,6 +1,6 @@
-# VoiSee 12.0.0
+# VoiSee 12.0.1
 
-## VoiSee 12.0.0 — RNNoise voice cleanup
+## VoiSee 12.0.1 — RNNoise + low-frequency cleanup
 
 - Adds real-time RNNoise suppression to the Voice Changer microphone path.
 - Keeps the first user-facing control set intentionally small: `On / Off` and `Strength` from 0 to 100%.
@@ -12,6 +12,14 @@
 - Keeps the validated Discord screen-share isolation introduced in VoiSee 11.3.0.
 
 The first VoiSee 12 stage intentionally focuses only on stable voice cleanup. The planned draggable effect-chain panels are not included yet; their interaction model will be designed separately before additional effects are added.
+
+### New in 12.0.1
+
+- Added a global microphone-only **Low-frequency cleanup** stage.
+- One simple control: cutoff from 50 to 160 Hz, default 90 Hz.
+- Runs before RNNoise, gate/compressor and voice effects.
+- No additional native dependency and no added buffering latency.
+
 
 ## VoiSee 11.3.0 — Discord screen-share voice isolation
 
@@ -109,13 +117,13 @@ Set-ExecutionPolicy -Scope Process Bypass
 Expected installer:
 
 ```text
-artifacts\installer\VoiSee-Setup-12.0.0-x64.exe
+artifacts\installer\VoiSee-Setup-12.0.1-x64.exe
 ```
 
 Portable build:
 
 ```text
-artifacts\installer\VoiSee-Portable-12.0.0-x64.zip
+artifacts\installer\VoiSee-Portable-12.0.1-x64.zip
 ```
 
 ## Native XAML themes (VoiSee 10.1)

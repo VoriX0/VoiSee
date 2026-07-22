@@ -4,7 +4,7 @@ namespace VoiSe.App;
 
 public sealed class VoiSeUserSettings
 {
-    public int SchemaVersion { get; set; } = 8;
+    public int SchemaVersion { get; set; } = 9;
 
     public string? InputDeviceId { get; set; }
     public string? InputDeviceName { get; set; }
@@ -27,6 +27,10 @@ public sealed class VoiSeUserSettings
     // VoiSee 12 voice cleanup. This setting is global and independent from voice presets.
     public bool NoiseSuppressionEnabled { get; set; } = false;
     public double NoiseSuppressionStrength { get; set; } = 70.0;
+
+    // VoiSee 12.0.1 low-frequency cleanup. Global and independent from voice presets.
+    public bool RumbleFilterEnabled { get; set; } = false;
+    public double RumbleFilterCutoffHz { get; set; } = 90.0;
 
     // Legacy dB values are kept for backward compatibility with Gate 4/5 settings files.
     public double VoiceGainDb { get; set; } = 0.0;

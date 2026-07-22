@@ -6,6 +6,10 @@ public sealed class EffectSettings
     public bool NoiseSuppressionEnabled { get; set; } = false;
     public float NoiseSuppressionStrength { get; set; } = 0.70f;
 
+    // Global microphone-only high-pass cleanup before RNNoise and voice effects.
+    public bool RumbleFilterEnabled { get; set; } = false;
+    public float RumbleFilterCutoffHz { get; set; } = 90.0f;
+
     public float InputGainDb { get; set; } = 0.0f;
     public bool GateEnabled { get; set; } = true;
     public float GateThresholdDb { get; set; } = -45.0f;
