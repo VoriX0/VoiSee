@@ -66,6 +66,10 @@ public sealed partial class MainWindow : Window
     private bool _loadingSettings = true;
     private bool _loadedOnce;
     private bool _timelineUserDragging;
+    private Slider? _previewEffectSlider;
+    private double _previewEffectOriginalValue;
+    private readonly HashSet<string> _activeEffectCards = new(StringComparer.OrdinalIgnoreCase);
+
     private double _timelineMaximumSeconds = 1.0;
     private string _trackSearchText = string.Empty;
     private List<SoundBoardSound> _visibleSounds = new();
@@ -215,7 +219,7 @@ public sealed partial class MainWindow : Window
         };
         _discordCableSessionIsolationTimer.Tick += OnDiscordCableSessionIsolationTimerTick;
 
-        AppendLog("VoiSee Version 12.2.0 UI started.");
+        AppendLog("VoiSee Version 12.2.1 UI started.");
         AppendLog($"Settings path: {_settingsStore.SettingsPath}");
 
         var isolationResult = _discordCableSessionIsolationService.Enable();
@@ -6921,25 +6925,22 @@ public sealed partial class MainWindow : Window
             return;
         }
 
-        if (sender is Slider slider)
+        if (sender is not Slider slider)
         {
-            _syncingVoiceControls = true;
-            try
-            {
-                SyncVoiceTextBoxFromSlider(slider);
-            }
-            finally
-            {
-                _syncingVoiceControls = false;
-            }
+            return;
         }
 
-        UpdateVoiceSettingLabels();
-        if (!_loadingVoicePreset && !_loadingSettings)
+        _syncingVoiceControls = true;
+        try
         {
-            _lastAppliedVoicePresetName = null;
+            SyncVoiceTextBoxFromSlider(slider);
         }
-        ScheduleVoiceSettingsApply();
+        finally
+        {
+            _syncingVoiceControls = false;
+        }
+
+        PreviewLibraryEffect(slider);
     }
 
     private void OnVoiceValueTextChanged(object sender, TextChangedEventArgs e)
@@ -6954,18 +6955,169 @@ public sealed partial class MainWindow : Window
             return;
         }
 
+        var slider = GetVoiceSliderForTextBox(textBox);
+        if (slider is null)
+        {
+            return;
+        }
+
         _syncingVoiceControls = true;
         try
         {
-            SyncVoiceSliderFromTextBox(textBox, value);
+            slider.Value = Clamp(value, -100, 100);
         }
         finally
         {
             _syncingVoiceControls = false;
         }
 
+        PreviewLibraryEffect(slider);
+    }
+
+    private void PreviewLibraryEffect(Slider slider)
+    {
+        if (_loadingSettings || _loadingVoicePreset)
+        {
+            return;
+        }
+
+        if (_previewEffectSlider is not null && _previewEffectSlider != slider)
+        {
+            SetVoiceControl(_previewEffectSlider, GetVoiceTextBoxForSlider(_previewEffectSlider)!, _previewEffectOriginalValue);
+        }
+
+        if (_previewEffectSlider != slider)
+        {
+            _previewEffectSlider = slider;
+            _previewEffectOriginalValue = 0.0;
+        }
+
+        ShowPreviewEffectCard(GetEffectKey(slider), slider.Value);
         UpdateVoiceSettingLabels();
+        _engine?.UpdateEffectSettings(CreateEffectSettings());
+    }
+
+    private void ClearEffectPreview(bool restoreValue)
+    {
+        if (_previewEffectSlider is not null && restoreValue)
+        {
+            var box = GetVoiceTextBoxForSlider(_previewEffectSlider);
+            if (box is not null)
+            {
+                SetVoiceControl(_previewEffectSlider, box, _previewEffectOriginalValue);
+            }
+        }
+
+        _previewEffectSlider = null;
+        _previewEffectOriginalValue = 0.0;
+        if (EffectPreviewHost is not null)
+        {
+            EffectPreviewHost.Child = null;
+            EffectPreviewHost.Visibility = Visibility.Collapsed;
+        }
+        _engine?.UpdateEffectSettings(CreateEffectSettings());
+    }
+
+    private void ShowPreviewEffectCard(string effectKey, double value)
+    {
+        if (EffectPreviewHost is null) return;
+        var panel = new StackPanel { Spacing = 3 };
+        panel.Children.Add(new TextBlock { Text = $"Preview · {GetEffectDisplayName(effectKey)}", FontWeight = Microsoft.UI.Text.FontWeights.SemiBold });
+        panel.Children.Add(new TextBlock { Text = $"Temporary value: {(int)Math.Round(value)}", Opacity = 0.72 });
+        EffectPreviewHost.Child = panel;
+        EffectPreviewHost.Visibility = Visibility.Visible;
+    }
+
+    private void OnEffectLibraryCardDragStarting(UIElement sender, DragStartingEventArgs args)
+    {
+        if (sender is not FrameworkElement element || element.Tag is not string effectKey) return;
+        args.Data.SetText(effectKey);
+        args.Data.RequestedOperation = Windows.ApplicationModel.DataTransfer.DataPackageOperation.Copy;
+        args.DragUI.SetContentFromDataPackage();
+    }
+
+    private void OnEffectChainDragOver(object sender, DragEventArgs e)
+    {
+        e.AcceptedOperation = Windows.ApplicationModel.DataTransfer.DataPackageOperation.Copy;
+        e.DragUIOverride.Caption = "Add to processing chain";
+        e.DragUIOverride.IsCaptionVisible = true;
+    }
+
+    private async void OnEffectChainDrop(object sender, DragEventArgs e)
+    {
+        if (!e.DataView.Contains(Windows.ApplicationModel.DataTransfer.StandardDataFormats.Text)) return;
+        var effectKey = await e.DataView.GetTextAsync();
+        AddEffectToProcessingChain(effectKey);
+    }
+
+    private void AddEffectToProcessingChain(string effectKey)
+    {
+        var slider = GetSliderForEffectKey(effectKey);
+        if (slider is null || EffectChainCardsPanel is null) return;
+
+        var value = slider.Value;
+        if (_previewEffectSlider == slider)
+        {
+            _previewEffectSlider = null;
+            _previewEffectOriginalValue = 0.0;
+            EffectPreviewHost.Child = null;
+            EffectPreviewHost.Visibility = Visibility.Collapsed;
+        }
+
+        if (_activeEffectCards.Add(effectKey))
+        {
+            var card = new Border
+            {
+                Padding = new Thickness(12, 10, 12, 10),
+                CornerRadius = new CornerRadius(6),
+                Background = (Microsoft.UI.Xaml.Media.Brush)Application.Current.Resources["VoiSee.PanelBackgroundBrush"],
+                BorderBrush = (Microsoft.UI.Xaml.Media.Brush)Application.Current.Resources["VoiSee.PanelBorderBrush"],
+                BorderThickness = new Thickness(1),
+                Tag = effectKey
+            };
+            var grid = new Grid { ColumnSpacing = 8 };
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            var grip = new TextBlock { Text = "⋮⋮", Opacity = 0.5, VerticalAlignment = VerticalAlignment.Center };
+            var title = new TextBlock { Text = GetEffectDisplayName(effectKey), FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, VerticalAlignment = VerticalAlignment.Center };
+            Grid.SetColumn(title, 1);
+            var valueText = new TextBlock { Text = ((int)Math.Round(value)).ToString(), Opacity = 0.72, VerticalAlignment = VerticalAlignment.Center };
+            Grid.SetColumn(valueText, 2);
+            grid.Children.Add(grip); grid.Children.Add(title); grid.Children.Add(valueText);
+            card.Child = grid;
+            EffectChainCardsPanel.Children.Add(card);
+        }
+
+        _lastAppliedVoicePresetName = null;
         ScheduleVoiceSettingsApply();
+    }
+
+    private static string GetEffectKey(Slider slider)
+    {
+        return slider.Name.EndsWith("Slider", StringComparison.Ordinal)
+            ? slider.Name[..^"Slider".Length].Replace("Threshold", string.Empty)
+            : slider.Name;
+    }
+
+    private Slider? GetSliderForEffectKey(string effectKey)
+    {
+        return effectKey switch
+        {
+            "VoiceGain" => VoiceGainSlider, "Gate" => GateThresholdSlider, "Compressor" => CompressorThresholdSlider,
+            "Pitch" => PitchSlider, "Formant" => FormantSlider, "Bass" => BassSlider, "Treble" => TrebleSlider,
+            "Distortion" => DistortionSlider, "Robot" => RobotSlider, "Tremolo" => TremoloSlider,
+            "Echo" => EchoSlider, "Reverb" => ReverbSlider, "Radio" => RadioSlider,
+            "BitCrusher" => BitCrusherSlider, "Alien" => AlienSlider, _ => null
+        };
+    }
+
+    private static string GetEffectDisplayName(string effectKey)
+    {
+        return effectKey switch
+        {
+            "VoiceGain" => "Voice Gain", "BitCrusher" => "Bit Crusher", _ => effectKey
+        };
     }
 
     private void ScheduleVoiceSettingsApply()

@@ -1,6 +1,6 @@
-# VoiSee 12.2.0
+# VoiSee 12.2.1
 
-## VoiSee 12.2.0 — Dual noise suppression
+## VoiSee 12.2.1 — Dual noise suppression
 
 - Keeps the validated RNNoise microphone cleanup introduced in VoiSee 12.0.0.
 - Adds **DeepFilterNet** as a second real-time 48 kHz noise-suppression engine.
@@ -117,13 +117,13 @@ Set-ExecutionPolicy -Scope Process Bypass
 Expected installer:
 
 ```text
-artifacts\installer\VoiSee-Setup-12.2.0-x64.exe
+artifacts\installer\VoiSee-Setup-12.2.1-x64.exe
 ```
 
 Portable build:
 
 ```text
-artifacts\installer\VoiSee-Portable-12.2.0-x64.zip
+artifacts\installer\VoiSee-Portable-12.2.1-x64.zip
 ```
 
 ## Native XAML themes (VoiSee 10.1)
