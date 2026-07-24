@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -15,26 +15,11 @@ public sealed class VoicePresetStore
 
     private const string DefaultPresetJson = """
 {
-  "SchemaVersion": 1,
+  "SchemaVersion": 2,
   "Name": "Default",
   "Icon": "\uE720",
-  "Sliders": {
-    "VoiceGain": 0,
-    "Gate": -100,
-    "Compressor": 100,
-    "Pitch": 0,
-    "Formant": 0,
-    "Bass": 0,
-    "Treble": 0,
-    "Distortion": 0,
-    "Robot": 0,
-    "Tremolo": 0,
-    "Echo": 0,
-    "Reverb": 0,
-    "Radio": 0,
-    "BitCrusher": 0,
-    "Alien": 0
-  }
+  "Sliders": {},
+  "EffectOrder": []
 }
 """;
 
@@ -64,6 +49,7 @@ public sealed class VoicePresetStore
 
                 preset.Icon = string.IsNullOrWhiteSpace(preset.Icon) ? "\uE720" : preset.Icon;
                 preset.Sliders ??= new Dictionary<string, double>();
+                preset.EffectOrder ??= new List<string>();
                 preset.FilePath = file;
                 presets.Add(preset);
             }
@@ -106,6 +92,7 @@ public sealed class VoicePresetStore
         preset.SchemaVersion = Math.Max(1, preset.SchemaVersion);
         preset.Icon = string.IsNullOrWhiteSpace(preset.Icon) ? "\uE720" : preset.Icon;
         preset.Sliders ??= new Dictionary<string, double>();
+        preset.EffectOrder ??= new List<string>();
         preset.FilePath = GetAvailablePresetPath(preset.Name);
         File.WriteAllText(preset.FilePath, JsonSerializer.Serialize(preset, JsonOptions));
         return preset.FilePath;

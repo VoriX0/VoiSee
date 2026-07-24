@@ -1,4 +1,4 @@
-namespace VoiSe.Audio;
+﻿namespace VoiSe.Audio;
 
 public sealed class SimpleVoiceProcessor
 {
@@ -30,8 +30,10 @@ public sealed class SimpleVoiceProcessor
     private float _radioAmount;
     private float _bitCrusherAmount;
     private float _alienAmount;
+    private VoiceEffectKind[] _effectOrder = Array.Empty<VoiceEffectKind>();
 
-    private readonly float[] _toneLow = new float[Channels];
+    private readonly float[] _bassLow = new float[Channels];
+    private readonly float[] _trebleLow = new float[Channels];
     private readonly float[,] _formantZ1 = new float[Channels, FormantBandCount];
     private readonly float[,] _formantZ2 = new float[Channels, FormantBandCount];
     private readonly float[] _formantB0 = new float[FormantBandCount];
@@ -76,6 +78,7 @@ public sealed class SimpleVoiceProcessor
     public void ProcessInPlace(Span<float> samples)
     {
         EffectSettings settings;
+        VoiceEffectKind[] effectOrder;
         float gateThreshold;
         float compressorThreshold;
         float inputGain;
@@ -97,6 +100,7 @@ public sealed class SimpleVoiceProcessor
         lock (_sync)
         {
             settings = _settings;
+            effectOrder = _effectOrder;
             gateThreshold = _gateThreshold;
             compressorThreshold = _compressorThreshold;
             inputGain = _inputGain;
@@ -118,7 +122,8 @@ public sealed class SimpleVoiceProcessor
 
         var bassGain = Decibels.DbToLinear(bassAmount * 10.0f);
         var trebleGain = Decibels.DbToLinear(trebleAmount * 10.0f);
-        var toneBlend = Math.Clamp(Math.Max(Math.Abs(bassAmount), Math.Abs(trebleAmount)), 0.0f, 1.0f);
+        var bassMix = Math.Clamp(Math.Abs(bassAmount), 0.0f, 1.0f);
+        var trebleMix = Math.Clamp(Math.Abs(trebleAmount), 0.0f, 1.0f);
         var distortionMix = Math.Clamp(Math.Max(0.0f, distortionAmount), 0.0f, 1.0f);
         var distortionDrive = 1.0f + distortionMix * 18.0f;
         var robotMix = Math.Clamp(Math.Max(0.0f, robotAmount), 0.0f, 1.0f);
@@ -144,32 +149,64 @@ public sealed class SimpleVoiceProcessor
                 AdvanceModulators(robotMix, tremoloDepth, alienMix, alienFrequency);
             }
 
-            var dry = samples[i] * inputGain;
-            var sample = dry;
-
-            if (settings.GateEnabled && Math.Abs(sample) < gateThreshold)
+            var sample = samples[i] * inputGain;
+            foreach (var effect in effectOrder)
             {
-                sample = 0.0f;
+                switch (effect)
+                {
+                    case VoiceEffectKind.VoiceGain:
+                        sample *= voiceGain;
+                        break;
+                    case VoiceEffectKind.Gate:
+                        if (settings.GateEnabled && Math.Abs(sample) < gateThreshold)
+                        {
+                            sample = 0.0f;
+                        }
+                        break;
+                    case VoiceEffectKind.Compressor:
+                        if (settings.CompressorEnabled)
+                        {
+                            sample = CompressSample(sample, compressorThreshold, settings.CompressorRatio);
+                        }
+                        break;
+                    case VoiceEffectKind.Pitch:
+                        sample = ApplyPitchShift(sample, channel, pitchSemitones);
+                        break;
+                    case VoiceEffectKind.Formant:
+                        sample = ApplyFormantShift(sample, channel, formantShiftSemitones);
+                        break;
+                    case VoiceEffectKind.Bass:
+                        sample = ApplyBass(sample, channel, bassGain, bassMix);
+                        break;
+                    case VoiceEffectKind.Treble:
+                        sample = ApplyTreble(sample, channel, trebleGain, trebleMix);
+                        break;
+                    case VoiceEffectKind.Distortion:
+                        sample = ApplyDistortion(sample, distortionMix, distortionDrive);
+                        break;
+                    case VoiceEffectKind.Robot:
+                        sample = ApplyRobot(sample, robotMix);
+                        break;
+                    case VoiceEffectKind.Tremolo:
+                        sample = ApplyTremolo(sample, tremoloDepth);
+                        break;
+                    case VoiceEffectKind.Echo:
+                        sample = ApplyEcho(sample, i, echoMix, echoFeedback);
+                        break;
+                    case VoiceEffectKind.Reverb:
+                        sample = ApplyReverb(sample, i, reverbMix, reverbFeedback);
+                        break;
+                    case VoiceEffectKind.Radio:
+                        sample = ApplyRadio(sample, channel, radioMix);
+                        break;
+                    case VoiceEffectKind.BitCrusher:
+                        sample = ApplyBitCrusher(sample, channel, bitMix, bitLevels, bitHoldSamples);
+                        break;
+                    case VoiceEffectKind.Alien:
+                        sample = ApplyAlien(sample, alienMix);
+                        break;
+                }
             }
-
-            if (settings.CompressorEnabled)
-            {
-                sample = CompressSample(sample, compressorThreshold, settings.CompressorRatio);
-            }
-
-            sample = ApplyPitchShift(sample, channel, pitchSemitones);
-            sample = ApplyFormantShift(sample, channel, formantShiftSemitones);
-            sample = ApplyTone(sample, channel, bassGain, trebleGain, toneBlend);
-            sample = ApplyRadio(sample, channel, radioMix);
-            sample = ApplyRobot(sample, robotMix);
-            sample = ApplyAlien(sample, alienMix);
-            sample = ApplyTremolo(sample, tremoloDepth);
-            sample = ApplyDistortion(sample, distortionMix, distortionDrive);
-            sample = ApplyBitCrusher(sample, channel, bitMix, bitLevels, bitHoldSamples);
-            sample = ApplyEcho(sample, i, echoMix, echoFeedback);
-            sample = ApplyReverb(sample, i, reverbMix, reverbFeedback);
-
-            sample *= voiceGain;
 
             if (settings.LimiterEnabled)
             {
@@ -204,6 +241,7 @@ public sealed class SimpleVoiceProcessor
         _radioAmount = ClampEffectAmount(settings.RadioAmount);
         _bitCrusherAmount = ClampEffectAmount(settings.BitCrusherAmount);
         _alienAmount = ClampEffectAmount(settings.AlienAmount);
+        _effectOrder = settings.EffectOrder?.ToArray() ?? Array.Empty<VoiceEffectKind>();
     }
 
     private static float ClampEffectAmount(float value) => Math.Clamp(value, -4.0f, 4.0f);
@@ -366,19 +404,34 @@ public sealed class SimpleVoiceProcessor
         return output;
     }
 
-    private float ApplyTone(float sample, int channel, float bassGain, float trebleGain, float toneBlend)
+    private float ApplyBass(float sample, int channel, float bassGain, float mix)
     {
-        if (toneBlend <= 0.001f)
+        if (mix <= 0.001f)
         {
             return sample;
         }
 
         const float alpha = 0.035f;
-        _toneLow[channel] += alpha * (sample - _toneLow[channel]);
-        var low = _toneLow[channel];
+        _bassLow[channel] += alpha * (sample - _bassLow[channel]);
+        var low = _bassLow[channel];
         var high = sample - low;
-        var toned = low * bassGain + high * trebleGain;
-        return Lerp(sample, toned, toneBlend);
+        var processed = low * bassGain + high;
+        return Lerp(sample, processed, mix);
+    }
+
+    private float ApplyTreble(float sample, int channel, float trebleGain, float mix)
+    {
+        if (mix <= 0.001f)
+        {
+            return sample;
+        }
+
+        const float alpha = 0.035f;
+        _trebleLow[channel] += alpha * (sample - _trebleLow[channel]);
+        var low = _trebleLow[channel];
+        var high = sample - low;
+        var processed = low + high * trebleGain;
+        return Lerp(sample, processed, mix);
     }
 
     private float ApplyRadio(float sample, int channel, float mix)

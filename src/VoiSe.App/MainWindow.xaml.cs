@@ -1,4 +1,4 @@
-using Microsoft.UI.Windowing;
+﻿using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Controls.Primitives;
@@ -67,8 +67,20 @@ public sealed partial class MainWindow : Window
     private bool _loadedOnce;
     private bool _timelineUserDragging;
     private Slider? _previewEffectSlider;
-    private double _previewEffectOriginalValue;
-    private readonly HashSet<string> _activeEffectCards = new(StringComparer.OrdinalIgnoreCase);
+    private string? _previewEffectKey;
+    private double _previewEffectValue;
+    private readonly Dictionary<string, double> _activeEffectValues = new(StringComparer.OrdinalIgnoreCase);
+    private readonly List<string> _effectChainOrder = new();
+    private readonly Dictionary<string, Slider> _activeEffectSliders = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, TextBox> _activeEffectTextBoxes = new(StringComparer.OrdinalIgnoreCase);
+    private bool _syncingEffectCardControls;
+    private bool _effectPointerDragActive;
+    private bool _effectPointerDragFromChain;
+    private string? _effectPointerDragKey;
+    private Border? _effectPointerDragVisual;
+    private uint _effectPointerDragPointerId;
+    private double _effectPointerDragOffsetX;
+    private double _effectPointerDragOffsetY;
 
     private double _timelineMaximumSeconds = 1.0;
     private string _trackSearchText = string.Empty;
@@ -116,6 +128,11 @@ public sealed partial class MainWindow : Window
     private const string MuteOnCueRelativePath = "Assets\\Audio\\mute_on.wav";
     private const string MuteOffCueRelativePath = "Assets\\Audio\\mute_off.wav";
     private const string SoundEditorPreviewPlaybackKey = "__voisee_sound_editor_preview";
+    private static readonly string[] KnownVoiceEffectKeys =
+    {
+        "VoiceGain", "Gate", "Compressor", "Pitch", "Formant", "Bass", "Treble",
+        "Distortion", "Robot", "Tremolo", "Echo", "Reverb", "Radio", "BitCrusher", "Alien"
+    };
     private bool _suppressSoundBoardTimelineForEditorPreview;
     private bool _soundEditorActive;
     private ScrollViewer? _activeSoundEditorScrollViewer;
@@ -219,7 +236,7 @@ public sealed partial class MainWindow : Window
         };
         _discordCableSessionIsolationTimer.Tick += OnDiscordCableSessionIsolationTimerTick;
 
-        AppendLog("VoiSee Version 12.2.1 UI started.");
+        AppendLog("VoiSee Version 12.2.2 UI started.");
         AppendLog($"Settings path: {_settingsStore.SettingsPath}");
 
         var isolationResult = _discordCableSessionIsolationService.Enable();
@@ -1244,21 +1261,8 @@ public sealed partial class MainWindow : Window
         UpdateNoiseSuppressionUi();
         UpdateMediaBridgeSavedProfileText();
         UpdateMediaBridgeUiState();
-        SetVoiceControl(VoiceGainSlider, VoiceGainValueBox, _settings.VoiceGain);
-        SetVoiceControl(GateThresholdSlider, GateThresholdValueBox, _settings.VoiceGate);
-        SetVoiceControl(CompressorThresholdSlider, CompressorThresholdValueBox, _settings.VoiceCompressor);
-        SetVoiceControl(PitchSlider, PitchValueBox, _settings.VoicePitch);
-        SetVoiceControl(FormantSlider, FormantValueBox, _settings.VoiceFormant);
-        SetVoiceControl(BassSlider, BassValueBox, _settings.VoiceBass);
-        SetVoiceControl(TrebleSlider, TrebleValueBox, _settings.VoiceTreble);
-        SetVoiceControl(DistortionSlider, DistortionValueBox, _settings.VoiceDistortion);
-        SetVoiceControl(RobotSlider, RobotValueBox, _settings.VoiceRobot);
-        SetVoiceControl(TremoloSlider, TremoloValueBox, _settings.VoiceTremolo);
-        SetVoiceControl(EchoSlider, EchoValueBox, _settings.VoiceEcho);
-        SetVoiceControl(ReverbSlider, ReverbValueBox, _settings.VoiceReverb);
-        SetVoiceControl(RadioSlider, RadioValueBox, _settings.VoiceRadio);
-        SetVoiceControl(BitCrusherSlider, BitCrusherValueBox, _settings.VoiceBitCrusher);
-        SetVoiceControl(AlienSlider, AlienValueBox, _settings.VoiceAlien);
+        ResetAllLibraryEffectControls();
+        LoadStoredEffectChain();
         _voiceMonitorEnabled = _settings.VoiceMonitorEnabled;
         UpdateAllLabels();
     }
@@ -6514,36 +6518,62 @@ public sealed partial class MainWindow : Window
 
     private EffectSettings CreateEffectSettings()
     {
-        var compressorValue = GetVoiceValue(CompressorThresholdSlider, CompressorThresholdValueBox);
+        var gateValue = ToLegacyEffectValue("Gate", GetEffectiveEffectValue("Gate"));
+        var compressorValue = ToLegacyEffectValue("Compressor", GetEffectiveEffectValue("Compressor"));
 
         return new EffectSettings
         {
             NoiseSuppressionMode = GetSelectedNoiseSuppressionMode(),
             NoiseSuppressionStrength = (float)Clamp((NoiseSuppressionStrengthSlider?.Value ?? 70.0) / 100.0, 0.0, 1.0),
             InputGainDb = 0.0f,
-            VoiceGainDb = (float)MapCentered(GetVoiceValue(VoiceGainSlider, VoiceGainValueBox), 0, -24, 18),
-            GateThresholdDb = (float)MapCentered(GetVoiceValue(GateThresholdSlider, GateThresholdValueBox), -45, -80, -15),
+            VoiceGainDb = (float)MapCentered(GetEffectiveEffectValue("VoiceGain"), 0, -24, 18),
+            GateThresholdDb = (float)MapCentered(gateValue, -45, -80, -15),
             CompressorThresholdDb = (float)MapCentered(compressorValue, -24, -60, -6),
             CompressorRatio = (float)MapCentered(compressorValue, 4, 1.5, 16),
-            PitchSemitones = ToPitchSemitones(GetVoiceValue(PitchSlider, PitchValueBox)),
-            FormantShiftSemitones = ToFormantSemitones(GetVoiceValue(FormantSlider, FormantValueBox)),
-            BassAmount = ToEffectAmount(GetVoiceValue(BassSlider, BassValueBox)),
-            TrebleAmount = ToEffectAmount(GetVoiceValue(TrebleSlider, TrebleValueBox)),
-            DistortionAmount = ToEffectAmount(GetVoiceValue(DistortionSlider, DistortionValueBox)),
-            RobotAmount = ToEffectAmount(GetVoiceValue(RobotSlider, RobotValueBox)),
-            TremoloAmount = ToEffectAmount(GetVoiceValue(TremoloSlider, TremoloValueBox)),
-            EchoAmount = ToEffectAmount(GetVoiceValue(EchoSlider, EchoValueBox)),
-            ReverbAmount = ToEffectAmount(GetVoiceValue(ReverbSlider, ReverbValueBox)),
-            RadioAmount = ToEffectAmount(GetVoiceValue(RadioSlider, RadioValueBox)),
-            BitCrusherAmount = ToEffectAmount(GetVoiceValue(BitCrusherSlider, BitCrusherValueBox)),
-            AlienAmount = ToEffectAmount(GetVoiceValue(AlienSlider, AlienValueBox)),
-            GateEnabled = true,
-            CompressorEnabled = true,
+            PitchSemitones = ToPitchSemitones(GetEffectiveEffectValue("Pitch")),
+            FormantShiftSemitones = ToFormantSemitones(GetEffectiveEffectValue("Formant")),
+            BassAmount = ToEffectAmount(GetEffectiveEffectValue("Bass")),
+            TrebleAmount = ToEffectAmount(GetEffectiveEffectValue("Treble")),
+            DistortionAmount = ToEffectAmount(GetEffectiveEffectValue("Distortion")),
+            RobotAmount = ToEffectAmount(GetEffectiveEffectValue("Robot")),
+            TremoloAmount = ToEffectAmount(GetEffectiveEffectValue("Tremolo")),
+            EchoAmount = ToEffectAmount(GetEffectiveEffectValue("Echo")),
+            ReverbAmount = ToEffectAmount(GetEffectiveEffectValue("Reverb")),
+            RadioAmount = ToEffectAmount(GetEffectiveEffectValue("Radio")),
+            BitCrusherAmount = ToEffectAmount(GetEffectiveEffectValue("BitCrusher")),
+            AlienAmount = ToEffectAmount(GetEffectiveEffectValue("Alien")),
+            GateEnabled = IsEffectEnabledInSignalPath("Gate"),
+            CompressorEnabled = IsEffectEnabledInSignalPath("Compressor"),
             LimiterEnabled = true,
             LimiterCeilingDb = -1.0f,
             VirtualOutputGain = (float)VirtualOutputVolumeSlider.Value,
-            VoiceMonitorGain = _voiceMonitorEnabled ? 1.0f : 0.0f
+            VoiceMonitorGain = _voiceMonitorEnabled ? 1.0f : 0.0f,
+            EffectOrder = BuildEffectOrder()
         };
+    }
+
+    private IReadOnlyList<VoiceEffectKind> BuildEffectOrder()
+    {
+        var order = new List<VoiceEffectKind>(_effectChainOrder.Count + (_previewEffectKey is null ? 0 : 1));
+        foreach (var effectKey in _effectChainOrder)
+        {
+            if (TryMapEffectKind(effectKey, out var effectKind))
+            {
+                order.Add(effectKind);
+            }
+        }
+
+        if (!string.IsNullOrWhiteSpace(_previewEffectKey) && TryMapEffectKind(_previewEffectKey, out var previewKind))
+        {
+            order.Add(previewKind);
+        }
+
+        return order;
+    }
+
+    private static bool TryMapEffectKind(string effectKey, out VoiceEffectKind effectKind)
+    {
+        return Enum.TryParse(effectKey, ignoreCase: true, out effectKind);
     }
 
     private static float ToPitchSemitones(double value)
@@ -6961,10 +6991,12 @@ public sealed partial class MainWindow : Window
             return;
         }
 
+        value = Clamp(value, slider.Minimum, slider.Maximum);
         _syncingVoiceControls = true;
         try
         {
-            slider.Value = Clamp(value, -100, 100);
+            slider.Value = value;
+            textBox.Text = ((int)Math.Round(value)).ToString();
         }
         finally
         {
@@ -6981,18 +7013,17 @@ public sealed partial class MainWindow : Window
             return;
         }
 
+        var effectKey = GetEffectKey(slider);
         if (_previewEffectSlider is not null && _previewEffectSlider != slider)
         {
-            SetVoiceControl(_previewEffectSlider, GetVoiceTextBoxForSlider(_previewEffectSlider)!, _previewEffectOriginalValue);
+            ResetLibraryEffectControl(GetEffectKey(_previewEffectSlider));
         }
 
-        if (_previewEffectSlider != slider)
-        {
-            _previewEffectSlider = slider;
-            _previewEffectOriginalValue = 0.0;
-        }
+        _previewEffectSlider = slider;
+        _previewEffectKey = effectKey;
+        _previewEffectValue = slider.Value;
 
-        ShowPreviewEffectCard(GetEffectKey(slider), slider.Value);
+        ShowPreviewEffectCard(effectKey, _previewEffectValue);
         UpdateVoiceSettingLabels();
         _engine?.UpdateEffectSettings(CreateEffectSettings());
     }
@@ -7001,96 +7032,660 @@ public sealed partial class MainWindow : Window
     {
         if (_previewEffectSlider is not null && restoreValue)
         {
-            var box = GetVoiceTextBoxForSlider(_previewEffectSlider);
-            if (box is not null)
-            {
-                SetVoiceControl(_previewEffectSlider, box, _previewEffectOriginalValue);
-            }
+            ResetLibraryEffectControl(GetEffectKey(_previewEffectSlider));
         }
 
         _previewEffectSlider = null;
-        _previewEffectOriginalValue = 0.0;
+        _previewEffectKey = null;
+        _previewEffectValue = 0.0;
         if (EffectPreviewHost is not null)
         {
             EffectPreviewHost.Child = null;
             EffectPreviewHost.Visibility = Visibility.Collapsed;
         }
+
         _engine?.UpdateEffectSettings(CreateEffectSettings());
     }
 
     private void ShowPreviewEffectCard(string effectKey, double value)
     {
-        if (EffectPreviewHost is null) return;
-        var panel = new StackPanel { Spacing = 3 };
-        panel.Children.Add(new TextBlock { Text = $"Preview · {GetEffectDisplayName(effectKey)}", FontWeight = Microsoft.UI.Text.FontWeights.SemiBold });
-        panel.Children.Add(new TextBlock { Text = $"Temporary value: {(int)Math.Round(value)}", Opacity = 0.72 });
+        if (EffectPreviewHost is null)
+        {
+            return;
+        }
+
+        var panel = new StackPanel { Spacing = 4 };
+        panel.Children.Add(new TextBlock
+        {
+            Text = $"Preview · {GetEffectDisplayName(effectKey)}",
+            FontWeight = Microsoft.UI.Text.FontWeights.SemiBold
+        });
+        panel.Children.Add(new TextBlock
+        {
+            Text = $"Temporary value: {(int)Math.Round(value)} · applied after the current chain",
+            Opacity = 0.78,
+            TextWrapping = TextWrapping.Wrap
+        });
         EffectPreviewHost.Child = panel;
         EffectPreviewHost.Visibility = Visibility.Visible;
     }
 
-    private void OnEffectLibraryCardDragStarting(UIElement sender, DragStartingEventArgs args)
+    private void OnEffectLibraryGripPointerPressed(object sender, PointerRoutedEventArgs e)
     {
-        if (sender is not FrameworkElement element || element.Tag is not string effectKey) return;
-        args.Data.SetText(effectKey);
-        args.Data.RequestedOperation = Windows.ApplicationModel.DataTransfer.DataPackageOperation.Copy;
-        args.DragUI.SetContentFromDataPackage();
+        if (sender is not FrameworkElement { Tag: string effectKey } grip)
+        {
+            return;
+        }
+
+        StartEffectPointerDrag(grip, effectKey, fromChain: false, e);
+    }
+
+    private void OnEffectChainGripPointerPressed(object sender, PointerRoutedEventArgs e)
+    {
+        if (sender is not FrameworkElement { Tag: string effectKey } grip)
+        {
+            return;
+        }
+
+        StartEffectPointerDrag(grip, effectKey, fromChain: true, e);
+    }
+
+    private void StartEffectPointerDrag(UIElement grip, string effectKey, bool fromChain, PointerRoutedEventArgs e)
+    {
+        if (EffectDragOverlay is null || _effectPointerDragActive)
+        {
+            return;
+        }
+
+        _effectPointerDragActive = true;
+        _effectPointerDragFromChain = fromChain;
+        _effectPointerDragKey = effectKey;
+        _effectPointerDragPointerId = e.Pointer.PointerId;
+
+        var sourceCard = FindVisualAncestor<Border>(grip);
+        var width = Math.Max(220.0, sourceCard?.ActualWidth ?? 260.0);
+        var value = fromChain
+            ? GetActiveEffectValue(effectKey)
+            : GetLibraryEffectValue(effectKey);
+
+        _effectPointerDragVisual = CreateEffectDragVisual(effectKey, value, width);
+        EffectDragOverlay.Children.Add(_effectPointerDragVisual);
+        Canvas.SetZIndex(_effectPointerDragVisual, 1000);
+
+        _effectPointerDragOffsetX = Math.Min(34.0, width * 0.18);
+        _effectPointerDragOffsetY = 24.0;
+        UpdateEffectDragVisualPosition(e);
+        grip.CapturePointer(e.Pointer);
+        e.Handled = true;
+    }
+
+    private Border CreateEffectDragVisual(string effectKey, double value, double width)
+    {
+        var card = new Border
+        {
+            Width = width,
+            MinHeight = 86,
+            Padding = new Thickness(12, 10, 12, 10),
+            CornerRadius = new CornerRadius(7),
+            Background = Application.Current.Resources["VoiSee.PanelBackgroundBrush"] as Brush,
+            BorderBrush = Application.Current.Resources["VoiSee.AccentBrush"] as Brush,
+            BorderThickness = new Thickness(1.5),
+            Opacity = 0.68,
+            IsHitTestVisible = false
+        };
+
+        var stack = new StackPanel { Spacing = 8 };
+        var header = new Grid { ColumnSpacing = 8 };
+        header.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        header.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        header.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        header.Children.Add(new TextBlock { Text = "⋮⋮", Opacity = 0.72, FontSize = 18, VerticalAlignment = VerticalAlignment.Center });
+        var title = new TextBlock
+        {
+            Text = GetEffectDisplayName(effectKey),
+            FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
+            VerticalAlignment = VerticalAlignment.Center
+        };
+        Grid.SetColumn(title, 1);
+        header.Children.Add(title);
+        var valueText = new TextBlock
+        {
+            Text = ((int)Math.Round(value)).ToString(),
+            Opacity = 0.8,
+            VerticalAlignment = VerticalAlignment.Center
+        };
+        Grid.SetColumn(valueText, 2);
+        header.Children.Add(valueText);
+        stack.Children.Add(header);
+
+        var range = GetEffectUiRange(effectKey);
+        var progress = new ProgressBar
+        {
+            Minimum = range.Minimum,
+            Maximum = range.Maximum,
+            Value = Clamp(value, range.Minimum, range.Maximum),
+            Height = 5,
+            IsIndeterminate = false
+        };
+        stack.Children.Add(progress);
+        card.Child = stack;
+        return card;
+    }
+
+    private void OnEffectDragPointerMoved(object sender, PointerRoutedEventArgs e)
+    {
+        if (!_effectPointerDragActive || e.Pointer.PointerId != _effectPointerDragPointerId)
+        {
+            return;
+        }
+
+        UpdateEffectDragVisualPosition(e);
+        e.Handled = true;
+    }
+
+    private void UpdateEffectDragVisualPosition(PointerRoutedEventArgs e)
+    {
+        if (EffectDragOverlay is null || _effectPointerDragVisual is null)
+        {
+            return;
+        }
+
+        var position = e.GetCurrentPoint(EffectDragOverlay).Position;
+        Canvas.SetLeft(_effectPointerDragVisual, position.X - _effectPointerDragOffsetX);
+        Canvas.SetTop(_effectPointerDragVisual, position.Y - _effectPointerDragOffsetY);
+    }
+
+    private void OnEffectDragPointerReleased(object sender, PointerRoutedEventArgs e)
+    {
+        if (!_effectPointerDragActive || e.Pointer.PointerId != _effectPointerDragPointerId)
+        {
+            return;
+        }
+
+        try
+        {
+            if (ProcessingChainSurface is not null && IsPointerInside(e, ProcessingChainSurface) && !string.IsNullOrWhiteSpace(_effectPointerDragKey))
+            {
+                var insertionIndex = GetEffectInsertionIndex(e);
+                if (_effectPointerDragFromChain)
+                {
+                    MoveEffectWithinProcessingChain(_effectPointerDragKey!, insertionIndex);
+                }
+                else
+                {
+                    AddEffectToProcessingChain(_effectPointerDragKey!, insertionIndex);
+                }
+            }
+        }
+        finally
+        {
+            if (sender is UIElement grip)
+            {
+                grip.ReleasePointerCapture(e.Pointer);
+            }
+            EndEffectPointerDrag();
+        }
+
+        e.Handled = true;
+    }
+
+    private void OnEffectDragPointerCanceled(object sender, PointerRoutedEventArgs e)
+    {
+        if (sender is UIElement grip)
+        {
+            grip.ReleasePointerCapture(e.Pointer);
+        }
+        EndEffectPointerDrag();
+        e.Handled = true;
+    }
+
+    private void EndEffectPointerDrag()
+    {
+        if (_effectPointerDragVisual is not null && EffectDragOverlay is not null)
+        {
+            EffectDragOverlay.Children.Remove(_effectPointerDragVisual);
+        }
+
+        _effectPointerDragActive = false;
+        _effectPointerDragFromChain = false;
+        _effectPointerDragKey = null;
+        _effectPointerDragVisual = null;
+        _effectPointerDragPointerId = 0;
+    }
+
+    private static bool IsPointerInside(PointerRoutedEventArgs e, FrameworkElement element)
+    {
+        var point = e.GetCurrentPoint(element).Position;
+        return point.X >= 0 && point.Y >= 0 && point.X <= element.ActualWidth && point.Y <= element.ActualHeight;
+    }
+
+    private int GetEffectInsertionIndex(PointerRoutedEventArgs e)
+    {
+        if (EffectChainCardsPanel is null || EffectChainCardsPanel.Children.Count == 0)
+        {
+            return 0;
+        }
+
+        var point = e.GetCurrentPoint(EffectChainCardsPanel).Position;
+        for (var index = 0; index < EffectChainCardsPanel.Children.Count; index++)
+        {
+            if (EffectChainCardsPanel.Children[index] is not FrameworkElement child)
+            {
+                continue;
+            }
+
+            try
+            {
+                var top = child.TransformToVisual(EffectChainCardsPanel)
+                    .TransformPoint(new Windows.Foundation.Point(0, 0)).Y;
+                if (point.Y < top + child.ActualHeight / 2.0)
+                {
+                    return index;
+                }
+            }
+            catch
+            {
+                // If the visual is being rebuilt, append at the end.
+            }
+        }
+
+        return EffectChainCardsPanel.Children.Count;
+    }
+
+    private static T? FindVisualAncestor<T>(DependencyObject? start) where T : DependencyObject
+    {
+        var current = start;
+        while (current is not null)
+        {
+            if (current is T match)
+            {
+                return match;
+            }
+            current = VisualTreeHelper.GetParent(current);
+        }
+        return null;
     }
 
     private void OnEffectChainDragOver(object sender, DragEventArgs e)
     {
-        e.AcceptedOperation = Windows.ApplicationModel.DataTransfer.DataPackageOperation.Copy;
+        e.AcceptedOperation = DataPackageOperation.Copy;
         e.DragUIOverride.Caption = "Add to processing chain";
         e.DragUIOverride.IsCaptionVisible = true;
     }
 
     private async void OnEffectChainDrop(object sender, DragEventArgs e)
     {
-        if (!e.DataView.Contains(Windows.ApplicationModel.DataTransfer.StandardDataFormats.Text)) return;
-        var effectKey = await e.DataView.GetTextAsync();
-        AddEffectToProcessingChain(effectKey);
-    }
-
-    private void AddEffectToProcessingChain(string effectKey)
-    {
-        var slider = GetSliderForEffectKey(effectKey);
-        if (slider is null || EffectChainCardsPanel is null) return;
-
-        var value = slider.Value;
-        if (_previewEffectSlider == slider)
+        if (!e.DataView.Contains(StandardDataFormats.Text))
         {
-            _previewEffectSlider = null;
-            _previewEffectOriginalValue = 0.0;
-            EffectPreviewHost.Child = null;
-            EffectPreviewHost.Visibility = Visibility.Collapsed;
+            return;
         }
 
-        if (_activeEffectCards.Add(effectKey))
+        var effectKey = await e.DataView.GetTextAsync();
+        AddEffectToProcessingChain(effectKey, _effectChainOrder.Count);
+    }
+
+    private void AddEffectToProcessingChain(string effectKey, int insertionIndex)
+    {
+        var slider = GetSliderForEffectKey(effectKey);
+        if (slider is null || EffectChainCardsPanel is null)
         {
-            var card = new Border
+            return;
+        }
+
+        var value = string.Equals(_previewEffectKey, effectKey, StringComparison.OrdinalIgnoreCase)
+            ? _previewEffectValue
+            : slider.Value;
+        var range = GetEffectUiRange(effectKey);
+        value = Clamp(value, range.Minimum, range.Maximum);
+
+        var oldIndex = _effectChainOrder.FindIndex(key => string.Equals(key, effectKey, StringComparison.OrdinalIgnoreCase));
+        if (oldIndex >= 0)
+        {
+            _effectChainOrder.RemoveAt(oldIndex);
+            if (oldIndex < insertionIndex)
             {
-                Padding = new Thickness(12, 10, 12, 10),
-                CornerRadius = new CornerRadius(6),
-                Background = (Microsoft.UI.Xaml.Media.Brush)Application.Current.Resources["VoiSee.PanelBackgroundBrush"],
-                BorderBrush = (Microsoft.UI.Xaml.Media.Brush)Application.Current.Resources["VoiSee.PanelBorderBrush"],
-                BorderThickness = new Thickness(1),
-                Tag = effectKey
-            };
-            var grid = new Grid { ColumnSpacing = 8 };
-            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-            var grip = new TextBlock { Text = "⋮⋮", Opacity = 0.5, VerticalAlignment = VerticalAlignment.Center };
-            var title = new TextBlock { Text = GetEffectDisplayName(effectKey), FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, VerticalAlignment = VerticalAlignment.Center };
-            Grid.SetColumn(title, 1);
-            var valueText = new TextBlock { Text = ((int)Math.Round(value)).ToString(), Opacity = 0.72, VerticalAlignment = VerticalAlignment.Center };
-            Grid.SetColumn(valueText, 2);
-            grid.Children.Add(grip); grid.Children.Add(title); grid.Children.Add(valueText);
-            card.Child = grid;
-            EffectChainCardsPanel.Children.Add(card);
+                insertionIndex--;
+            }
+        }
+
+        insertionIndex = (int)Clamp(insertionIndex, 0, _effectChainOrder.Count);
+        _effectChainOrder.Insert(insertionIndex, effectKey);
+        _activeEffectValues[effectKey] = value;
+
+        ClearEffectPreview(restoreValue: true);
+        ResetLibraryEffectControl(effectKey);
+        RebuildEffectChainCards();
+        _lastAppliedVoicePresetName = null;
+        ScheduleVoiceSettingsApply();
+    }
+
+    private void MoveEffectWithinProcessingChain(string effectKey, int insertionIndex)
+    {
+        var oldIndex = _effectChainOrder.FindIndex(key => string.Equals(key, effectKey, StringComparison.OrdinalIgnoreCase));
+        if (oldIndex < 0)
+        {
+            return;
+        }
+
+        _effectChainOrder.RemoveAt(oldIndex);
+        if (oldIndex < insertionIndex)
+        {
+            insertionIndex--;
+        }
+        insertionIndex = (int)Clamp(insertionIndex, 0, _effectChainOrder.Count);
+        _effectChainOrder.Insert(insertionIndex, effectKey);
+        RebuildEffectChainCards();
+        _lastAppliedVoicePresetName = null;
+        ScheduleVoiceSettingsApply();
+    }
+
+    private void RebuildEffectChainCards()
+    {
+        if (EffectChainCardsPanel is null)
+        {
+            return;
+        }
+
+        _activeEffectSliders.Clear();
+        _activeEffectTextBoxes.Clear();
+        EffectChainCardsPanel.Children.Clear();
+
+        foreach (var effectKey in _effectChainOrder.ToList())
+        {
+            if (!_activeEffectValues.TryGetValue(effectKey, out var value))
+            {
+                continue;
+            }
+            EffectChainCardsPanel.Children.Add(CreateActiveEffectCard(effectKey, value));
+        }
+    }
+
+    private Border CreateActiveEffectCard(string effectKey, double value)
+    {
+        var range = GetEffectUiRange(effectKey);
+        value = Clamp(value, range.Minimum, range.Maximum);
+
+        var card = new Border
+        {
+            Padding = new Thickness(12, 10, 12, 10),
+            MinHeight = 96,
+            CornerRadius = new CornerRadius(7),
+            Background = Application.Current.Resources["VoiSee.PanelBackgroundBrush"] as Brush,
+            BorderBrush = Application.Current.Resources["VoiSee.PanelBorderBrush"] as Brush,
+            BorderThickness = new Thickness(1),
+            HorizontalAlignment = HorizontalAlignment.Stretch,
+            Tag = effectKey
+        };
+
+        var stack = new StackPanel { Spacing = 8 };
+        var header = new Grid { ColumnSpacing = 8 };
+        header.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        header.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        header.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+
+        var grip = new TextBlock
+        {
+            Text = "⋮⋮",
+            Tag = effectKey,
+            Opacity = 0.72,
+            VerticalAlignment = VerticalAlignment.Center,
+            FontSize = 18
+        };
+        grip.PointerPressed += OnEffectChainGripPointerPressed;
+        grip.PointerMoved += OnEffectDragPointerMoved;
+        grip.PointerReleased += OnEffectDragPointerReleased;
+        grip.PointerCanceled += OnEffectDragPointerCanceled;
+        header.Children.Add(grip);
+
+        var title = new TextBlock
+        {
+            Text = GetEffectDisplayName(effectKey),
+            FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
+            VerticalAlignment = VerticalAlignment.Center
+        };
+        Grid.SetColumn(title, 1);
+        header.Children.Add(title);
+
+        var deleteButton = new Button
+        {
+            Content = "×",
+            Tag = effectKey,
+            Width = 34,
+            Height = 32,
+            Padding = new Thickness(0),
+            VerticalAlignment = VerticalAlignment.Center,
+            Style = Application.Current.Resources["VoiSee.Style.Button"] as Style
+        };
+        deleteButton.Click += OnRemoveEffectCardClick;
+        Grid.SetColumn(deleteButton, 2);
+        header.Children.Add(deleteButton);
+        stack.Children.Add(header);
+
+        var editor = new Grid { ColumnSpacing = 10 };
+        editor.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        editor.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(70) });
+
+        var slider = new Slider
+        {
+            Minimum = range.Minimum,
+            Maximum = range.Maximum,
+            Value = value,
+            StepFrequency = 1,
+            Tag = effectKey,
+            Style = Application.Current.Resources["VoiSee.Style.Slider"] as Style
+        };
+        slider.ValueChanged += OnActiveEffectSliderChanged;
+        editor.Children.Add(slider);
+
+        var valueBox = new TextBox
+        {
+            Text = ((int)Math.Round(value)).ToString(),
+            MaxLength = 5,
+            TextAlignment = TextAlignment.Right,
+            Tag = effectKey,
+            Style = Application.Current.Resources["VoiSee.Style.TextBox"] as Style
+        };
+        valueBox.TextChanged += OnActiveEffectTextChanged;
+        Grid.SetColumn(valueBox, 1);
+        editor.Children.Add(valueBox);
+        stack.Children.Add(editor);
+        card.Child = stack;
+
+        _activeEffectSliders[effectKey] = slider;
+        _activeEffectTextBoxes[effectKey] = valueBox;
+        return card;
+    }
+
+    private void OnActiveEffectSliderChanged(object sender, Microsoft.UI.Xaml.Controls.Primitives.RangeBaseValueChangedEventArgs e)
+    {
+        if (_syncingEffectCardControls || sender is not Slider { Tag: string effectKey } slider)
+        {
+            return;
+        }
+
+        _activeEffectValues[effectKey] = slider.Value;
+        if (_activeEffectTextBoxes.TryGetValue(effectKey, out var valueBox))
+        {
+            _syncingEffectCardControls = true;
+            try
+            {
+                valueBox.Text = ((int)Math.Round(slider.Value)).ToString();
+            }
+            finally
+            {
+                _syncingEffectCardControls = false;
+            }
         }
 
         _lastAppliedVoicePresetName = null;
         ScheduleVoiceSettingsApply();
+    }
+
+    private void OnActiveEffectTextChanged(object sender, TextChangedEventArgs e)
+    {
+        if (_syncingEffectCardControls || sender is not TextBox { Tag: string effectKey } valueBox)
+        {
+            return;
+        }
+
+        if (!double.TryParse(valueBox.Text.Trim(), out var value))
+        {
+            return;
+        }
+
+        var range = GetEffectUiRange(effectKey);
+        value = Clamp(value, range.Minimum, range.Maximum);
+        _activeEffectValues[effectKey] = value;
+        if (_activeEffectSliders.TryGetValue(effectKey, out var slider))
+        {
+            _syncingEffectCardControls = true;
+            try
+            {
+                slider.Value = value;
+                valueBox.Text = ((int)Math.Round(value)).ToString();
+            }
+            finally
+            {
+                _syncingEffectCardControls = false;
+            }
+        }
+
+        _lastAppliedVoicePresetName = null;
+        ScheduleVoiceSettingsApply();
+    }
+
+    private void OnRemoveEffectCardClick(object sender, RoutedEventArgs e)
+    {
+        if (sender is not FrameworkElement { Tag: string effectKey })
+        {
+            return;
+        }
+
+        _effectChainOrder.RemoveAll(key => string.Equals(key, effectKey, StringComparison.OrdinalIgnoreCase));
+        _activeEffectValues.Remove(effectKey);
+        RebuildEffectChainCards();
+        _lastAppliedVoicePresetName = null;
+        ScheduleVoiceSettingsApply();
+    }
+
+    private void OnClearEffectChainClick(object sender, RoutedEventArgs e)
+    {
+        ClearEffectPreview(restoreValue: true);
+        _effectChainOrder.Clear();
+        _activeEffectValues.Clear();
+        RebuildEffectChainCards();
+        _lastAppliedVoicePresetName = null;
+        ScheduleVoiceSettingsApply();
+        AppendLog("Voice processing chain cleared.");
+    }
+
+    private double GetActiveEffectValue(string effectKey)
+    {
+        return _activeEffectValues.TryGetValue(effectKey, out var value)
+            ? value
+            : GetEffectUiRange(effectKey).DefaultValue;
+    }
+
+    private double GetLibraryEffectValue(string effectKey)
+    {
+        var slider = GetSliderForEffectKey(effectKey);
+        return slider?.Value ?? GetEffectUiRange(effectKey).DefaultValue;
+    }
+
+    private double GetEffectiveEffectValue(string effectKey)
+    {
+        if (string.Equals(_previewEffectKey, effectKey, StringComparison.OrdinalIgnoreCase))
+        {
+            return _previewEffectValue;
+        }
+
+        return GetActiveEffectValue(effectKey);
+    }
+
+    private bool IsEffectEnabledInSignalPath(string effectKey)
+    {
+        return _activeEffectValues.ContainsKey(effectKey)
+            || string.Equals(_previewEffectKey, effectKey, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private void ResetLibraryEffectControl(string effectKey)
+    {
+        var slider = GetSliderForEffectKey(effectKey);
+        var textBox = slider is null ? null : GetVoiceTextBoxForSlider(slider);
+        if (slider is null || textBox is null)
+        {
+            return;
+        }
+
+        SetVoiceControl(slider, textBox, GetEffectUiRange(effectKey).DefaultValue);
+    }
+
+    private void ResetAllLibraryEffectControls()
+    {
+        foreach (var effectKey in KnownVoiceEffectKeys)
+        {
+            ResetLibraryEffectControl(effectKey);
+        }
+    }
+
+    private void LoadStoredEffectChain()
+    {
+        _effectChainOrder.Clear();
+        _activeEffectValues.Clear();
+
+        var storedOrder = _settings.ActiveVoiceEffectOrder ?? new List<string>();
+        var storedValues = _settings.ActiveVoiceEffectValues ?? new Dictionary<string, double>();
+        foreach (var effectKey in storedOrder)
+        {
+            if (!KnownVoiceEffectKeys.Contains(effectKey, StringComparer.OrdinalIgnoreCase)
+                || _effectChainOrder.Contains(effectKey, StringComparer.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            var range = GetEffectUiRange(effectKey);
+            var value = storedValues.TryGetValue(effectKey, out var storedValue)
+                ? Clamp(storedValue, range.Minimum, range.Maximum)
+                : range.DefaultValue;
+            _effectChainOrder.Add(effectKey);
+            _activeEffectValues[effectKey] = value;
+        }
+
+        RebuildEffectChainCards();
+    }
+
+    private static (double Minimum, double Maximum, double DefaultValue) GetEffectUiRange(string effectKey)
+    {
+        return effectKey switch
+        {
+            "Gate" => (0, 100, 0),
+            "Compressor" => (0, 200, 0),
+            "Robot" or "Echo" or "Radio" or "Alien" or "Distortion" or "Tremolo" or "Reverb" or "BitCrusher" => (0, 100, 0),
+            _ => (-100, 100, 0)
+        };
+    }
+
+    private static double ToLegacyEffectValue(string effectKey, double uiValue)
+    {
+        return effectKey switch
+        {
+            "Gate" => Clamp(uiValue, 0, 100) - 100.0,
+            "Compressor" => Clamp(uiValue, 0, 200) - 100.0,
+            _ => uiValue
+        };
+    }
+
+    private static double FromLegacyEffectValue(string effectKey, double legacyValue)
+    {
+        var range = GetEffectUiRange(effectKey);
+        var uiValue = effectKey switch
+        {
+            "Gate" => legacyValue + 100.0,
+            "Compressor" => legacyValue + 100.0,
+            "Robot" or "Echo" or "Radio" or "Alien" or "Distortion" or "Tremolo" or "Reverb" or "BitCrusher" => Math.Max(0.0, legacyValue),
+            _ => legacyValue
+        };
+        return Clamp(uiValue, range.Minimum, range.Maximum);
     }
 
     private static string GetEffectKey(Slider slider)
@@ -7858,7 +8453,16 @@ public sealed partial class MainWindow : Window
         _voicePresetBeforeActiveScene = null;
         _lastAppliedVoicePresetNameBeforeActiveScene = null;
 
-        ApplyVoiceSliderDictionary(previous.Sliders);
+        _loadingVoicePreset = true;
+        try
+        {
+            ResetAllLibraryEffectControls();
+            LoadEffectChainFromPreset(previous);
+        }
+        finally
+        {
+            _loadingVoicePreset = false;
+        }
         UpdateVoiceSettingLabels();
         _lastAppliedVoicePresetName = previousPresetName;
         ApplyLiveSettings("voice settings restored after scene disabled");
@@ -7874,21 +8478,22 @@ public sealed partial class MainWindow : Window
         _loadingVoicePreset = true;
         try
         {
-            SetVoiceControlFromDictionary(VoiceGainSlider, VoiceGainValueBox, sliders, "VoiceGain");
-            SetVoiceControlFromDictionary(GateThresholdSlider, GateThresholdValueBox, sliders, "Gate");
-            SetVoiceControlFromDictionary(CompressorThresholdSlider, CompressorThresholdValueBox, sliders, "Compressor");
-            SetVoiceControlFromDictionary(PitchSlider, PitchValueBox, sliders, "Pitch");
-            SetVoiceControlFromDictionary(FormantSlider, FormantValueBox, sliders, "Formant");
-            SetVoiceControlFromDictionary(BassSlider, BassValueBox, sliders, "Bass");
-            SetVoiceControlFromDictionary(TrebleSlider, TrebleValueBox, sliders, "Treble");
-            SetVoiceControlFromDictionary(DistortionSlider, DistortionValueBox, sliders, "Distortion");
-            SetVoiceControlFromDictionary(RobotSlider, RobotValueBox, sliders, "Robot");
-            SetVoiceControlFromDictionary(TremoloSlider, TremoloValueBox, sliders, "Tremolo");
-            SetVoiceControlFromDictionary(EchoSlider, EchoValueBox, sliders, "Echo");
-            SetVoiceControlFromDictionary(ReverbSlider, ReverbValueBox, sliders, "Reverb");
-            SetVoiceControlFromDictionary(RadioSlider, RadioValueBox, sliders, "Radio");
-            SetVoiceControlFromDictionary(BitCrusherSlider, BitCrusherValueBox, sliders, "BitCrusher");
-            SetVoiceControlFromDictionary(AlienSlider, AlienValueBox, sliders, "Alien");
+            ResetAllLibraryEffectControls();
+            _effectChainOrder.Clear();
+            _activeEffectValues.Clear();
+            foreach (var effectKey in KnownVoiceEffectKeys)
+            {
+                if (!sliders.TryGetValue(effectKey, out var value))
+                {
+                    continue;
+                }
+
+                var range = GetEffectUiRange(effectKey);
+                value = Clamp(value, range.Minimum, range.Maximum);
+                _effectChainOrder.Add(effectKey);
+                _activeEffectValues[effectKey] = value;
+            }
+            RebuildEffectChainCards();
         }
         finally
         {
@@ -10276,26 +10881,11 @@ public sealed partial class MainWindow : Window
     {
         return new VoicePreset
         {
+            SchemaVersion = 2,
             Name = name,
             Icon = DefaultVoicePresetIcon,
-            Sliders = new Dictionary<string, double>
-            {
-                ["VoiceGain"] = GetVoiceValue(VoiceGainSlider, VoiceGainValueBox),
-                ["Gate"] = GetVoiceValue(GateThresholdSlider, GateThresholdValueBox),
-                ["Compressor"] = GetVoiceValue(CompressorThresholdSlider, CompressorThresholdValueBox),
-                ["Pitch"] = GetVoiceValue(PitchSlider, PitchValueBox),
-                ["Formant"] = GetVoiceValue(FormantSlider, FormantValueBox),
-                ["Bass"] = GetVoiceValue(BassSlider, BassValueBox),
-                ["Treble"] = GetVoiceValue(TrebleSlider, TrebleValueBox),
-                ["Distortion"] = GetVoiceValue(DistortionSlider, DistortionValueBox),
-                ["Robot"] = GetVoiceValue(RobotSlider, RobotValueBox),
-                ["Tremolo"] = GetVoiceValue(TremoloSlider, TremoloValueBox),
-                ["Echo"] = GetVoiceValue(EchoSlider, EchoValueBox),
-                ["Reverb"] = GetVoiceValue(ReverbSlider, ReverbValueBox),
-                ["Radio"] = GetVoiceValue(RadioSlider, RadioValueBox),
-                ["BitCrusher"] = GetVoiceValue(BitCrusherSlider, BitCrusherValueBox),
-                ["Alien"] = GetVoiceValue(AlienSlider, AlienValueBox)
-            }
+            EffectOrder = _effectChainOrder.ToList(),
+            Sliders = new Dictionary<string, double>(_activeEffectValues, StringComparer.OrdinalIgnoreCase)
         };
     }
 
@@ -10304,21 +10894,8 @@ public sealed partial class MainWindow : Window
         _loadingVoicePreset = true;
         try
         {
-            SetVoiceControlFromPreset(VoiceGainSlider, VoiceGainValueBox, preset, "VoiceGain");
-            SetVoiceControlFromPreset(GateThresholdSlider, GateThresholdValueBox, preset, "Gate");
-            SetVoiceControlFromPreset(CompressorThresholdSlider, CompressorThresholdValueBox, preset, "Compressor");
-            SetVoiceControlFromPreset(PitchSlider, PitchValueBox, preset, "Pitch");
-            SetVoiceControlFromPreset(FormantSlider, FormantValueBox, preset, "Formant");
-            SetVoiceControlFromPreset(BassSlider, BassValueBox, preset, "Bass");
-            SetVoiceControlFromPreset(TrebleSlider, TrebleValueBox, preset, "Treble");
-            SetVoiceControlFromPreset(DistortionSlider, DistortionValueBox, preset, "Distortion");
-            SetVoiceControlFromPreset(RobotSlider, RobotValueBox, preset, "Robot");
-            SetVoiceControlFromPreset(TremoloSlider, TremoloValueBox, preset, "Tremolo");
-            SetVoiceControlFromPreset(EchoSlider, EchoValueBox, preset, "Echo");
-            SetVoiceControlFromPreset(ReverbSlider, ReverbValueBox, preset, "Reverb");
-            SetVoiceControlFromPreset(RadioSlider, RadioValueBox, preset, "Radio");
-            SetVoiceControlFromPreset(BitCrusherSlider, BitCrusherValueBox, preset, "BitCrusher");
-            SetVoiceControlFromPreset(AlienSlider, AlienValueBox, preset, "Alien");
+            ResetAllLibraryEffectControls();
+            LoadEffectChainFromPreset(preset);
         }
         finally
         {
@@ -10328,6 +10905,56 @@ public sealed partial class MainWindow : Window
         UpdateVoiceSettingLabels();
         _lastAppliedVoicePresetName = preset.Name;
         ApplyLiveSettings($"voice preset applied: {preset.Name}");
+    }
+
+    private void LoadEffectChainFromPreset(VoicePreset preset)
+    {
+        _effectChainOrder.Clear();
+        _activeEffectValues.Clear();
+
+        if (preset.SchemaVersion >= 2)
+        {
+            foreach (var effectKey in preset.EffectOrder ?? new List<string>())
+            {
+                if (!KnownVoiceEffectKeys.Contains(effectKey, StringComparer.OrdinalIgnoreCase)
+                    || _effectChainOrder.Contains(effectKey, StringComparer.OrdinalIgnoreCase))
+                {
+                    continue;
+                }
+
+                var range = GetEffectUiRange(effectKey);
+                var value = preset.Sliders.TryGetValue(effectKey, out var storedValue)
+                    ? Clamp(storedValue, range.Minimum, range.Maximum)
+                    : range.DefaultValue;
+                _effectChainOrder.Add(effectKey);
+                _activeEffectValues[effectKey] = value;
+            }
+        }
+        else
+        {
+            foreach (var effectKey in KnownVoiceEffectKeys)
+            {
+                if (!preset.Sliders.TryGetValue(effectKey, out var legacyValue) || !IsLegacyEffectActive(effectKey, legacyValue))
+                {
+                    continue;
+                }
+
+                _effectChainOrder.Add(effectKey);
+                _activeEffectValues[effectKey] = FromLegacyEffectValue(effectKey, legacyValue);
+            }
+        }
+
+        RebuildEffectChainCards();
+    }
+
+    private static bool IsLegacyEffectActive(string effectKey, double legacyValue)
+    {
+        return effectKey switch
+        {
+            "Gate" or "Compressor" => legacyValue > -99.5,
+            "Robot" or "Echo" or "Radio" or "Alien" or "Distortion" or "Tremolo" or "Reverb" or "BitCrusher" => legacyValue > 0.5,
+            _ => Math.Abs(legacyValue) > 0.5
+        };
     }
 
     private void SetVoiceControlFromPreset(Slider slider, TextBox textBox, VoicePreset preset, string key)
@@ -10340,11 +10967,11 @@ public sealed partial class MainWindow : Window
 
     private void SetVoiceControl(Slider slider, TextBox textBox, double value)
     {
-        value = Clamp(value, VoiceValueMin, VoiceValueMax);
+        value = Clamp(value, slider.Minimum, slider.Maximum);
         _syncingVoiceControls = true;
         try
         {
-            slider.Value = Clamp(value, -100, 100);
+            slider.Value = value;
             textBox.Text = ((int)Math.Round(value)).ToString();
         }
         finally
@@ -10368,7 +10995,7 @@ public sealed partial class MainWindow : Window
         var slider = GetVoiceSliderForTextBox(textBox);
         if (slider is not null)
         {
-            slider.Value = Clamp(value, -100, 100);
+            slider.Value = Clamp(value, slider.Minimum, slider.Maximum);
         }
     }
 
@@ -10599,7 +11226,7 @@ public sealed partial class MainWindow : Window
     {
         if (_loadingSettings) return;
 
-        _settings.SchemaVersion = 10;
+        _settings.SchemaVersion = 12;
 
         var input = InputDeviceComboBox?.SelectedItem as AudioDeviceInfo;
         var virtualOutput = VirtualOutputComboBox?.SelectedItem as AudioDeviceInfo;
@@ -10625,21 +11252,24 @@ public sealed partial class MainWindow : Window
         _settings.NoiseSuppressionMode = noiseMode.ToString();
         _settings.NoiseSuppressionEnabled = noiseMode != NoiseSuppressionMode.Off;
         _settings.NoiseSuppressionStrength = NoiseSuppressionStrengthSlider?.Value ?? 70.0;
-        _settings.VoiceGain = GetVoiceValue(VoiceGainSlider, VoiceGainValueBox);
-        _settings.VoiceGate = GetVoiceValue(GateThresholdSlider, GateThresholdValueBox);
-        _settings.VoiceCompressor = GetVoiceValue(CompressorThresholdSlider, CompressorThresholdValueBox);
-        _settings.VoicePitch = GetVoiceValue(PitchSlider, PitchValueBox);
-        _settings.VoiceFormant = GetVoiceValue(FormantSlider, FormantValueBox);
-        _settings.VoiceBass = GetVoiceValue(BassSlider, BassValueBox);
-        _settings.VoiceTreble = GetVoiceValue(TrebleSlider, TrebleValueBox);
-        _settings.VoiceDistortion = GetVoiceValue(DistortionSlider, DistortionValueBox);
-        _settings.VoiceRobot = GetVoiceValue(RobotSlider, RobotValueBox);
-        _settings.VoiceTremolo = GetVoiceValue(TremoloSlider, TremoloValueBox);
-        _settings.VoiceEcho = GetVoiceValue(EchoSlider, EchoValueBox);
-        _settings.VoiceReverb = GetVoiceValue(ReverbSlider, ReverbValueBox);
-        _settings.VoiceRadio = GetVoiceValue(RadioSlider, RadioValueBox);
-        _settings.VoiceBitCrusher = GetVoiceValue(BitCrusherSlider, BitCrusherValueBox);
-        _settings.VoiceAlien = GetVoiceValue(AlienSlider, AlienValueBox);
+        _settings.ActiveVoiceEffectOrder = _effectChainOrder.ToList();
+        _settings.ActiveVoiceEffectValues = new Dictionary<string, double>(_activeEffectValues, StringComparer.OrdinalIgnoreCase);
+
+        _settings.VoiceGain = ToLegacyEffectValue("VoiceGain", GetActiveEffectValue("VoiceGain"));
+        _settings.VoiceGate = ToLegacyEffectValue("Gate", GetActiveEffectValue("Gate"));
+        _settings.VoiceCompressor = ToLegacyEffectValue("Compressor", GetActiveEffectValue("Compressor"));
+        _settings.VoicePitch = ToLegacyEffectValue("Pitch", GetActiveEffectValue("Pitch"));
+        _settings.VoiceFormant = ToLegacyEffectValue("Formant", GetActiveEffectValue("Formant"));
+        _settings.VoiceBass = ToLegacyEffectValue("Bass", GetActiveEffectValue("Bass"));
+        _settings.VoiceTreble = ToLegacyEffectValue("Treble", GetActiveEffectValue("Treble"));
+        _settings.VoiceDistortion = ToLegacyEffectValue("Distortion", GetActiveEffectValue("Distortion"));
+        _settings.VoiceRobot = ToLegacyEffectValue("Robot", GetActiveEffectValue("Robot"));
+        _settings.VoiceTremolo = ToLegacyEffectValue("Tremolo", GetActiveEffectValue("Tremolo"));
+        _settings.VoiceEcho = ToLegacyEffectValue("Echo", GetActiveEffectValue("Echo"));
+        _settings.VoiceReverb = ToLegacyEffectValue("Reverb", GetActiveEffectValue("Reverb"));
+        _settings.VoiceRadio = ToLegacyEffectValue("Radio", GetActiveEffectValue("Radio"));
+        _settings.VoiceBitCrusher = ToLegacyEffectValue("BitCrusher", GetActiveEffectValue("BitCrusher"));
+        _settings.VoiceAlien = ToLegacyEffectValue("Alien", GetActiveEffectValue("Alien"));
 
         // Keep legacy dB fields meaningful for older settings readers.
         _settings.VoiceGainDb = MapCentered(_settings.VoiceGain, 0, -24, 12);

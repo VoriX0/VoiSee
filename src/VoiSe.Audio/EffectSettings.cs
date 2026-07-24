@@ -1,4 +1,4 @@
-namespace VoiSe.Audio;
+﻿namespace VoiSe.Audio;
 
 public sealed class EffectSettings
 {
@@ -38,4 +38,24 @@ public sealed class EffectSettings
     // Voice monitoring is independent from SoundBoard monitoring.
     // 0 = do not hear own processed voice in headphones, 1 = full voice monitor.
     public float VoiceMonitorGain { get; set; } = 0.0f;
+
+    // VoiSee 12.2 ordered card chain. The limiter remains a fixed final safety stage.
+    public IReadOnlyList<VoiceEffectKind> EffectOrder { get; set; } = new[]
+    {
+        VoiceEffectKind.Gate,
+        VoiceEffectKind.Compressor,
+        VoiceEffectKind.Pitch,
+        VoiceEffectKind.Formant,
+        VoiceEffectKind.Bass,
+        VoiceEffectKind.Treble,
+        VoiceEffectKind.Radio,
+        VoiceEffectKind.Robot,
+        VoiceEffectKind.Alien,
+        VoiceEffectKind.Tremolo,
+        VoiceEffectKind.Distortion,
+        VoiceEffectKind.BitCrusher,
+        VoiceEffectKind.Echo,
+        VoiceEffectKind.Reverb,
+        VoiceEffectKind.VoiceGain
+    };
 }

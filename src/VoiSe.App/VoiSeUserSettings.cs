@@ -1,10 +1,10 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 
 namespace VoiSe.App;
 
 public sealed class VoiSeUserSettings
 {
-    public int SchemaVersion { get; set; } = 10;
+    public int SchemaVersion { get; set; } = 12;
 
     public string? InputDeviceId { get; set; }
     public string? InputDeviceName { get; set; }
@@ -60,6 +60,10 @@ public sealed class VoiSeUserSettings
     public double VoiceBitCrusher { get; set; } = 0.0;
     public double VoiceChorus { get; set; } = 0.0; // legacy / ignored from Gate 6.5+
     public double VoiceAlien { get; set; } = 0.0;
+
+    // VoiSee 12.2 ordered effect-card chain. Empty means a clean microphone path.
+    public List<string> ActiveVoiceEffectOrder { get; set; } = new();
+    public Dictionary<string, double> ActiveVoiceEffectValues { get; set; } = new();
 
 
     // Gate 6.17 global transport hotkeys. SoundBoard sound hotkeys live in soundboard.json;

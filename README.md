@@ -1,6 +1,16 @@
-# VoiSee 12.2.1
+# VoiSee 12.2.2
 
-## VoiSee 12.2.1 — Dual noise suppression
+## VoiSee 12.2.2 — Effect cards controls and reorder
+
+- Shows a semi-transparent card while an effect is dragged by its `⋮⋮` handle.
+- Adds complete controls to every card in the processing chain: slider, manual value, delete button, and drag handle.
+- Reorders both the visible cards and the real DSP processing order.
+- Adds `Clear chain` and keeps a new installation's processing chain empty.
+- Keeps library controls in preview mode only; one lighter temporary preview card is shown at the end of the chain.
+- Uses 0–100 sliders for one-direction effects and Gate, plus 0–200 for Compressor.
+- Stores the ordered chain in settings and in voice preset schema 2.
+
+## VoiSee 12.1.0 — Dual noise suppression
 
 - Keeps the validated RNNoise microphone cleanup introduced in VoiSee 12.0.0.
 - Adds **DeepFilterNet** as a second real-time 48 kHz noise-suppression engine.
@@ -117,13 +127,13 @@ Set-ExecutionPolicy -Scope Process Bypass
 Expected installer:
 
 ```text
-artifacts\installer\VoiSee-Setup-12.2.1-x64.exe
+artifacts\installer\VoiSee-Setup-12.2.2-x64.exe
 ```
 
 Portable build:
 
 ```text
-artifacts\installer\VoiSee-Portable-12.2.1-x64.zip
+artifacts\installer\VoiSee-Portable-12.2.2-x64.zip
 ```
 
 ## Native XAML themes (VoiSee 10.1)
