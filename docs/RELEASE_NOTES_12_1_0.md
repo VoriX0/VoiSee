@@ -1,4 +1,4 @@
-# VoiSee 12.1.0 — Dual Noise Suppression
+# VoiSee 12.2.0 — Dual Noise Suppression
 
 ## Added
 
