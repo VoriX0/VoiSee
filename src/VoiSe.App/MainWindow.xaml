@@ -288,12 +288,12 @@
                     <!-- 12.3.0: true three-column Modular Rack layout. Each area owns its scroll. -->
                     <ScrollViewer x:Name="VoiceChangerScrollViewer"
                                   Background="Transparent"
-                                  VerticalScrollBarVisibility="Auto"
-                                  VerticalScrollMode="Enabled"
+                                  VerticalScrollBarVisibility="Disabled"
+                                  VerticalScrollMode="Disabled"
                                   HorizontalScrollBarVisibility="Disabled"
                                   HorizontalScrollMode="Disabled"
                                   ZoomMode="Disabled">
-                        <Grid x:Name="VoiceChangerStudioRoot" Padding="0,16,32,30" ColumnSpacing="14" MinHeight="620">
+                        <Grid x:Name="VoiceChangerStudioRoot" Padding="0,16,32,22" ColumnSpacing="14">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="300" />
                                 <ColumnDefinition Width="*" MinWidth="500" />
@@ -301,7 +301,7 @@
                             </Grid.ColumnDefinitions>
 
                             <!-- LEFT: cleanup + scalable preset browser -->
-                            <Grid Grid.Column="0" RowSpacing="12">
+                            <Grid Grid.Column="0" x:Name="VoiceChangerLeftColumn" RowSpacing="12">
                                 <Grid.RowDefinitions>
                                     <RowDefinition Height="Auto" />
                                     <RowDefinition Height="*" />
@@ -353,7 +353,7 @@
                                     </StackPanel>
                                 </Border>
 
-                                <Border Grid.Row="1" x:Name="VoicePresetSurface" Padding="12" MinHeight="370"
+                                <Border Grid.Row="1" x:Name="VoicePresetSurface" Padding="12" MinHeight="0"
                                         CornerRadius="{ThemeResource VoiSee.CornerRadius.Medium}"
                                         Background="{ThemeResource VoiSee.PanelBackgroundBrush}"
                                         BorderBrush="{ThemeResource VoiSee.PanelBorderBrush}" BorderThickness="1">

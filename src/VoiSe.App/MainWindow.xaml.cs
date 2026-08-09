@@ -86,6 +86,7 @@ public sealed partial class MainWindow : Window
     private string _effectLibraryFilter = "All";
     private string _voicePresetSearchText = string.Empty;
     private string? _pendingEffectChainAttentionKey;
+    private double _pendingEffectChainAttentionOffsetY = 14.0;
 
     private double _timelineMaximumSeconds = 1.0;
     private string _trackSearchText = string.Empty;
@@ -2063,9 +2064,11 @@ public sealed partial class MainWindow : Window
 
     private bool TryHandleVoiceChangerWheel(double xDip, double yDip, int wheelDelta)
     {
-        // 12.3.0 Modular Rack: each Voice Changer column owns its own scroll.
+        // 12.3.0 buildfix 2: each Voice Changer column owns its own scroll; the tab-wide container never scrolls.
         // The old tab-wide handler made the preset/chain/library panes fight each other.
-        if (IsPointInElementWheelZone(VoicePresetSurface, xDip, yDip, extendBottom: false))
+        // 12.3.0 buildfix 2: the three columns are the wheel hit-zones themselves.
+        // No expansion or shift is applied: cursor ownership matches the visible panels.
+        if (IsPointInElementWheelZone(VoiceChangerLeftColumn, xDip, yDip, extendBottom: false))
         {
             return TryScrollViewer(VoicePresetListScrollViewer, wheelDelta, 52.0);
         }
@@ -7199,9 +7202,9 @@ public sealed partial class MainWindow : Window
             Padding = new Thickness(12, 10, 12, 10),
             CornerRadius = new CornerRadius(7),
             Background = Application.Current.Resources["VoiSee.PanelBackgroundBrush"] as Brush,
-            BorderBrush = Application.Current.Resources["VoiSee.AccentBrush"] as Brush,
-            BorderThickness = new Thickness(1.5),
-            Opacity = 0.68,
+            BorderBrush = Application.Current.Resources["VoiSee.PanelBorderBrush"] as Brush,
+            BorderThickness = new Thickness(1.0),
+            Opacity = 0.76,
             IsHitTestVisible = false
         };
 
@@ -7426,6 +7429,7 @@ public sealed partial class MainWindow : Window
         ClearEffectPreview(restoreValue: true);
         ResetLibraryEffectControl(effectKey);
         _pendingEffectChainAttentionKey = effectKey;
+        _pendingEffectChainAttentionOffsetY = 14.0;
         RebuildEffectChainCards();
         _lastAppliedVoicePresetName = null;
         ScheduleVoiceSettingsApply();
@@ -7439,6 +7443,7 @@ public sealed partial class MainWindow : Window
             return;
         }
 
+        var moveDirection = insertionIndex < oldIndex ? -1.0 : 1.0;
         _effectChainOrder.RemoveAt(oldIndex);
         if (oldIndex < insertionIndex)
         {
@@ -7447,6 +7452,7 @@ public sealed partial class MainWindow : Window
         insertionIndex = (int)Clamp(insertionIndex, 0, _effectChainOrder.Count);
         _effectChainOrder.Insert(insertionIndex, effectKey);
         _pendingEffectChainAttentionKey = effectKey;
+        _pendingEffectChainAttentionOffsetY = 18.0 * moveDirection;
         RebuildEffectChainCards();
         _lastAppliedVoicePresetName = null;
         ScheduleVoiceSettingsApply();
@@ -7473,7 +7479,7 @@ public sealed partial class MainWindow : Window
             EffectChainCardsPanel.Children.Add(effectCard);
             if (!string.IsNullOrWhiteSpace(_pendingEffectChainAttentionKey) && string.Equals(_pendingEffectChainAttentionKey, effectKey, StringComparison.OrdinalIgnoreCase))
             {
-                _ = AnimateEffectCardAttentionAsync(effectCard);
+                _ = AnimateEffectCardAttentionAsync(effectCard, _pendingEffectChainAttentionOffsetY);
             }
         }
 
@@ -7710,30 +7716,38 @@ public sealed partial class MainWindow : Window
         return container;
     }
 
-    private async Task AnimateEffectCardAttentionAsync(Border container)
+    private async Task AnimateEffectCardAttentionAsync(Border container, double startOffsetY)
     {
         try
         {
-            if (container.Child is StackPanel flowStack && flowStack.Children.LastOrDefault() is Border card)
+            var transform = new TranslateTransform { Y = startOffsetY };
+            container.RenderTransform = transform;
+            container.Opacity = 0.68;
+
+            const int steps = 9;
+            for (var step = 1; step <= steps; step++)
             {
-                var originalOpacity = card.Opacity;
-                var originalBorderBrush = card.BorderBrush;
-                var originalBorderThickness = card.BorderThickness;
-                card.Opacity = 0.82;
-                card.BorderBrush = Application.Current.Resources["VoiSee.AccentBrush"] as Brush ?? originalBorderBrush;
-                card.BorderThickness = new Thickness(1.4);
-
-                await Task.Delay(180);
-                card.Opacity = 1.0;
-                await Task.Delay(220);
-
-                card.BorderBrush = originalBorderBrush;
-                card.BorderThickness = originalBorderThickness;
-                card.Opacity = originalOpacity <= 0 ? 1.0 : originalOpacity;
+                var progress = step / (double)steps;
+                var eased = 1.0 - Math.Pow(1.0 - progress, 3.0);
+                transform.Y = startOffsetY * (1.0 - eased);
+                container.Opacity = 0.68 + 0.32 * eased;
+                await Task.Delay(18);
             }
+
+            transform.Y = 0.0;
+            container.Opacity = 1.0;
+            await Task.Delay(55);
+
+            // Small settle motion makes reorder perceptible without flashing a color.
+            transform.Y = -Math.Sign(startOffsetY) * 2.0;
+            await Task.Delay(35);
+            transform.Y = 0.0;
+            container.RenderTransform = null;
         }
         catch
         {
+            container.Opacity = 1.0;
+            container.RenderTransform = null;
         }
     }
 
