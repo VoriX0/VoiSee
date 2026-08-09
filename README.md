@@ -1,14 +1,16 @@
-# VoiSee 12.2.2
+﻿# VoiSee 12.2.3
 
-## VoiSee 12.2.2 — Effect cards controls and reorder
+## VoiSee 12.2.3 — Voice Changer Studio Flow
 
-- Shows a semi-transparent card while an effect is dragged by its `⋮⋮` handle.
-- Adds complete controls to every card in the processing chain: slider, manual value, delete button, and drag handle.
-- Reorders both the visible cards and the real DSP processing order.
-- Adds `Clear chain` and keeps a new installation's processing chain empty.
-- Keeps library controls in preview mode only; one lighter temporary preview card is shown at the end of the chain.
-- Uses 0–100 sliders for one-direction effects and Gate, plus 0–200 for Compressor.
-- Stores the ordered chain in settings and in voice preset schema 2.
+- Redesigns Voice Changer around a dedicated preset rail, compact noise-suppression header, horizontal processing chain and bottom Effect Library.
+- Keeps the working 12.2.2 ordered DSP-chain model while changing drag/reorder insertion from vertical Y math to horizontal X math.
+- Adds horizontal mouse-wheel scrolling for long chains and independent wheel scrolling for long preset lists.
+- Adds searchable presets, Effect Library search and category filters.
+- Adds compact active-chain cards with drag handle, slider, manual value, remove control and session-only bypass toggle.
+- Adds `Bypass All` and retains `Clear Chain`.
+- Keeps voice preset schema 2 (`EffectOrder` + active values) and the global noise-suppression contract.
+
+See `docs/GATE12_2_3_VOICE_CHANGER_STUDIO_FLOW_REDESIGN.md` for the implementation notes and `docs/design/VOICE_CHANGER_STUDIO_FLOW_REFERENCE.png` for the approved visual reference.
 
 ## VoiSee 12.1.0 — Dual noise suppression
 
@@ -127,13 +129,13 @@ Set-ExecutionPolicy -Scope Process Bypass
 Expected installer:
 
 ```text
-artifacts\installer\VoiSee-Setup-12.2.2-x64.exe
+artifacts\installer\VoiSee-Setup-12.2.3-x64.exe
 ```
 
 Portable build:
 
 ```text
-artifacts\installer\VoiSee-Portable-12.2.2-x64.zip
+artifacts\installer\VoiSee-Portable-12.2.3-x64.zip
 ```
 
 ## Native XAML themes (VoiSee 10.1)

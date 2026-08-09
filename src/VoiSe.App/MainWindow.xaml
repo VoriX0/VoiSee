@@ -6,7 +6,7 @@
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     mc:Ignorable="d"
-    Title="VoiSee Version 12.2.2">
+    Title="VoiSee Version 12.2.3">
 
     <Grid x:Name="RootGrid" RequestedTheme="Dark" Background="{ThemeResource VoiSee.AppBackgroundBrush}" SizeChanged="OnRootGridSizeChanged">
         <Grid.RowDefinitions>
@@ -21,7 +21,7 @@
             </Grid.ColumnDefinitions>
             <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center" Margin="10,0,0,0">
                 <Image Source="ms-appx:///Assets/AppIcon_24.png" Width="16" Height="16" VerticalAlignment="Center" />
-                <TextBlock x:Name="TitleBarVersionTextBlock" Text="VoiSee Version 12.2.2" FontSize="12" Foreground="{ThemeResource VoiSee.PrimaryTextBrush}" VerticalAlignment="Center" />
+                <TextBlock x:Name="TitleBarVersionTextBlock" Text="VoiSee Version 12.2.3" FontSize="12" Foreground="{ThemeResource VoiSee.PrimaryTextBrush}" VerticalAlignment="Center" />
             </StackPanel>
         </Grid>
 
@@ -39,7 +39,7 @@
                 </Grid.ColumnDefinitions>
                 <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
                     <Image Source="ms-appx:///Assets/AppIcon_48.png" Width="34" Height="34" VerticalAlignment="Center" />
-                    <TextBlock x:Name="MainTitle" Text="VoiSee Version 12.2.2" FontSize="28" FontWeight="SemiBold" Foreground="{ThemeResource VoiSee.PrimaryTextBrush}" VerticalAlignment="Center" />
+                    <TextBlock x:Name="MainTitle" Text="VoiSee Version 12.2.3" FontSize="28" FontWeight="SemiBold" Foreground="{ThemeResource VoiSee.PrimaryTextBrush}" VerticalAlignment="Center" />
                 </StackPanel>
                 <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center" HorizontalAlignment="Right">
                     <TextBlock Text="Mic Output" Foreground="{ThemeResource VoiSee.PrimaryTextBrush}" Opacity="0.62" VerticalAlignment="Center" />
@@ -285,517 +285,810 @@
                 </TabViewItem>
 
                 <TabViewItem Header="Voice Changer" IsClosable="False">
-                    <ScrollViewer x:Name="VoiceChangerScrollViewer" Background="Transparent" VerticalScrollBarVisibility="Auto" VerticalScrollMode="Enabled" HorizontalScrollBarVisibility="Disabled" HorizontalScrollMode="Disabled" ZoomMode="Disabled">
-                        <StackPanel Spacing="22" Padding="0,16,48,24">
-                            <StackPanel Spacing="12">
-                                <TextBlock Text="Noise suppression" FontSize="20" FontWeight="SemiBold" />
-                                <TextBlock Text="Choose one microphone cleanup engine. Noise suppression is global and stays independent from voice effects and presets."
-                                           Opacity="0.72"
-                                           TextWrapping="Wrap" />
-                                <Grid ColumnSpacing="20" RowSpacing="8">
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="240" />
-                                        <ColumnDefinition Width="320" />
-                                        <ColumnDefinition Width="*" />
-                                    </Grid.ColumnDefinitions>
+                    <ScrollViewer x:Name="VoiceChangerScrollViewer"
+                                  Background="Transparent"
+                                  VerticalScrollBarVisibility="Auto"
+                                  VerticalScrollMode="Enabled"
+                                  HorizontalScrollBarVisibility="Disabled"
+                                  HorizontalScrollMode="Disabled"
+                                  ZoomMode="Disabled">
+                        <Grid Padding="0,16,48,24" ColumnSpacing="14" MinHeight="700">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="270" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
 
-                                    <StackPanel Grid.Column="0" Spacing="6">
-                                        <TextBlock Text="Engine" FontWeight="SemiBold" />
-                                        <ComboBox Style="{ThemeResource VoiSee.Style.ComboBox}"
-                                                  x:Name="NoiseSuppressionModeComboBox"
-                                                  HorizontalAlignment="Stretch"
-                                                  SelectionChanged="OnNoiseSuppressionModeChanged">
-                                            <ComboBoxItem Content="Off" Tag="Off" />
-                                            <ComboBoxItem Content="RNNoise" Tag="RnNoise" />
-                                            <ComboBoxItem Content="DeepFilterNet" Tag="DeepFilterNet" />
-                                        </ComboBox>
-                                    </StackPanel>
+                            <!-- PRESETS SIDEBAR -->
+                            <Border Grid.Column="0"
+                                    Padding="12"
+                                    CornerRadius="{ThemeResource VoiSee.CornerRadius.Medium}"
+                                    Background="{ThemeResource VoiSee.PanelBackgroundBrush}"
+                                    BorderBrush="{ThemeResource VoiSee.PanelBorderBrush}"
+                                    BorderThickness="1"
+                                    VerticalAlignment="Stretch">
+                                <Grid RowSpacing="10">
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto" />
+                                        <RowDefinition Height="Auto" />
+                                        <RowDefinition Height="560" />
+                                        <RowDefinition Height="Auto" />
+                                    </Grid.RowDefinitions>
 
-                                    <StackPanel Grid.Column="1" Spacing="6">
-                                        <Grid ColumnSpacing="8">
-                                            <Grid.ColumnDefinitions>
-                                                <ColumnDefinition Width="*" />
-                                                <ColumnDefinition Width="Auto" />
-                                            </Grid.ColumnDefinitions>
-                                            <TextBlock Text="Strength" FontWeight="SemiBold" VerticalAlignment="Center" />
-                                            <TextBlock Grid.Column="1"
-                                                       x:Name="NoiseSuppressionStrengthValueText"
-                                                       Text="70%"
-                                                       VerticalAlignment="Center"
-                                                       Opacity="0.78" />
-                                        </Grid>
-                                        <Slider Style="{ThemeResource VoiSee.Style.Slider}"
-                                                x:Name="NoiseSuppressionStrengthSlider"
-                                                Minimum="0"
-                                                Maximum="100"
-                                                Value="70"
-                                                StepFrequency="1"
-                                                ValueChanged="OnNoiseSuppressionStrengthChanged" />
-                                    </StackPanel>
-
-                                    <TextBlock Grid.Column="2"
-                                               x:Name="NoiseSuppressionStatusText"
-                                               Text="Noise suppression is off"
-                                               VerticalAlignment="Bottom"
-                                               Margin="0,0,0,8"
-                                               Opacity="0.72"
-                                               TextWrapping="Wrap" />
-                                </Grid>
-                            </StackPanel>
-
-                            <Grid x:Name="EffectsWorkspaceGrid" ColumnSpacing="18">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="36*" />
-                                    <ColumnDefinition Width="64*" />
-                                </Grid.ColumnDefinitions>
-
-                                <StackPanel Grid.Column="0" Spacing="12">
-                                    <Grid ColumnSpacing="10">
+                                    <Grid Grid.Row="0" ColumnSpacing="8">
                                         <Grid.ColumnDefinitions>
                                             <ColumnDefinition Width="*" />
                                             <ColumnDefinition Width="Auto" />
                                         </Grid.ColumnDefinitions>
-                                        <StackPanel Spacing="3">
-                                            <TextBlock Text="Processing chain" FontSize="20" FontWeight="SemiBold" />
-                                            <TextBlock Text="Drag effects here to build the signal path. Preview cards are temporary and appear lighter."
-                                                       Opacity="0.68" TextWrapping="Wrap" />
+                                        <StackPanel Spacing="2">
+                                            <TextBlock Text="Presets" FontSize="20" FontWeight="SemiBold" />
+                                            <TextBlock Text="Saved voice chains" FontSize="11" Opacity="0.58" />
                                         </StackPanel>
-                                        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-                                            <Button Style="{ThemeResource VoiSee.Style.Button}"
-                                                    x:Name="ClearEffectChainButton"
-                                                    Content="Clear chain"
-                                                    MinWidth="112"
-                                                    Height="42"
-                                                    Click="OnClearEffectChainClick" />
-                                            <Button Style="{ThemeResource VoiSee.Style.Button}"
-                                                    x:Name="VoiceMonitorButton"
-                                                    Content="Voice Monitor: Off"
-                                                    MinWidth="170"
-                                                    Height="42"
-                                                    Click="OnToggleVoiceMonitorClick" />
-                                        </StackPanel>
+                                        <Button Style="{ThemeResource VoiSee.Style.Button}" Grid.Column="1"
+                                                Content="+ New" Height="36" Padding="10,4" Click="OnNewVoicePresetClick" />
                                     </Grid>
 
-                                    <Border x:Name="ProcessingChainSurface"
-                                            Padding="14"
-                                            CornerRadius="{ThemeResource VoiSee.CornerRadius.Medium}"
-                                            Background="{ThemeResource VoiSee.PanelBackgroundBrush}"
-                                            BorderBrush="{ThemeResource VoiSee.PanelBorderBrush}"
-                                            BorderThickness="1">
-                                        <StackPanel HorizontalAlignment="Stretch" Spacing="8">
-                                            <TextBlock Text="🎙" FontSize="30" HorizontalAlignment="Center" />
-                                            <TextBlock Text="MICROPHONE" FontSize="11" FontWeight="SemiBold" Opacity="0.6" HorizontalAlignment="Center" />
-                                            <Rectangle Height="22" Width="2" Fill="{ThemeResource VoiSee.PanelBorderBrush}" HorizontalAlignment="Center" />
+                                    <TextBox Style="{ThemeResource VoiSee.Style.TextBox}" Grid.Row="1"
+                                             x:Name="VoicePresetSearchBox"
+                                             PlaceholderText="Search presets..."
+                                             TextChanged="OnVoicePresetSearchTextChanged" />
 
-                                            <StackPanel x:Name="EffectChainCardsPanel"
-                                                        HorizontalAlignment="Stretch"
-                                                        Spacing="8"
-                                                        AllowDrop="True"
-                                                        DragOver="OnEffectChainDragOver"
-                                                        Drop="OnEffectChainDrop" />
-
-                                            <Border x:Name="EffectPreviewHost"
-                                                    Visibility="Collapsed"
-                                                    Padding="12,10"
-                                                    CornerRadius="{ThemeResource VoiSee.CornerRadius.Small}"
-                                                    Background="#34FFFFFF"
-                                                    BorderBrush="{ThemeResource VoiSee.AccentBrush}"
-                                                    BorderThickness="1.5"
-                                                    Opacity="1" />
-
-                                            <Border x:Name="EffectChainDropZone"
-                                                    Padding="12,14"
-                                                    CornerRadius="{ThemeResource VoiSee.CornerRadius.Small}"
-                                                    Background="Transparent"
-                                                    BorderBrush="{ThemeResource VoiSee.AccentBrush}"
-                                                    BorderThickness="1"
-                                                    AllowDrop="True"
-                                                    DragOver="OnEffectChainDragOver"
-                                                    Drop="OnEffectChainDrop">
-                                                <StackPanel HorizontalAlignment="Center" Spacing="2">
-                                                    <TextBlock Text="+" FontSize="26" HorizontalAlignment="Center" />
-                                                    <TextBlock Text="Drop effect here" FontSize="12" Opacity="0.72" />
-                                                </StackPanel>
-                                            </Border>
-
-
-                                            <Rectangle Height="22" Width="2" Fill="{ThemeResource VoiSee.PanelBorderBrush}" HorizontalAlignment="Center" />
-                                            <TextBlock Text="🔊" FontSize="30" HorizontalAlignment="Center" />
-                                            <TextBlock Text="OUTPUT" FontSize="11" FontWeight="SemiBold" Opacity="0.6" HorizontalAlignment="Center" />
-                                        </StackPanel>
+                                    <Border Grid.Row="2" Padding="2" Background="Transparent">
+                                        <ScrollViewer x:Name="VoicePresetListScrollViewer"
+                                                      VerticalScrollBarVisibility="Auto"
+                                                      VerticalScrollMode="Enabled"
+                                                      HorizontalScrollBarVisibility="Disabled"
+                                                      HorizontalScrollMode="Disabled"
+                                                      ZoomMode="Disabled"
+                                                      PointerWheelChanged="OnVoicePresetListPointerWheelChanged">
+                                            <StackPanel x:Name="VoicePresetsPanel" Spacing="7" />
+                                        </ScrollViewer>
                                     </Border>
-                                </StackPanel>
 
-                                <StackPanel Grid.Column="1" Spacing="12">
-                                    <StackPanel Spacing="3">
-                                        <TextBlock Text="Effect library" FontSize="20" FontWeight="SemiBold" />
-                                        <TextBlock Text="Drag a card into the processing chain. Changing a value previews one effect at a time without saving it."
-                                                   Opacity="0.68" TextWrapping="Wrap" />
-                                    </StackPanel>
-
-                                    <Grid ColumnSpacing="10">
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="*" />
-                                            <ColumnDefinition Width="Auto" />
-                                            <ColumnDefinition Width="Auto" />
-                                            <ColumnDefinition Width="Auto" />
-                                        </Grid.ColumnDefinitions>
-                                        <TextBox Style="{ThemeResource VoiSee.Style.TextBox}" PlaceholderText="Search effects" />
-                                        <Button Style="{ThemeResource VoiSee.Style.Button}" Grid.Column="1" Content="All" />
-                                        <Button Style="{ThemeResource VoiSee.Style.Button}" Grid.Column="2" Content="Voice" />
-                                        <Button Style="{ThemeResource VoiSee.Style.Button}" Grid.Column="3" Content="Character" />
-                                    </Grid>
-
-                                    <Grid ColumnSpacing="12" RowSpacing="12">
+                                    <Grid Grid.Row="3" ColumnSpacing="6" RowSpacing="6">
                                         <Grid.ColumnDefinitions>
                                             <ColumnDefinition Width="*" />
                                             <ColumnDefinition Width="*" />
                                         </Grid.ColumnDefinitions>
                                         <Grid.RowDefinitions>
-                                        <RowDefinition Height="Auto" />
-                                        <RowDefinition Height="Auto" />
-                                        <RowDefinition Height="Auto" />
-                                        <RowDefinition Height="Auto" />
-                                        <RowDefinition Height="Auto" />
-                                        <RowDefinition Height="Auto" />
-                                        <RowDefinition Height="Auto" />
-                                        <RowDefinition Height="Auto" />
+                                            <RowDefinition Height="Auto" />
+                                            <RowDefinition Height="Auto" />
                                         </Grid.RowDefinitions>
-                                        <Border Grid.Row="0" Grid.Column="0"
-                                                Padding="14,12"
-                                                MinHeight="96"
-                                                CornerRadius="{ThemeResource VoiSee.CornerRadius.Medium}"
-                                                Background="{ThemeResource VoiSee.PanelBackgroundBrush}"
-                                                BorderBrush="{ThemeResource VoiSee.PanelBorderBrush}"
-                                                BorderThickness="1" Tag="VoiceGain">
-                                            <StackPanel Spacing="8">
-                                                <Grid ColumnSpacing="8">
-                                                    <Grid.ColumnDefinitions>
-                                                        <ColumnDefinition Width="Auto" />
-                                                        <ColumnDefinition Width="*" />
-                                                        <ColumnDefinition Width="70" />
-                                                    </Grid.ColumnDefinitions>
-                                                    <TextBlock Text="⋮⋮" Tag="VoiceGain" Opacity="0.70" VerticalAlignment="Center" FontSize="18" PointerPressed="OnEffectLibraryGripPointerPressed" PointerMoved="OnEffectDragPointerMoved" PointerReleased="OnEffectDragPointerReleased" PointerCanceled="OnEffectDragPointerCanceled" />
-                                                    <TextBlock Grid.Column="1" x:Name="VoiceGainLabel" Text="Voice Gain" FontWeight="SemiBold" VerticalAlignment="Center" />
-                                                    <TextBox Style="{ThemeResource VoiSee.Style.TextBox}" Grid.Column="2" x:Name="VoiceGainValueBox" Text="0" MaxLength="5" TextAlignment="Right" TextChanged="OnVoiceValueTextChanged" />
-                                                </Grid>
-                                                <Slider Style="{ThemeResource VoiSee.Style.Slider}" x:Name="VoiceGainSlider" Minimum="-100" Maximum="100" Value="0" StepFrequency="1" ValueChanged="OnVoiceSettingsChanged" />
+                                        <Button Style="{ThemeResource VoiSee.Style.Button}" Content="Save Current" Height="38" Click="OnNewVoicePresetClick" />
+                                        <Button Style="{ThemeResource VoiSee.Style.Button}" Grid.Column="1" Content="Update" Height="38" Click="OnUpdateCurrentVoicePresetClick" />
+                                        <Button Style="{ThemeResource VoiSee.Style.Button}" Grid.Row="1" Content="Import" Height="38" Click="OnImportVoicePresetClick" />
+                                        <Button Style="{ThemeResource VoiSee.Style.Button}" Grid.Row="1" Grid.Column="1" Content="Folder" Height="38" Click="OnOpenVoicePresetsFolderClick" />
+                                    </Grid>
+                                </Grid>
+                            </Border>
+
+                            <!-- STUDIO FLOW WORKSPACE -->
+                            <StackPanel Grid.Column="1" Spacing="12">
+                                <!-- NOISE SUPPRESSION + MONITOR -->
+                                <Border Padding="14,12"
+                                        CornerRadius="{ThemeResource VoiSee.CornerRadius.Medium}"
+                                        Background="{ThemeResource VoiSee.PanelBackgroundBrush}"
+                                        BorderBrush="{ThemeResource VoiSee.PanelBorderBrush}"
+                                        BorderThickness="1">
+                                    <Grid ColumnSpacing="16">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="Auto" />
+                                        </Grid.ColumnDefinitions>
+
+                                        <StackPanel Grid.Column="0" Spacing="9">
+                                            <StackPanel Spacing="2">
+                                                <TextBlock Text="Noise Suppression" FontSize="18" FontWeight="SemiBold" />
+                                                <TextBlock Text="Global microphone cleanup before the voice-effect chain." FontSize="11" Opacity="0.60" />
                                             </StackPanel>
-                                        </Border>
-                                        <Border Grid.Row="0" Grid.Column="1"
-                                                Padding="14,12"
-                                                MinHeight="96"
+                                            <Grid ColumnSpacing="12">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="230" />
+                                                    <ColumnDefinition Width="*" />
+                                                    <ColumnDefinition Width="110" />
+                                                </Grid.ColumnDefinitions>
+                                                <StackPanel Spacing="4">
+                                                    <TextBlock Text="Engine" FontSize="11" Opacity="0.68" />
+                                                    <ComboBox Style="{ThemeResource VoiSee.Style.ComboBox}"
+                                                              x:Name="NoiseSuppressionModeComboBox"
+                                                              HorizontalAlignment="Stretch"
+                                                              SelectionChanged="OnNoiseSuppressionModeChanged">
+                                                        <ComboBoxItem Content="Off" Tag="Off" />
+                                                        <ComboBoxItem Content="RNNoise" Tag="RnNoise" />
+                                                        <ComboBoxItem Content="DeepFilterNet" Tag="DeepFilterNet" />
+                                                    </ComboBox>
+                                                </StackPanel>
+                                                <StackPanel Grid.Column="1" Spacing="4">
+                                                    <Grid>
+                                                        <TextBlock Text="Strength" FontSize="11" Opacity="0.68" />
+                                                        <TextBlock x:Name="NoiseSuppressionStrengthValueText" Text="70%" HorizontalAlignment="Right" FontSize="11" Opacity="0.74" />
+                                                    </Grid>
+                                                    <Slider Style="{ThemeResource VoiSee.Style.Slider}"
+                                                            x:Name="NoiseSuppressionStrengthSlider"
+                                                            Minimum="0" Maximum="100" Value="70" StepFrequency="1"
+                                                            ValueChanged="OnNoiseSuppressionStrengthChanged" />
+                                                </StackPanel>
+                                                <TextBlock Grid.Column="2" x:Name="NoiseSuppressionStatusText"
+                                                           Text="Noise suppression is off"
+                                                           VerticalAlignment="Bottom" Margin="0,0,0,9"
+                                                           FontSize="11" Opacity="0.70" TextWrapping="Wrap" />
+                                            </Grid>
+                                        </StackPanel>
+
+                                        <Border Grid.Column="1" Width="188" Padding="12,8,12,10" Margin="0,0,0,0"
                                                 CornerRadius="{ThemeResource VoiSee.CornerRadius.Medium}"
-                                                Background="{ThemeResource VoiSee.PanelBackgroundBrush}"
-                                                BorderBrush="{ThemeResource VoiSee.PanelBorderBrush}"
-                                                BorderThickness="1" Tag="Gate">
-                                            <StackPanel Spacing="8">
-                                                <Grid ColumnSpacing="8">
-                                                    <Grid.ColumnDefinitions>
-                                                        <ColumnDefinition Width="Auto" />
-                                                        <ColumnDefinition Width="*" />
-                                                        <ColumnDefinition Width="70" />
-                                                    </Grid.ColumnDefinitions>
-                                                    <TextBlock Text="⋮⋮" Tag="Gate" Opacity="0.70" VerticalAlignment="Center" FontSize="18" PointerPressed="OnEffectLibraryGripPointerPressed" PointerMoved="OnEffectDragPointerMoved" PointerReleased="OnEffectDragPointerReleased" PointerCanceled="OnEffectDragPointerCanceled" />
-                                                    <TextBlock Grid.Column="1" x:Name="GateThresholdLabel" Text="Gate" FontWeight="SemiBold" VerticalAlignment="Center" />
-                                                    <TextBox Style="{ThemeResource VoiSee.Style.TextBox}" Grid.Column="2" x:Name="GateThresholdValueBox" Text="0" MaxLength="5" TextAlignment="Right" TextChanged="OnVoiceValueTextChanged" />
-                                                </Grid>
-                                                <Slider Style="{ThemeResource VoiSee.Style.Slider}" x:Name="GateThresholdSlider" Minimum="0" Maximum="100" Value="0" StepFrequency="1" ValueChanged="OnVoiceSettingsChanged" />
-                                            </StackPanel>
-                                        </Border>
-                                        <Border Grid.Row="1" Grid.Column="0"
-                                                Padding="14,12"
-                                                MinHeight="96"
-                                                CornerRadius="{ThemeResource VoiSee.CornerRadius.Medium}"
-                                                Background="{ThemeResource VoiSee.PanelBackgroundBrush}"
-                                                BorderBrush="{ThemeResource VoiSee.PanelBorderBrush}"
-                                                BorderThickness="1" Tag="Compressor">
-                                            <StackPanel Spacing="8">
-                                                <Grid ColumnSpacing="8">
-                                                    <Grid.ColumnDefinitions>
-                                                        <ColumnDefinition Width="Auto" />
-                                                        <ColumnDefinition Width="*" />
-                                                        <ColumnDefinition Width="70" />
-                                                    </Grid.ColumnDefinitions>
-                                                    <TextBlock Text="⋮⋮" Tag="Compressor" Opacity="0.70" VerticalAlignment="Center" FontSize="18" PointerPressed="OnEffectLibraryGripPointerPressed" PointerMoved="OnEffectDragPointerMoved" PointerReleased="OnEffectDragPointerReleased" PointerCanceled="OnEffectDragPointerCanceled" />
-                                                    <TextBlock Grid.Column="1" x:Name="CompressorThresholdLabel" Text="Compressor" FontWeight="SemiBold" VerticalAlignment="Center" />
-                                                    <TextBox Style="{ThemeResource VoiSee.Style.TextBox}" Grid.Column="2" x:Name="CompressorThresholdValueBox" Text="0" MaxLength="5" TextAlignment="Right" TextChanged="OnVoiceValueTextChanged" />
-                                                </Grid>
-                                                <Slider Style="{ThemeResource VoiSee.Style.Slider}" x:Name="CompressorThresholdSlider" Minimum="0" Maximum="200" Value="0" StepFrequency="1" ValueChanged="OnVoiceSettingsChanged" />
-                                            </StackPanel>
-                                        </Border>
-                                        <Border Grid.Row="1" Grid.Column="1"
-                                                Padding="14,12"
-                                                MinHeight="96"
-                                                CornerRadius="{ThemeResource VoiSee.CornerRadius.Medium}"
-                                                Background="{ThemeResource VoiSee.PanelBackgroundBrush}"
-                                                BorderBrush="{ThemeResource VoiSee.PanelBorderBrush}"
-                                                BorderThickness="1" Tag="Pitch">
-                                            <StackPanel Spacing="8">
-                                                <Grid ColumnSpacing="8">
-                                                    <Grid.ColumnDefinitions>
-                                                        <ColumnDefinition Width="Auto" />
-                                                        <ColumnDefinition Width="*" />
-                                                        <ColumnDefinition Width="70" />
-                                                    </Grid.ColumnDefinitions>
-                                                    <TextBlock Text="⋮⋮" Tag="Pitch" Opacity="0.70" VerticalAlignment="Center" FontSize="18" PointerPressed="OnEffectLibraryGripPointerPressed" PointerMoved="OnEffectDragPointerMoved" PointerReleased="OnEffectDragPointerReleased" PointerCanceled="OnEffectDragPointerCanceled" />
-                                                    <TextBlock Grid.Column="1" x:Name="PitchLabel" Text="Pitch" FontWeight="SemiBold" VerticalAlignment="Center" />
-                                                    <TextBox Style="{ThemeResource VoiSee.Style.TextBox}" Grid.Column="2" x:Name="PitchValueBox" Text="0" MaxLength="5" TextAlignment="Right" TextChanged="OnVoiceValueTextChanged" />
-                                                </Grid>
-                                                <Slider Style="{ThemeResource VoiSee.Style.Slider}" x:Name="PitchSlider" Minimum="-100" Maximum="100" Value="0" StepFrequency="1" ValueChanged="OnVoiceSettingsChanged" />
-                                            </StackPanel>
-                                        </Border>
-                                        <Border Grid.Row="2" Grid.Column="0"
-                                                Padding="14,12"
-                                                MinHeight="96"
-                                                CornerRadius="{ThemeResource VoiSee.CornerRadius.Medium}"
-                                                Background="{ThemeResource VoiSee.PanelBackgroundBrush}"
-                                                BorderBrush="{ThemeResource VoiSee.PanelBorderBrush}"
-                                                BorderThickness="1" Tag="Formant">
-                                            <StackPanel Spacing="8">
-                                                <Grid ColumnSpacing="8">
-                                                    <Grid.ColumnDefinitions>
-                                                        <ColumnDefinition Width="Auto" />
-                                                        <ColumnDefinition Width="*" />
-                                                        <ColumnDefinition Width="70" />
-                                                    </Grid.ColumnDefinitions>
-                                                    <TextBlock Text="⋮⋮" Tag="Formant" Opacity="0.70" VerticalAlignment="Center" FontSize="18" PointerPressed="OnEffectLibraryGripPointerPressed" PointerMoved="OnEffectDragPointerMoved" PointerReleased="OnEffectDragPointerReleased" PointerCanceled="OnEffectDragPointerCanceled" />
-                                                    <TextBlock Grid.Column="1" x:Name="FormantLabel" Text="Formant" FontWeight="SemiBold" VerticalAlignment="Center" />
-                                                    <TextBox Style="{ThemeResource VoiSee.Style.TextBox}" Grid.Column="2" x:Name="FormantValueBox" Text="0" MaxLength="5" TextAlignment="Right" TextChanged="OnVoiceValueTextChanged" />
-                                                </Grid>
-                                                <Slider Style="{ThemeResource VoiSee.Style.Slider}" x:Name="FormantSlider" Minimum="-100" Maximum="100" Value="0" StepFrequency="1" ValueChanged="OnVoiceSettingsChanged" />
-                                            </StackPanel>
-                                        </Border>
-                                        <Border Grid.Row="2" Grid.Column="1"
-                                                Padding="14,12"
-                                                MinHeight="96"
-                                                CornerRadius="{ThemeResource VoiSee.CornerRadius.Medium}"
-                                                Background="{ThemeResource VoiSee.PanelBackgroundBrush}"
-                                                BorderBrush="{ThemeResource VoiSee.PanelBorderBrush}"
-                                                BorderThickness="1" Tag="Bass">
-                                            <StackPanel Spacing="8">
-                                                <Grid ColumnSpacing="8">
-                                                    <Grid.ColumnDefinitions>
-                                                        <ColumnDefinition Width="Auto" />
-                                                        <ColumnDefinition Width="*" />
-                                                        <ColumnDefinition Width="70" />
-                                                    </Grid.ColumnDefinitions>
-                                                    <TextBlock Text="⋮⋮" Tag="Bass" Opacity="0.70" VerticalAlignment="Center" FontSize="18" PointerPressed="OnEffectLibraryGripPointerPressed" PointerMoved="OnEffectDragPointerMoved" PointerReleased="OnEffectDragPointerReleased" PointerCanceled="OnEffectDragPointerCanceled" />
-                                                    <TextBlock Grid.Column="1" x:Name="BassLabel" Text="Bass" FontWeight="SemiBold" VerticalAlignment="Center" />
-                                                    <TextBox Style="{ThemeResource VoiSee.Style.TextBox}" Grid.Column="2" x:Name="BassValueBox" Text="0" MaxLength="5" TextAlignment="Right" TextChanged="OnVoiceValueTextChanged" />
-                                                </Grid>
-                                                <Slider Style="{ThemeResource VoiSee.Style.Slider}" x:Name="BassSlider" Minimum="-100" Maximum="100" Value="0" StepFrequency="1" ValueChanged="OnVoiceSettingsChanged" />
-                                            </StackPanel>
-                                        </Border>
-                                        <Border Grid.Row="3" Grid.Column="0"
-                                                Padding="14,12"
-                                                MinHeight="96"
-                                                CornerRadius="{ThemeResource VoiSee.CornerRadius.Medium}"
-                                                Background="{ThemeResource VoiSee.PanelBackgroundBrush}"
-                                                BorderBrush="{ThemeResource VoiSee.PanelBorderBrush}"
-                                                BorderThickness="1" Tag="Treble">
-                                            <StackPanel Spacing="8">
-                                                <Grid ColumnSpacing="8">
-                                                    <Grid.ColumnDefinitions>
-                                                        <ColumnDefinition Width="Auto" />
-                                                        <ColumnDefinition Width="*" />
-                                                        <ColumnDefinition Width="70" />
-                                                    </Grid.ColumnDefinitions>
-                                                    <TextBlock Text="⋮⋮" Tag="Treble" Opacity="0.70" VerticalAlignment="Center" FontSize="18" PointerPressed="OnEffectLibraryGripPointerPressed" PointerMoved="OnEffectDragPointerMoved" PointerReleased="OnEffectDragPointerReleased" PointerCanceled="OnEffectDragPointerCanceled" />
-                                                    <TextBlock Grid.Column="1" x:Name="TrebleLabel" Text="Treble" FontWeight="SemiBold" VerticalAlignment="Center" />
-                                                    <TextBox Style="{ThemeResource VoiSee.Style.TextBox}" Grid.Column="2" x:Name="TrebleValueBox" Text="0" MaxLength="5" TextAlignment="Right" TextChanged="OnVoiceValueTextChanged" />
-                                                </Grid>
-                                                <Slider Style="{ThemeResource VoiSee.Style.Slider}" x:Name="TrebleSlider" Minimum="-100" Maximum="100" Value="0" StepFrequency="1" ValueChanged="OnVoiceSettingsChanged" />
-                                            </StackPanel>
-                                        </Border>
-                                        <Border Grid.Row="3" Grid.Column="1"
-                                                Padding="14,12"
-                                                MinHeight="96"
-                                                CornerRadius="{ThemeResource VoiSee.CornerRadius.Medium}"
-                                                Background="{ThemeResource VoiSee.PanelBackgroundBrush}"
-                                                BorderBrush="{ThemeResource VoiSee.PanelBorderBrush}"
-                                                BorderThickness="1" Tag="Distortion">
-                                            <StackPanel Spacing="8">
-                                                <Grid ColumnSpacing="8">
-                                                    <Grid.ColumnDefinitions>
-                                                        <ColumnDefinition Width="Auto" />
-                                                        <ColumnDefinition Width="*" />
-                                                        <ColumnDefinition Width="70" />
-                                                    </Grid.ColumnDefinitions>
-                                                    <TextBlock Text="⋮⋮" Tag="Distortion" Opacity="0.70" VerticalAlignment="Center" FontSize="18" PointerPressed="OnEffectLibraryGripPointerPressed" PointerMoved="OnEffectDragPointerMoved" PointerReleased="OnEffectDragPointerReleased" PointerCanceled="OnEffectDragPointerCanceled" />
-                                                    <TextBlock Grid.Column="1" x:Name="DistortionLabel" Text="Distortion" FontWeight="SemiBold" VerticalAlignment="Center" />
-                                                    <TextBox Style="{ThemeResource VoiSee.Style.TextBox}" Grid.Column="2" x:Name="DistortionValueBox" Text="0" MaxLength="5" TextAlignment="Right" TextChanged="OnVoiceValueTextChanged" />
-                                                </Grid>
-                                                <Slider Style="{ThemeResource VoiSee.Style.Slider}" x:Name="DistortionSlider" Minimum="0" Maximum="100" Value="0" StepFrequency="1" ValueChanged="OnVoiceSettingsChanged" />
-                                            </StackPanel>
-                                        </Border>
-                                        <Border Grid.Row="4" Grid.Column="0"
-                                                Padding="14,12"
-                                                MinHeight="96"
-                                                CornerRadius="{ThemeResource VoiSee.CornerRadius.Medium}"
-                                                Background="{ThemeResource VoiSee.PanelBackgroundBrush}"
-                                                BorderBrush="{ThemeResource VoiSee.PanelBorderBrush}"
-                                                BorderThickness="1" Tag="Robot">
-                                            <StackPanel Spacing="8">
-                                                <Grid ColumnSpacing="8">
-                                                    <Grid.ColumnDefinitions>
-                                                        <ColumnDefinition Width="Auto" />
-                                                        <ColumnDefinition Width="*" />
-                                                        <ColumnDefinition Width="70" />
-                                                    </Grid.ColumnDefinitions>
-                                                    <TextBlock Text="⋮⋮" Tag="Robot" Opacity="0.70" VerticalAlignment="Center" FontSize="18" PointerPressed="OnEffectLibraryGripPointerPressed" PointerMoved="OnEffectDragPointerMoved" PointerReleased="OnEffectDragPointerReleased" PointerCanceled="OnEffectDragPointerCanceled" />
-                                                    <TextBlock Grid.Column="1" x:Name="RobotLabel" Text="Robot" FontWeight="SemiBold" VerticalAlignment="Center" />
-                                                    <TextBox Style="{ThemeResource VoiSee.Style.TextBox}" Grid.Column="2" x:Name="RobotValueBox" Text="0" MaxLength="5" TextAlignment="Right" TextChanged="OnVoiceValueTextChanged" />
-                                                </Grid>
-                                                <Slider Style="{ThemeResource VoiSee.Style.Slider}" x:Name="RobotSlider" Minimum="0" Maximum="100" Value="0" StepFrequency="1" ValueChanged="OnVoiceSettingsChanged" />
-                                            </StackPanel>
-                                        </Border>
-                                        <Border Grid.Row="4" Grid.Column="1"
-                                                Padding="14,12"
-                                                MinHeight="96"
-                                                CornerRadius="{ThemeResource VoiSee.CornerRadius.Medium}"
-                                                Background="{ThemeResource VoiSee.PanelBackgroundBrush}"
-                                                BorderBrush="{ThemeResource VoiSee.PanelBorderBrush}"
-                                                BorderThickness="1" Tag="Tremolo">
-                                            <StackPanel Spacing="8">
-                                                <Grid ColumnSpacing="8">
-                                                    <Grid.ColumnDefinitions>
-                                                        <ColumnDefinition Width="Auto" />
-                                                        <ColumnDefinition Width="*" />
-                                                        <ColumnDefinition Width="70" />
-                                                    </Grid.ColumnDefinitions>
-                                                    <TextBlock Text="⋮⋮" Tag="Tremolo" Opacity="0.70" VerticalAlignment="Center" FontSize="18" PointerPressed="OnEffectLibraryGripPointerPressed" PointerMoved="OnEffectDragPointerMoved" PointerReleased="OnEffectDragPointerReleased" PointerCanceled="OnEffectDragPointerCanceled" />
-                                                    <TextBlock Grid.Column="1" x:Name="TremoloLabel" Text="Tremolo" FontWeight="SemiBold" VerticalAlignment="Center" />
-                                                    <TextBox Style="{ThemeResource VoiSee.Style.TextBox}" Grid.Column="2" x:Name="TremoloValueBox" Text="0" MaxLength="5" TextAlignment="Right" TextChanged="OnVoiceValueTextChanged" />
-                                                </Grid>
-                                                <Slider Style="{ThemeResource VoiSee.Style.Slider}" x:Name="TremoloSlider" Minimum="0" Maximum="100" Value="0" StepFrequency="1" ValueChanged="OnVoiceSettingsChanged" />
-                                            </StackPanel>
-                                        </Border>
-                                        <Border Grid.Row="5" Grid.Column="0"
-                                                Padding="14,12"
-                                                MinHeight="96"
-                                                CornerRadius="{ThemeResource VoiSee.CornerRadius.Medium}"
-                                                Background="{ThemeResource VoiSee.PanelBackgroundBrush}"
-                                                BorderBrush="{ThemeResource VoiSee.PanelBorderBrush}"
-                                                BorderThickness="1" Tag="Echo">
-                                            <StackPanel Spacing="8">
-                                                <Grid ColumnSpacing="8">
-                                                    <Grid.ColumnDefinitions>
-                                                        <ColumnDefinition Width="Auto" />
-                                                        <ColumnDefinition Width="*" />
-                                                        <ColumnDefinition Width="70" />
-                                                    </Grid.ColumnDefinitions>
-                                                    <TextBlock Text="⋮⋮" Tag="Echo" Opacity="0.70" VerticalAlignment="Center" FontSize="18" PointerPressed="OnEffectLibraryGripPointerPressed" PointerMoved="OnEffectDragPointerMoved" PointerReleased="OnEffectDragPointerReleased" PointerCanceled="OnEffectDragPointerCanceled" />
-                                                    <TextBlock Grid.Column="1" x:Name="EchoLabel" Text="Echo" FontWeight="SemiBold" VerticalAlignment="Center" />
-                                                    <TextBox Style="{ThemeResource VoiSee.Style.TextBox}" Grid.Column="2" x:Name="EchoValueBox" Text="0" MaxLength="5" TextAlignment="Right" TextChanged="OnVoiceValueTextChanged" />
-                                                </Grid>
-                                                <Slider Style="{ThemeResource VoiSee.Style.Slider}" x:Name="EchoSlider" Minimum="0" Maximum="100" Value="0" StepFrequency="1" ValueChanged="OnVoiceSettingsChanged" />
-                                            </StackPanel>
-                                        </Border>
-                                        <Border Grid.Row="5" Grid.Column="1"
-                                                Padding="14,12"
-                                                MinHeight="96"
-                                                CornerRadius="{ThemeResource VoiSee.CornerRadius.Medium}"
-                                                Background="{ThemeResource VoiSee.PanelBackgroundBrush}"
-                                                BorderBrush="{ThemeResource VoiSee.PanelBorderBrush}"
-                                                BorderThickness="1" Tag="Reverb">
-                                            <StackPanel Spacing="8">
-                                                <Grid ColumnSpacing="8">
-                                                    <Grid.ColumnDefinitions>
-                                                        <ColumnDefinition Width="Auto" />
-                                                        <ColumnDefinition Width="*" />
-                                                        <ColumnDefinition Width="70" />
-                                                    </Grid.ColumnDefinitions>
-                                                    <TextBlock Text="⋮⋮" Tag="Reverb" Opacity="0.70" VerticalAlignment="Center" FontSize="18" PointerPressed="OnEffectLibraryGripPointerPressed" PointerMoved="OnEffectDragPointerMoved" PointerReleased="OnEffectDragPointerReleased" PointerCanceled="OnEffectDragPointerCanceled" />
-                                                    <TextBlock Grid.Column="1" x:Name="ReverbLabel" Text="Reverb" FontWeight="SemiBold" VerticalAlignment="Center" />
-                                                    <TextBox Style="{ThemeResource VoiSee.Style.TextBox}" Grid.Column="2" x:Name="ReverbValueBox" Text="0" MaxLength="5" TextAlignment="Right" TextChanged="OnVoiceValueTextChanged" />
-                                                </Grid>
-                                                <Slider Style="{ThemeResource VoiSee.Style.Slider}" x:Name="ReverbSlider" Minimum="0" Maximum="100" Value="0" StepFrequency="1" ValueChanged="OnVoiceSettingsChanged" />
-                                            </StackPanel>
-                                        </Border>
-                                        <Border Grid.Row="6" Grid.Column="0"
-                                                Padding="14,12"
-                                                MinHeight="96"
-                                                CornerRadius="{ThemeResource VoiSee.CornerRadius.Medium}"
-                                                Background="{ThemeResource VoiSee.PanelBackgroundBrush}"
-                                                BorderBrush="{ThemeResource VoiSee.PanelBorderBrush}"
-                                                BorderThickness="1" Tag="Radio">
-                                            <StackPanel Spacing="8">
-                                                <Grid ColumnSpacing="8">
-                                                    <Grid.ColumnDefinitions>
-                                                        <ColumnDefinition Width="Auto" />
-                                                        <ColumnDefinition Width="*" />
-                                                        <ColumnDefinition Width="70" />
-                                                    </Grid.ColumnDefinitions>
-                                                    <TextBlock Text="⋮⋮" Tag="Radio" Opacity="0.70" VerticalAlignment="Center" FontSize="18" PointerPressed="OnEffectLibraryGripPointerPressed" PointerMoved="OnEffectDragPointerMoved" PointerReleased="OnEffectDragPointerReleased" PointerCanceled="OnEffectDragPointerCanceled" />
-                                                    <TextBlock Grid.Column="1" x:Name="RadioLabel" Text="Radio" FontWeight="SemiBold" VerticalAlignment="Center" />
-                                                    <TextBox Style="{ThemeResource VoiSee.Style.TextBox}" Grid.Column="2" x:Name="RadioValueBox" Text="0" MaxLength="5" TextAlignment="Right" TextChanged="OnVoiceValueTextChanged" />
-                                                </Grid>
-                                                <Slider Style="{ThemeResource VoiSee.Style.Slider}" x:Name="RadioSlider" Minimum="0" Maximum="100" Value="0" StepFrequency="1" ValueChanged="OnVoiceSettingsChanged" />
-                                            </StackPanel>
-                                        </Border>
-                                        <Border Grid.Row="6" Grid.Column="1"
-                                                Padding="14,12"
-                                                MinHeight="96"
-                                                CornerRadius="{ThemeResource VoiSee.CornerRadius.Medium}"
-                                                Background="{ThemeResource VoiSee.PanelBackgroundBrush}"
-                                                BorderBrush="{ThemeResource VoiSee.PanelBorderBrush}"
-                                                BorderThickness="1" Tag="BitCrusher">
-                                            <StackPanel Spacing="8">
-                                                <Grid ColumnSpacing="8">
-                                                    <Grid.ColumnDefinitions>
-                                                        <ColumnDefinition Width="Auto" />
-                                                        <ColumnDefinition Width="*" />
-                                                        <ColumnDefinition Width="70" />
-                                                    </Grid.ColumnDefinitions>
-                                                    <TextBlock Text="⋮⋮" Tag="BitCrusher" Opacity="0.70" VerticalAlignment="Center" FontSize="18" PointerPressed="OnEffectLibraryGripPointerPressed" PointerMoved="OnEffectDragPointerMoved" PointerReleased="OnEffectDragPointerReleased" PointerCanceled="OnEffectDragPointerCanceled" />
-                                                    <TextBlock Grid.Column="1" x:Name="BitCrusherLabel" Text="Bit Crusher" FontWeight="SemiBold" VerticalAlignment="Center" />
-                                                    <TextBox Style="{ThemeResource VoiSee.Style.TextBox}" Grid.Column="2" x:Name="BitCrusherValueBox" Text="0" MaxLength="5" TextAlignment="Right" TextChanged="OnVoiceValueTextChanged" />
-                                                </Grid>
-                                                <Slider Style="{ThemeResource VoiSee.Style.Slider}" x:Name="BitCrusherSlider" Minimum="0" Maximum="100" Value="0" StepFrequency="1" ValueChanged="OnVoiceSettingsChanged" />
-                                            </StackPanel>
-                                        </Border>
-                                        <Border Grid.Row="7" Grid.Column="0"
-                                                Padding="14,12"
-                                                MinHeight="96"
-                                                CornerRadius="{ThemeResource VoiSee.CornerRadius.Medium}"
-                                                Background="{ThemeResource VoiSee.PanelBackgroundBrush}"
-                                                BorderBrush="{ThemeResource VoiSee.PanelBorderBrush}"
-                                                BorderThickness="1" Tag="Alien">
-                                            <StackPanel Spacing="8">
-                                                <Grid ColumnSpacing="8">
-                                                    <Grid.ColumnDefinitions>
-                                                        <ColumnDefinition Width="Auto" />
-                                                        <ColumnDefinition Width="*" />
-                                                        <ColumnDefinition Width="70" />
-                                                    </Grid.ColumnDefinitions>
-                                                    <TextBlock Text="⋮⋮" Tag="Alien" Opacity="0.70" VerticalAlignment="Center" FontSize="18" PointerPressed="OnEffectLibraryGripPointerPressed" PointerMoved="OnEffectDragPointerMoved" PointerReleased="OnEffectDragPointerReleased" PointerCanceled="OnEffectDragPointerCanceled" />
-                                                    <TextBlock Grid.Column="1" x:Name="AlienLabel" Text="Alien" FontWeight="SemiBold" VerticalAlignment="Center" />
-                                                    <TextBox Style="{ThemeResource VoiSee.Style.TextBox}" Grid.Column="2" x:Name="AlienValueBox" Text="0" MaxLength="5" TextAlignment="Right" TextChanged="OnVoiceValueTextChanged" />
-                                                </Grid>
-                                                <Slider Style="{ThemeResource VoiSee.Style.Slider}" x:Name="AlienSlider" Minimum="0" Maximum="100" Value="0" StepFrequency="1" ValueChanged="OnVoiceSettingsChanged" />
+                                                Background="{ThemeResource VoiSee.CardValueBackgroundBrush}"
+                                                BorderBrush="{ThemeResource VoiSee.CardValueBorderBrush}" BorderThickness="1">
+                                            <StackPanel Spacing="7" VerticalAlignment="Center">
+                                                <TextBlock Text="Voice Monitor" FontWeight="SemiBold" HorizontalAlignment="Center" />
+                                                <Button Style="{ThemeResource VoiSee.Style.Button}"
+                                                        x:Name="VoiceMonitorButton"
+                                                        Content="Voice Monitor: Off"
+                                                        Height="40" HorizontalAlignment="Stretch"
+                                                        Click="OnToggleVoiceMonitorClick" />
+                                                <TextBlock Text="Hear the processed voice in headphones" FontSize="10" Opacity="0.58" TextAlignment="Center" TextWrapping="Wrap" />
                                             </StackPanel>
                                         </Border>
                                     </Grid>
+                                </Border>
 
-                                    <StackPanel Spacing="12" Margin="0,6,0,0">
-                                        <TextBlock Text="Presets" FontSize="20" FontWeight="SemiBold" />
-                                        <VariableSizedWrapGrid x:Name="VoicePresetsPanel"
+                                <!-- HORIZONTAL PROCESSING CHAIN -->
+                                <Border x:Name="ProcessingChainSurface"
+                                        Padding="14,12"
+                                        CornerRadius="{ThemeResource VoiSee.CornerRadius.Medium}"
+                                        Background="{ThemeResource VoiSee.PanelBackgroundBrush}"
+                                        BorderBrush="{ThemeResource VoiSee.PanelBorderBrush}"
+                                        BorderThickness="1">
+                                    <Grid RowSpacing="10">
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition Height="Auto" />
+                                            <RowDefinition Height="220" />
+                                            <RowDefinition Height="Auto" />
+                                        </Grid.RowDefinitions>
+
+                                        <Grid Grid.Row="0" ColumnSpacing="10">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="Auto" />
+                                            </Grid.ColumnDefinitions>
+                                            <StackPanel Spacing="2">
+                                                <StackPanel Orientation="Horizontal" Spacing="8">
+                                                    <TextBlock Text="Processing Chain" FontSize="20" FontWeight="SemiBold" />
+                                                    <Border Padding="7,2" CornerRadius="10" Background="{ThemeResource VoiSee.CardValueBackgroundBrush}" VerticalAlignment="Center">
+                                                        <TextBlock x:Name="EffectChainSummaryText" Text="0 active effects" FontSize="10" Opacity="0.78" />
+                                                    </Border>
+                                                </StackPanel>
+                                                <TextBlock Text="Drag cards to reorder. Drop a library effect anywhere on the signal lane." FontSize="11" Opacity="0.62" />
+                                            </StackPanel>
+                                            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="7" VerticalAlignment="Center">
+                                                <Button Style="{ThemeResource VoiSee.Style.Button}" x:Name="BypassEffectChainButton"
+                                                        Content="Bypass All" Height="36" MinWidth="100" Click="OnBypassEffectChainClick" />
+                                                <Button Style="{ThemeResource VoiSee.Style.Button}" x:Name="ClearEffectChainButton"
+                                                        Content="Clear Chain" Height="36" MinWidth="100" Click="OnClearEffectChainClick" />
+                                            </StackPanel>
+                                        </Grid>
+
+                                        <Grid Grid.Row="1" ColumnSpacing="10">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="84" />
+                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="84" />
+                                            </Grid.ColumnDefinitions>
+
+                                            <StackPanel Grid.Column="0" VerticalAlignment="Center" HorizontalAlignment="Center" Spacing="7">
+                                                <Border Width="58" Height="58" CornerRadius="29"
+                                                        Background="{ThemeResource VoiSee.CardValueBackgroundBrush}"
+                                                        BorderBrush="{ThemeResource VoiSee.AccentBrush}" BorderThickness="1.5">
+                                                    <TextBlock Text="🎙" FontSize="25" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                                </Border>
+                                                <TextBlock Text="INPUT" FontSize="10" FontWeight="SemiBold" Opacity="0.58" HorizontalAlignment="Center" />
+                                            </StackPanel>
+
+                                            <Grid Grid.Column="1" VerticalAlignment="Stretch">
+                                                <Rectangle Height="2" Fill="{ThemeResource VoiSee.AccentBrush}" Opacity="0.55" VerticalAlignment="Center" Margin="0,0,0,4" />
+                                                <ScrollViewer x:Name="ProcessingChainScrollViewer"
+                                                              HorizontalScrollBarVisibility="Auto"
+                                                              HorizontalScrollMode="Enabled"
+                                                              VerticalScrollBarVisibility="Disabled"
+                                                              VerticalScrollMode="Disabled"
+                                                              ZoomMode="Disabled"
+                                                              PointerWheelChanged="OnEffectChainHorizontalWheel">
+                                                    <StackPanel Orientation="Horizontal" Spacing="12" VerticalAlignment="Center" MinHeight="198">
+                                                        <Border x:Name="EffectChainDropZone" Width="48" Height="64" Padding="4"
+                                                                CornerRadius="{ThemeResource VoiSee.CornerRadius.Small}"
+                                                                Background="{ThemeResource VoiSee.CardValueBackgroundBrush}"
+                                                                BorderBrush="{ThemeResource VoiSee.AccentBrush}"
+                                                                BorderThickness="1"
+                                                                AllowDrop="True" DragOver="OnEffectChainDragOver" Drop="OnEffectChainDrop"
+                                                                VerticalAlignment="Center">
+                                                            <TextBlock Text="+" FontSize="24" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                                        </Border>
+
+                                                        <StackPanel x:Name="EffectChainCardsPanel"
+                                                                    Orientation="Horizontal"
+                                                                    Spacing="12"
+                                                                    VerticalAlignment="Center"
+                                                                    AllowDrop="True"
+                                                                    DragOver="OnEffectChainDragOver"
+                                                                    Drop="OnEffectChainDrop" />
+
+                                                        <Border x:Name="EffectPreviewHost"
+                                                                Width="178" Height="150"
+                                                                Visibility="Collapsed"
+                                                                Padding="12,10"
+                                                                CornerRadius="{ThemeResource VoiSee.CornerRadius.Medium}"
+                                                                Background="#24FFFFFF"
+                                                                BorderBrush="{ThemeResource VoiSee.AccentBrush}"
+                                                                BorderThickness="1.5"
+                                                                Opacity="0.82"
+                                                                VerticalAlignment="Center" />
+
+                                                        <Border Width="48" Height="64" Padding="4"
+                                                                CornerRadius="{ThemeResource VoiSee.CornerRadius.Small}"
+                                                                Background="{ThemeResource VoiSee.CardValueBackgroundBrush}"
+                                                                BorderBrush="{ThemeResource VoiSee.AccentBrush}"
+                                                                BorderThickness="1"
+                                                                AllowDrop="True" DragOver="OnEffectChainDragOver" Drop="OnEffectChainDrop"
+                                                                VerticalAlignment="Center">
+                                                            <TextBlock Text="+" FontSize="24" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                                        </Border>
+                                                    </StackPanel>
+                                                </ScrollViewer>
+                                            </Grid>
+
+                                            <StackPanel Grid.Column="2" VerticalAlignment="Center" HorizontalAlignment="Center" Spacing="7">
+                                                <Border Width="58" Height="58" CornerRadius="29"
+                                                        Background="{ThemeResource VoiSee.CardValueBackgroundBrush}"
+                                                        BorderBrush="{ThemeResource VoiSee.AccentBrush}" BorderThickness="1.5">
+                                                    <TextBlock Text="🎧" FontSize="25" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                                </Border>
+                                                <TextBlock Text="OUTPUT" FontSize="10" FontWeight="SemiBold" Opacity="0.58" HorizontalAlignment="Center" />
+                                            </StackPanel>
+                                        </Grid>
+
+                                        <TextBlock Grid.Row="2" Text="Tip: use the grip on a card to move it. The horizontal lane scrolls with the mouse wheel when the pointer is over it."
+                                                   FontSize="10" Opacity="0.52" HorizontalAlignment="Center" />
+                                    </Grid>
+                                </Border>
+
+                                <!-- EFFECT LIBRARY -->
+                                <Border Padding="14,12"
+                                        CornerRadius="{ThemeResource VoiSee.CornerRadius.Medium}"
+                                        Background="{ThemeResource VoiSee.PanelBackgroundBrush}"
+                                        BorderBrush="{ThemeResource VoiSee.PanelBorderBrush}"
+                                        BorderThickness="1">
+                                    <StackPanel Spacing="10">
+                                        <Grid ColumnSpacing="10">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="Auto" />
+                                                <ColumnDefinition Width="250" />
+                                                <ColumnDefinition Width="*" />
+                                            </Grid.ColumnDefinitions>
+                                            <TextBlock Text="Effect Library" FontSize="20" FontWeight="SemiBold" VerticalAlignment="Center" />
+                                            <TextBox Style="{ThemeResource VoiSee.Style.TextBox}" Grid.Column="1"
+                                                     x:Name="EffectLibrarySearchBox" PlaceholderText="Search effects..."
+                                                     TextChanged="OnEffectLibrarySearchTextChanged" />
+                                            <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="6" HorizontalAlignment="Right" VerticalAlignment="Center">
+                                                <Button Style="{ThemeResource VoiSee.Style.Button}" Content="All" Tag="All" Padding="10,4" Click="OnEffectLibraryFilterClick" />
+                                                <Button Style="{ThemeResource VoiSee.Style.Button}" Content="Dynamics" Tag="Dynamics" Padding="10,4" Click="OnEffectLibraryFilterClick" />
+                                                <Button Style="{ThemeResource VoiSee.Style.Button}" Content="Pitch &amp; Tone" Tag="Tone" Padding="10,4" Click="OnEffectLibraryFilterClick" />
+                                                <Button Style="{ThemeResource VoiSee.Style.Button}" Content="Space" Tag="Space" Padding="10,4" Click="OnEffectLibraryFilterClick" />
+                                                <Button Style="{ThemeResource VoiSee.Style.Button}" Content="Special" Tag="Special" Padding="10,4" Click="OnEffectLibraryFilterClick" />
+                                            </StackPanel>
+                                        </Grid>
+                                        <TextBlock Text="Adjust a card to preview it temporarily, or drag it into the processing chain to make it active."
+                                                   FontSize="11" Opacity="0.60" />
+
+                                        <VariableSizedWrapGrid x:Name="EffectLibraryCardsPanel"
                                                                Orientation="Horizontal"
-                                                               ItemWidth="112"
-                                                               ItemHeight="142"
-                                                               MaximumRowsOrColumns="8" />
+                                                               ItemWidth="204"
+                                                               ItemHeight="124">
+                                                <Border Width="196" Height="116" Padding="10,9" Margin="0,0,8,8"
+                                                        CornerRadius="{ThemeResource VoiSee.CornerRadius.Medium}"
+                                                        Background="{ThemeResource VoiSee.PanelBackgroundBrush}"
+                                                        BorderBrush="{ThemeResource VoiSee.PanelBorderBrush}"
+                                                        BorderThickness="1" Tag="VoiceGain">
+                                                    <StackPanel Spacing="5">
+                                                        <Grid ColumnSpacing="7">
+                                                            <Grid.ColumnDefinitions>
+                                                                <ColumnDefinition Width="Auto" />
+                                                                <ColumnDefinition Width="Auto" />
+                                                                <ColumnDefinition Width="*" />
+                                                                <ColumnDefinition Width="56" />
+                                                            </Grid.ColumnDefinitions>
+                                                            <TextBlock Text="⋮⋮" Tag="VoiceGain" Opacity="0.62" VerticalAlignment="Center" FontSize="16"
+                                                                       PointerPressed="OnEffectLibraryGripPointerPressed" PointerMoved="OnEffectDragPointerMoved"
+                                                                       PointerReleased="OnEffectDragPointerReleased" PointerCanceled="OnEffectDragPointerCanceled"
+                                                                       ToolTipService.ToolTip="Drag into the processing chain" />
+                                                            <Border Grid.Column="1" Width="28" Height="28" CornerRadius="6"
+                                                                    Background="{ThemeResource VoiSee.CardValueBackgroundBrush}"
+                                                                    BorderBrush="{ThemeResource VoiSee.CardValueBorderBrush}" BorderThickness="1">
+                                                                <TextBlock Text="◖" FontSize="16" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                                            </Border>
+                                                            <StackPanel Grid.Column="2" Spacing="0" VerticalAlignment="Center">
+                                                                <TextBlock x:Name="VoiceGainLabel" Text="Voice Gain" FontWeight="SemiBold" FontSize="13" TextTrimming="CharacterEllipsis" />
+                                                                <TextBlock Text="Input level before the chain" FontSize="10" Opacity="0.58" TextTrimming="CharacterEllipsis" />
+                                                            </StackPanel>
+                                                            <TextBox Style="{ThemeResource VoiSee.Style.TextBox}" Grid.Column="3" x:Name="VoiceGainValueBox" Text="0" MaxLength="5"
+                                                                     Height="30" Padding="6,3" TextAlignment="Right" TextChanged="OnVoiceValueTextChanged" />
+                                                        </Grid>
+                                                        <Slider Style="{ThemeResource VoiSee.Style.Slider}" x:Name="VoiceGainSlider" Minimum="-100" Maximum="100" Value="0" StepFrequency="1"
+                                                                ValueChanged="OnVoiceSettingsChanged" />
+                                                    </StackPanel>
+                                                </Border>
+                                                <Border Width="196" Height="116" Padding="10,9" Margin="0,0,8,8"
+                                                        CornerRadius="{ThemeResource VoiSee.CornerRadius.Medium}"
+                                                        Background="{ThemeResource VoiSee.PanelBackgroundBrush}"
+                                                        BorderBrush="{ThemeResource VoiSee.PanelBorderBrush}"
+                                                        BorderThickness="1" Tag="Gate">
+                                                    <StackPanel Spacing="5">
+                                                        <Grid ColumnSpacing="7">
+                                                            <Grid.ColumnDefinitions>
+                                                                <ColumnDefinition Width="Auto" />
+                                                                <ColumnDefinition Width="Auto" />
+                                                                <ColumnDefinition Width="*" />
+                                                                <ColumnDefinition Width="56" />
+                                                            </Grid.ColumnDefinitions>
+                                                            <TextBlock Text="⋮⋮" Tag="Gate" Opacity="0.62" VerticalAlignment="Center" FontSize="16"
+                                                                       PointerPressed="OnEffectLibraryGripPointerPressed" PointerMoved="OnEffectDragPointerMoved"
+                                                                       PointerReleased="OnEffectDragPointerReleased" PointerCanceled="OnEffectDragPointerCanceled"
+                                                                       ToolTipService.ToolTip="Drag into the processing chain" />
+                                                            <Border Grid.Column="1" Width="28" Height="28" CornerRadius="6"
+                                                                    Background="{ThemeResource VoiSee.CardValueBackgroundBrush}"
+                                                                    BorderBrush="{ThemeResource VoiSee.CardValueBorderBrush}" BorderThickness="1">
+                                                                <TextBlock Text="⊣" FontSize="16" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                                            </Border>
+                                                            <StackPanel Grid.Column="2" Spacing="0" VerticalAlignment="Center">
+                                                                <TextBlock x:Name="GateThresholdLabel" Text="Gate" FontWeight="SemiBold" FontSize="13" TextTrimming="CharacterEllipsis" />
+                                                                <TextBlock Text="Remove signal below threshold" FontSize="10" Opacity="0.58" TextTrimming="CharacterEllipsis" />
+                                                            </StackPanel>
+                                                            <TextBox Style="{ThemeResource VoiSee.Style.TextBox}" Grid.Column="3" x:Name="GateThresholdValueBox" Text="0" MaxLength="5"
+                                                                     Height="30" Padding="6,3" TextAlignment="Right" TextChanged="OnVoiceValueTextChanged" />
+                                                        </Grid>
+                                                        <Slider Style="{ThemeResource VoiSee.Style.Slider}" x:Name="GateThresholdSlider" Minimum="0" Maximum="100" Value="0" StepFrequency="1"
+                                                                ValueChanged="OnVoiceSettingsChanged" />
+                                                    </StackPanel>
+                                                </Border>
+                                                <Border Width="196" Height="116" Padding="10,9" Margin="0,0,8,8"
+                                                        CornerRadius="{ThemeResource VoiSee.CornerRadius.Medium}"
+                                                        Background="{ThemeResource VoiSee.PanelBackgroundBrush}"
+                                                        BorderBrush="{ThemeResource VoiSee.PanelBorderBrush}"
+                                                        BorderThickness="1" Tag="Compressor">
+                                                    <StackPanel Spacing="5">
+                                                        <Grid ColumnSpacing="7">
+                                                            <Grid.ColumnDefinitions>
+                                                                <ColumnDefinition Width="Auto" />
+                                                                <ColumnDefinition Width="Auto" />
+                                                                <ColumnDefinition Width="*" />
+                                                                <ColumnDefinition Width="56" />
+                                                            </Grid.ColumnDefinitions>
+                                                            <TextBlock Text="⋮⋮" Tag="Compressor" Opacity="0.62" VerticalAlignment="Center" FontSize="16"
+                                                                       PointerPressed="OnEffectLibraryGripPointerPressed" PointerMoved="OnEffectDragPointerMoved"
+                                                                       PointerReleased="OnEffectDragPointerReleased" PointerCanceled="OnEffectDragPointerCanceled"
+                                                                       ToolTipService.ToolTip="Drag into the processing chain" />
+                                                            <Border Grid.Column="1" Width="28" Height="28" CornerRadius="6"
+                                                                    Background="{ThemeResource VoiSee.CardValueBackgroundBrush}"
+                                                                    BorderBrush="{ThemeResource VoiSee.CardValueBorderBrush}" BorderThickness="1">
+                                                                <TextBlock Text="≋" FontSize="16" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                                            </Border>
+                                                            <StackPanel Grid.Column="2" Spacing="0" VerticalAlignment="Center">
+                                                                <TextBlock x:Name="CompressorThresholdLabel" Text="Compressor" FontWeight="SemiBold" FontSize="13" TextTrimming="CharacterEllipsis" />
+                                                                <TextBlock Text="Control peaks and dynamics" FontSize="10" Opacity="0.58" TextTrimming="CharacterEllipsis" />
+                                                            </StackPanel>
+                                                            <TextBox Style="{ThemeResource VoiSee.Style.TextBox}" Grid.Column="3" x:Name="CompressorThresholdValueBox" Text="0" MaxLength="5"
+                                                                     Height="30" Padding="6,3" TextAlignment="Right" TextChanged="OnVoiceValueTextChanged" />
+                                                        </Grid>
+                                                        <Slider Style="{ThemeResource VoiSee.Style.Slider}" x:Name="CompressorThresholdSlider" Minimum="0" Maximum="200" Value="0" StepFrequency="1"
+                                                                ValueChanged="OnVoiceSettingsChanged" />
+                                                    </StackPanel>
+                                                </Border>
+                                                <Border Width="196" Height="116" Padding="10,9" Margin="0,0,8,8"
+                                                        CornerRadius="{ThemeResource VoiSee.CornerRadius.Medium}"
+                                                        Background="{ThemeResource VoiSee.PanelBackgroundBrush}"
+                                                        BorderBrush="{ThemeResource VoiSee.PanelBorderBrush}"
+                                                        BorderThickness="1" Tag="Pitch">
+                                                    <StackPanel Spacing="5">
+                                                        <Grid ColumnSpacing="7">
+                                                            <Grid.ColumnDefinitions>
+                                                                <ColumnDefinition Width="Auto" />
+                                                                <ColumnDefinition Width="Auto" />
+                                                                <ColumnDefinition Width="*" />
+                                                                <ColumnDefinition Width="56" />
+                                                            </Grid.ColumnDefinitions>
+                                                            <TextBlock Text="⋮⋮" Tag="Pitch" Opacity="0.62" VerticalAlignment="Center" FontSize="16"
+                                                                       PointerPressed="OnEffectLibraryGripPointerPressed" PointerMoved="OnEffectDragPointerMoved"
+                                                                       PointerReleased="OnEffectDragPointerReleased" PointerCanceled="OnEffectDragPointerCanceled"
+                                                                       ToolTipService.ToolTip="Drag into the processing chain" />
+                                                            <Border Grid.Column="1" Width="28" Height="28" CornerRadius="6"
+                                                                    Background="{ThemeResource VoiSee.CardValueBackgroundBrush}"
+                                                                    BorderBrush="{ThemeResource VoiSee.CardValueBorderBrush}" BorderThickness="1">
+                                                                <TextBlock Text="♫" FontSize="16" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                                            </Border>
+                                                            <StackPanel Grid.Column="2" Spacing="0" VerticalAlignment="Center">
+                                                                <TextBlock x:Name="PitchLabel" Text="Pitch" FontWeight="SemiBold" FontSize="13" TextTrimming="CharacterEllipsis" />
+                                                                <TextBlock Text="Shift voice pitch" FontSize="10" Opacity="0.58" TextTrimming="CharacterEllipsis" />
+                                                            </StackPanel>
+                                                            <TextBox Style="{ThemeResource VoiSee.Style.TextBox}" Grid.Column="3" x:Name="PitchValueBox" Text="0" MaxLength="5"
+                                                                     Height="30" Padding="6,3" TextAlignment="Right" TextChanged="OnVoiceValueTextChanged" />
+                                                        </Grid>
+                                                        <Slider Style="{ThemeResource VoiSee.Style.Slider}" x:Name="PitchSlider" Minimum="-100" Maximum="100" Value="0" StepFrequency="1"
+                                                                ValueChanged="OnVoiceSettingsChanged" />
+                                                    </StackPanel>
+                                                </Border>
+                                                <Border Width="196" Height="116" Padding="10,9" Margin="0,0,8,8"
+                                                        CornerRadius="{ThemeResource VoiSee.CornerRadius.Medium}"
+                                                        Background="{ThemeResource VoiSee.PanelBackgroundBrush}"
+                                                        BorderBrush="{ThemeResource VoiSee.PanelBorderBrush}"
+                                                        BorderThickness="1" Tag="Formant">
+                                                    <StackPanel Spacing="5">
+                                                        <Grid ColumnSpacing="7">
+                                                            <Grid.ColumnDefinitions>
+                                                                <ColumnDefinition Width="Auto" />
+                                                                <ColumnDefinition Width="Auto" />
+                                                                <ColumnDefinition Width="*" />
+                                                                <ColumnDefinition Width="56" />
+                                                            </Grid.ColumnDefinitions>
+                                                            <TextBlock Text="⋮⋮" Tag="Formant" Opacity="0.62" VerticalAlignment="Center" FontSize="16"
+                                                                       PointerPressed="OnEffectLibraryGripPointerPressed" PointerMoved="OnEffectDragPointerMoved"
+                                                                       PointerReleased="OnEffectDragPointerReleased" PointerCanceled="OnEffectDragPointerCanceled"
+                                                                       ToolTipService.ToolTip="Drag into the processing chain" />
+                                                            <Border Grid.Column="1" Width="28" Height="28" CornerRadius="6"
+                                                                    Background="{ThemeResource VoiSee.CardValueBackgroundBrush}"
+                                                                    BorderBrush="{ThemeResource VoiSee.CardValueBorderBrush}" BorderThickness="1">
+                                                                <TextBlock Text="◫" FontSize="16" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                                            </Border>
+                                                            <StackPanel Grid.Column="2" Spacing="0" VerticalAlignment="Center">
+                                                                <TextBlock x:Name="FormantLabel" Text="Formant" FontWeight="SemiBold" FontSize="13" TextTrimming="CharacterEllipsis" />
+                                                                <TextBlock Text="Change vocal character" FontSize="10" Opacity="0.58" TextTrimming="CharacterEllipsis" />
+                                                            </StackPanel>
+                                                            <TextBox Style="{ThemeResource VoiSee.Style.TextBox}" Grid.Column="3" x:Name="FormantValueBox" Text="0" MaxLength="5"
+                                                                     Height="30" Padding="6,3" TextAlignment="Right" TextChanged="OnVoiceValueTextChanged" />
+                                                        </Grid>
+                                                        <Slider Style="{ThemeResource VoiSee.Style.Slider}" x:Name="FormantSlider" Minimum="-100" Maximum="100" Value="0" StepFrequency="1"
+                                                                ValueChanged="OnVoiceSettingsChanged" />
+                                                    </StackPanel>
+                                                </Border>
+                                                <Border Width="196" Height="116" Padding="10,9" Margin="0,0,8,8"
+                                                        CornerRadius="{ThemeResource VoiSee.CornerRadius.Medium}"
+                                                        Background="{ThemeResource VoiSee.PanelBackgroundBrush}"
+                                                        BorderBrush="{ThemeResource VoiSee.PanelBorderBrush}"
+                                                        BorderThickness="1" Tag="Bass">
+                                                    <StackPanel Spacing="5">
+                                                        <Grid ColumnSpacing="7">
+                                                            <Grid.ColumnDefinitions>
+                                                                <ColumnDefinition Width="Auto" />
+                                                                <ColumnDefinition Width="Auto" />
+                                                                <ColumnDefinition Width="*" />
+                                                                <ColumnDefinition Width="56" />
+                                                            </Grid.ColumnDefinitions>
+                                                            <TextBlock Text="⋮⋮" Tag="Bass" Opacity="0.62" VerticalAlignment="Center" FontSize="16"
+                                                                       PointerPressed="OnEffectLibraryGripPointerPressed" PointerMoved="OnEffectDragPointerMoved"
+                                                                       PointerReleased="OnEffectDragPointerReleased" PointerCanceled="OnEffectDragPointerCanceled"
+                                                                       ToolTipService.ToolTip="Drag into the processing chain" />
+                                                            <Border Grid.Column="1" Width="28" Height="28" CornerRadius="6"
+                                                                    Background="{ThemeResource VoiSee.CardValueBackgroundBrush}"
+                                                                    BorderBrush="{ThemeResource VoiSee.CardValueBorderBrush}" BorderThickness="1">
+                                                                <TextBlock Text="◒" FontSize="16" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                                            </Border>
+                                                            <StackPanel Grid.Column="2" Spacing="0" VerticalAlignment="Center">
+                                                                <TextBlock x:Name="BassLabel" Text="Bass" FontWeight="SemiBold" FontSize="13" TextTrimming="CharacterEllipsis" />
+                                                                <TextBlock Text="Shape low frequencies" FontSize="10" Opacity="0.58" TextTrimming="CharacterEllipsis" />
+                                                            </StackPanel>
+                                                            <TextBox Style="{ThemeResource VoiSee.Style.TextBox}" Grid.Column="3" x:Name="BassValueBox" Text="0" MaxLength="5"
+                                                                     Height="30" Padding="6,3" TextAlignment="Right" TextChanged="OnVoiceValueTextChanged" />
+                                                        </Grid>
+                                                        <Slider Style="{ThemeResource VoiSee.Style.Slider}" x:Name="BassSlider" Minimum="-100" Maximum="100" Value="0" StepFrequency="1"
+                                                                ValueChanged="OnVoiceSettingsChanged" />
+                                                    </StackPanel>
+                                                </Border>
+                                                <Border Width="196" Height="116" Padding="10,9" Margin="0,0,8,8"
+                                                        CornerRadius="{ThemeResource VoiSee.CornerRadius.Medium}"
+                                                        Background="{ThemeResource VoiSee.PanelBackgroundBrush}"
+                                                        BorderBrush="{ThemeResource VoiSee.PanelBorderBrush}"
+                                                        BorderThickness="1" Tag="Treble">
+                                                    <StackPanel Spacing="5">
+                                                        <Grid ColumnSpacing="7">
+                                                            <Grid.ColumnDefinitions>
+                                                                <ColumnDefinition Width="Auto" />
+                                                                <ColumnDefinition Width="Auto" />
+                                                                <ColumnDefinition Width="*" />
+                                                                <ColumnDefinition Width="56" />
+                                                            </Grid.ColumnDefinitions>
+                                                            <TextBlock Text="⋮⋮" Tag="Treble" Opacity="0.62" VerticalAlignment="Center" FontSize="16"
+                                                                       PointerPressed="OnEffectLibraryGripPointerPressed" PointerMoved="OnEffectDragPointerMoved"
+                                                                       PointerReleased="OnEffectDragPointerReleased" PointerCanceled="OnEffectDragPointerCanceled"
+                                                                       ToolTipService.ToolTip="Drag into the processing chain" />
+                                                            <Border Grid.Column="1" Width="28" Height="28" CornerRadius="6"
+                                                                    Background="{ThemeResource VoiSee.CardValueBackgroundBrush}"
+                                                                    BorderBrush="{ThemeResource VoiSee.CardValueBorderBrush}" BorderThickness="1">
+                                                                <TextBlock Text="◓" FontSize="16" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                                            </Border>
+                                                            <StackPanel Grid.Column="2" Spacing="0" VerticalAlignment="Center">
+                                                                <TextBlock x:Name="TrebleLabel" Text="Treble" FontWeight="SemiBold" FontSize="13" TextTrimming="CharacterEllipsis" />
+                                                                <TextBlock Text="Shape high frequencies" FontSize="10" Opacity="0.58" TextTrimming="CharacterEllipsis" />
+                                                            </StackPanel>
+                                                            <TextBox Style="{ThemeResource VoiSee.Style.TextBox}" Grid.Column="3" x:Name="TrebleValueBox" Text="0" MaxLength="5"
+                                                                     Height="30" Padding="6,3" TextAlignment="Right" TextChanged="OnVoiceValueTextChanged" />
+                                                        </Grid>
+                                                        <Slider Style="{ThemeResource VoiSee.Style.Slider}" x:Name="TrebleSlider" Minimum="-100" Maximum="100" Value="0" StepFrequency="1"
+                                                                ValueChanged="OnVoiceSettingsChanged" />
+                                                    </StackPanel>
+                                                </Border>
+                                                <Border Width="196" Height="116" Padding="10,9" Margin="0,0,8,8"
+                                                        CornerRadius="{ThemeResource VoiSee.CornerRadius.Medium}"
+                                                        Background="{ThemeResource VoiSee.PanelBackgroundBrush}"
+                                                        BorderBrush="{ThemeResource VoiSee.PanelBorderBrush}"
+                                                        BorderThickness="1" Tag="Distortion">
+                                                    <StackPanel Spacing="5">
+                                                        <Grid ColumnSpacing="7">
+                                                            <Grid.ColumnDefinitions>
+                                                                <ColumnDefinition Width="Auto" />
+                                                                <ColumnDefinition Width="Auto" />
+                                                                <ColumnDefinition Width="*" />
+                                                                <ColumnDefinition Width="56" />
+                                                            </Grid.ColumnDefinitions>
+                                                            <TextBlock Text="⋮⋮" Tag="Distortion" Opacity="0.62" VerticalAlignment="Center" FontSize="16"
+                                                                       PointerPressed="OnEffectLibraryGripPointerPressed" PointerMoved="OnEffectDragPointerMoved"
+                                                                       PointerReleased="OnEffectDragPointerReleased" PointerCanceled="OnEffectDragPointerCanceled"
+                                                                       ToolTipService.ToolTip="Drag into the processing chain" />
+                                                            <Border Grid.Column="1" Width="28" Height="28" CornerRadius="6"
+                                                                    Background="{ThemeResource VoiSee.CardValueBackgroundBrush}"
+                                                                    BorderBrush="{ThemeResource VoiSee.CardValueBorderBrush}" BorderThickness="1">
+                                                                <TextBlock Text="ϟ" FontSize="16" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                                            </Border>
+                                                            <StackPanel Grid.Column="2" Spacing="0" VerticalAlignment="Center">
+                                                                <TextBlock x:Name="DistortionLabel" Text="Distortion" FontWeight="SemiBold" FontSize="13" TextTrimming="CharacterEllipsis" />
+                                                                <TextBlock Text="Add grit and harmonics" FontSize="10" Opacity="0.58" TextTrimming="CharacterEllipsis" />
+                                                            </StackPanel>
+                                                            <TextBox Style="{ThemeResource VoiSee.Style.TextBox}" Grid.Column="3" x:Name="DistortionValueBox" Text="0" MaxLength="5"
+                                                                     Height="30" Padding="6,3" TextAlignment="Right" TextChanged="OnVoiceValueTextChanged" />
+                                                        </Grid>
+                                                        <Slider Style="{ThemeResource VoiSee.Style.Slider}" x:Name="DistortionSlider" Minimum="0" Maximum="100" Value="0" StepFrequency="1"
+                                                                ValueChanged="OnVoiceSettingsChanged" />
+                                                    </StackPanel>
+                                                </Border>
+                                                <Border Width="196" Height="116" Padding="10,9" Margin="0,0,8,8"
+                                                        CornerRadius="{ThemeResource VoiSee.CornerRadius.Medium}"
+                                                        Background="{ThemeResource VoiSee.PanelBackgroundBrush}"
+                                                        BorderBrush="{ThemeResource VoiSee.PanelBorderBrush}"
+                                                        BorderThickness="1" Tag="Robot">
+                                                    <StackPanel Spacing="5">
+                                                        <Grid ColumnSpacing="7">
+                                                            <Grid.ColumnDefinitions>
+                                                                <ColumnDefinition Width="Auto" />
+                                                                <ColumnDefinition Width="Auto" />
+                                                                <ColumnDefinition Width="*" />
+                                                                <ColumnDefinition Width="56" />
+                                                            </Grid.ColumnDefinitions>
+                                                            <TextBlock Text="⋮⋮" Tag="Robot" Opacity="0.62" VerticalAlignment="Center" FontSize="16"
+                                                                       PointerPressed="OnEffectLibraryGripPointerPressed" PointerMoved="OnEffectDragPointerMoved"
+                                                                       PointerReleased="OnEffectDragPointerReleased" PointerCanceled="OnEffectDragPointerCanceled"
+                                                                       ToolTipService.ToolTip="Drag into the processing chain" />
+                                                            <Border Grid.Column="1" Width="28" Height="28" CornerRadius="6"
+                                                                    Background="{ThemeResource VoiSee.CardValueBackgroundBrush}"
+                                                                    BorderBrush="{ThemeResource VoiSee.CardValueBorderBrush}" BorderThickness="1">
+                                                                <TextBlock Text="▦" FontSize="16" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                                            </Border>
+                                                            <StackPanel Grid.Column="2" Spacing="0" VerticalAlignment="Center">
+                                                                <TextBlock x:Name="RobotLabel" Text="Robot" FontWeight="SemiBold" FontSize="13" TextTrimming="CharacterEllipsis" />
+                                                                <TextBlock Text="Metallic robotic voice" FontSize="10" Opacity="0.58" TextTrimming="CharacterEllipsis" />
+                                                            </StackPanel>
+                                                            <TextBox Style="{ThemeResource VoiSee.Style.TextBox}" Grid.Column="3" x:Name="RobotValueBox" Text="0" MaxLength="5"
+                                                                     Height="30" Padding="6,3" TextAlignment="Right" TextChanged="OnVoiceValueTextChanged" />
+                                                        </Grid>
+                                                        <Slider Style="{ThemeResource VoiSee.Style.Slider}" x:Name="RobotSlider" Minimum="0" Maximum="100" Value="0" StepFrequency="1"
+                                                                ValueChanged="OnVoiceSettingsChanged" />
+                                                    </StackPanel>
+                                                </Border>
+                                                <Border Width="196" Height="116" Padding="10,9" Margin="0,0,8,8"
+                                                        CornerRadius="{ThemeResource VoiSee.CornerRadius.Medium}"
+                                                        Background="{ThemeResource VoiSee.PanelBackgroundBrush}"
+                                                        BorderBrush="{ThemeResource VoiSee.PanelBorderBrush}"
+                                                        BorderThickness="1" Tag="Tremolo">
+                                                    <StackPanel Spacing="5">
+                                                        <Grid ColumnSpacing="7">
+                                                            <Grid.ColumnDefinitions>
+                                                                <ColumnDefinition Width="Auto" />
+                                                                <ColumnDefinition Width="Auto" />
+                                                                <ColumnDefinition Width="*" />
+                                                                <ColumnDefinition Width="56" />
+                                                            </Grid.ColumnDefinitions>
+                                                            <TextBlock Text="⋮⋮" Tag="Tremolo" Opacity="0.62" VerticalAlignment="Center" FontSize="16"
+                                                                       PointerPressed="OnEffectLibraryGripPointerPressed" PointerMoved="OnEffectDragPointerMoved"
+                                                                       PointerReleased="OnEffectDragPointerReleased" PointerCanceled="OnEffectDragPointerCanceled"
+                                                                       ToolTipService.ToolTip="Drag into the processing chain" />
+                                                            <Border Grid.Column="1" Width="28" Height="28" CornerRadius="6"
+                                                                    Background="{ThemeResource VoiSee.CardValueBackgroundBrush}"
+                                                                    BorderBrush="{ThemeResource VoiSee.CardValueBorderBrush}" BorderThickness="1">
+                                                                <TextBlock Text="∿" FontSize="16" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                                            </Border>
+                                                            <StackPanel Grid.Column="2" Spacing="0" VerticalAlignment="Center">
+                                                                <TextBlock x:Name="TremoloLabel" Text="Tremolo" FontWeight="SemiBold" FontSize="13" TextTrimming="CharacterEllipsis" />
+                                                                <TextBlock Text="Rhythmic level modulation" FontSize="10" Opacity="0.58" TextTrimming="CharacterEllipsis" />
+                                                            </StackPanel>
+                                                            <TextBox Style="{ThemeResource VoiSee.Style.TextBox}" Grid.Column="3" x:Name="TremoloValueBox" Text="0" MaxLength="5"
+                                                                     Height="30" Padding="6,3" TextAlignment="Right" TextChanged="OnVoiceValueTextChanged" />
+                                                        </Grid>
+                                                        <Slider Style="{ThemeResource VoiSee.Style.Slider}" x:Name="TremoloSlider" Minimum="0" Maximum="100" Value="0" StepFrequency="1"
+                                                                ValueChanged="OnVoiceSettingsChanged" />
+                                                    </StackPanel>
+                                                </Border>
+                                                <Border Width="196" Height="116" Padding="10,9" Margin="0,0,8,8"
+                                                        CornerRadius="{ThemeResource VoiSee.CornerRadius.Medium}"
+                                                        Background="{ThemeResource VoiSee.PanelBackgroundBrush}"
+                                                        BorderBrush="{ThemeResource VoiSee.PanelBorderBrush}"
+                                                        BorderThickness="1" Tag="Echo">
+                                                    <StackPanel Spacing="5">
+                                                        <Grid ColumnSpacing="7">
+                                                            <Grid.ColumnDefinitions>
+                                                                <ColumnDefinition Width="Auto" />
+                                                                <ColumnDefinition Width="Auto" />
+                                                                <ColumnDefinition Width="*" />
+                                                                <ColumnDefinition Width="56" />
+                                                            </Grid.ColumnDefinitions>
+                                                            <TextBlock Text="⋮⋮" Tag="Echo" Opacity="0.62" VerticalAlignment="Center" FontSize="16"
+                                                                       PointerPressed="OnEffectLibraryGripPointerPressed" PointerMoved="OnEffectDragPointerMoved"
+                                                                       PointerReleased="OnEffectDragPointerReleased" PointerCanceled="OnEffectDragPointerCanceled"
+                                                                       ToolTipService.ToolTip="Drag into the processing chain" />
+                                                            <Border Grid.Column="1" Width="28" Height="28" CornerRadius="6"
+                                                                    Background="{ThemeResource VoiSee.CardValueBackgroundBrush}"
+                                                                    BorderBrush="{ThemeResource VoiSee.CardValueBorderBrush}" BorderThickness="1">
+                                                                <TextBlock Text="↻" FontSize="16" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                                            </Border>
+                                                            <StackPanel Grid.Column="2" Spacing="0" VerticalAlignment="Center">
+                                                                <TextBlock x:Name="EchoLabel" Text="Echo" FontWeight="SemiBold" FontSize="13" TextTrimming="CharacterEllipsis" />
+                                                                <TextBlock Text="Repeating echo" FontSize="10" Opacity="0.58" TextTrimming="CharacterEllipsis" />
+                                                            </StackPanel>
+                                                            <TextBox Style="{ThemeResource VoiSee.Style.TextBox}" Grid.Column="3" x:Name="EchoValueBox" Text="0" MaxLength="5"
+                                                                     Height="30" Padding="6,3" TextAlignment="Right" TextChanged="OnVoiceValueTextChanged" />
+                                                        </Grid>
+                                                        <Slider Style="{ThemeResource VoiSee.Style.Slider}" x:Name="EchoSlider" Minimum="0" Maximum="100" Value="0" StepFrequency="1"
+                                                                ValueChanged="OnVoiceSettingsChanged" />
+                                                    </StackPanel>
+                                                </Border>
+                                                <Border Width="196" Height="116" Padding="10,9" Margin="0,0,8,8"
+                                                        CornerRadius="{ThemeResource VoiSee.CornerRadius.Medium}"
+                                                        Background="{ThemeResource VoiSee.PanelBackgroundBrush}"
+                                                        BorderBrush="{ThemeResource VoiSee.PanelBorderBrush}"
+                                                        BorderThickness="1" Tag="Reverb">
+                                                    <StackPanel Spacing="5">
+                                                        <Grid ColumnSpacing="7">
+                                                            <Grid.ColumnDefinitions>
+                                                                <ColumnDefinition Width="Auto" />
+                                                                <ColumnDefinition Width="Auto" />
+                                                                <ColumnDefinition Width="*" />
+                                                                <ColumnDefinition Width="56" />
+                                                            </Grid.ColumnDefinitions>
+                                                            <TextBlock Text="⋮⋮" Tag="Reverb" Opacity="0.62" VerticalAlignment="Center" FontSize="16"
+                                                                       PointerPressed="OnEffectLibraryGripPointerPressed" PointerMoved="OnEffectDragPointerMoved"
+                                                                       PointerReleased="OnEffectDragPointerReleased" PointerCanceled="OnEffectDragPointerCanceled"
+                                                                       ToolTipService.ToolTip="Drag into the processing chain" />
+                                                            <Border Grid.Column="1" Width="28" Height="28" CornerRadius="6"
+                                                                    Background="{ThemeResource VoiSee.CardValueBackgroundBrush}"
+                                                                    BorderBrush="{ThemeResource VoiSee.CardValueBorderBrush}" BorderThickness="1">
+                                                                <TextBlock Text="◇" FontSize="16" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                                            </Border>
+                                                            <StackPanel Grid.Column="2" Spacing="0" VerticalAlignment="Center">
+                                                                <TextBlock x:Name="ReverbLabel" Text="Reverb" FontWeight="SemiBold" FontSize="13" TextTrimming="CharacterEllipsis" />
+                                                                <TextBlock Text="Room and ambience" FontSize="10" Opacity="0.58" TextTrimming="CharacterEllipsis" />
+                                                            </StackPanel>
+                                                            <TextBox Style="{ThemeResource VoiSee.Style.TextBox}" Grid.Column="3" x:Name="ReverbValueBox" Text="0" MaxLength="5"
+                                                                     Height="30" Padding="6,3" TextAlignment="Right" TextChanged="OnVoiceValueTextChanged" />
+                                                        </Grid>
+                                                        <Slider Style="{ThemeResource VoiSee.Style.Slider}" x:Name="ReverbSlider" Minimum="0" Maximum="100" Value="0" StepFrequency="1"
+                                                                ValueChanged="OnVoiceSettingsChanged" />
+                                                    </StackPanel>
+                                                </Border>
+                                                <Border Width="196" Height="116" Padding="10,9" Margin="0,0,8,8"
+                                                        CornerRadius="{ThemeResource VoiSee.CornerRadius.Medium}"
+                                                        Background="{ThemeResource VoiSee.PanelBackgroundBrush}"
+                                                        BorderBrush="{ThemeResource VoiSee.PanelBorderBrush}"
+                                                        BorderThickness="1" Tag="Radio">
+                                                    <StackPanel Spacing="5">
+                                                        <Grid ColumnSpacing="7">
+                                                            <Grid.ColumnDefinitions>
+                                                                <ColumnDefinition Width="Auto" />
+                                                                <ColumnDefinition Width="Auto" />
+                                                                <ColumnDefinition Width="*" />
+                                                                <ColumnDefinition Width="56" />
+                                                            </Grid.ColumnDefinitions>
+                                                            <TextBlock Text="⋮⋮" Tag="Radio" Opacity="0.62" VerticalAlignment="Center" FontSize="16"
+                                                                       PointerPressed="OnEffectLibraryGripPointerPressed" PointerMoved="OnEffectDragPointerMoved"
+                                                                       PointerReleased="OnEffectDragPointerReleased" PointerCanceled="OnEffectDragPointerCanceled"
+                                                                       ToolTipService.ToolTip="Drag into the processing chain" />
+                                                            <Border Grid.Column="1" Width="28" Height="28" CornerRadius="6"
+                                                                    Background="{ThemeResource VoiSee.CardValueBackgroundBrush}"
+                                                                    BorderBrush="{ThemeResource VoiSee.CardValueBorderBrush}" BorderThickness="1">
+                                                                <TextBlock Text="▣" FontSize="16" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                                            </Border>
+                                                            <StackPanel Grid.Column="2" Spacing="0" VerticalAlignment="Center">
+                                                                <TextBlock x:Name="RadioLabel" Text="Radio" FontWeight="SemiBold" FontSize="13" TextTrimming="CharacterEllipsis" />
+                                                                <TextBlock Text="Broadcast / radio tone" FontSize="10" Opacity="0.58" TextTrimming="CharacterEllipsis" />
+                                                            </StackPanel>
+                                                            <TextBox Style="{ThemeResource VoiSee.Style.TextBox}" Grid.Column="3" x:Name="RadioValueBox" Text="0" MaxLength="5"
+                                                                     Height="30" Padding="6,3" TextAlignment="Right" TextChanged="OnVoiceValueTextChanged" />
+                                                        </Grid>
+                                                        <Slider Style="{ThemeResource VoiSee.Style.Slider}" x:Name="RadioSlider" Minimum="0" Maximum="100" Value="0" StepFrequency="1"
+                                                                ValueChanged="OnVoiceSettingsChanged" />
+                                                    </StackPanel>
+                                                </Border>
+                                                <Border Width="196" Height="116" Padding="10,9" Margin="0,0,8,8"
+                                                        CornerRadius="{ThemeResource VoiSee.CornerRadius.Medium}"
+                                                        Background="{ThemeResource VoiSee.PanelBackgroundBrush}"
+                                                        BorderBrush="{ThemeResource VoiSee.PanelBorderBrush}"
+                                                        BorderThickness="1" Tag="BitCrusher">
+                                                    <StackPanel Spacing="5">
+                                                        <Grid ColumnSpacing="7">
+                                                            <Grid.ColumnDefinitions>
+                                                                <ColumnDefinition Width="Auto" />
+                                                                <ColumnDefinition Width="Auto" />
+                                                                <ColumnDefinition Width="*" />
+                                                                <ColumnDefinition Width="56" />
+                                                            </Grid.ColumnDefinitions>
+                                                            <TextBlock Text="⋮⋮" Tag="BitCrusher" Opacity="0.62" VerticalAlignment="Center" FontSize="16"
+                                                                       PointerPressed="OnEffectLibraryGripPointerPressed" PointerMoved="OnEffectDragPointerMoved"
+                                                                       PointerReleased="OnEffectDragPointerReleased" PointerCanceled="OnEffectDragPointerCanceled"
+                                                                       ToolTipService.ToolTip="Drag into the processing chain" />
+                                                            <Border Grid.Column="1" Width="28" Height="28" CornerRadius="6"
+                                                                    Background="{ThemeResource VoiSee.CardValueBackgroundBrush}"
+                                                                    BorderBrush="{ThemeResource VoiSee.CardValueBorderBrush}" BorderThickness="1">
+                                                                <TextBlock Text="▥" FontSize="16" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                                            </Border>
+                                                            <StackPanel Grid.Column="2" Spacing="0" VerticalAlignment="Center">
+                                                                <TextBlock x:Name="BitCrusherLabel" Text="BitCrusher" FontWeight="SemiBold" FontSize="13" TextTrimming="CharacterEllipsis" />
+                                                                <TextBlock Text="Lo-fi digital texture" FontSize="10" Opacity="0.58" TextTrimming="CharacterEllipsis" />
+                                                            </StackPanel>
+                                                            <TextBox Style="{ThemeResource VoiSee.Style.TextBox}" Grid.Column="3" x:Name="BitCrusherValueBox" Text="0" MaxLength="5"
+                                                                     Height="30" Padding="6,3" TextAlignment="Right" TextChanged="OnVoiceValueTextChanged" />
+                                                        </Grid>
+                                                        <Slider Style="{ThemeResource VoiSee.Style.Slider}" x:Name="BitCrusherSlider" Minimum="0" Maximum="100" Value="0" StepFrequency="1"
+                                                                ValueChanged="OnVoiceSettingsChanged" />
+                                                    </StackPanel>
+                                                </Border>
+                                                <Border Width="196" Height="116" Padding="10,9" Margin="0,0,8,8"
+                                                        CornerRadius="{ThemeResource VoiSee.CornerRadius.Medium}"
+                                                        Background="{ThemeResource VoiSee.PanelBackgroundBrush}"
+                                                        BorderBrush="{ThemeResource VoiSee.PanelBorderBrush}"
+                                                        BorderThickness="1" Tag="Alien">
+                                                    <StackPanel Spacing="5">
+                                                        <Grid ColumnSpacing="7">
+                                                            <Grid.ColumnDefinitions>
+                                                                <ColumnDefinition Width="Auto" />
+                                                                <ColumnDefinition Width="Auto" />
+                                                                <ColumnDefinition Width="*" />
+                                                                <ColumnDefinition Width="56" />
+                                                            </Grid.ColumnDefinitions>
+                                                            <TextBlock Text="⋮⋮" Tag="Alien" Opacity="0.62" VerticalAlignment="Center" FontSize="16"
+                                                                       PointerPressed="OnEffectLibraryGripPointerPressed" PointerMoved="OnEffectDragPointerMoved"
+                                                                       PointerReleased="OnEffectDragPointerReleased" PointerCanceled="OnEffectDragPointerCanceled"
+                                                                       ToolTipService.ToolTip="Drag into the processing chain" />
+                                                            <Border Grid.Column="1" Width="28" Height="28" CornerRadius="6"
+                                                                    Background="{ThemeResource VoiSee.CardValueBackgroundBrush}"
+                                                                    BorderBrush="{ThemeResource VoiSee.CardValueBorderBrush}" BorderThickness="1">
+                                                                <TextBlock Text="◉" FontSize="16" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                                            </Border>
+                                                            <StackPanel Grid.Column="2" Spacing="0" VerticalAlignment="Center">
+                                                                <TextBlock x:Name="AlienLabel" Text="Alien" FontWeight="SemiBold" FontSize="13" TextTrimming="CharacterEllipsis" />
+                                                                <TextBlock Text="Otherworldly voice character" FontSize="10" Opacity="0.58" TextTrimming="CharacterEllipsis" />
+                                                            </StackPanel>
+                                                            <TextBox Style="{ThemeResource VoiSee.Style.TextBox}" Grid.Column="3" x:Name="AlienValueBox" Text="0" MaxLength="5"
+                                                                     Height="30" Padding="6,3" TextAlignment="Right" TextChanged="OnVoiceValueTextChanged" />
+                                                        </Grid>
+                                                        <Slider Style="{ThemeResource VoiSee.Style.Slider}" x:Name="AlienSlider" Minimum="0" Maximum="100" Value="0" StepFrequency="1"
+                                                                ValueChanged="OnVoiceSettingsChanged" />
+                                                    </StackPanel>
+                                                </Border>
+                                        </VariableSizedWrapGrid>
                                     </StackPanel>
-                                </StackPanel>
+                                </Border>
+                            </StackPanel>
 
-                                <Canvas x:Name="EffectDragOverlay"
-                                        Grid.ColumnSpan="2"
-                                        HorizontalAlignment="Stretch"
-                                        VerticalAlignment="Stretch"
-                                        IsHitTestVisible="False"
-                                        Canvas.ZIndex="100" />
-                            </Grid>
-                        </StackPanel>
+                            <Canvas x:Name="EffectDragOverlay"
+                                    Grid.ColumnSpan="2"
+                                    HorizontalAlignment="Stretch"
+                                    VerticalAlignment="Stretch"
+                                    IsHitTestVisible="False"
+                                    Canvas.ZIndex="100" />
+                        </Grid>
                     </ScrollViewer>
                 </TabViewItem>
 

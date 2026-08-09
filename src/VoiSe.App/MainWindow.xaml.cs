@@ -81,6 +81,10 @@ public sealed partial class MainWindow : Window
     private uint _effectPointerDragPointerId;
     private double _effectPointerDragOffsetX;
     private double _effectPointerDragOffsetY;
+    private readonly HashSet<string> _bypassedEffectKeys = new(StringComparer.OrdinalIgnoreCase);
+    private bool _effectChainBypassed;
+    private string _effectLibraryFilter = "All";
+    private string _voicePresetSearchText = string.Empty;
 
     private double _timelineMaximumSeconds = 1.0;
     private string _trackSearchText = string.Empty;
@@ -236,7 +240,7 @@ public sealed partial class MainWindow : Window
         };
         _discordCableSessionIsolationTimer.Tick += OnDiscordCableSessionIsolationTimerTick;
 
-        AppendLog("VoiSee Version 12.2.2 UI started.");
+        AppendLog("VoiSee Version 12.2.3 UI started.");
         AppendLog($"Settings path: {_settingsStore.SettingsPath}");
 
         var isolationResult = _discordCableSessionIsolationService.Enable();
@@ -6554,9 +6558,19 @@ public sealed partial class MainWindow : Window
 
     private IReadOnlyList<VoiceEffectKind> BuildEffectOrder()
     {
+        if (_effectChainBypassed)
+        {
+            return Array.Empty<VoiceEffectKind>();
+        }
+
         var order = new List<VoiceEffectKind>(_effectChainOrder.Count + (_previewEffectKey is null ? 0 : 1));
         foreach (var effectKey in _effectChainOrder)
         {
+            if (_bypassedEffectKeys.Contains(effectKey))
+            {
+                continue;
+            }
+
             if (TryMapEffectKind(effectKey, out var effectKind))
             {
                 order.Add(effectKind);
@@ -7276,9 +7290,9 @@ public sealed partial class MainWindow : Window
 
             try
             {
-                var top = child.TransformToVisual(EffectChainCardsPanel)
-                    .TransformPoint(new Windows.Foundation.Point(0, 0)).Y;
-                if (point.Y < top + child.ActualHeight / 2.0)
+                var left = child.TransformToVisual(EffectChainCardsPanel)
+                    .TransformPoint(new Windows.Foundation.Point(0, 0)).X;
+                if (point.X < left + child.ActualWidth / 2.0)
                 {
                     return index;
                 }
@@ -7398,72 +7412,146 @@ public sealed partial class MainWindow : Window
             }
             EffectChainCardsPanel.Children.Add(CreateActiveEffectCard(effectKey, value));
         }
+
+        if (EffectChainSummaryText is not null)
+        {
+            EffectChainSummaryText.Text = $"{_effectChainOrder.Count} active effect{(_effectChainOrder.Count == 1 ? string.Empty : "s")}";
+        }
+        UpdateEffectChainBypassButton();
     }
 
     private Border CreateActiveEffectCard(string effectKey, double value)
     {
         var range = GetEffectUiRange(effectKey);
         value = Clamp(value, range.Minimum, range.Maximum);
+        var enabled = !_bypassedEffectKeys.Contains(effectKey) && !_effectChainBypassed;
 
         var card = new Border
         {
-            Padding = new Thickness(12, 10, 12, 10),
-            MinHeight = 96,
-            CornerRadius = new CornerRadius(7),
+            Width = 176,
+            Height = 162,
+            Padding = new Thickness(10, 9, 10, 9),
+            CornerRadius = new CornerRadius(8),
             Background = Application.Current.Resources["VoiSee.PanelBackgroundBrush"] as Brush,
-            BorderBrush = Application.Current.Resources["VoiSee.PanelBorderBrush"] as Brush,
-            BorderThickness = new Thickness(1),
-            HorizontalAlignment = HorizontalAlignment.Stretch,
+            BorderBrush = enabled
+                ? Application.Current.Resources["VoiSee.AccentBrush"] as Brush
+                : Application.Current.Resources["VoiSee.PanelBorderBrush"] as Brush,
+            BorderThickness = new Thickness(enabled ? 1.4 : 1.0),
+            HorizontalAlignment = HorizontalAlignment.Left,
+            VerticalAlignment = VerticalAlignment.Center,
+            Opacity = enabled ? 1.0 : 0.58,
             Tag = effectKey
         };
 
-        var stack = new StackPanel { Spacing = 8 };
-        var header = new Grid { ColumnSpacing = 8 };
+        var stack = new StackPanel { Spacing = 7 };
+        var header = new Grid { ColumnSpacing = 6 };
+        header.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         header.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         header.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        header.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         header.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
 
         var grip = new TextBlock
         {
             Text = "⋮⋮",
             Tag = effectKey,
-            Opacity = 0.72,
+            Opacity = 0.62,
             VerticalAlignment = VerticalAlignment.Center,
-            FontSize = 18
+            FontSize = 16
         };
+        ToolTipService.SetToolTip(grip, "Drag to reorder");
         grip.PointerPressed += OnEffectChainGripPointerPressed;
         grip.PointerMoved += OnEffectDragPointerMoved;
         grip.PointerReleased += OnEffectDragPointerReleased;
         grip.PointerCanceled += OnEffectDragPointerCanceled;
         header.Children.Add(grip);
 
+        var iconHost = new Border
+        {
+            Width = 26,
+            Height = 26,
+            CornerRadius = new CornerRadius(6),
+            Background = Application.Current.Resources["VoiSee.CardValueBackgroundBrush"] as Brush,
+            BorderBrush = Application.Current.Resources["VoiSee.CardValueBorderBrush"] as Brush,
+            BorderThickness = new Thickness(1),
+            Child = new TextBlock
+            {
+                Text = GetEffectIconGlyph(effectKey),
+                FontSize = 15,
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center
+            }
+        };
+        Grid.SetColumn(iconHost, 1);
+        header.Children.Add(iconHost);
+
         var title = new TextBlock
         {
             Text = GetEffectDisplayName(effectKey),
             FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
-            VerticalAlignment = VerticalAlignment.Center
+            VerticalAlignment = VerticalAlignment.Center,
+            TextTrimming = TextTrimming.CharacterEllipsis,
+            FontSize = 13
         };
-        Grid.SetColumn(title, 1);
+        Grid.SetColumn(title, 2);
         header.Children.Add(title);
+
+        var enabledToggle = new ToggleButton
+        {
+            Tag = effectKey,
+            Width = 34,
+            Height = 28,
+            MinWidth = 0,
+            Padding = new Thickness(0),
+            Content = "●",
+            IsChecked = !_bypassedEffectKeys.Contains(effectKey),
+            Style = Application.Current.Resources["VoiSee.Style.ToggleButton"] as Style
+        };
+        ToolTipService.SetToolTip(enabledToggle, "Enable / bypass this effect");
+        enabledToggle.Click += OnActiveEffectBypassClick;
+        Grid.SetColumn(enabledToggle, 3);
+        header.Children.Add(enabledToggle);
 
         var deleteButton = new Button
         {
             Content = "×",
             Tag = effectKey,
-            Width = 34,
-            Height = 32,
+            Width = 30,
+            Height = 28,
+            MinWidth = 0,
             Padding = new Thickness(0),
             VerticalAlignment = VerticalAlignment.Center,
             Style = Application.Current.Resources["VoiSee.Style.Button"] as Style
         };
+        ToolTipService.SetToolTip(deleteButton, "Remove effect");
         deleteButton.Click += OnRemoveEffectCardClick;
-        Grid.SetColumn(deleteButton, 2);
+        Grid.SetColumn(deleteButton, 4);
         header.Children.Add(deleteButton);
         stack.Children.Add(header);
 
-        var editor = new Grid { ColumnSpacing = 10 };
-        editor.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-        editor.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(70) });
+        var labelRow = new Grid();
+        labelRow.Children.Add(new TextBlock
+        {
+            Text = GetEffectParameterLabel(effectKey),
+            FontSize = 10,
+            Opacity = 0.58,
+            VerticalAlignment = VerticalAlignment.Center
+        });
+        var valueBox = new TextBox
+        {
+            Text = ((int)Math.Round(value)).ToString(),
+            MaxLength = 5,
+            Width = 62,
+            Height = 30,
+            Padding = new Thickness(6, 3, 6, 3),
+            TextAlignment = TextAlignment.Right,
+            HorizontalAlignment = HorizontalAlignment.Right,
+            Tag = effectKey,
+            Style = Application.Current.Resources["VoiSee.Style.TextBox"] as Style
+        };
+        valueBox.TextChanged += OnActiveEffectTextChanged;
+        labelRow.Children.Add(valueBox);
+        stack.Children.Add(labelRow);
 
         var slider = new Slider
         {
@@ -7475,25 +7563,106 @@ public sealed partial class MainWindow : Window
             Style = Application.Current.Resources["VoiSee.Style.Slider"] as Style
         };
         slider.ValueChanged += OnActiveEffectSliderChanged;
-        editor.Children.Add(slider);
+        stack.Children.Add(slider);
 
-        var valueBox = new TextBox
+        var progress = new ProgressBar
         {
-            Text = ((int)Math.Round(value)).ToString(),
-            MaxLength = 5,
-            TextAlignment = TextAlignment.Right,
-            Tag = effectKey,
-            Style = Application.Current.Resources["VoiSee.Style.TextBox"] as Style
+            Minimum = range.Minimum,
+            Maximum = range.Maximum,
+            Value = value,
+            Height = 4,
+            IsIndeterminate = false,
+            Opacity = 0.62
         };
-        valueBox.TextChanged += OnActiveEffectTextChanged;
-        Grid.SetColumn(valueBox, 1);
-        editor.Children.Add(valueBox);
-        stack.Children.Add(editor);
+        stack.Children.Add(progress);
+        slider.ValueChanged += (_, args) => progress.Value = args.NewValue;
+
         card.Child = stack;
+
+        var container = new Border
+        {
+            Width = 202,
+            Height = 170,
+            Background = new SolidColorBrush(Microsoft.UI.Colors.Transparent),
+            BorderThickness = new Thickness(0),
+            VerticalAlignment = VerticalAlignment.Center,
+            Tag = effectKey
+        };
+        var flowGrid = new Grid { ColumnSpacing = 4 };
+        flowGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(22) });
+        flowGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(176) });
+        var insertMarker = new Border
+        {
+            Width = 22,
+            Height = 34,
+            CornerRadius = new CornerRadius(11),
+            Background = Application.Current.Resources["VoiSee.CardValueBackgroundBrush"] as Brush,
+            BorderBrush = Application.Current.Resources["VoiSee.AccentBrush"] as Brush,
+            BorderThickness = new Thickness(1),
+            Opacity = 0.72,
+            VerticalAlignment = VerticalAlignment.Center,
+            Child = new TextBlock
+            {
+                Text = "+",
+                FontSize = 16,
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center
+            }
+        };
+        flowGrid.Children.Add(insertMarker);
+        Grid.SetColumn(card, 1);
+        flowGrid.Children.Add(card);
+        container.Child = flowGrid;
 
         _activeEffectSliders[effectKey] = slider;
         _activeEffectTextBoxes[effectKey] = valueBox;
-        return card;
+        return container;
+    }
+
+    private static string GetEffectIconGlyph(string effectKey)
+    {
+        return effectKey switch
+        {
+            "VoiceGain" => "◖",
+            "Gate" => "⊣",
+            "Compressor" => "≋",
+            "Pitch" => "♫",
+            "Formant" => "◫",
+            "Bass" => "◒",
+            "Treble" => "◓",
+            "Distortion" => "ϟ",
+            "Robot" => "▦",
+            "Tremolo" => "∿",
+            "Echo" => "↻",
+            "Reverb" => "◇",
+            "Radio" => "▣",
+            "BitCrusher" => "▥",
+            "Alien" => "◉",
+            _ => "●"
+        };
+    }
+
+    private static string GetEffectParameterLabel(string effectKey)
+    {
+        return effectKey switch
+        {
+            "VoiceGain" => "Gain",
+            "Gate" => "Threshold",
+            "Compressor" => "Intensity",
+            "Pitch" => "Pitch",
+            "Formant" => "Formant",
+            "Bass" => "Low tone",
+            "Treble" => "High tone",
+            "Distortion" => "Drive",
+            "Robot" => "Amount",
+            "Tremolo" => "Depth",
+            "Echo" => "Amount",
+            "Reverb" => "Mix",
+            "Radio" => "Amount",
+            "BitCrusher" => "Amount",
+            "Alien" => "Amount",
+            _ => "Amount"
+        };
     }
 
     private void OnActiveEffectSliderChanged(object sender, Microsoft.UI.Xaml.Controls.Primitives.RangeBaseValueChangedEventArgs e)
@@ -7573,10 +7742,144 @@ public sealed partial class MainWindow : Window
         ClearEffectPreview(restoreValue: true);
         _effectChainOrder.Clear();
         _activeEffectValues.Clear();
+        _bypassedEffectKeys.Clear();
+        _effectChainBypassed = false;
         RebuildEffectChainCards();
         _lastAppliedVoicePresetName = null;
         ScheduleVoiceSettingsApply();
         AppendLog("Voice processing chain cleared.");
+    }
+
+    private void OnActiveEffectBypassClick(object sender, RoutedEventArgs e)
+    {
+        if (sender is not ToggleButton { Tag: string effectKey } toggle)
+        {
+            return;
+        }
+
+        if (toggle.IsChecked == true)
+        {
+            _bypassedEffectKeys.Remove(effectKey);
+        }
+        else
+        {
+            _bypassedEffectKeys.Add(effectKey);
+        }
+
+        RebuildEffectChainCards();
+        _lastAppliedVoicePresetName = null;
+        ScheduleVoiceSettingsApply();
+    }
+
+    private void OnBypassEffectChainClick(object sender, RoutedEventArgs e)
+    {
+        _effectChainBypassed = !_effectChainBypassed;
+        RebuildEffectChainCards();
+        _lastAppliedVoicePresetName = null;
+        ScheduleVoiceSettingsApply();
+    }
+
+    private void UpdateEffectChainBypassButton()
+    {
+        if (BypassEffectChainButton is null)
+        {
+            return;
+        }
+
+        BypassEffectChainButton.Content = _effectChainBypassed ? "Enable Chain" : "Bypass All";
+    }
+
+    private void OnEffectChainHorizontalWheel(object sender, PointerRoutedEventArgs e)
+    {
+        if (ProcessingChainScrollViewer is null)
+        {
+            return;
+        }
+
+        var delta = e.GetCurrentPoint(ProcessingChainScrollViewer).Properties.MouseWheelDelta;
+        if (delta == 0)
+        {
+            return;
+        }
+
+        var nextOffset = Clamp(ProcessingChainScrollViewer.HorizontalOffset - Math.Sign(delta) * 92.0,
+            0.0, ProcessingChainScrollViewer.ScrollableWidth);
+        ProcessingChainScrollViewer.ChangeView(nextOffset, null, null, disableAnimation: true);
+        e.Handled = true;
+    }
+
+    private void OnVoicePresetListPointerWheelChanged(object sender, PointerRoutedEventArgs e)
+    {
+        if (VoicePresetListScrollViewer is null)
+        {
+            return;
+        }
+
+        var delta = e.GetCurrentPoint(VoicePresetListScrollViewer).Properties.MouseWheelDelta;
+        if (delta == 0)
+        {
+            return;
+        }
+
+        TryScrollViewer(VoicePresetListScrollViewer, delta, 52.0);
+        e.Handled = true;
+    }
+
+    private void OnVoicePresetSearchTextChanged(object sender, TextChangedEventArgs e)
+    {
+        _voicePresetSearchText = VoicePresetSearchBox?.Text?.Trim() ?? string.Empty;
+        RebuildVoicePresetButtons();
+    }
+
+    private void OnEffectLibrarySearchTextChanged(object sender, TextChangedEventArgs e)
+    {
+        ApplyEffectLibraryFilter();
+    }
+
+    private void OnEffectLibraryFilterClick(object sender, RoutedEventArgs e)
+    {
+        if (sender is FrameworkElement { Tag: string filter })
+        {
+            _effectLibraryFilter = filter;
+            ApplyEffectLibraryFilter();
+        }
+    }
+
+    private void ApplyEffectLibraryFilter()
+    {
+        if (EffectLibraryCardsPanel is null)
+        {
+            return;
+        }
+
+        var search = EffectLibrarySearchBox?.Text?.Trim() ?? string.Empty;
+        foreach (var childElement in EffectLibraryCardsPanel.Children)
+        {
+            if (childElement is not Border child)
+            {
+                continue;
+            }
+
+            var effectKey = child.Tag as string ?? string.Empty;
+            var categoryMatch = string.Equals(_effectLibraryFilter, "All", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(GetEffectLibraryCategory(effectKey), _effectLibraryFilter, StringComparison.OrdinalIgnoreCase);
+            var searchMatch = string.IsNullOrWhiteSpace(search)
+                || GetEffectDisplayName(effectKey).Contains(search, StringComparison.CurrentCultureIgnoreCase)
+                || GetEffectLibraryCategory(effectKey).Contains(search, StringComparison.CurrentCultureIgnoreCase);
+            child.Visibility = categoryMatch && searchMatch ? Visibility.Visible : Visibility.Collapsed;
+        }
+    }
+
+    private static string GetEffectLibraryCategory(string effectKey)
+    {
+        return effectKey switch
+        {
+            "VoiceGain" => "Utility",
+            "Gate" or "Compressor" => "Dynamics",
+            "Pitch" or "Formant" or "Bass" or "Treble" => "Tone",
+            "Echo" or "Reverb" or "Tremolo" => "Space",
+            _ => "Special"
+        };
     }
 
     private double GetActiveEffectValue(string effectKey)
@@ -7604,7 +7907,12 @@ public sealed partial class MainWindow : Window
 
     private bool IsEffectEnabledInSignalPath(string effectKey)
     {
-        return _activeEffectValues.ContainsKey(effectKey)
+        if (_effectChainBypassed)
+        {
+            return false;
+        }
+
+        return (_activeEffectValues.ContainsKey(effectKey) && !_bypassedEffectKeys.Contains(effectKey))
             || string.Equals(_previewEffectKey, effectKey, StringComparison.OrdinalIgnoreCase);
     }
 
@@ -7632,6 +7940,8 @@ public sealed partial class MainWindow : Window
     {
         _effectChainOrder.Clear();
         _activeEffectValues.Clear();
+        _bypassedEffectKeys.Clear();
+        _effectChainBypassed = false;
 
         var storedOrder = _settings.ActiveVoiceEffectOrder ?? new List<string>();
         var storedValues = _settings.ActiveVoiceEffectValues ?? new Dictionary<string, double>();
@@ -10224,13 +10534,14 @@ public sealed partial class MainWindow : Window
         }
 
         VoicePresetsPanel.Children.Clear();
-        foreach (var preset in _voicePresets)
+        var visiblePresets = _voicePresets.Where(preset =>
+            string.IsNullOrWhiteSpace(_voicePresetSearchText)
+            || preset.Name.Contains(_voicePresetSearchText, StringComparison.CurrentCultureIgnoreCase));
+
+        foreach (var preset in visiblePresets)
         {
             VoicePresetsPanel.Children.Add(CreateVoicePresetTile(preset));
         }
-
-        VoicePresetsPanel.Children.Add(CreateNewVoicePresetTile());
-        VoicePresetsPanel.Children.Add(CreateVoicePresetToolsTile());
     }
 
 
@@ -10472,40 +10783,78 @@ public sealed partial class MainWindow : Window
 
     private FrameworkElement CreateVoicePresetTile(VoicePreset preset)
     {
-        var stack = new StackPanel
-        {
-            Width = 104,
-            Spacing = 6,
-            HorizontalAlignment = HorizontalAlignment.Left,
-            Tag = preset
-        };
-
+        var isSelected = string.Equals(_lastAppliedVoicePresetName, preset.Name, StringComparison.CurrentCultureIgnoreCase);
         var button = new Button
         {
-            Width = 84,
-            Height = 84,
+            Height = 58,
             MinWidth = 0,
-            HorizontalAlignment = HorizontalAlignment.Center,
-            VerticalAlignment = VerticalAlignment.Top,
+            HorizontalAlignment = HorizontalAlignment.Stretch,
+            HorizontalContentAlignment = HorizontalAlignment.Stretch,
+            Padding = new Thickness(8, 6, 8, 6),
             Tag = preset,
-            Content = CreateVoicePresetIconTextBlock(preset.Icon, 34)
+            BorderThickness = new Thickness(isSelected ? 1.5 : 1.0),
+            BorderBrush = isSelected
+                ? Application.Current.Resources["VoiSee.AccentBrush"] as Brush
+                : Application.Current.Resources["VoiSee.PanelBorderBrush"] as Brush,
+            Style = Application.Current.Resources["VoiSee.Style.Button"] as Style
         };
-        button.Click += OnVoicePresetClick;
-        button.ContextFlyout = CreateVoicePresetFlyout(preset);
-        stack.ContextFlyout = CreateVoicePresetFlyout(preset);
 
-        var label = new TextBlock
+        var grid = new Grid { ColumnSpacing = 9 };
+        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+
+        var iconHost = new Border
+        {
+            Width = 38,
+            Height = 38,
+            CornerRadius = new CornerRadius(8),
+            Background = Application.Current.Resources["VoiSee.CardValueBackgroundBrush"] as Brush,
+            BorderBrush = Application.Current.Resources["VoiSee.CardValueBorderBrush"] as Brush,
+            BorderThickness = new Thickness(1),
+            Child = CreateVoicePresetIconTextBlock(preset.Icon, 19)
+        };
+        grid.Children.Add(iconHost);
+
+        var details = new StackPanel { Spacing = 1, VerticalAlignment = VerticalAlignment.Center };
+        details.Children.Add(new TextBlock
         {
             Text = preset.Name,
-            TextAlignment = TextAlignment.Center,
-            TextWrapping = TextWrapping.Wrap,
-            MaxHeight = 42,
-            HorizontalAlignment = HorizontalAlignment.Stretch
-        };
+            FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
+            TextTrimming = TextTrimming.CharacterEllipsis,
+            FontSize = 13
+        });
+        var effectCount = preset.EffectOrder?.Count ?? 0;
+        var subtitle = string.IsNullOrWhiteSpace(preset.PresetHotkey)
+            ? $"{effectCount} effect{(effectCount == 1 ? string.Empty : "s")}" 
+            : $"{effectCount} effects · {preset.PresetHotkey}";
+        details.Children.Add(new TextBlock
+        {
+            Text = subtitle,
+            FontSize = 10,
+            Opacity = 0.58,
+            TextTrimming = TextTrimming.CharacterEllipsis
+        });
+        Grid.SetColumn(details, 1);
+        grid.Children.Add(details);
 
-        stack.Children.Add(button);
-        stack.Children.Add(label);
-        return stack;
+        if (isSelected)
+        {
+            var selectedMark = new TextBlock
+            {
+                Text = "✓",
+                FontSize = 18,
+                Foreground = Application.Current.Resources["VoiSee.AccentBrush"] as Brush,
+                VerticalAlignment = VerticalAlignment.Center
+            };
+            Grid.SetColumn(selectedMark, 2);
+            grid.Children.Add(selectedMark);
+        }
+
+        button.Content = grid;
+        button.Click += OnVoicePresetClick;
+        button.ContextFlyout = CreateVoicePresetFlyout(preset);
+        return button;
     }
 
     private MenuFlyout CreateVoicePresetFlyout(VoicePreset preset)
@@ -10849,6 +11198,25 @@ public sealed partial class MainWindow : Window
         ApplyVoicePreset(preset);
     }
 
+    private void OnUpdateCurrentVoicePresetClick(object sender, RoutedEventArgs e)
+    {
+        if (string.IsNullOrWhiteSpace(_lastAppliedVoicePresetName))
+        {
+            AppendLog("Voice preset update skipped: select a preset first.");
+            return;
+        }
+
+        var preset = _voicePresets.FirstOrDefault(p =>
+            string.Equals(p.Name, _lastAppliedVoicePresetName, StringComparison.CurrentCultureIgnoreCase));
+        if (preset is null)
+        {
+            AppendLog("Voice preset update skipped: selected preset was not found.");
+            return;
+        }
+
+        RecreateVoicePreset(preset);
+    }
+
     private async void OnNewVoicePresetClick(object sender, RoutedEventArgs e)
     {
         var edited = await ShowVoicePresetNameAndIconDialogAsync("New voice preset", "New Preset", DefaultVoicePresetIcon);
@@ -10904,6 +11272,7 @@ public sealed partial class MainWindow : Window
 
         UpdateVoiceSettingLabels();
         _lastAppliedVoicePresetName = preset.Name;
+        RebuildVoicePresetButtons();
         ApplyLiveSettings($"voice preset applied: {preset.Name}");
     }
 
@@ -10911,6 +11280,8 @@ public sealed partial class MainWindow : Window
     {
         _effectChainOrder.Clear();
         _activeEffectValues.Clear();
+        _bypassedEffectKeys.Clear();
+        _effectChainBypassed = false;
 
         if (preset.SchemaVersion >= 2)
         {
