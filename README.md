@@ -1,16 +1,19 @@
-﻿# VoiSee 12.2.3
+# VoiSee 12.2.4
 
-## VoiSee 12.2.3 — Voice Changer Studio Flow
+## VoiSee 12.2.4 — Voice Changer Modular Rack
 
-- Redesigns Voice Changer around a dedicated preset rail, compact noise-suppression header, horizontal processing chain and bottom Effect Library.
-- Keeps the working 12.2.2 ordered DSP-chain model while changing drag/reorder insertion from vertical Y math to horizontal X math.
-- Adds horizontal mouse-wheel scrolling for long chains and independent wheel scrolling for long preset lists.
-- Adds searchable presets, Effect Library search and category filters.
-- Adds compact active-chain cards with drag handle, slider, manual value, remove control and session-only bypass toggle.
-- Adds `Bypass All` and retains `Clear Chain`.
-- Keeps voice preset schema 2 (`EffectOrder` + active values) and the global noise-suppression contract.
+This build replaces the 12.2.3 horizontal Voice Changer experiment with the approved three-column design.
 
-See `docs/GATE12_2_3_VOICE_CHANGER_STUDIO_FLOW_REDESIGN.md` for the implementation notes and `docs/design/VOICE_CHANGER_STUDIO_FLOW_REFERENCE.png` for the approved visual reference.
+- **Left:** Noise Suppression above a searchable, independently scrollable Presets browser.
+- **Center:** the primary **vertical Processing Chain**, from Microphone In to Output / Monitor.
+- **Right:** an independently scrollable, categorized Effect Library with search, category filter, drag handles and `Add` buttons.
+- Active effect cards are compact horizontal rack rows with order number, drag grip, icon/name, parameter slider, numeric value, bypass and delete controls.
+- Insertion `+` nodes live directly on the vertical signal path. Drag/reorder insertion is calculated on the **Y axis**, matching the visual chain.
+- Presets, processing chain and effect library each own mouse-wheel scrolling instead of sharing the old tab-wide scroll route.
+- The working VoiSee 12.2.2 ordered DSP-chain and preset schema 2 contract are retained.
+- Noise suppression remains global and outside the preset effect chain.
+
+See `docs/GATE12_2_4_VOICE_CHANGER_MODULAR_RACK.md` and `docs/design/VOICE_CHANGER_MODULAR_RACK_REFERENCE.png`.
 
 ## VoiSee 12.1.0 — Dual noise suppression
 
@@ -129,13 +132,13 @@ Set-ExecutionPolicy -Scope Process Bypass
 Expected installer:
 
 ```text
-artifacts\installer\VoiSee-Setup-12.2.3-x64.exe
+artifacts\installer\VoiSee-Setup-12.2.4-x64.exe
 ```
 
 Portable build:
 
 ```text
-artifacts\installer\VoiSee-Portable-12.2.3-x64.zip
+artifacts\installer\VoiSee-Portable-12.2.4-x64.zip
 ```
 
 ## Native XAML themes (VoiSee 10.1)

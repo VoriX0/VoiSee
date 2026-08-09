@@ -240,7 +240,7 @@ public sealed partial class MainWindow : Window
         };
         _discordCableSessionIsolationTimer.Tick += OnDiscordCableSessionIsolationTimerTick;
 
-        AppendLog("VoiSee Version 12.2.3 UI started.");
+        AppendLog("VoiSee Version 12.2.4 UI started.");
         AppendLog($"Settings path: {_settingsStore.SettingsPath}");
 
         var isolationResult = _discordCableSessionIsolationService.Enable();
@@ -1898,7 +1898,7 @@ public sealed partial class MainWindow : Window
         return MainTabView.SelectedIndex switch
         {
             0 => IsPointInSoundBoardWheelZone(xDip, yDip) && TryScrollSoundOverlay(delta),
-            1 => IsPointInVoiceChangerWheelZone(yDip) && TryScrollVoiceChanger(delta),
+            1 => TryHandleVoiceChangerWheel(xDip, yDip, delta),
             2 => TryHandleScenesWheel(xDip, yDip, delta),
             3 => false,
             4 => IsPointInExtendedVerticalWheelZone(SettingsScrollViewer, yDip)
@@ -2058,6 +2058,28 @@ public sealed partial class MainWindow : Window
     private bool TryScrollVoiceChanger(int wheelDelta)
     {
         return TryScrollViewer(VoiceChangerScrollViewer, wheelDelta, 42.0);
+    }
+
+    private bool TryHandleVoiceChangerWheel(double xDip, double yDip, int wheelDelta)
+    {
+        // 12.2.4 Modular Rack: each Voice Changer column owns its own scroll.
+        // The old tab-wide handler made the preset/chain/library panes fight each other.
+        if (IsPointInElementWheelZone(VoicePresetListScrollViewer, xDip, yDip, extendBottom: false))
+        {
+            return TryScrollViewer(VoicePresetListScrollViewer, wheelDelta, 52.0);
+        }
+
+        if (IsPointInElementWheelZone(ProcessingChainScrollViewer, xDip, yDip, extendBottom: false))
+        {
+            return TryScrollViewer(ProcessingChainScrollViewer, wheelDelta, 58.0);
+        }
+
+        if (IsPointInElementWheelZone(EffectLibraryScrollViewer, xDip, yDip, extendBottom: false))
+        {
+            return TryScrollViewer(EffectLibraryScrollViewer, wheelDelta, 52.0);
+        }
+
+        return false;
     }
 
     private bool TryHandleScenesWheel(double xDip, double yDip, int wheelDelta)
@@ -6868,6 +6890,24 @@ public sealed partial class MainWindow : Window
         if (!_loadingSettings) ApplyLiveSettings("master output volume changed");
     }
 
+    private void OnNoiseSuppressionModeButtonClick(object sender, RoutedEventArgs e)
+    {
+        if (sender is not FrameworkElement { Tag: string tag } || NoiseSuppressionModeComboBox is null)
+        {
+            return;
+        }
+
+        for (var index = 0; index < NoiseSuppressionModeComboBox.Items.Count; index++)
+        {
+            if (NoiseSuppressionModeComboBox.Items[index] is ComboBoxItem item &&
+                string.Equals(item.Tag as string, tag, StringComparison.OrdinalIgnoreCase))
+            {
+                NoiseSuppressionModeComboBox.SelectedIndex = index;
+                return;
+            }
+        }
+    }
+
     private void OnNoiseSuppressionModeChanged(object sender, SelectionChangedEventArgs e)
     {
         UpdateNoiseSuppressionUi();
@@ -6907,6 +6947,9 @@ public sealed partial class MainWindow : Window
 
         var mode = GetSelectedNoiseSuppressionMode();
         var enabled = mode != NoiseSuppressionMode.Off;
+        if (NoiseSuppressionOffButton is not null) NoiseSuppressionOffButton.IsChecked = mode == NoiseSuppressionMode.Off;
+        if (NoiseSuppressionRnNoiseButton is not null) NoiseSuppressionRnNoiseButton.IsChecked = mode == NoiseSuppressionMode.RnNoise;
+        if (NoiseSuppressionDeepFilterNetButton is not null) NoiseSuppressionDeepFilterNetButton.IsChecked = mode == NoiseSuppressionMode.DeepFilterNet;
         NoiseSuppressionStrengthSlider.IsEnabled = enabled;
         NoiseSuppressionStrengthValueText.Text = $"{(int)Math.Round(NoiseSuppressionStrengthSlider.Value)}%";
         NoiseSuppressionStrengthValueText.Opacity = enabled ? 0.78 : 0.45;
@@ -7117,7 +7160,7 @@ public sealed partial class MainWindow : Window
         _effectPointerDragPointerId = e.Pointer.PointerId;
 
         var sourceCard = FindVisualAncestor<Border>(grip);
-        var width = Math.Max(220.0, sourceCard?.ActualWidth ?? 260.0);
+        var width = Clamp(sourceCard?.ActualWidth ?? 460.0, 300.0, 520.0);
         var value = fromChain
             ? GetActiveEffectValue(effectKey)
             : GetLibraryEffectValue(effectKey);
@@ -7290,9 +7333,9 @@ public sealed partial class MainWindow : Window
 
             try
             {
-                var left = child.TransformToVisual(EffectChainCardsPanel)
-                    .TransformPoint(new Windows.Foundation.Point(0, 0)).X;
-                if (point.X < left + child.ActualWidth / 2.0)
+                var top = child.TransformToVisual(EffectChainCardsPanel)
+                    .TransformPoint(new Windows.Foundation.Point(0, 0)).Y;
+                if (point.Y < top + child.ActualHeight / 2.0)
                 {
                     return index;
                 }
@@ -7425,92 +7468,152 @@ public sealed partial class MainWindow : Window
         var range = GetEffectUiRange(effectKey);
         value = Clamp(value, range.Minimum, range.Maximum);
         var enabled = !_bypassedEffectKeys.Contains(effectKey) && !_effectChainBypassed;
+        var orderIndex = Math.Max(1, _effectChainOrder.FindIndex(key => string.Equals(key, effectKey, StringComparison.OrdinalIgnoreCase)) + 1);
 
         var card = new Border
         {
-            Width = 176,
-            Height = 162,
-            Padding = new Thickness(10, 9, 10, 9),
+            MinHeight = 62,
+            Padding = new Thickness(9, 7, 9, 7),
             CornerRadius = new CornerRadius(8),
-            Background = Application.Current.Resources["VoiSee.PanelBackgroundBrush"] as Brush,
+            Background = Application.Current.Resources["VoiSee.CardValueBackgroundBrush"] as Brush,
             BorderBrush = enabled
                 ? Application.Current.Resources["VoiSee.AccentBrush"] as Brush
                 : Application.Current.Resources["VoiSee.PanelBorderBrush"] as Brush,
-            BorderThickness = new Thickness(enabled ? 1.4 : 1.0),
-            HorizontalAlignment = HorizontalAlignment.Left,
-            VerticalAlignment = VerticalAlignment.Center,
-            Opacity = enabled ? 1.0 : 0.58,
+            BorderThickness = new Thickness(enabled ? 1.15 : 1.0),
+            HorizontalAlignment = HorizontalAlignment.Stretch,
+            Opacity = enabled ? 1.0 : 0.56,
             Tag = effectKey
         };
 
-        var stack = new StackPanel { Spacing = 7 };
-        var header = new Grid { ColumnSpacing = 6 };
-        header.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-        header.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-        header.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-        header.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-        header.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        var row = new Grid { ColumnSpacing = 8 };
+        row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(18) });
+        row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(34) });
+        row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(34) });
+        row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(132) });
+        row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star), MinWidth = 115 });
+        row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(64) });
+        row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(38) });
+        row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(32) });
 
         var grip = new TextBlock
         {
             Text = "⋮⋮",
             Tag = effectKey,
-            Opacity = 0.62,
+            Width = 18,
+            Opacity = 0.58,
             VerticalAlignment = VerticalAlignment.Center,
-            FontSize = 16
+            FontSize = 15
         };
         ToolTipService.SetToolTip(grip, "Drag to reorder");
         grip.PointerPressed += OnEffectChainGripPointerPressed;
         grip.PointerMoved += OnEffectDragPointerMoved;
         grip.PointerReleased += OnEffectDragPointerReleased;
         grip.PointerCanceled += OnEffectDragPointerCanceled;
-        header.Children.Add(grip);
+        row.Children.Add(grip);
 
-        var iconHost = new Border
+        var numberHost = new Border
         {
-            Width = 26,
-            Height = 26,
-            CornerRadius = new CornerRadius(6),
-            Background = Application.Current.Resources["VoiSee.CardValueBackgroundBrush"] as Brush,
-            BorderBrush = Application.Current.Resources["VoiSee.CardValueBorderBrush"] as Brush,
+            Width = 32,
+            Height = 32,
+            CornerRadius = new CornerRadius(7),
+            Background = Application.Current.Resources["VoiSee.PanelBackgroundBrush"] as Brush,
+            BorderBrush = Application.Current.Resources["VoiSee.PanelBorderBrush"] as Brush,
             BorderThickness = new Thickness(1),
             Child = new TextBlock
             {
-                Text = GetEffectIconGlyph(effectKey),
-                FontSize = 15,
+                Text = orderIndex.ToString(),
+                FontSize = 12,
                 HorizontalAlignment = HorizontalAlignment.Center,
                 VerticalAlignment = VerticalAlignment.Center
             }
         };
-        Grid.SetColumn(iconHost, 1);
-        header.Children.Add(iconHost);
+        Grid.SetColumn(numberHost, 1);
+        row.Children.Add(numberHost);
 
-        var title = new TextBlock
+        var iconHost = new Border
+        {
+            Width = 32,
+            Height = 32,
+            CornerRadius = new CornerRadius(7),
+            Background = Application.Current.Resources["VoiSee.PanelBackgroundBrush"] as Brush,
+            BorderBrush = Application.Current.Resources["VoiSee.PanelBorderBrush"] as Brush,
+            BorderThickness = new Thickness(1),
+            Child = new TextBlock
+            {
+                Text = GetEffectIconGlyph(effectKey),
+                FontSize = 16,
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center
+            }
+        };
+        Grid.SetColumn(iconHost, 2);
+        row.Children.Add(iconHost);
+
+        var titleStack = new StackPanel { Spacing = 0, VerticalAlignment = VerticalAlignment.Center };
+        titleStack.Children.Add(new TextBlock
         {
             Text = GetEffectDisplayName(effectKey),
             FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
+            FontSize = 12.5,
+            TextTrimming = TextTrimming.CharacterEllipsis
+        });
+        titleStack.Children.Add(new TextBlock
+        {
+            Text = GetEffectParameterLabel(effectKey),
+            FontSize = 9.5,
+            Opacity = 0.52,
+            TextTrimming = TextTrimming.CharacterEllipsis
+        });
+        Grid.SetColumn(titleStack, 3);
+        row.Children.Add(titleStack);
+
+        var slider = new Slider
+        {
+            Minimum = range.Minimum,
+            Maximum = range.Maximum,
+            Value = value,
+            StepFrequency = 1,
+            Tag = effectKey,
             VerticalAlignment = VerticalAlignment.Center,
-            TextTrimming = TextTrimming.CharacterEllipsis,
-            FontSize = 13
+            Style = Application.Current.Resources["VoiSee.Style.Slider"] as Style
         };
-        Grid.SetColumn(title, 2);
-        header.Children.Add(title);
+        slider.ValueChanged += OnActiveEffectSliderChanged;
+        Grid.SetColumn(slider, 4);
+        row.Children.Add(slider);
+
+        var valueBox = new TextBox
+        {
+            Text = ((int)Math.Round(value)).ToString(),
+            MaxLength = 5,
+            Width = 62,
+            Height = 30,
+            Padding = new Thickness(6, 3, 6, 3),
+            TextAlignment = TextAlignment.Right,
+            HorizontalAlignment = HorizontalAlignment.Right,
+            VerticalAlignment = VerticalAlignment.Center,
+            Tag = effectKey,
+            Style = Application.Current.Resources["VoiSee.Style.TextBox"] as Style
+        };
+        valueBox.TextChanged += OnActiveEffectTextChanged;
+        Grid.SetColumn(valueBox, 5);
+        row.Children.Add(valueBox);
 
         var enabledToggle = new ToggleButton
         {
             Tag = effectKey,
-            Width = 34,
+            Width = 36,
             Height = 28,
             MinWidth = 0,
             Padding = new Thickness(0),
             Content = "●",
             IsChecked = !_bypassedEffectKeys.Contains(effectKey),
+            VerticalAlignment = VerticalAlignment.Center,
             Style = Application.Current.Resources["VoiSee.Style.ToggleButton"] as Style
         };
         ToolTipService.SetToolTip(enabledToggle, "Enable / bypass this effect");
         enabledToggle.Click += OnActiveEffectBypassClick;
-        Grid.SetColumn(enabledToggle, 3);
-        header.Children.Add(enabledToggle);
+        Grid.SetColumn(enabledToggle, 6);
+        row.Children.Add(enabledToggle);
 
         var deleteButton = new Button
         {
@@ -7525,82 +7628,20 @@ public sealed partial class MainWindow : Window
         };
         ToolTipService.SetToolTip(deleteButton, "Remove effect");
         deleteButton.Click += OnRemoveEffectCardClick;
-        Grid.SetColumn(deleteButton, 4);
-        header.Children.Add(deleteButton);
-        stack.Children.Add(header);
+        Grid.SetColumn(deleteButton, 7);
+        row.Children.Add(deleteButton);
+        card.Child = row;
 
-        var labelRow = new Grid();
-        labelRow.Children.Add(new TextBlock
-        {
-            Text = GetEffectParameterLabel(effectKey),
-            FontSize = 10,
-            Opacity = 0.58,
-            VerticalAlignment = VerticalAlignment.Center
-        });
-        var valueBox = new TextBox
-        {
-            Text = ((int)Math.Round(value)).ToString(),
-            MaxLength = 5,
-            Width = 62,
-            Height = 30,
-            Padding = new Thickness(6, 3, 6, 3),
-            TextAlignment = TextAlignment.Right,
-            HorizontalAlignment = HorizontalAlignment.Right,
-            Tag = effectKey,
-            Style = Application.Current.Resources["VoiSee.Style.TextBox"] as Style
-        };
-        valueBox.TextChanged += OnActiveEffectTextChanged;
-        labelRow.Children.Add(valueBox);
-        stack.Children.Add(labelRow);
-
-        var slider = new Slider
-        {
-            Minimum = range.Minimum,
-            Maximum = range.Maximum,
-            Value = value,
-            StepFrequency = 1,
-            Tag = effectKey,
-            Style = Application.Current.Resources["VoiSee.Style.Slider"] as Style
-        };
-        slider.ValueChanged += OnActiveEffectSliderChanged;
-        stack.Children.Add(slider);
-
-        var progress = new ProgressBar
-        {
-            Minimum = range.Minimum,
-            Maximum = range.Maximum,
-            Value = value,
-            Height = 4,
-            IsIndeterminate = false,
-            Opacity = 0.62
-        };
-        stack.Children.Add(progress);
-        slider.ValueChanged += (_, args) => progress.Value = args.NewValue;
-
-        card.Child = stack;
-
-        var container = new Border
-        {
-            Width = 202,
-            Height = 170,
-            Background = new SolidColorBrush(Microsoft.UI.Colors.Transparent),
-            BorderThickness = new Thickness(0),
-            VerticalAlignment = VerticalAlignment.Center,
-            Tag = effectKey
-        };
-        var flowGrid = new Grid { ColumnSpacing = 4 };
-        flowGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(22) });
-        flowGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(176) });
         var insertMarker = new Border
         {
-            Width = 22,
-            Height = 34,
-            CornerRadius = new CornerRadius(11),
+            Width = 28,
+            Height = 28,
+            CornerRadius = new CornerRadius(14),
             Background = Application.Current.Resources["VoiSee.CardValueBackgroundBrush"] as Brush,
             BorderBrush = Application.Current.Resources["VoiSee.AccentBrush"] as Brush,
             BorderThickness = new Thickness(1),
-            Opacity = 0.72,
-            VerticalAlignment = VerticalAlignment.Center,
+            Opacity = 0.78,
+            HorizontalAlignment = HorizontalAlignment.Center,
             Child = new TextBlock
             {
                 Text = "+",
@@ -7609,10 +7650,37 @@ public sealed partial class MainWindow : Window
                 VerticalAlignment = VerticalAlignment.Center
             }
         };
-        flowGrid.Children.Add(insertMarker);
-        Grid.SetColumn(card, 1);
-        flowGrid.Children.Add(card);
-        container.Child = flowGrid;
+
+        var flowStack = new StackPanel { Spacing = 3, HorizontalAlignment = HorizontalAlignment.Stretch };
+        flowStack.Children.Add(new Border
+        {
+            Width = 2,
+            Height = 7,
+            Background = Application.Current.Resources["VoiSee.AccentBrush"] as Brush,
+            Opacity = 0.5,
+            HorizontalAlignment = HorizontalAlignment.Center
+        });
+        flowStack.Children.Add(insertMarker);
+        flowStack.Children.Add(new Border
+        {
+            Width = 2,
+            Height = 7,
+            Background = Application.Current.Resources["VoiSee.AccentBrush"] as Brush,
+            Opacity = 0.5,
+            HorizontalAlignment = HorizontalAlignment.Center
+        });
+        flowStack.Children.Add(card);
+
+        var container = new Border
+        {
+            MinHeight = 110,
+            Margin = new Thickness(12, 0, 12, 0),
+            Background = new SolidColorBrush(Microsoft.UI.Colors.Transparent),
+            BorderThickness = new Thickness(0),
+            HorizontalAlignment = HorizontalAlignment.Stretch,
+            Tag = effectKey,
+            Child = flowStack
+        };
 
         _activeEffectSliders[effectKey] = slider;
         _activeEffectTextBoxes[effectKey] = valueBox;
@@ -7789,7 +7857,7 @@ public sealed partial class MainWindow : Window
         BypassEffectChainButton.Content = _effectChainBypassed ? "Enable Chain" : "Bypass All";
     }
 
-    private void OnEffectChainHorizontalWheel(object sender, PointerRoutedEventArgs e)
+    private void OnEffectChainVerticalWheel(object sender, PointerRoutedEventArgs e)
     {
         if (ProcessingChainScrollViewer is null)
         {
@@ -7802,9 +7870,24 @@ public sealed partial class MainWindow : Window
             return;
         }
 
-        var nextOffset = Clamp(ProcessingChainScrollViewer.HorizontalOffset - Math.Sign(delta) * 92.0,
-            0.0, ProcessingChainScrollViewer.ScrollableWidth);
-        ProcessingChainScrollViewer.ChangeView(nextOffset, null, null, disableAnimation: true);
+        TryScrollViewer(ProcessingChainScrollViewer, delta, 58.0);
+        e.Handled = true;
+    }
+
+    private void OnEffectLibraryPointerWheelChanged(object sender, PointerRoutedEventArgs e)
+    {
+        if (EffectLibraryScrollViewer is null)
+        {
+            return;
+        }
+
+        var delta = e.GetCurrentPoint(EffectLibraryScrollViewer).Properties.MouseWheelDelta;
+        if (delta == 0)
+        {
+            return;
+        }
+
+        TryScrollViewer(EffectLibraryScrollViewer, delta, 52.0);
         e.Handled = true;
     }
 
@@ -7831,6 +7914,25 @@ public sealed partial class MainWindow : Window
         RebuildVoicePresetButtons();
     }
 
+    private void OnAddEffectFromLibraryClick(object sender, RoutedEventArgs e)
+    {
+        if (sender is not FrameworkElement { Tag: string effectKey })
+        {
+            return;
+        }
+
+        AddEffectToProcessingChain(effectKey, _effectChainOrder.Count);
+    }
+
+    private void OnEffectLibraryFilterSelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (sender is ComboBox { SelectedItem: ComboBoxItem { Tag: string filter } })
+        {
+            _effectLibraryFilter = filter;
+            ApplyEffectLibraryFilter();
+        }
+    }
+
     private void OnEffectLibrarySearchTextChanged(object sender, TextChangedEventArgs e)
     {
         ApplyEffectLibraryFilter();
@@ -7853,20 +7955,48 @@ public sealed partial class MainWindow : Window
         }
 
         var search = EffectLibrarySearchBox?.Text?.Trim() ?? string.Empty;
-        foreach (var childElement in EffectLibraryCardsPanel.Children)
+        foreach (var sectionElement in EffectLibraryCardsPanel.Children)
         {
-            if (childElement is not Border child)
+            if (sectionElement is not StackPanel section || section.Tag is not string sectionCategory)
             {
                 continue;
             }
 
-            var effectKey = child.Tag as string ?? string.Empty;
-            var categoryMatch = string.Equals(_effectLibraryFilter, "All", StringComparison.OrdinalIgnoreCase)
-                || string.Equals(GetEffectLibraryCategory(effectKey), _effectLibraryFilter, StringComparison.OrdinalIgnoreCase);
-            var searchMatch = string.IsNullOrWhiteSpace(search)
-                || GetEffectDisplayName(effectKey).Contains(search, StringComparison.CurrentCultureIgnoreCase)
-                || GetEffectLibraryCategory(effectKey).Contains(search, StringComparison.CurrentCultureIgnoreCase);
-            child.Visibility = categoryMatch && searchMatch ? Visibility.Visible : Visibility.Collapsed;
+            var anyVisible = false;
+            foreach (var card in EnumerateEffectLibraryCards(section))
+            {
+                var effectKey = card.Tag as string ?? string.Empty;
+                var categoryMatch = string.Equals(_effectLibraryFilter, "All", StringComparison.OrdinalIgnoreCase)
+                    || string.Equals(GetEffectLibraryCategory(effectKey), _effectLibraryFilter, StringComparison.OrdinalIgnoreCase);
+                var searchMatch = string.IsNullOrWhiteSpace(search)
+                    || GetEffectDisplayName(effectKey).Contains(search, StringComparison.CurrentCultureIgnoreCase)
+                    || GetEffectLibraryCategory(effectKey).Contains(search, StringComparison.CurrentCultureIgnoreCase);
+                var visible = categoryMatch && searchMatch;
+                card.Visibility = visible ? Visibility.Visible : Visibility.Collapsed;
+                anyVisible |= visible;
+            }
+
+            var sectionSelected = string.Equals(_effectLibraryFilter, "All", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(sectionCategory, _effectLibraryFilter, StringComparison.OrdinalIgnoreCase);
+            section.Visibility = anyVisible && sectionSelected ? Visibility.Visible : Visibility.Collapsed;
+        }
+    }
+
+    private static IEnumerable<Border> EnumerateEffectLibraryCards(DependencyObject root)
+    {
+        var childCount = VisualTreeHelper.GetChildrenCount(root);
+        for (var index = 0; index < childCount; index++)
+        {
+            var child = VisualTreeHelper.GetChild(root, index);
+            if (child is Border border && border.Tag is string)
+            {
+                yield return border;
+            }
+
+            foreach (var nested in EnumerateEffectLibraryCards(child))
+            {
+                yield return nested;
+            }
         }
     }
 
