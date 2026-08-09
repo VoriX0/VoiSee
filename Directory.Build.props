@@ -1,0 +1,9 @@
+<Project>
+  <PropertyGroup>
+    <!-- Buildfix 2: isolate WinUI generated/XAML intermediate files from older
+         12.3.x builds whose x:Name field types changed. This makes a normal
+         dotnet run use a fresh XAML compiler state even when the archive is
+         unpacked over an existing working directory. -->
+    <BaseIntermediateOutputPath>obj\voisee_12_3_3_bf2\</BaseIntermediateOutputPath>
+  </PropertyGroup>
+</Project>

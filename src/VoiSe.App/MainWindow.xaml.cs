@@ -2590,7 +2590,7 @@ public sealed partial class MainWindow : Window
 
     private void OnSoundInputOverlayPointerWheelChanged(object sender, PointerRoutedEventArgs e)
     {
-        var delta = e.GetCurrentPoint(SoundOverlayScrollViewer).Properties.MouseWheelDelta;
+        var delta = e.GetCurrentPoint(SoundItemsListView).Properties.MouseWheelDelta;
         if (delta != 0 && TryScrollSoundOverlay(delta))
         {
             e.Handled = true;
@@ -2600,7 +2600,7 @@ public sealed partial class MainWindow : Window
     private bool TryScrollSoundOverlay(int wheelDelta)
     {
         // Compatibility helper only. Native wheel input is owned by the ListView itself.
-        var nativeScroller = SoundOverlayScrollViewer is null ? null : FindDescendantScrollViewer(SoundOverlayScrollViewer);
+        var nativeScroller = SoundItemsListView is null ? null : FindDescendantScrollViewer(SoundItemsListView);
         return TryScrollViewer(nativeScroller, wheelDelta, SoundBoardWheelPixelsPerNotch);
     }
 
@@ -3499,7 +3499,7 @@ public sealed partial class MainWindow : Window
 
     private void OnSoundInputOverlayPointerPressed(object sender, PointerRoutedEventArgs e)
     {
-        var point = e.GetCurrentPoint(SoundOverlayScrollViewer);
+        var point = e.GetCurrentPoint(SoundItemsListView);
         var sound = TryGetSoundAtOverlayPoint(point.Position);
         if (sound is null)
         {
@@ -3514,7 +3514,7 @@ public sealed partial class MainWindow : Window
             {
                 Position = point.Position
             };
-            flyout.ShowAt(SoundOverlayScrollViewer, options);
+            flyout.ShowAt(SoundItemsListView, options);
             e.Handled = true;
             return;
         }
@@ -3543,12 +3543,12 @@ public sealed partial class MainWindow : Window
 
     private SoundBoardSound? TryGetSoundAtOverlayPoint(Windows.Foundation.Point overlayPoint)
     {
-        if (SoundOverlayScrollViewer is null)
+        if (SoundItemsListView is null)
         {
             return null;
         }
 
-        foreach (var child in SoundOverlayScrollViewer.Items.OfType<FrameworkElement>())
+        foreach (var child in SoundItemsListView.Items.OfType<FrameworkElement>())
         {
             if (child.Tag is not SoundBoardSound sound || child.ActualWidth <= 0 || child.ActualHeight <= 0)
             {
@@ -3557,7 +3557,7 @@ public sealed partial class MainWindow : Window
 
             try
             {
-                var childPoint = child.TransformToVisual(SoundOverlayScrollViewer).TransformPoint(new Windows.Foundation.Point(0, 0));
+                var childPoint = child.TransformToVisual(SoundItemsListView).TransformPoint(new Windows.Foundation.Point(0, 0));
                 if (overlayPoint.X >= childPoint.X
                     && overlayPoint.X <= childPoint.X + child.ActualWidth
                     && overlayPoint.Y >= childPoint.Y
@@ -3959,16 +3959,16 @@ public sealed partial class MainWindow : Window
 
     private void RebuildSoundRows()
     {
-        if (SoundOverlayScrollViewer is null)
+        if (SoundItemsListView is null)
         {
             return;
         }
 
-        SoundOverlayScrollViewer.Items.Clear();
+        SoundItemsListView.Items.Clear();
 
         foreach (var sound in _visibleSounds)
         {
-            SoundOverlayScrollViewer.Items.Add(CreateSoundRow(sound));
+            SoundItemsListView.Items.Add(CreateSoundRow(sound));
         }
 
         UpdateSoundInputOverlayBounds();
@@ -8038,17 +8038,17 @@ public sealed partial class MainWindow : Window
 
     private void BuildEffectLibraryList()
     {
-        if (EffectLibraryCardsPanel is null)
+        if (EffectLibraryListView is null)
         {
             return;
         }
 
-        EffectLibraryCardsPanel.Items.Clear();
-        EffectLibraryCardsPanel.Items.Add(CreateEffectLibrarySection("Utility", "VoiceGain"));
-        EffectLibraryCardsPanel.Items.Add(CreateEffectLibrarySection("Dynamics", "Gate", "Compressor"));
-        EffectLibraryCardsPanel.Items.Add(CreateEffectLibrarySection("Tone", "Pitch", "Formant", "Bass", "Treble"));
-        EffectLibraryCardsPanel.Items.Add(CreateEffectLibrarySection("Space", "Tremolo", "Echo", "Reverb"));
-        EffectLibraryCardsPanel.Items.Add(CreateEffectLibrarySection("Special", "Distortion", "Robot", "Radio", "BitCrusher", "Alien"));
+        EffectLibraryListView.Items.Clear();
+        EffectLibraryListView.Items.Add(CreateEffectLibrarySection("Utility", "VoiceGain"));
+        EffectLibraryListView.Items.Add(CreateEffectLibrarySection("Dynamics", "Gate", "Compressor"));
+        EffectLibraryListView.Items.Add(CreateEffectLibrarySection("Tone", "Pitch", "Formant", "Bass", "Treble"));
+        EffectLibraryListView.Items.Add(CreateEffectLibrarySection("Space", "Tremolo", "Echo", "Reverb"));
+        EffectLibraryListView.Items.Add(CreateEffectLibrarySection("Special", "Distortion", "Robot", "Radio", "BitCrusher", "Alien"));
         ApplyEffectLibraryFilter();
     }
 
@@ -8217,13 +8217,13 @@ public sealed partial class MainWindow : Window
 
     private void ApplyEffectLibraryFilter()
     {
-        if (EffectLibraryCardsPanel is null)
+        if (EffectLibraryListView is null)
         {
             return;
         }
 
         var search = EffectLibrarySearchBox?.Text?.Trim() ?? string.Empty;
-        foreach (var sectionElement in EffectLibraryCardsPanel.Items)
+        foreach (var sectionElement in EffectLibraryListView.Items)
         {
             if (sectionElement is not StackPanel section || section.Tag is not string sectionCategory)
             {
@@ -9378,13 +9378,13 @@ public sealed partial class MainWindow : Window
 
     private void RebuildSceneSoundButtons()
     {
-        if (LoopedSceneSoundsPanel is null || SceneSoundsPanel is null)
+        if (LoopedSceneSoundsPanel is null || SceneSoundsListView is null)
         {
             return;
         }
 
         LoopedSceneSoundsPanel.Children.Clear();
-        SceneSoundsPanel.Items.Clear();
+        SceneSoundsListView.Items.Clear();
         _sceneTimelineBindings.Clear();
 
         if (_selectedScene is null)
@@ -9404,10 +9404,10 @@ public sealed partial class MainWindow : Window
 
         foreach (var sceneButton in orderedButtons.Where(b => !b.IsLooped))
         {
-            SceneSoundsPanel.Items.Add(CreateSceneSoundButton(sceneButton));
+            SceneSoundsListView.Items.Add(CreateSceneSoundButton(sceneButton));
         }
 
-        SceneSoundsPanel.Items.Add(CreateSceneAddSoundButton());
+        SceneSoundsListView.Items.Add(CreateSceneAddSoundButton());
 
         RefreshSceneLoopActionButtons();
     }
@@ -10926,19 +10926,19 @@ public sealed partial class MainWindow : Window
 
     private void RebuildVoicePresetButtons()
     {
-        if (VoicePresetsPanel is null)
+        if (VoicePresetsListView is null)
         {
             return;
         }
 
-        VoicePresetsPanel.Items.Clear();
+        VoicePresetsListView.Items.Clear();
         var visiblePresets = _voicePresets.Where(preset =>
             string.IsNullOrWhiteSpace(_voicePresetSearchText)
             || preset.Name.Contains(_voicePresetSearchText, StringComparison.CurrentCultureIgnoreCase));
 
         foreach (var preset in visiblePresets)
         {
-            VoicePresetsPanel.Items.Add(CreateVoicePresetTile(preset));
+            VoicePresetsListView.Items.Add(CreateVoicePresetTile(preset));
         }
     }
 
