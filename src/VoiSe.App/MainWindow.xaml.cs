@@ -206,8 +206,8 @@ public sealed partial class MainWindow : Window
         _themeReloadTimer.Tick += OnThemeReloadTimerTick;
         InitializeThemeSystem();
         MainTabView.SelectionChanged += OnMainTabSelectionChanged;
-        SoundInputOverlay.AddHandler(UIElement.PointerWheelChangedEvent, new PointerEventHandler(OnSoundInputOverlayPointerWheelChanged), true);
-        // 12.3.1: normal XAML ScrollViewers own mouse-wheel input.
+        SoundOverlayScrollViewer.AddHandler(UIElement.PointerPressedEvent, new PointerEventHandler(OnSoundInputOverlayPointerPressed), true);
+        // 12.3.2: normal XAML ScrollViewers own mouse-wheel input.
         // The legacy WH_MOUSE_LL wheel hook is intentionally not installed.
         InstallGlobalKeyboardHook();
         Closed += OnClosed;
@@ -245,7 +245,7 @@ public sealed partial class MainWindow : Window
         };
         _discordCableSessionIsolationTimer.Tick += OnDiscordCableSessionIsolationTimerTick;
 
-        AppendLog("VoiSee Version 12.3.1 UI started.");
+        AppendLog("VoiSee Version 12.3.2 UI started.");
         AppendLog($"Settings path: {_settingsStore.SettingsPath}");
 
         var isolationResult = _discordCableSessionIsolationService.Enable();
@@ -1957,7 +1957,7 @@ public sealed partial class MainWindow : Window
         // Gate 6.11: SoundBoard worked because its wheel zone is allowed to extend
         // below RootGrid.ActualHeight. Voice Changer used to be clipped at
         // RootGrid.ActualHeight, which created a dead lower area in fullscreen.
-        return IsPointInExtendedVerticalWheelZone(VoiceChangerScrollViewer, yDip);
+        return IsPointInExtendedVerticalWheelZone(VoiceChangerStudioRoot, yDip);
     }
 
     private bool IsPointInExtendedVerticalWheelZone(FrameworkElement? element, double yDip)
@@ -2081,28 +2081,28 @@ public sealed partial class MainWindow : Window
 
     private bool TryScrollVoiceChanger(int wheelDelta)
     {
-        return TryScrollViewer(VoiceChangerScrollViewer, wheelDelta, 42.0);
+        return false;
     }
 
     private bool TryHandleVoiceChangerWheel(double xDip, double yDip, int wheelDelta)
     {
-        // 12.3.1 buildfix 4: the Voice Changer wheel geometry is no longer calibrated
+        // 12.3.2 buildfix 4: the Voice Changer wheel geometry is no longer calibrated
         // against internal panels. Three invisible XAML borders occupy the exact same
         // Grid columns as Presets / Processing Chain / Effect Library and span the full
         // content height below the TabView header. This makes the zones layout-driven.
-        if (IsPointInElementWheelZone(VoicePresetWheelColumnZone, xDip, yDip, extendBottom: false))
+        if (IsPointInElementWheelZone(VoicePresetListScrollViewer, xDip, yDip, extendBottom: false))
         {
             TryScrollViewer(VoicePresetListScrollViewer, wheelDelta, 52.0);
             return true;
         }
 
-        if (IsPointInElementWheelZone(ProcessingChainWheelColumnZone, xDip, yDip, extendBottom: false))
+        if (IsPointInElementWheelZone(ProcessingChainScrollViewer, xDip, yDip, extendBottom: false))
         {
             TryScrollViewer(ProcessingChainScrollViewer, wheelDelta, 58.0);
             return true;
         }
 
-        if (IsPointInElementWheelZone(EffectLibraryWheelColumnZone, xDip, yDip, extendBottom: false))
+        if (IsPointInElementWheelZone(EffectLibraryScrollViewer, xDip, yDip, extendBottom: false))
         {
             TryScrollViewer(EffectLibraryScrollViewer, wheelDelta, 52.0);
             return true;
@@ -2622,21 +2622,13 @@ public sealed partial class MainWindow : Window
 
     private void UpdateSoundInputOverlayBounds()
     {
-        // Gate 5.34: SoundInputOverlay is still placed directly inside SoundListArea.
-        // It stretches with the Sounds list, so no window-level coordinate transform is used.
-        if (SoundInputOverlay is null || MainTabView is null)
-        {
-            return;
-        }
-
-        SoundInputOverlay.Visibility = MainTabView.SelectedIndex == 0
-            ? Visibility.Visible
-            : Visibility.Collapsed;
+        // 12.3.2: no separate SoundBoard input overlay exists.
+        // SoundOverlayScrollViewer is both the viewport and the interaction surface.
     }
 
     private void OnSoundInputOverlayPointerWheelChanged(object sender, PointerRoutedEventArgs e)
     {
-        var delta = e.GetCurrentPoint(SoundInputOverlay).Properties.MouseWheelDelta;
+        var delta = e.GetCurrentPoint(SoundOverlayScrollViewer).Properties.MouseWheelDelta;
         if (delta != 0 && TryScrollSoundOverlay(delta))
         {
             e.Handled = true;
@@ -3544,7 +3536,7 @@ public sealed partial class MainWindow : Window
 
     private void OnSoundInputOverlayPointerPressed(object sender, PointerRoutedEventArgs e)
     {
-        var point = e.GetCurrentPoint(SoundInputOverlay);
+        var point = e.GetCurrentPoint(SoundOverlayScrollViewer);
         var sound = TryGetSoundAtOverlayPoint(point.Position);
         if (sound is null)
         {
@@ -3559,7 +3551,7 @@ public sealed partial class MainWindow : Window
             {
                 Position = point.Position
             };
-            flyout.ShowAt(SoundInputOverlay, options);
+            flyout.ShowAt(SoundOverlayScrollViewer, options);
             e.Handled = true;
             return;
         }
@@ -3588,7 +3580,7 @@ public sealed partial class MainWindow : Window
 
     private SoundBoardSound? TryGetSoundAtOverlayPoint(Windows.Foundation.Point overlayPoint)
     {
-        if (SoundItemsPanel is null || SoundInputOverlay is null)
+        if (SoundItemsPanel is null || SoundOverlayScrollViewer is null)
         {
             return null;
         }
@@ -3602,7 +3594,7 @@ public sealed partial class MainWindow : Window
 
             try
             {
-                var childPoint = child.TransformToVisual(SoundInputOverlay).TransformPoint(new Windows.Foundation.Point(0, 0));
+                var childPoint = child.TransformToVisual(SoundOverlayScrollViewer).TransformPoint(new Windows.Foundation.Point(0, 0));
                 if (overlayPoint.X >= childPoint.X
                     && overlayPoint.X <= childPoint.X + child.ActualWidth
                     && overlayPoint.Y >= childPoint.Y

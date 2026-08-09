@@ -13,10 +13,10 @@
     <EnableMsixTooling>true</EnableMsixTooling>
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>
     <ApplicationIcon>Assets\AppIcon.ico</ApplicationIcon>
-    <Version>12.3.1</Version>
-    <AssemblyVersion>12.3.1.0</AssemblyVersion>
-    <FileVersion>12.3.1.0</FileVersion>
-    <InformationalVersion>12.3.1</InformationalVersion>
+    <Version>12.3.2</Version>
+    <AssemblyVersion>12.3.2.0</AssemblyVersion>
+    <FileVersion>12.3.2.0</FileVersion>
+    <InformationalVersion>12.3.2</InformationalVersion>
     <DeepFilterNetNativePath>$(MSBuildProjectDirectory)\..\VoiSe.Audio\runtimes\win-x64\native\deep_filter_ladspa.dll</DeepFilterNetNativePath>
     <DeepFilterNetFetchScript>$(MSBuildProjectDirectory)\..\..\scripts\fetch-deepfilternet.ps1</DeepFilterNetFetchScript>
   </PropertyGroup>
