@@ -117,6 +117,11 @@ public sealed partial class MainWindow : Window
     private const double SoundWheelZoneExpandRightRatio = 2.00;
     private const double SoundWheelZoneExpandBottomRatio = 1.60;
     private const double SceneListWheelZoneExpandDownRatio = 0.65;
+    // Voice Changer buildfix 3 calibration. Kept in one place so future tuning does not spread magic numbers.
+    private const double VoicePresetWheelZoneExpandDownRatio = 0.30;
+    private const double VoicePresetWheelZoneExpandRightRatio = 0.30;
+    private const double EffectLibraryWheelZoneShiftRightRatio = 0.50;
+    private const double EffectLibraryWheelZoneShiftDownRatio = 0.30;
     private const double ModalWheelZoneExpandLeftRatio = 0.50;
     private const double ModalWheelZoneExpandRightRatio = 0.50;
     private const double ModalWheelZoneExpandBottomRatio = 1.00;
@@ -1877,6 +1882,24 @@ public sealed partial class MainWindow : Window
         var scale = RootGrid.XamlRoot?.RasterizationScale ?? 1.0;
         var xDip = clientPoint.X / scale;
         var yDip = clientPoint.Y / scale;
+
+        // WH_MOUSE_LL gives screen/client coordinates, while TransformToVisual below works in XAML-root DIPs.
+        // With ExtendsContentIntoTitleBar the root is not guaranteed to share the client origin, so normalize once.
+        if (RootGrid.XamlRoot?.Content is UIElement xamlContent && !ReferenceEquals(xamlContent, RootGrid))
+        {
+            try
+            {
+                var rootOrigin = RootGrid.TransformToVisual(xamlContent)
+                    .TransformPoint(new Windows.Foundation.Point(0, 0));
+                xDip -= rootOrigin.X;
+                yDip -= rootOrigin.Y;
+            }
+            catch
+            {
+                // Keep client-DIP coordinates as a safe fallback.
+            }
+        }
+
         var delta = unchecked((short)((hookData.MouseData >> 16) & 0xffff));
         if (delta == 0)
         {
@@ -1952,7 +1975,7 @@ public sealed partial class MainWindow : Window
         return yDip >= top && yDip <= bottom;
     }
 
-    private bool IsPointInElementWheelZone(FrameworkElement? element, double xDip, double yDip, bool extendBottom, double bottomExtensionRatio = 0.0, double leftExtensionRatio = 0.0, double rightExtensionRatio = 0.0, double horizontalShiftRatio = 0.0)
+    private bool IsPointInElementWheelZone(FrameworkElement? element, double xDip, double yDip, bool extendBottom, double bottomExtensionRatio = 0.0, double leftExtensionRatio = 0.0, double rightExtensionRatio = 0.0, double horizontalShiftRatio = 0.0, double verticalShiftRatio = 0.0)
     {
         if (RootGrid is null || element is null)
         {
@@ -1966,8 +1989,9 @@ public sealed partial class MainWindow : Window
             var width = Math.Max(1.0, element.ActualWidth);
             var height = Math.Max(1.0, element.ActualHeight);
             var horizontalShift = width * horizontalShiftRatio;
+            var verticalShift = height * verticalShiftRatio;
             var left = topLeft.X + horizontalShift;
-            var top = topLeft.Y;
+            var top = topLeft.Y + verticalShift;
             var right = left + width;
             var bottom = top + height;
 
@@ -2064,23 +2088,51 @@ public sealed partial class MainWindow : Window
 
     private bool TryHandleVoiceChangerWheel(double xDip, double yDip, int wheelDelta)
     {
-        // 12.3.0 buildfix 2: each Voice Changer column owns its own scroll; the tab-wide container never scrolls.
-        // The old tab-wide handler made the preset/chain/library panes fight each other.
-        // 12.3.0 buildfix 2: the three columns are the wheel hit-zones themselves.
-        // No expansion or shift is applied: cursor ownership matches the visible panels.
-        if (IsPointInElementWheelZone(VoiceChangerLeftColumn, xDip, yDip, extendBottom: false))
+        // 12.3.0 buildfix 3: one wheel owner for the Voice Changer workspace.
+        // The WH_MOUSE_LL route performs all wheel scrolling here; the three nested ScrollViewer
+        // PointerWheelChanged handlers were removed so XAML and the hook cannot scroll independently.
+
+        // Requested temporary preset calibration: its visible preset panel plus 30% down/right.
+        if (IsPointInElementWheelZone(
+                VoicePresetSurface,
+                xDip,
+                yDip,
+                extendBottom: false,
+                bottomExtensionRatio: VoicePresetWheelZoneExpandDownRatio,
+                rightExtensionRatio: VoicePresetWheelZoneExpandRightRatio))
         {
-            return TryScrollViewer(VoicePresetListScrollViewer, wheelDelta, 52.0);
+            TryScrollViewer(VoicePresetListScrollViewer, wheelDelta, 52.0);
+            return true;
         }
 
+        // Processing chain stays exactly on its visible panel.
         if (IsPointInElementWheelZone(ProcessingChainSurface, xDip, yDip, extendBottom: false))
         {
-            return TryScrollViewer(ProcessingChainScrollViewer, wheelDelta, 58.0);
+            TryScrollViewer(ProcessingChainScrollViewer, wheelDelta, 58.0);
+            return true;
         }
 
-        if (IsPointInElementWheelZone(EffectLibrarySurface, xDip, yDip, extendBottom: false))
+        // Requested temporary library calibration: shift the whole zone 50% right and 30% down.
+        // This is intentionally evaluated before the workspace containment check, because the requested
+        // shifted rectangle may extend beyond the visible library panel.
+        if (IsPointInElementWheelZone(
+                EffectLibrarySurface,
+                xDip,
+                yDip,
+                extendBottom: false,
+                horizontalShiftRatio: EffectLibraryWheelZoneShiftRightRatio,
+                verticalShiftRatio: EffectLibraryWheelZoneShiftDownRatio))
         {
-            return TryScrollViewer(EffectLibraryScrollViewer, wheelDelta, 52.0);
+            TryScrollViewer(EffectLibraryScrollViewer, wheelDelta, 52.0);
+            return true;
+        }
+
+        var insideWorkspace = IsPointInElementWheelZone(VoiceChangerStudioRoot, xDip, yDip, extendBottom: false);
+        if (insideWorkspace)
+        {
+            // Do not let a nested WinUI ScrollViewer start a second wheel path inside this workspace.
+            // This makes these manually calibrated zones the single source of truth.
+            return true;
         }
 
         return false;
