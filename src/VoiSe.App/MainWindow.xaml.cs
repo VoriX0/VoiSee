@@ -87,6 +87,7 @@ public sealed partial class MainWindow : Window
     private string _voicePresetSearchText = string.Empty;
     private string? _pendingEffectChainAttentionKey;
     private double _pendingEffectChainAttentionOffsetY = 14.0;
+    private Dictionary<string, double>? _pendingEffectChainPreviousYPositions;
 
     private double _timelineMaximumSeconds = 1.0;
     private string _trackSearchText = string.Empty;
@@ -118,10 +119,6 @@ public sealed partial class MainWindow : Window
     private const double SoundWheelZoneExpandBottomRatio = 1.60;
     private const double SceneListWheelZoneExpandDownRatio = 0.65;
     // Voice Changer buildfix 3 calibration. Kept in one place so future tuning does not spread magic numbers.
-    private const double VoicePresetWheelZoneExpandDownRatio = 0.30;
-    private const double VoicePresetWheelZoneExpandRightRatio = 0.30;
-    private const double EffectLibraryWheelZoneShiftRightRatio = 0.50;
-    private const double EffectLibraryWheelZoneShiftDownRatio = 0.30;
     private const double ModalWheelZoneExpandLeftRatio = 0.50;
     private const double ModalWheelZoneExpandRightRatio = 0.50;
     private const double ModalWheelZoneExpandBottomRatio = 1.00;
@@ -210,7 +207,8 @@ public sealed partial class MainWindow : Window
         InitializeThemeSystem();
         MainTabView.SelectionChanged += OnMainTabSelectionChanged;
         SoundInputOverlay.AddHandler(UIElement.PointerWheelChangedEvent, new PointerEventHandler(OnSoundInputOverlayPointerWheelChanged), true);
-        InstallSoundBoardWheelHook();
+        // 12.3.1: normal XAML ScrollViewers own mouse-wheel input.
+        // The legacy WH_MOUSE_LL wheel hook is intentionally not installed.
         InstallGlobalKeyboardHook();
         Closed += OnClosed;
         Activated += OnActivated;
@@ -247,7 +245,7 @@ public sealed partial class MainWindow : Window
         };
         _discordCableSessionIsolationTimer.Tick += OnDiscordCableSessionIsolationTimerTick;
 
-        AppendLog("VoiSee Version 12.3.0 UI started.");
+        AppendLog("VoiSee Version 12.3.1 UI started.");
         AppendLog($"Settings path: {_settingsStore.SettingsPath}");
 
         var isolationResult = _discordCableSessionIsolationService.Enable();
@@ -2088,50 +2086,25 @@ public sealed partial class MainWindow : Window
 
     private bool TryHandleVoiceChangerWheel(double xDip, double yDip, int wheelDelta)
     {
-        // 12.3.0 buildfix 3: one wheel owner for the Voice Changer workspace.
-        // The WH_MOUSE_LL route performs all wheel scrolling here; the three nested ScrollViewer
-        // PointerWheelChanged handlers were removed so XAML and the hook cannot scroll independently.
-
-        // Requested temporary preset calibration: its visible preset panel plus 30% down/right.
-        if (IsPointInElementWheelZone(
-                VoicePresetSurface,
-                xDip,
-                yDip,
-                extendBottom: false,
-                bottomExtensionRatio: VoicePresetWheelZoneExpandDownRatio,
-                rightExtensionRatio: VoicePresetWheelZoneExpandRightRatio))
+        // 12.3.1 buildfix 4: the Voice Changer wheel geometry is no longer calibrated
+        // against internal panels. Three invisible XAML borders occupy the exact same
+        // Grid columns as Presets / Processing Chain / Effect Library and span the full
+        // content height below the TabView header. This makes the zones layout-driven.
+        if (IsPointInElementWheelZone(VoicePresetWheelColumnZone, xDip, yDip, extendBottom: false))
         {
             TryScrollViewer(VoicePresetListScrollViewer, wheelDelta, 52.0);
             return true;
         }
 
-        // Processing chain stays exactly on its visible panel.
-        if (IsPointInElementWheelZone(ProcessingChainSurface, xDip, yDip, extendBottom: false))
+        if (IsPointInElementWheelZone(ProcessingChainWheelColumnZone, xDip, yDip, extendBottom: false))
         {
             TryScrollViewer(ProcessingChainScrollViewer, wheelDelta, 58.0);
             return true;
         }
 
-        // Requested temporary library calibration: shift the whole zone 50% right and 30% down.
-        // This is intentionally evaluated before the workspace containment check, because the requested
-        // shifted rectangle may extend beyond the visible library panel.
-        if (IsPointInElementWheelZone(
-                EffectLibrarySurface,
-                xDip,
-                yDip,
-                extendBottom: false,
-                horizontalShiftRatio: EffectLibraryWheelZoneShiftRightRatio,
-                verticalShiftRatio: EffectLibraryWheelZoneShiftDownRatio))
+        if (IsPointInElementWheelZone(EffectLibraryWheelColumnZone, xDip, yDip, extendBottom: false))
         {
             TryScrollViewer(EffectLibraryScrollViewer, wheelDelta, 52.0);
-            return true;
-        }
-
-        var insideWorkspace = IsPointInElementWheelZone(VoiceChangerStudioRoot, xDip, yDip, extendBottom: false);
-        if (insideWorkspace)
-        {
-            // Do not let a nested WinUI ScrollViewer start a second wheel path inside this workspace.
-            // This makes these manually calibrated zones the single source of truth.
             return true;
         }
 
@@ -2588,8 +2561,6 @@ public sealed partial class MainWindow : Window
                 ZoomMode = ZoomMode.Disabled
             };
             scrollViewer.Loaded += (_, _) => DispatcherQueue.TryEnqueue(() => scrollViewer.ChangeView(null, scrollViewer.ScrollableHeight, null, disableAnimation: true));
-            AttachIconPickerWheelRouting(scrollViewer, scrollViewer);
-            AttachIconPickerWheelRouting(textBlock, scrollViewer);
 
             var dialog = new ContentDialog
             {
@@ -5321,25 +5292,6 @@ public sealed partial class MainWindow : Window
             VerticalAlignment = VerticalAlignment.Center
         };
 
-        // Also handle the normal WinUI routed event. The low-level hook above is
-        // required for this project because the main SoundBoard uses a calibrated
-        // global wheel zone, but this local handler keeps the editor correct even
-        // when the global hook is unavailable.
-        contentViewer.AddHandler(
-            UIElement.PointerWheelChangedEvent,
-            new PointerEventHandler((_, args) =>
-            {
-                var wheelDelta = args.GetCurrentPoint(contentViewer).Properties.MouseWheelDelta;
-                if (wheelDelta == 0)
-                {
-                    return;
-                }
-
-                TryScrollViewer(contentViewer, wheelDelta, 58.0);
-                args.Handled = true;
-            }),
-            true);
-
         var previewTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(30) };
         var pointerMode = "none";
         var rulerDragging = false;
@@ -6201,7 +6153,6 @@ public sealed partial class MainWindow : Window
         _activePushToTalkGesture = null;
         UpdateTimeline();
         _suppressSoundBoardTimelineForEditorPreview = true;
-        _activeSoundEditorScrollViewer = contentViewer;
         _soundEditorActive = true;
         _soundEditorPlayPauseAction = () => _ = HandlePlayPauseHotkeyAsync();
         _soundEditorStopAction = HandleStop;
@@ -6218,7 +6169,6 @@ public sealed partial class MainWindow : Window
             _soundEditorPlayPauseAction = null;
             _soundEditorStopAction = null;
             _soundEditorActive = false;
-            _activeSoundEditorScrollViewer = null;
             _suppressSoundBoardTimelineForEditorPreview = false;
             UpdateTimeline();
 
@@ -7450,6 +7400,37 @@ public sealed partial class MainWindow : Window
         AddEffectToProcessingChain(effectKey, _effectChainOrder.Count);
     }
 
+    private Dictionary<string, double> CaptureEffectChainYPositions()
+    {
+        var positions = new Dictionary<string, double>(StringComparer.OrdinalIgnoreCase);
+        if (EffectChainCardsPanel is null)
+        {
+            return positions;
+        }
+
+        try
+        {
+            EffectChainCardsPanel.UpdateLayout();
+            foreach (var child in EffectChainCardsPanel.Children.OfType<FrameworkElement>())
+            {
+                if (child.Tag is not string effectKey || string.IsNullOrWhiteSpace(effectKey))
+                {
+                    continue;
+                }
+
+                var point = child.TransformToVisual(EffectChainCardsPanel)
+                    .TransformPoint(new Windows.Foundation.Point(0, 0));
+                positions[effectKey] = point.Y;
+            }
+        }
+        catch
+        {
+            // Animation is optional. A transient layout state must never block chain edits.
+        }
+
+        return positions;
+    }
+
     private void AddEffectToProcessingChain(string effectKey, int insertionIndex)
     {
         var slider = GetSliderForEffectKey(effectKey);
@@ -7457,6 +7438,8 @@ public sealed partial class MainWindow : Window
         {
             return;
         }
+
+        _pendingEffectChainPreviousYPositions = CaptureEffectChainYPositions();
 
         var value = string.Equals(_previewEffectKey, effectKey, StringComparison.OrdinalIgnoreCase)
             ? _previewEffectValue
@@ -7495,6 +7478,8 @@ public sealed partial class MainWindow : Window
             return;
         }
 
+        _pendingEffectChainPreviousYPositions = CaptureEffectChainYPositions();
+
         var moveDirection = insertionIndex < oldIndex ? -1.0 : 1.0;
         _effectChainOrder.RemoveAt(oldIndex);
         if (oldIndex < insertionIndex)
@@ -7517,25 +7502,68 @@ public sealed partial class MainWindow : Window
             return;
         }
 
+        var previousYPositions = _pendingEffectChainPreviousYPositions;
+        var pendingAttentionKey = _pendingEffectChainAttentionKey;
+        var pendingAttentionOffset = _pendingEffectChainAttentionOffsetY;
+
         _activeEffectSliders.Clear();
         _activeEffectTextBoxes.Clear();
         EffectChainCardsPanel.Children.Clear();
 
+        var rebuiltCards = new Dictionary<string, Border>(StringComparer.OrdinalIgnoreCase);
         foreach (var effectKey in _effectChainOrder.ToList())
         {
             if (!_activeEffectValues.TryGetValue(effectKey, out var value))
             {
                 continue;
             }
+
             var effectCard = CreateActiveEffectCard(effectKey, value);
             EffectChainCardsPanel.Children.Add(effectCard);
-            if (!string.IsNullOrWhiteSpace(_pendingEffectChainAttentionKey) && string.Equals(_pendingEffectChainAttentionKey, effectKey, StringComparison.OrdinalIgnoreCase))
+            rebuiltCards[effectKey] = effectCard;
+        }
+
+        // FLIP-style motion: after the rebuilt chain has its final layout, translate every
+        // surviving card from its previous Y position to the new one. Cards pushed by an
+        // insertion therefore visibly slide rather than teleport.
+        if (previousYPositions is not null && previousYPositions.Count > 0)
+        {
+            try
             {
-                _ = AnimateEffectCardAttentionAsync(effectCard, _pendingEffectChainAttentionOffsetY);
+                EffectChainCardsPanel.UpdateLayout();
+                foreach (var pair in rebuiltCards)
+                {
+                    if (!previousYPositions.TryGetValue(pair.Key, out var oldY))
+                    {
+                        continue;
+                    }
+
+                    var newPoint = pair.Value.TransformToVisual(EffectChainCardsPanel)
+                        .TransformPoint(new Windows.Foundation.Point(0, 0));
+                    var offsetY = oldY - newPoint.Y;
+                    if (Math.Abs(offsetY) >= 0.5)
+                    {
+                        _ = AnimateEffectCardShiftAsync(pair.Value, offsetY);
+                    }
+                }
+            }
+            catch
+            {
+                // A layout race only disables the cosmetic animation.
             }
         }
 
+        // A newly inserted card has no previous position, so give only that card the
+        // lightweight entrance animation. On reorder, surviving cards already use FLIP.
+        if (!string.IsNullOrWhiteSpace(pendingAttentionKey)
+            && rebuiltCards.TryGetValue(pendingAttentionKey, out var attentionCard)
+            && (previousYPositions is null || !previousYPositions.ContainsKey(pendingAttentionKey)))
+        {
+            _ = AnimateEffectCardAttentionAsync(attentionCard, pendingAttentionOffset);
+        }
+
         _pendingEffectChainAttentionKey = null;
+        _pendingEffectChainPreviousYPositions = null;
 
         if (EffectChainSummaryText is not null)
         {
@@ -7766,6 +7794,31 @@ public sealed partial class MainWindow : Window
         _activeEffectSliders[effectKey] = slider;
         _activeEffectTextBoxes[effectKey] = valueBox;
         return container;
+    }
+
+    private async Task AnimateEffectCardShiftAsync(Border container, double startOffsetY)
+    {
+        try
+        {
+            var transform = new TranslateTransform { Y = startOffsetY };
+            container.RenderTransform = transform;
+
+            const int steps = 12;
+            for (var step = 1; step <= steps; step++)
+            {
+                var progress = step / (double)steps;
+                var eased = 1.0 - Math.Pow(1.0 - progress, 3.0);
+                transform.Y = startOffsetY * (1.0 - eased);
+                await Task.Delay(16);
+            }
+
+            transform.Y = 0.0;
+            container.RenderTransform = null;
+        }
+        catch
+        {
+            container.RenderTransform = null;
+        }
     }
 
     private async Task AnimateEffectCardAttentionAsync(Border container, double startOffsetY)
@@ -10983,12 +11036,6 @@ public sealed partial class MainWindow : Window
             HorizontalScrollMode = ScrollMode.Disabled,
             ZoomMode = ZoomMode.Disabled
         };
-        AttachIconPickerWheelRouting(iconScrollViewer, iconScrollViewer);
-        foreach (var button in buttons)
-        {
-            AttachIconPickerWheelRouting(button, iconScrollViewer);
-        }
-
         panel.Children.Add(iconScrollViewer);
 
         var dialog = new ContentDialog

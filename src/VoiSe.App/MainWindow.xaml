@@ -6,7 +6,7 @@
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     mc:Ignorable="d"
-    Title="VoiSee Version 12.3.0">
+    Title="VoiSee Version 12.3.1">
 
     <Grid x:Name="RootGrid" RequestedTheme="Dark" Background="{ThemeResource VoiSee.AppBackgroundBrush}" SizeChanged="OnRootGridSizeChanged">
         <Grid.RowDefinitions>
@@ -21,7 +21,7 @@
             </Grid.ColumnDefinitions>
             <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center" Margin="10,0,0,0">
                 <Image Source="ms-appx:///Assets/AppIcon_24.png" Width="16" Height="16" VerticalAlignment="Center" />
-                <TextBlock x:Name="TitleBarVersionTextBlock" Text="VoiSee Version 12.3.0" FontSize="12" Foreground="{ThemeResource VoiSee.PrimaryTextBrush}" VerticalAlignment="Center" />
+                <TextBlock x:Name="TitleBarVersionTextBlock" Text="VoiSee Version 12.3.1" FontSize="12" Foreground="{ThemeResource VoiSee.PrimaryTextBrush}" VerticalAlignment="Center" />
             </StackPanel>
         </Grid>
 
@@ -39,7 +39,7 @@
                 </Grid.ColumnDefinitions>
                 <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
                     <Image Source="ms-appx:///Assets/AppIcon_48.png" Width="34" Height="34" VerticalAlignment="Center" />
-                    <TextBlock x:Name="MainTitle" Text="VoiSee Version 12.3.0" FontSize="28" FontWeight="SemiBold" Foreground="{ThemeResource VoiSee.PrimaryTextBrush}" VerticalAlignment="Center" />
+                    <TextBlock x:Name="MainTitle" Text="VoiSee Version 12.3.1" FontSize="28" FontWeight="SemiBold" Foreground="{ThemeResource VoiSee.PrimaryTextBrush}" VerticalAlignment="Center" />
                 </StackPanel>
                 <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center" HorizontalAlignment="Right">
                     <TextBlock Text="Mic Output" Foreground="{ThemeResource VoiSee.PrimaryTextBrush}" Opacity="0.62" VerticalAlignment="Center" />
@@ -285,7 +285,7 @@
                 </TabViewItem>
 
                 <TabViewItem Header="Voice Changer" IsClosable="False">
-                    <!-- 12.3.0: true three-column Modular Rack layout. Each area owns its scroll. -->
+                    <!-- 12.3.1: native per-column scrolling; the global wheel hook is not installed. -->
                     <ScrollViewer x:Name="VoiceChangerScrollViewer"
                                   Background="Transparent"
                                   VerticalScrollBarVisibility="Disabled"
@@ -300,8 +300,21 @@
                                 <ColumnDefinition Width="470" />
                             </Grid.ColumnDefinitions>
 
-                            <!-- LEFT: cleanup + scalable preset browser -->
-                            <Grid Grid.Column="0" x:Name="VoiceChangerLeftColumn" RowSpacing="12">
+                            <!-- Legacy buildfix-4 geometry markers. They are inert in 12.3.1 because the
+                                 low-level wheel router is not installed and these elements are not hit-testable. -->
+                            <Border x:Name="VoicePresetWheelColumnZone" Grid.Column="0"
+                                    Margin="0,-16,0,-22" Background="Transparent" IsHitTestVisible="False" />
+                            <Border x:Name="ProcessingChainWheelColumnZone" Grid.Column="1"
+                                    Margin="0,-16,0,-22" Background="Transparent" IsHitTestVisible="False" />
+                            <Border x:Name="EffectLibraryWheelColumnZone" Grid.Column="2"
+                                    Margin="0,-16,0,-22" Background="Transparent" IsHitTestVisible="False" />
+
+                            <!-- LEFT: one native ScrollViewer owns the entire Voice Changer column. -->
+                            <ScrollViewer Grid.Column="0" x:Name="VoicePresetListScrollViewer"
+                                          VerticalScrollBarVisibility="Auto" VerticalScrollMode="Enabled"
+                                          HorizontalScrollBarVisibility="Disabled" HorizontalScrollMode="Disabled"
+                                          ZoomMode="Disabled" HorizontalContentAlignment="Stretch">
+                            <Grid x:Name="VoiceChangerLeftColumn" RowSpacing="12">
                                 <Grid.RowDefinitions>
                                     <RowDefinition Height="Auto" />
                                     <RowDefinition Height="*" />
@@ -375,12 +388,7 @@
                                         <TextBox Style="{ThemeResource VoiSee.Style.TextBox}" Grid.Row="1"
                                                  x:Name="VoicePresetSearchBox" PlaceholderText="Search presets..."
                                                  TextChanged="OnVoicePresetSearchTextChanged" />
-                                        <ScrollViewer Grid.Row="2" x:Name="VoicePresetListScrollViewer"
-                                                      VerticalScrollBarVisibility="Auto" VerticalScrollMode="Enabled"
-                                                      HorizontalScrollBarVisibility="Disabled" HorizontalScrollMode="Disabled"
-                                                      ZoomMode="Disabled" HorizontalContentAlignment="Stretch" VerticalContentAlignment="Center">
-                                            <StackPanel x:Name="VoicePresetsPanel" Spacing="6" Padding="0,1,2,1" />
-                                        </ScrollViewer>
+                                        <StackPanel Grid.Row="2" x:Name="VoicePresetsPanel" Spacing="6" Padding="0,1,2,1" />
                                         <Grid Grid.Row="3" ColumnSpacing="8">
                                             <Grid.ColumnDefinitions>
                                                 <ColumnDefinition Width="*" />
@@ -392,9 +400,14 @@
                                     </Grid>
                                 </Border>
                             </Grid>
+                            </ScrollViewer>
 
-                            <!-- CENTER: live vertical signal rack -->
-                            <Border Grid.Column="1" x:Name="ProcessingChainSurface" Padding="12,10"
+                            <!-- CENTER: live vertical signal rack; the whole column is the native scroll surface. -->
+                            <ScrollViewer Grid.Column="1" x:Name="ProcessingChainScrollViewer"
+                                          VerticalScrollBarVisibility="Auto" VerticalScrollMode="Enabled"
+                                          HorizontalScrollBarVisibility="Disabled" HorizontalScrollMode="Disabled"
+                                          ZoomMode="Disabled" HorizontalContentAlignment="Stretch">
+                            <Border x:Name="ProcessingChainSurface" Padding="12,10"
                                     CornerRadius="{ThemeResource VoiSee.CornerRadius.Medium}"
                                     Background="{ThemeResource VoiSee.PanelBackgroundBrush}"
                                     BorderBrush="{ThemeResource VoiSee.PanelBorderBrush}" BorderThickness="1"
@@ -424,11 +437,7 @@
                                         </StackPanel>
                                     </Grid>
 
-                                    <ScrollViewer Grid.Row="1" x:Name="ProcessingChainScrollViewer"
-                                                  VerticalScrollBarVisibility="Auto" VerticalScrollMode="Enabled"
-                                                  HorizontalScrollBarVisibility="Disabled" HorizontalScrollMode="Disabled"
-                                                  ZoomMode="Disabled" HorizontalContentAlignment="Stretch" VerticalContentAlignment="Center">
-                                        <StackPanel HorizontalAlignment="Stretch" Spacing="0" Padding="8,4,10,8">
+                                    <StackPanel Grid.Row="1" HorizontalAlignment="Stretch" Spacing="0" Padding="8,4,10,8">
                                             <Border Width="230" Height="58" HorizontalAlignment="Center" Padding="12,7"
                                                     CornerRadius="{ThemeResource VoiSee.CornerRadius.Medium}"
                                                     Background="{ThemeResource VoiSee.CardValueBackgroundBrush}"
@@ -480,12 +489,16 @@
                                                 </Grid>
                                             </Border>
                                         </StackPanel>
-                                    </ScrollViewer>
                                 </Grid>
                             </Border>
+                            </ScrollViewer>
 
-                            <!-- RIGHT: independent effect library -->
-                            <Border Grid.Column="2" x:Name="EffectLibrarySurface" Padding="12,10"
+                            <!-- RIGHT: one native ScrollViewer owns the entire effect-library column. -->
+                            <ScrollViewer Grid.Column="2" x:Name="EffectLibraryScrollViewer"
+                                          VerticalScrollBarVisibility="Auto" VerticalScrollMode="Enabled"
+                                          HorizontalScrollBarVisibility="Disabled" HorizontalScrollMode="Disabled"
+                                          ZoomMode="Disabled" HorizontalContentAlignment="Stretch">
+                            <Border x:Name="EffectLibrarySurface" Padding="12,10"
                                     CornerRadius="{ThemeResource VoiSee.CornerRadius.Medium}"
                                     Background="{ThemeResource VoiSee.PanelBackgroundBrush}"
                                     BorderBrush="{ThemeResource VoiSee.PanelBorderBrush}" BorderThickness="1">
@@ -525,11 +538,7 @@
                                         <TextBlock Text="ⓘ  Drag an effect to the chain or click Add. Tune it in the active chain card."
                                                    FontSize="9.5" Opacity="0.76" TextWrapping="Wrap" />
                                     </Border>
-                                    <ScrollViewer Grid.Row="3" x:Name="EffectLibraryScrollViewer"
-                                                  VerticalScrollBarVisibility="Auto" VerticalScrollMode="Enabled"
-                                                  HorizontalScrollBarVisibility="Disabled" HorizontalScrollMode="Disabled"
-                                                  ZoomMode="Disabled" HorizontalContentAlignment="Stretch" VerticalContentAlignment="Center">
-                                        <StackPanel x:Name="EffectLibraryCardsPanel" Spacing="5" Padding="0,1,3,4">
+                                    <StackPanel Grid.Row="3" x:Name="EffectLibraryCardsPanel" Spacing="5" Padding="0,1,3,4">
                                         <StackPanel Tag="Utility" Spacing="7" Margin="0,0,0,7">
                                             <Grid>
                                                 <TextBlock Text="Utility" FontWeight="SemiBold" FontSize="13" />
@@ -1240,9 +1249,9 @@
                                             </Grid>
                                         </StackPanel>
                                         </StackPanel>
-                                    </ScrollViewer>
                                 </Grid>
                             </Border>
+                            </ScrollViewer>
 
                             <Canvas x:Name="EffectDragOverlay" Grid.ColumnSpan="3"
                                     HorizontalAlignment="Stretch" VerticalAlignment="Stretch"
@@ -1459,6 +1468,10 @@
                 </TabViewItem>
 
                 <TabViewItem x:Name="MediaBridgeTabViewItem" Header="Media Bridge" IsClosable="False">
+                    <ScrollViewer x:Name="MediaBridgeScrollViewer"
+                                  VerticalScrollBarVisibility="Auto" VerticalScrollMode="Enabled"
+                                  HorizontalScrollBarVisibility="Disabled" HorizontalScrollMode="Disabled"
+                                  ZoomMode="Disabled">
                     <Grid x:Name="MediaBridgeTabRoot" Padding="0,16,48,24" RowSpacing="14">
                         <Grid.RowDefinitions>
                             <RowDefinition Height="Auto" />
@@ -1827,6 +1840,7 @@
                             </Border>
                         </Grid>
                     </Grid>
+                    </ScrollViewer>
                 </TabViewItem>
 
                 <TabViewItem Header="Settings" IsClosable="False">

@@ -1,6 +1,6 @@
-# VoiSee 12.3.0
+# VoiSee 12.3.1
 
-## VoiSee 12.3.0 — Voice Changer Modular Rack
+## VoiSee 12.3.1 — Native Scrolling Rework
 
 This build replaces the 12.2.3 horizontal Voice Changer experiment with the approved three-column design.
 
@@ -132,13 +132,13 @@ Set-ExecutionPolicy -Scope Process Bypass
 Expected installer:
 
 ```text
-artifacts\installer\VoiSee-Setup-12.3.0-x64.exe
+artifacts\installer\VoiSee-Setup-12.3.1-x64.exe
 ```
 
 Portable build:
 
 ```text
-artifacts\installer\VoiSee-Portable-12.3.0-x64.zip
+artifacts\installer\VoiSee-Portable-12.3.1-x64.zip
 ```
 
 ## Native XAML themes (VoiSee 10.1)
@@ -165,3 +165,13 @@ sample-themes\Pastel_Dream.voiseetheme.xaml
 
 Old `.voiseetheme.css` files from the user themes folder are archived once into
 `themes\Legacy CSS` and are not loaded at runtime.
+
+
+## 12.3.0 buildfix 4
+
+Voice Changer wheel routing now uses three exact grid-column zones spanning the full tab-content height, and effect-chain rebuilds animate all cards displaced by insertion/reorder. See `docs/GATE12_3_0_BUILDFIX4_COLUMN_WHEEL_ZONES_AND_CHAIN_FLIP.md`.
+
+
+## 12.3.1 — Native scrolling rework
+
+Scrolling no longer depends on the legacy global `WH_MOUSE_LL` coordinate router. Normal XAML `ScrollViewer` controls own wheel input directly. Voice Changer uses three full-column native scroll surfaces, Media Bridge has a tab-level native scroller, and modal/editor scrollers no longer stack manual wheel routing on top of WinUI behavior. SoundBoard keeps only its local overlay-to-list forwarding because the drag/click overlay is intentionally a sibling above the visual list. See `docs/GATE12_3_1_NATIVE_SCROLLING_REWORK.md`.
