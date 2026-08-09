@@ -1,5 +1,7 @@
 # VoiSee 12.3.3
 
+> **Buildfix 3:** restored the standard MSBuild `obj\` layout after buildfix 2 caused duplicate generated assembly attributes. If updating an existing working folder, run `scripts\run-dev-clean.ps1` once before development.
+
 ## VoiSee 12.3.3 — Collection-native scrolling
 
 This build replaces the 12.2.3 horizontal Voice Changer experiment with the approved three-column design.

@@ -1,12 +1,17 @@
 $ErrorActionPreference = 'Stop'
 
 $projectRoot = Split-Path -Parent $PSScriptRoot
-$app = Join-Path $projectRoot 'src\VoiSe.App'
-$audio = Join-Path $projectRoot 'src\VoiSe.Audio'
+$projects = @(
+    (Join-Path $projectRoot 'src\VoiSe.App'),
+    (Join-Path $projectRoot 'src\VoiSe.Audio'),
+    (Join-Path $projectRoot 'src\VoiSe.Gate0.Cli')
+)
 
-Remove-Item -Recurse -Force (Join-Path $app 'bin') -ErrorAction SilentlyContinue
-Remove-Item -Recurse -Force (Join-Path $app 'obj') -ErrorAction SilentlyContinue
-Remove-Item -Recurse -Force (Join-Path $audio 'bin') -ErrorAction SilentlyContinue
-Remove-Item -Recurse -Force (Join-Path $audio 'obj') -ErrorAction SilentlyContinue
+Write-Host 'Cleaning VoiSee build artifacts...' -ForegroundColor Cyan
+foreach ($project in $projects) {
+    Remove-Item -Recurse -Force (Join-Path $project 'bin') -ErrorAction SilentlyContinue
+    Remove-Item -Recurse -Force (Join-Path $project 'obj') -ErrorAction SilentlyContinue
+}
 
-dotnet run --project (Join-Path $app 'VoiSe.App.csproj')
+Write-Host 'Starting VoiSee with a fresh MSBuild/XAML intermediate state...' -ForegroundColor Cyan
+dotnet run --project (Join-Path $projectRoot 'src\VoiSe.App\VoiSe.App.csproj')

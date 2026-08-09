@@ -1,9 +1,15 @@
 <Project>
-  <PropertyGroup>
-    <!-- Buildfix 2: isolate WinUI generated/XAML intermediate files from older
-         12.3.x builds whose x:Name field types changed. This makes a normal
-         dotnet run use a fresh XAML compiler state even when the archive is
-         unpacked over an existing working directory. -->
-    <BaseIntermediateOutputPath>obj\voisee_12_3_3_bf2\</BaseIntermediateOutputPath>
-  </PropertyGroup>
+  <!--
+    12.3.3 buildfix 3:
+    Keep the standard SDK intermediate layout (obj\...).
+    Do NOT override BaseIntermediateOutputPath here.
+
+    Buildfix 2 changed BaseIntermediateOutputPath to a nested folder under obj.
+    That caused the SDK wildcard Compile items to see generated AssemblyInfo.cs
+    files from the old obj layout and the new layout at the same time, producing
+    CS0579 duplicate assembly attributes.
+
+    This intentionally-empty props file also overwrites the broken buildfix 2
+    file when the archive is extracted over an existing working tree.
+  -->
 </Project>
