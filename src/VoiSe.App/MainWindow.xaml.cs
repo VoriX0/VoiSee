@@ -7221,7 +7221,7 @@ public sealed partial class MainWindow : Window
         header.Children.Add(title);
         var valueText = new TextBlock
         {
-            Text = ((int)Math.Round(rawValue)).ToString(),
+            Text = ((int)Math.Round(value)).ToString(),
             Opacity = 0.8,
             VerticalAlignment = VerticalAlignment.Center
         };
