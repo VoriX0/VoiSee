@@ -1,4 +1,4 @@
-# VoiSee 12.3.0 — Voice Changer Modular Rack
+# VoiSee 12.3.0 — Voice Changer Refinement
 
 - Replaces the horizontal processing lane from 12.2.3 with the approved vertical signal chain.
 - Moves Noise Suppression and Presets into the left column.

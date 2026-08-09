@@ -85,6 +85,7 @@ public sealed partial class MainWindow : Window
     private bool _effectChainBypassed;
     private string _effectLibraryFilter = "All";
     private string _voicePresetSearchText = string.Empty;
+    private string? _pendingEffectChainAttentionKey;
 
     private double _timelineMaximumSeconds = 1.0;
     private string _trackSearchText = string.Empty;
@@ -121,8 +122,8 @@ public sealed partial class MainWindow : Window
     private const double SceneSoundButtonsWheelZoneExpandRightRatio = 0.50;
     private const double SceneListWheelZoneExpandRightRatio = 0.15;
     private const double IconPickerWheelZoneShiftRightRatio = 0.15;
-    private const double VoiceValueMin = -9999.0;
-    private const double VoiceValueMax = 9999.0;
+    private const double VoiceValueMin = -10000.0;
+    private const double VoiceValueMax = 10000.0;
     private const double SceneSoundButtonWidth = 252.0;
     private const double SceneSoundButtonHeight = 112.0;
     private const double SceneLoopIconHeight = 42.0;
@@ -240,7 +241,7 @@ public sealed partial class MainWindow : Window
         };
         _discordCableSessionIsolationTimer.Tick += OnDiscordCableSessionIsolationTimerTick;
 
-        AppendLog("VoiSee Version 12.2.4 UI started.");
+        AppendLog("VoiSee Version 12.3.0 UI started.");
         AppendLog($"Settings path: {_settingsStore.SettingsPath}");
 
         var isolationResult = _discordCableSessionIsolationService.Enable();
@@ -2062,19 +2063,19 @@ public sealed partial class MainWindow : Window
 
     private bool TryHandleVoiceChangerWheel(double xDip, double yDip, int wheelDelta)
     {
-        // 12.2.4 Modular Rack: each Voice Changer column owns its own scroll.
+        // 12.3.0 Modular Rack: each Voice Changer column owns its own scroll.
         // The old tab-wide handler made the preset/chain/library panes fight each other.
-        if (IsPointInElementWheelZone(VoicePresetListScrollViewer, xDip, yDip, extendBottom: false))
+        if (IsPointInElementWheelZone(VoicePresetSurface, xDip, yDip, extendBottom: false))
         {
             return TryScrollViewer(VoicePresetListScrollViewer, wheelDelta, 52.0);
         }
 
-        if (IsPointInElementWheelZone(ProcessingChainScrollViewer, xDip, yDip, extendBottom: false))
+        if (IsPointInElementWheelZone(ProcessingChainSurface, xDip, yDip, extendBottom: false))
         {
             return TryScrollViewer(ProcessingChainScrollViewer, wheelDelta, 58.0);
         }
 
-        if (IsPointInElementWheelZone(EffectLibraryScrollViewer, xDip, yDip, extendBottom: false))
+        if (IsPointInElementWheelZone(EffectLibrarySurface, xDip, yDip, extendBottom: false))
         {
             return TryScrollViewer(EffectLibraryScrollViewer, wheelDelta, 52.0);
         }
@@ -6956,6 +6957,19 @@ public sealed partial class MainWindow : Window
         NoiseSuppressionStatusText.Text = enabled
             ? $"{GetNoiseSuppressionDisplayName(mode)} processes only the microphone before effects"
             : "Noise suppression is off";
+
+        if (NoiseSuppressionActiveIndicator is not null)
+        {
+            NoiseSuppressionActiveIndicator.Fill = new SolidColorBrush(enabled
+                ? Microsoft.UI.ColorHelper.FromArgb(0xFF, 0x55, 0xD8, 0x5A)
+                : Microsoft.UI.ColorHelper.FromArgb(0xFF, 0x7A, 0x7A, 0x7A));
+        }
+
+        if (NoiseSuppressionActiveText is not null)
+        {
+            NoiseSuppressionActiveText.Text = enabled ? "Active" : "Off";
+            NoiseSuppressionActiveText.Opacity = enabled ? 0.72 : 0.55;
+        }
     }
 
     private NoiseSuppressionMode GetSelectedNoiseSuppressionMode()
@@ -7207,7 +7221,7 @@ public sealed partial class MainWindow : Window
         header.Children.Add(title);
         var valueText = new TextBlock
         {
-            Text = ((int)Math.Round(value)).ToString(),
+            Text = ((int)Math.Round(rawValue)).ToString(),
             Opacity = 0.8,
             VerticalAlignment = VerticalAlignment.Center
         };
@@ -7411,6 +7425,7 @@ public sealed partial class MainWindow : Window
 
         ClearEffectPreview(restoreValue: true);
         ResetLibraryEffectControl(effectKey);
+        _pendingEffectChainAttentionKey = effectKey;
         RebuildEffectChainCards();
         _lastAppliedVoicePresetName = null;
         ScheduleVoiceSettingsApply();
@@ -7431,6 +7446,7 @@ public sealed partial class MainWindow : Window
         }
         insertionIndex = (int)Clamp(insertionIndex, 0, _effectChainOrder.Count);
         _effectChainOrder.Insert(insertionIndex, effectKey);
+        _pendingEffectChainAttentionKey = effectKey;
         RebuildEffectChainCards();
         _lastAppliedVoicePresetName = null;
         ScheduleVoiceSettingsApply();
@@ -7453,8 +7469,15 @@ public sealed partial class MainWindow : Window
             {
                 continue;
             }
-            EffectChainCardsPanel.Children.Add(CreateActiveEffectCard(effectKey, value));
+            var effectCard = CreateActiveEffectCard(effectKey, value);
+            EffectChainCardsPanel.Children.Add(effectCard);
+            if (!string.IsNullOrWhiteSpace(_pendingEffectChainAttentionKey) && string.Equals(_pendingEffectChainAttentionKey, effectKey, StringComparison.OrdinalIgnoreCase))
+            {
+                _ = AnimateEffectCardAttentionAsync(effectCard);
+            }
         }
+
+        _pendingEffectChainAttentionKey = null;
 
         if (EffectChainSummaryText is not null)
         {
@@ -7466,7 +7489,8 @@ public sealed partial class MainWindow : Window
     private Border CreateActiveEffectCard(string effectKey, double value)
     {
         var range = GetEffectUiRange(effectKey);
-        value = Clamp(value, range.Minimum, range.Maximum);
+        var rawValue = Clamp(value, VoiceValueMin, VoiceValueMax);
+        var sliderValue = Clamp(rawValue, range.Minimum, range.Maximum);
         var enabled = !_bypassedEffectKeys.Contains(effectKey) && !_effectChainBypassed;
         var orderIndex = Math.Max(1, _effectChainOrder.FindIndex(key => string.Equals(key, effectKey, StringComparison.OrdinalIgnoreCase)) + 1);
 
@@ -7476,10 +7500,8 @@ public sealed partial class MainWindow : Window
             Padding = new Thickness(9, 7, 9, 7),
             CornerRadius = new CornerRadius(8),
             Background = Application.Current.Resources["VoiSee.CardValueBackgroundBrush"] as Brush,
-            BorderBrush = enabled
-                ? Application.Current.Resources["VoiSee.AccentBrush"] as Brush
-                : Application.Current.Resources["VoiSee.PanelBorderBrush"] as Brush,
-            BorderThickness = new Thickness(enabled ? 1.15 : 1.0),
+            BorderBrush = Application.Current.Resources["VoiSee.PanelBorderBrush"] as Brush,
+            BorderThickness = new Thickness(enabled ? 1.0 : 1.0),
             HorizontalAlignment = HorizontalAlignment.Stretch,
             Opacity = enabled ? 1.0 : 0.56,
             Tag = effectKey
@@ -7489,7 +7511,7 @@ public sealed partial class MainWindow : Window
         row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(18) });
         row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(34) });
         row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(34) });
-        row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(132) });
+        row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(164) });
         row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star), MinWidth = 115 });
         row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(64) });
         row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(38) });
@@ -7571,7 +7593,7 @@ public sealed partial class MainWindow : Window
         {
             Minimum = range.Minimum,
             Maximum = range.Maximum,
-            Value = value,
+            Value = sliderValue,
             StepFrequency = 1,
             Tag = effectKey,
             VerticalAlignment = VerticalAlignment.Center,
@@ -7583,8 +7605,8 @@ public sealed partial class MainWindow : Window
 
         var valueBox = new TextBox
         {
-            Text = ((int)Math.Round(value)).ToString(),
-            MaxLength = 5,
+            Text = ((int)Math.Round(rawValue)).ToString(),
+            MaxLength = 6,
             Width = 62,
             Height = 30,
             Padding = new Thickness(6, 3, 6, 3),
@@ -7638,26 +7660,27 @@ public sealed partial class MainWindow : Window
             Height = 28,
             CornerRadius = new CornerRadius(14),
             Background = Application.Current.Resources["VoiSee.CardValueBackgroundBrush"] as Brush,
-            BorderBrush = Application.Current.Resources["VoiSee.AccentBrush"] as Brush,
+            BorderBrush = Application.Current.Resources["VoiSee.PanelBorderBrush"] as Brush,
             BorderThickness = new Thickness(1),
             Opacity = 0.78,
             HorizontalAlignment = HorizontalAlignment.Center,
-            Child = new TextBlock
+            Child = new Border
             {
-                Text = "+",
-                FontSize = 16,
-                HorizontalAlignment = HorizontalAlignment.Center,
-                VerticalAlignment = VerticalAlignment.Center
+                Height = 1,
+                Margin = new Thickness(18, 0, 18, 0),
+                VerticalAlignment = VerticalAlignment.Center,
+                Background = Application.Current.Resources["VoiSee.PrimaryTextBrush"] as Brush,
+                Opacity = 0.22
             }
         };
 
-        var flowStack = new StackPanel { Spacing = 3, HorizontalAlignment = HorizontalAlignment.Stretch };
+        var flowStack = new StackPanel { Spacing = 4, HorizontalAlignment = HorizontalAlignment.Stretch };
         flowStack.Children.Add(new Border
         {
             Width = 2,
             Height = 7,
-            Background = Application.Current.Resources["VoiSee.AccentBrush"] as Brush,
-            Opacity = 0.5,
+            Background = Application.Current.Resources["VoiSee.PanelBorderBrush"] as Brush,
+            Opacity = 0.45,
             HorizontalAlignment = HorizontalAlignment.Center
         });
         flowStack.Children.Add(insertMarker);
@@ -7665,8 +7688,8 @@ public sealed partial class MainWindow : Window
         {
             Width = 2,
             Height = 7,
-            Background = Application.Current.Resources["VoiSee.AccentBrush"] as Brush,
-            Opacity = 0.5,
+            Background = Application.Current.Resources["VoiSee.PanelBorderBrush"] as Brush,
+            Opacity = 0.45,
             HorizontalAlignment = HorizontalAlignment.Center
         });
         flowStack.Children.Add(card);
@@ -7685,6 +7708,33 @@ public sealed partial class MainWindow : Window
         _activeEffectSliders[effectKey] = slider;
         _activeEffectTextBoxes[effectKey] = valueBox;
         return container;
+    }
+
+    private async Task AnimateEffectCardAttentionAsync(Border container)
+    {
+        try
+        {
+            if (container.Child is StackPanel flowStack && flowStack.Children.LastOrDefault() is Border card)
+            {
+                var originalOpacity = card.Opacity;
+                var originalBorderBrush = card.BorderBrush;
+                var originalBorderThickness = card.BorderThickness;
+                card.Opacity = 0.82;
+                card.BorderBrush = Application.Current.Resources["VoiSee.AccentBrush"] as Brush ?? originalBorderBrush;
+                card.BorderThickness = new Thickness(1.4);
+
+                await Task.Delay(180);
+                card.Opacity = 1.0;
+                await Task.Delay(220);
+
+                card.BorderBrush = originalBorderBrush;
+                card.BorderThickness = originalBorderThickness;
+                card.Opacity = originalOpacity <= 0 ? 1.0 : originalOpacity;
+            }
+        }
+        catch
+        {
+        }
     }
 
     private static string GetEffectIconGlyph(string effectKey)
@@ -7771,14 +7821,14 @@ public sealed partial class MainWindow : Window
         }
 
         var range = GetEffectUiRange(effectKey);
-        value = Clamp(value, range.Minimum, range.Maximum);
+        value = Clamp(value, VoiceValueMin, VoiceValueMax);
         _activeEffectValues[effectKey] = value;
         if (_activeEffectSliders.TryGetValue(effectKey, out var slider))
         {
             _syncingEffectCardControls = true;
             try
             {
-                slider.Value = value;
+                slider.Value = Clamp(value, range.Minimum, range.Maximum);
                 valueBox.Text = ((int)Math.Round(value)).ToString();
             }
             finally
@@ -10922,10 +10972,8 @@ public sealed partial class MainWindow : Window
             HorizontalContentAlignment = HorizontalAlignment.Stretch,
             Padding = new Thickness(8, 6, 8, 6),
             Tag = preset,
-            BorderThickness = new Thickness(isSelected ? 1.5 : 1.0),
-            BorderBrush = isSelected
-                ? Application.Current.Resources["VoiSee.AccentBrush"] as Brush
-                : Application.Current.Resources["VoiSee.PanelBorderBrush"] as Brush,
+            BorderThickness = new Thickness(isSelected ? 1.2 : 1.0),
+            BorderBrush = Application.Current.Resources["VoiSee.PanelBorderBrush"] as Brush,
             Style = Application.Current.Resources["VoiSee.Style.Button"] as Style
         };
 
@@ -10974,7 +11022,7 @@ public sealed partial class MainWindow : Window
             {
                 Text = "✓",
                 FontSize = 18,
-                Foreground = Application.Current.Resources["VoiSee.AccentBrush"] as Brush,
+                Foreground = Application.Current.Resources["VoiSee.PrimaryTextBrush"] as Brush,
                 VerticalAlignment = VerticalAlignment.Center
             };
             Grid.SetColumn(selectedMark, 2);

@@ -1,4 +1,4 @@
-# Gate 12.3.0 — Voice Changer Modular Rack
+# Gate 12.3.0 — Voice Changer Refinement
 
 ## Goal
 
@@ -52,3 +52,15 @@ This prevents one pane from moving while the pointer is over another pane.
 - current one-instance-per-effect-key data model.
 
 The redesign does not alter the underlying DSP algorithms.
+
+
+## Refinements in 12.3.0
+
+- enabled root vertical scrolling to prevent clipped lower controls;
+- wheel zones now use the full panel surfaces for preset, chain, and library columns;
+- right effect-library panel widened;
+- active effect cards allow manual numeric entry in the range -10000..10000 while the slider continues to show the clamped UI range;
+- simplified monochrome card borders and preset selection styling;
+- removed visible plus markers between processing-chain cards and replaced them with softer separators;
+- added a lightweight attention animation when cards are inserted or moved;
+- noise-suppression Active indicator now switches to Off when suppression is disabled.

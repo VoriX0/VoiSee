@@ -1,6 +1,6 @@
-# VoiSee 12.2.4
+# VoiSee 12.3.0
 
-## VoiSee 12.2.4 — Voice Changer Modular Rack
+## VoiSee 12.3.0 — Voice Changer Modular Rack
 
 This build replaces the 12.2.3 horizontal Voice Changer experiment with the approved three-column design.
 
@@ -13,7 +13,7 @@ This build replaces the 12.2.3 horizontal Voice Changer experiment with the appr
 - The working VoiSee 12.2.2 ordered DSP-chain and preset schema 2 contract are retained.
 - Noise suppression remains global and outside the preset effect chain.
 
-See `docs/GATE12_2_4_VOICE_CHANGER_MODULAR_RACK.md` and `docs/design/VOICE_CHANGER_MODULAR_RACK_REFERENCE.png`.
+See `docs/GATE12_3_0_VOICE_CHANGER_REFINEMENT.md` and `docs/design/VOICE_CHANGER_MODULAR_RACK_REFERENCE.png`.
 
 ## VoiSee 12.1.0 — Dual noise suppression
 
@@ -132,13 +132,13 @@ Set-ExecutionPolicy -Scope Process Bypass
 Expected installer:
 
 ```text
-artifacts\installer\VoiSee-Setup-12.2.4-x64.exe
+artifacts\installer\VoiSee-Setup-12.3.0-x64.exe
 ```
 
 Portable build:
 
 ```text
-artifacts\installer\VoiSee-Portable-12.2.4-x64.zip
+artifacts\installer\VoiSee-Portable-12.3.0-x64.zip
 ```
 
 ## Native XAML themes (VoiSee 10.1)

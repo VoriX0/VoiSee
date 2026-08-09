@@ -1,4 +1,4 @@
-# Static smoke report — VoiSee 12.3.0 Modular Rack
+# Static smoke report — VoiSee 12.3.0 Voice Changer Refinement
 
 The Linux workspace does not contain the Windows .NET / WinUI SDK, so a real WinUI compile was not executed here. The source archive was checked structurally before packaging.
 
@@ -62,3 +62,11 @@ Manual checks should focus on:
 - loading schema 1 and schema 2 presets;
 - scene-driven voice preset restore;
 - per-effect bypass and Bypass All.
+
+
+Additional 12.3.0 static checks:
+- root Voice Changer ScrollViewer is vertically scrollable;
+- scroll wheel routing uses VoicePresetSurface, ProcessingChainSurface, and EffectLibrarySurface as hit zones;
+- active effect value text boxes have MaxLength 6 and keep raw values up to ±10000;
+- noise suppression indicator has named UI elements for active/off state;
+- chain separators no longer render visible plus signs.
