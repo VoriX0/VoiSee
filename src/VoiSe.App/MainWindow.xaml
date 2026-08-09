@@ -6,7 +6,7 @@
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     mc:Ignorable="d"
-    Title="VoiSee Version 12.3.2">
+    Title="VoiSee Version 12.3.3">
 
     <Grid x:Name="RootGrid" RequestedTheme="Dark" Background="{ThemeResource VoiSee.AppBackgroundBrush}" SizeChanged="OnRootGridSizeChanged">
         <Grid.RowDefinitions>
@@ -21,7 +21,7 @@
             </Grid.ColumnDefinitions>
             <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center" Margin="10,0,0,0">
                 <Image Source="ms-appx:///Assets/AppIcon_24.png" Width="16" Height="16" VerticalAlignment="Center" />
-                <TextBlock x:Name="TitleBarVersionTextBlock" Text="VoiSee Version 12.3.2" FontSize="12" Foreground="{ThemeResource VoiSee.PrimaryTextBrush}" VerticalAlignment="Center" />
+                <TextBlock x:Name="TitleBarVersionTextBlock" Text="VoiSee Version 12.3.3" FontSize="12" Foreground="{ThemeResource VoiSee.PrimaryTextBrush}" VerticalAlignment="Center" />
             </StackPanel>
         </Grid>
 
@@ -39,7 +39,7 @@
                 </Grid.ColumnDefinitions>
                 <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
                     <Image Source="ms-appx:///Assets/AppIcon_48.png" Width="34" Height="34" VerticalAlignment="Center" />
-                    <TextBlock x:Name="MainTitle" Text="VoiSee Version 12.3.2" FontSize="28" FontWeight="SemiBold" Foreground="{ThemeResource VoiSee.PrimaryTextBrush}" VerticalAlignment="Center" />
+                    <TextBlock x:Name="MainTitle" Text="VoiSee Version 12.3.3" FontSize="28" FontWeight="SemiBold" Foreground="{ThemeResource VoiSee.PrimaryTextBrush}" VerticalAlignment="Center" />
                 </StackPanel>
                 <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center" HorizontalAlignment="Right">
                     <TextBlock Text="Mic Output" Foreground="{ThemeResource VoiSee.PrimaryTextBrush}" Opacity="0.62" VerticalAlignment="Center" />
@@ -236,21 +236,23 @@
                                             VerticalAlignment="Stretch"
                                             HorizontalAlignment="Stretch">
                                         <Grid Background="Transparent">
-                                            <!-- 12.3.2: ScrollViewer directly owns SoundItemsPanel and its interaction surface. -->
-                                            <ScrollViewer x:Name="SoundOverlayScrollViewer"
-                                                          VerticalScrollBarVisibility="Auto"
-                                                          VerticalScrollMode="Enabled"
-                                                          HorizontalScrollBarVisibility="Disabled"
-                                                          HorizontalScrollMode="Disabled"
-                                                          ZoomMode="Disabled"
-                                                          HorizontalAlignment="Stretch"
-                                                          VerticalAlignment="Stretch"
-                                                          AllowDrop="True"
-                                                          DragOver="OnSoundBoardDragOver"
-                                                          DragLeave="OnSoundBoardDragLeave"
-                                                          Drop="OnSoundBoardDrop">
-                                                <StackPanel x:Name="SoundItemsPanel" Spacing="4" Padding="0,0,48,8" />
-                                            </ScrollViewer>
+                                            <!-- 12.3.3: SoundBoard sounds are owned and scrolled directly by ListView. -->
+                                            <ListView x:Name="SoundOverlayScrollViewer"
+                                                      Style="{ThemeResource VoiSee.Style.ListView}"
+                                                      ItemContainerStyle="{ThemeResource VoiSee.Style.ListViewItem}"
+                                                      SelectionMode="None"
+                                                      ScrollViewer.VerticalScrollBarVisibility="Auto"
+                                                      ScrollViewer.VerticalScrollMode="Enabled"
+                                                      ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                                                      ScrollViewer.HorizontalScrollMode="Disabled"
+                                                      HorizontalContentAlignment="Stretch"
+                                                      HorizontalAlignment="Stretch"
+                                                      VerticalAlignment="Stretch"
+                                                      Padding="0,0,48,8"
+                                                      AllowDrop="True"
+                                                      DragOver="OnSoundBoardDragOver"
+                                                      DragLeave="OnSoundBoardDragLeave"
+                                                      Drop="OnSoundBoardDrop" />
                                         </Grid>
                                     </Border>
                                 </Grid>
@@ -276,7 +278,7 @@
                 </TabViewItem>
 
                 <TabViewItem Header="Voice Changer" IsClosable="False">
-                    <!-- 12.3.2: each target content panel is directly wrapped by its own ScrollViewer. -->
+                    <!-- 12.3.3: each target content panel is directly wrapped by its own ScrollViewer. -->
                     <Grid x:Name="VoiceChangerStudioRoot" Padding="0,16,32,22" ColumnSpacing="14">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="300" />
@@ -359,12 +361,16 @@
                                         <TextBox Style="{ThemeResource VoiSee.Style.TextBox}" Grid.Row="1"
                                                  x:Name="VoicePresetSearchBox" PlaceholderText="Search presets..."
                                                  TextChanged="OnVoicePresetSearchTextChanged" />
-                                        <ScrollViewer Grid.Row="2" x:Name="VoicePresetListScrollViewer"
-                                                      VerticalScrollBarVisibility="Auto" VerticalScrollMode="Enabled"
-                                                      HorizontalScrollBarVisibility="Disabled" HorizontalScrollMode="Disabled"
-                                                      ZoomMode="Disabled" HorizontalContentAlignment="Stretch">
-                                            <StackPanel x:Name="VoicePresetsPanel" Spacing="6" Padding="0,1,2,1" />
-                                        </ScrollViewer>
+                                        <ListView Grid.Row="2" x:Name="VoicePresetsPanel"
+                                                  Style="{ThemeResource VoiSee.Style.ListView}"
+                                                  ItemContainerStyle="{ThemeResource VoiSee.Style.ListViewItem}"
+                                                  SelectionMode="None"
+                                                  ScrollViewer.VerticalScrollBarVisibility="Auto"
+                                                  ScrollViewer.VerticalScrollMode="Enabled"
+                                                  ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                                                  ScrollViewer.HorizontalScrollMode="Disabled"
+                                                  HorizontalContentAlignment="Stretch"
+                                                  Padding="0,1,2,1" />
                                         <Grid Grid.Row="3" ColumnSpacing="8">
                                             <Grid.ColumnDefinitions>
                                                 <ColumnDefinition Width="*" />
@@ -408,10 +414,11 @@
                                         </StackPanel>
                                     </Grid>
 
-                                    <ScrollViewer Grid.Row="1" x:Name="ProcessingChainScrollViewer"
-                                                  VerticalScrollBarVisibility="Auto" VerticalScrollMode="Enabled"
-                                                  HorizontalScrollBarVisibility="Disabled" HorizontalScrollMode="Disabled"
-                                                  ZoomMode="Disabled" HorizontalContentAlignment="Stretch">
+                                    <ScrollView Grid.Row="1" x:Name="ProcessingChainScrollView"
+                                                VerticalScrollBarVisibility="Auto" VerticalScrollMode="Enabled"
+                                                HorizontalScrollBarVisibility="Disabled" HorizontalScrollMode="Disabled"
+                                                ZoomMode="Disabled" HorizontalContentAlignment="Stretch"
+                                                VerticalScrollChainMode="Never">
                                         <StackPanel x:Name="ProcessingChainContentPanel" HorizontalAlignment="Stretch" Spacing="0" Padding="8,4,10,8">
                                             <Border Width="230" Height="58" HorizontalAlignment="Center" Padding="12,7"
                                                     CornerRadius="{ThemeResource VoiSee.CornerRadius.Medium}"
@@ -464,11 +471,11 @@
                                                 </Grid>
                                             </Border>
                                         </StackPanel>
-                                    </ScrollViewer>
+                                    </ScrollView>
                                 </Grid>
                             </Border>
 
-                            <!-- RIGHT: only EffectLibraryCardsPanel is directly wrapped by its ScrollViewer. -->
+                            <!-- RIGHT: Effect Library is a native ListView; header/search/filter stay fixed. -->
                             <Border Grid.Column="2" x:Name="EffectLibrarySurface" Padding="12,10"
                                     CornerRadius="{ThemeResource VoiSee.CornerRadius.Medium}"
                                     Background="{ThemeResource VoiSee.PanelBackgroundBrush}"
@@ -509,11 +516,17 @@
                                         <TextBlock Text="ⓘ  Drag an effect to the chain or click Add. Tune it in the active chain card."
                                                    FontSize="9.5" Opacity="0.76" TextWrapping="Wrap" />
                                     </Border>
-                                    <ScrollViewer Grid.Row="3" x:Name="EffectLibraryScrollViewer"
-                                                  VerticalScrollBarVisibility="Auto" VerticalScrollMode="Enabled"
-                                                  HorizontalScrollBarVisibility="Disabled" HorizontalScrollMode="Disabled"
-                                                  ZoomMode="Disabled" HorizontalContentAlignment="Stretch">
-                                        <StackPanel x:Name="EffectLibraryCardsPanel" Spacing="5" Padding="0,1,3,4">
+                                    <ListView Grid.Row="3" x:Name="EffectLibraryCardsPanel"
+                                              Style="{ThemeResource VoiSee.Style.ListView}"
+                                              ItemContainerStyle="{ThemeResource VoiSee.Style.ListViewItem}"
+                                              SelectionMode="None"
+                                              ScrollViewer.VerticalScrollBarVisibility="Auto"
+                                              ScrollViewer.VerticalScrollMode="Enabled"
+                                              ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                                              ScrollViewer.HorizontalScrollMode="Disabled"
+                                              HorizontalContentAlignment="Stretch"
+                                              Padding="0,1,3,4">
+                                        <ListView.Items>
                                         <StackPanel Tag="Utility" Spacing="7" Margin="0,0,0,7">
                                             <Grid>
                                                 <TextBlock Text="Utility" FontWeight="SemiBold" FontSize="13" />
@@ -1223,9 +1236,8 @@
                                                 </Border>
                                             </Grid>
                                         </StackPanel>
-                                        </StackPanel>
-                                    </ScrollViewer>
-                                </Grid>
+                                                                            </ListView.Items>
+                                    </ListView></Grid>
                             </Border>
 
                             <Canvas x:Name="EffectDragOverlay" Grid.ColumnSpan="3"
@@ -1254,15 +1266,11 @@
 
                             <StackPanel Grid.Column="0" Spacing="10">
                                 <TextBlock Text="Saved scenes" FontSize="18" FontWeight="SemiBold" />
-                                <ScrollViewer x:Name="ScenesListScrollViewer"
-                                              Height="300"
-                                              VerticalScrollBarVisibility="Auto" VerticalScrollMode="Enabled"
-                                              HorizontalScrollBarVisibility="Disabled" HorizontalScrollMode="Disabled"
-                                              ZoomMode="Disabled" HorizontalContentAlignment="Stretch">
-                                    <ListView Style="{ThemeResource VoiSee.Style.ListView}" ItemContainerStyle="{ThemeResource VoiSee.Style.ListViewItem}"
-                                              x:Name="ScenesListView" SelectionChanged="OnSceneSelectionChanged"
-                                              ScrollViewer.VerticalScrollMode="Disabled" ScrollViewer.VerticalScrollBarVisibility="Hidden"
-                                              ScrollViewer.HorizontalScrollMode="Disabled" ScrollViewer.HorizontalScrollBarVisibility="Hidden">
+                                <ListView Style="{ThemeResource VoiSee.Style.ListView}" ItemContainerStyle="{ThemeResource VoiSee.Style.ListViewItem}"
+                                          x:Name="ScenesListView" SelectionChanged="OnSceneSelectionChanged"
+                                          Height="300"
+                                          ScrollViewer.VerticalScrollMode="Enabled" ScrollViewer.VerticalScrollBarVisibility="Auto"
+                                          ScrollViewer.HorizontalScrollMode="Disabled" ScrollViewer.HorizontalScrollBarVisibility="Hidden">
                                     <ListView.ItemTemplate>
                                         <DataTemplate>
                                             <Grid Padding="4" ColumnSpacing="8">
@@ -1281,7 +1289,6 @@
                                         </DataTemplate>
                                     </ListView.ItemTemplate>
                                     </ListView>
-                                </ScrollViewer>
                                 <Grid ColumnSpacing="8" RowSpacing="8">
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="*" />
@@ -1436,13 +1443,21 @@
                                             </Grid.ColumnDefinitions>
                                             <TextBlock Grid.Column="0" Text="Scene sound buttons" FontSize="16" FontWeight="SemiBold" VerticalAlignment="Center" />
                                         </Grid>
-                                        <ScrollViewer x:Name="SceneSoundButtonsScrollViewer" Grid.Row="1" VerticalScrollBarVisibility="Auto" VerticalScrollMode="Enabled" HorizontalScrollBarVisibility="Disabled" HorizontalScrollMode="Disabled" ZoomMode="Disabled">
-                                            <VariableSizedWrapGrid x:Name="SceneSoundsPanel"
-                                                                   Orientation="Horizontal"
-                                                                   ItemWidth="262"
-                                                                   ItemHeight="122"
-                                                                   MaximumRowsOrColumns="6" />
-                                        </ScrollViewer>
+                                        <ListView x:Name="SceneSoundsPanel" Grid.Row="1"
+                                                  Style="{ThemeResource VoiSee.Style.ListView}"
+                                                  ItemContainerStyle="{ThemeResource VoiSee.Style.ListViewItem}"
+                                                  SelectionMode="None"
+                                                  ScrollViewer.VerticalScrollBarVisibility="Auto"
+                                                  ScrollViewer.VerticalScrollMode="Enabled"
+                                                  ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                                                  ScrollViewer.HorizontalScrollMode="Disabled"
+                                                  HorizontalContentAlignment="Stretch">
+                                            <ListView.ItemsPanel>
+                                                <ItemsPanelTemplate>
+                                                    <ItemsWrapGrid Orientation="Horizontal" ItemWidth="262" ItemHeight="122" MaximumRowsOrColumns="6" />
+                                                </ItemsPanelTemplate>
+                                            </ListView.ItemsPanel>
+                                        </ListView>
                                     </Grid>
                                 </Grid>
                             </Border>
@@ -1827,13 +1842,14 @@
                 </TabViewItem>
 
                 <TabViewItem Header="Settings" IsClosable="False">
-                    <!-- SettingsTabRoot is the direct child of this ScrollViewer. -->
-                    <ScrollViewer x:Name="SettingsScrollViewer"
-                                  VerticalScrollBarVisibility="Auto"
-                                  VerticalScrollMode="Enabled"
-                                  HorizontalScrollBarVisibility="Disabled"
-                                  HorizontalScrollMode="Disabled"
-                                  ZoomMode="Disabled">
+                    <!-- 12.3.3: SettingsTabRoot is directly owned by the modern ScrollView. -->
+                    <ScrollView x:Name="SettingsScrollView"
+                                VerticalScrollBarVisibility="Auto"
+                                VerticalScrollMode="Enabled"
+                                HorizontalScrollBarVisibility="Disabled"
+                                HorizontalScrollMode="Disabled"
+                                ZoomMode="Disabled"
+                                VerticalScrollChainMode="Never">
                         <Grid x:Name="SettingsTabRoot"
                               Padding="0,16,24,24"
                               ColumnSpacing="20"
@@ -2126,7 +2142,7 @@
                                 </Border>
                             </StackPanel>
                         </Grid>
-                    </ScrollViewer>
+                    </ScrollView>
                 </TabViewItem>
 
                 </TabView>

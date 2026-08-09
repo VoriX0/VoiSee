@@ -206,8 +206,7 @@ public sealed partial class MainWindow : Window
         _themeReloadTimer.Tick += OnThemeReloadTimerTick;
         InitializeThemeSystem();
         MainTabView.SelectionChanged += OnMainTabSelectionChanged;
-        SoundOverlayScrollViewer.AddHandler(UIElement.PointerPressedEvent, new PointerEventHandler(OnSoundInputOverlayPointerPressed), true);
-        // 12.3.2: normal XAML ScrollViewers own mouse-wheel input.
+        // 12.3.3: native ListView / ScrollView controls own mouse-wheel input.
         // The legacy WH_MOUSE_LL wheel hook is intentionally not installed.
         InstallGlobalKeyboardHook();
         Closed += OnClosed;
@@ -245,7 +244,7 @@ public sealed partial class MainWindow : Window
         };
         _discordCableSessionIsolationTimer.Tick += OnDiscordCableSessionIsolationTimerTick;
 
-        AppendLog("VoiSee Version 12.3.2 UI started.");
+        AppendLog("VoiSee Version 12.3.3 UI started.");
         AppendLog($"Settings path: {_settingsStore.SettingsPath}");
 
         var isolationResult = _discordCableSessionIsolationService.Enable();
@@ -1924,8 +1923,7 @@ public sealed partial class MainWindow : Window
             1 => TryHandleVoiceChangerWheel(xDip, yDip, delta),
             2 => TryHandleScenesWheel(xDip, yDip, delta),
             3 => false,
-            4 => IsPointInExtendedVerticalWheelZone(SettingsScrollViewer, yDip)
-                && TryScrollViewer(SettingsScrollViewer, delta, 42.0),
+            4 => false,
             _ => false
         };
     }
@@ -2086,49 +2084,13 @@ public sealed partial class MainWindow : Window
 
     private bool TryHandleVoiceChangerWheel(double xDip, double yDip, int wheelDelta)
     {
-        // 12.3.2 buildfix 4: the Voice Changer wheel geometry is no longer calibrated
-        // against internal panels. Three invisible XAML borders occupy the exact same
-        // Grid columns as Presets / Processing Chain / Effect Library and span the full
-        // content height below the TabView header. This makes the zones layout-driven.
-        if (IsPointInElementWheelZone(VoicePresetListScrollViewer, xDip, yDip, extendBottom: false))
-        {
-            TryScrollViewer(VoicePresetListScrollViewer, wheelDelta, 52.0);
-            return true;
-        }
-
-        if (IsPointInElementWheelZone(ProcessingChainScrollViewer, xDip, yDip, extendBottom: false))
-        {
-            TryScrollViewer(ProcessingChainScrollViewer, wheelDelta, 58.0);
-            return true;
-        }
-
-        if (IsPointInElementWheelZone(EffectLibraryScrollViewer, xDip, yDip, extendBottom: false))
-        {
-            TryScrollViewer(EffectLibraryScrollViewer, wheelDelta, 52.0);
-            return true;
-        }
-
+        // 12.3.3: Voice Changer uses native ListView / ScrollView ownership only.
         return false;
     }
 
     private bool TryHandleScenesWheel(double xDip, double yDip, int wheelDelta)
     {
-        // Gate 7.10 buildfix 3: the scene list and scene sound buttons must own
-        // separate horizontal zones, but the left scene list lower wheel zone
-        // is extended by 65% so scrolling still works near the bottom controls.
-        if (IsPointInElementWheelZone(ScenesListView, xDip, yDip, extendBottom: false, bottomExtensionRatio: SceneListWheelZoneExpandDownRatio, rightExtensionRatio: SceneListWheelZoneExpandRightRatio))
-        {
-            var sceneListScrollViewer = FindDescendantScrollViewer(ScenesListView);
-            return sceneListScrollViewer is not null
-                ? TryScrollViewer(sceneListScrollViewer, wheelDelta, 42.0)
-                : false;
-        }
-
-        if (IsPointInElementWheelZone(SceneSoundButtonsScrollViewer, xDip, yDip, extendBottom: true, rightExtensionRatio: SceneSoundButtonsWheelZoneExpandRightRatio))
-        {
-            return TryScrollViewer(SceneSoundButtonsScrollViewer, wheelDelta, 42.0);
-        }
-
+        // 12.3.3: Scenes use their native ListViews only.
         return false;
     }
 
@@ -2622,8 +2584,8 @@ public sealed partial class MainWindow : Window
 
     private void UpdateSoundInputOverlayBounds()
     {
-        // 12.3.2: no separate SoundBoard input overlay exists.
-        // SoundOverlayScrollViewer is both the viewport and the interaction surface.
+        // 12.3.3: no separate SoundBoard input overlay exists.
+        // The SoundBoard ListView is both the collection viewport and interaction surface.
     }
 
     private void OnSoundInputOverlayPointerWheelChanged(object sender, PointerRoutedEventArgs e)
@@ -2637,8 +2599,9 @@ public sealed partial class MainWindow : Window
 
     private bool TryScrollSoundOverlay(int wheelDelta)
     {
-        // Smaller step than the native 120px-style jumps: about one row per wheel notch.
-        return TryScrollViewer(SoundOverlayScrollViewer, wheelDelta, SoundBoardWheelPixelsPerNotch);
+        // Compatibility helper only. Native wheel input is owned by the ListView itself.
+        var nativeScroller = SoundOverlayScrollViewer is null ? null : FindDescendantScrollViewer(SoundOverlayScrollViewer);
+        return TryScrollViewer(nativeScroller, wheelDelta, SoundBoardWheelPixelsPerNotch);
     }
 
     private bool TryHandleGlobalHotkey(int vkCode, bool isKeyDown, bool isKeyUp)
@@ -3580,12 +3543,12 @@ public sealed partial class MainWindow : Window
 
     private SoundBoardSound? TryGetSoundAtOverlayPoint(Windows.Foundation.Point overlayPoint)
     {
-        if (SoundItemsPanel is null || SoundOverlayScrollViewer is null)
+        if (SoundOverlayScrollViewer is null)
         {
             return null;
         }
 
-        foreach (var child in SoundItemsPanel.Children.OfType<FrameworkElement>())
+        foreach (var child in SoundOverlayScrollViewer.Items.OfType<FrameworkElement>())
         {
             if (child.Tag is not SoundBoardSound sound || child.ActualWidth <= 0 || child.ActualHeight <= 0)
             {
@@ -3996,16 +3959,16 @@ public sealed partial class MainWindow : Window
 
     private void RebuildSoundRows()
     {
-        if (SoundItemsPanel is null)
+        if (SoundOverlayScrollViewer is null)
         {
             return;
         }
 
-        SoundItemsPanel.Children.Clear();
+        SoundOverlayScrollViewer.Items.Clear();
 
         foreach (var sound in _visibleSounds)
         {
-            SoundItemsPanel.Children.Add(CreateSoundRow(sound));
+            SoundOverlayScrollViewer.Items.Add(CreateSoundRow(sound));
         }
 
         UpdateSoundInputOverlayBounds();
@@ -4018,6 +3981,7 @@ public sealed partial class MainWindow : Window
         {
             Tag = sound,
             MinHeight = 38,
+            Margin = new Thickness(0, 0, 0, 4),
             Padding = new Thickness(12, 8, 12, 8),
             CornerRadius = new CornerRadius(4),
             Background = new SolidColorBrush(isSelected
@@ -8020,53 +7984,17 @@ public sealed partial class MainWindow : Window
 
     private void OnEffectChainVerticalWheel(object sender, PointerRoutedEventArgs e)
     {
-        if (ProcessingChainScrollViewer is null)
-        {
-            return;
-        }
-
-        var delta = e.GetCurrentPoint(ProcessingChainScrollViewer).Properties.MouseWheelDelta;
-        if (delta == 0)
-        {
-            return;
-        }
-
-        TryScrollViewer(ProcessingChainScrollViewer, delta, 58.0);
-        e.Handled = true;
+        // Native ScrollView owns wheel input in 12.3.3.
     }
 
     private void OnEffectLibraryPointerWheelChanged(object sender, PointerRoutedEventArgs e)
     {
-        if (EffectLibraryScrollViewer is null)
-        {
-            return;
-        }
-
-        var delta = e.GetCurrentPoint(EffectLibraryScrollViewer).Properties.MouseWheelDelta;
-        if (delta == 0)
-        {
-            return;
-        }
-
-        TryScrollViewer(EffectLibraryScrollViewer, delta, 52.0);
-        e.Handled = true;
+        // Native ListView owns wheel input in 12.3.3.
     }
 
     private void OnVoicePresetListPointerWheelChanged(object sender, PointerRoutedEventArgs e)
     {
-        if (VoicePresetListScrollViewer is null)
-        {
-            return;
-        }
-
-        var delta = e.GetCurrentPoint(VoicePresetListScrollViewer).Properties.MouseWheelDelta;
-        if (delta == 0)
-        {
-            return;
-        }
-
-        TryScrollViewer(VoicePresetListScrollViewer, delta, 52.0);
-        e.Handled = true;
+        // Native ListView owns wheel input in 12.3.3.
     }
 
     private void OnVoicePresetSearchTextChanged(object sender, TextChangedEventArgs e)
@@ -8116,7 +8044,7 @@ public sealed partial class MainWindow : Window
         }
 
         var search = EffectLibrarySearchBox?.Text?.Trim() ?? string.Empty;
-        foreach (var sectionElement in EffectLibraryCardsPanel.Children)
+        foreach (var sectionElement in EffectLibraryCardsPanel.Items)
         {
             if (sectionElement is not StackPanel section || section.Tag is not string sectionCategory)
             {
@@ -9277,7 +9205,7 @@ public sealed partial class MainWindow : Window
         }
 
         LoopedSceneSoundsPanel.Children.Clear();
-        SceneSoundsPanel.Children.Clear();
+        SceneSoundsPanel.Items.Clear();
         _sceneTimelineBindings.Clear();
 
         if (_selectedScene is null)
@@ -9297,10 +9225,10 @@ public sealed partial class MainWindow : Window
 
         foreach (var sceneButton in orderedButtons.Where(b => !b.IsLooped))
         {
-            SceneSoundsPanel.Children.Add(CreateSceneSoundButton(sceneButton));
+            SceneSoundsPanel.Items.Add(CreateSceneSoundButton(sceneButton));
         }
 
-        SceneSoundsPanel.Children.Add(CreateSceneAddSoundButton());
+        SceneSoundsPanel.Items.Add(CreateSceneAddSoundButton());
 
         RefreshSceneLoopActionButtons();
     }
@@ -10824,14 +10752,14 @@ public sealed partial class MainWindow : Window
             return;
         }
 
-        VoicePresetsPanel.Children.Clear();
+        VoicePresetsPanel.Items.Clear();
         var visiblePresets = _voicePresets.Where(preset =>
             string.IsNullOrWhiteSpace(_voicePresetSearchText)
             || preset.Name.Contains(_voicePresetSearchText, StringComparison.CurrentCultureIgnoreCase));
 
         foreach (var preset in visiblePresets)
         {
-            VoicePresetsPanel.Children.Add(CreateVoicePresetTile(preset));
+            VoicePresetsPanel.Items.Add(CreateVoicePresetTile(preset));
         }
     }
 
@@ -11072,6 +11000,7 @@ public sealed partial class MainWindow : Window
         var button = new Button
         {
             Height = 58,
+            Margin = new Thickness(0, 0, 0, 6),
             MinWidth = 0,
             HorizontalAlignment = HorizontalAlignment.Stretch,
             HorizontalContentAlignment = HorizontalAlignment.Stretch,
