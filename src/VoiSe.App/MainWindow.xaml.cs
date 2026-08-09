@@ -143,7 +143,6 @@ public sealed partial class MainWindow : Window
     };
     private bool _suppressSoundBoardTimelineForEditorPreview;
     private bool _soundEditorActive;
-    private ScrollViewer? _activeSoundEditorScrollViewer;
     private Action? _soundEditorPlayPauseAction;
     private Action? _soundEditorStopAction;
     private readonly Dictionary<string, SceneTimelineBinding> _sceneTimelineBindings = new(StringComparer.OrdinalIgnoreCase);
@@ -188,6 +187,7 @@ public sealed partial class MainWindow : Window
         _themeManager = new ThemeManager(_settingsStore.DataDirectory);
         _library = _libraryStore.Load();
         InitializeComponent();
+        BuildEffectLibraryList();
 
         if (ThemeFolderPathTextBlock is not null)
         {
@@ -1908,8 +1908,8 @@ public sealed partial class MainWindow : Window
         // routing, otherwise the large Gate 6.8 SoundBoard wheel zone steals it.
         if (_soundEditorActive)
         {
-            return _activeSoundEditorScrollViewer is not null
-                && TryScrollViewer(_activeSoundEditorScrollViewer, delta, 58.0);
+            // The editor owns native XAML wheel input; the legacy low-level wheel hook is not installed.
+            return false;
         }
 
         if (_suppressMainTabWheelRouting)
@@ -8034,6 +8034,185 @@ public sealed partial class MainWindow : Window
             _effectLibraryFilter = filter;
             ApplyEffectLibraryFilter();
         }
+    }
+
+    private void BuildEffectLibraryList()
+    {
+        if (EffectLibraryCardsPanel is null)
+        {
+            return;
+        }
+
+        EffectLibraryCardsPanel.Items.Clear();
+        EffectLibraryCardsPanel.Items.Add(CreateEffectLibrarySection("Utility", "VoiceGain"));
+        EffectLibraryCardsPanel.Items.Add(CreateEffectLibrarySection("Dynamics", "Gate", "Compressor"));
+        EffectLibraryCardsPanel.Items.Add(CreateEffectLibrarySection("Tone", "Pitch", "Formant", "Bass", "Treble"));
+        EffectLibraryCardsPanel.Items.Add(CreateEffectLibrarySection("Space", "Tremolo", "Echo", "Reverb"));
+        EffectLibraryCardsPanel.Items.Add(CreateEffectLibrarySection("Special", "Distortion", "Robot", "Radio", "BitCrusher", "Alien"));
+        ApplyEffectLibraryFilter();
+    }
+
+    private StackPanel CreateEffectLibrarySection(string category, params string[] effectKeys)
+    {
+        var section = new StackPanel
+        {
+            Tag = category,
+            Spacing = 7,
+            Margin = new Thickness(0, 0, 0, 7),
+            HorizontalAlignment = HorizontalAlignment.Stretch
+        };
+
+        var header = new Grid();
+        header.Children.Add(new TextBlock
+        {
+            Text = category == "Special" ? "Character" : category,
+            FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
+            FontSize = 13
+        });
+        header.Children.Add(new TextBlock
+        {
+            Text = "⌃",
+            HorizontalAlignment = HorizontalAlignment.Right,
+            FontSize = 11,
+            Opacity = 0.55
+        });
+        section.Children.Add(header);
+
+        var cardsGrid = new Grid { ColumnSpacing = 8, RowSpacing = 8 };
+        cardsGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        cardsGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+
+        var rowCount = (effectKeys.Length + 1) / 2;
+        for (var rowIndex = 0; rowIndex < rowCount; rowIndex++)
+        {
+            cardsGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+        }
+
+        for (var index = 0; index < effectKeys.Length; index++)
+        {
+            var card = CreateEffectLibraryCard(effectKeys[index]);
+            Grid.SetRow(card, index / 2);
+            Grid.SetColumn(card, index % 2);
+            cardsGrid.Children.Add(card);
+        }
+
+        section.Children.Add(cardsGrid);
+        return section;
+    }
+
+    private Border CreateEffectLibraryCard(string effectKey)
+    {
+        var card = new Border
+        {
+            Tag = effectKey,
+            MinHeight = 74,
+            Padding = new Thickness(9, 8, 9, 8),
+            CornerRadius = Application.Current.Resources["VoiSee.CornerRadius.Medium"] is CornerRadius radius ? radius : new CornerRadius(8),
+            Background = Application.Current.Resources["VoiSee.CardValueBackgroundBrush"] as Brush,
+            BorderBrush = Application.Current.Resources["VoiSee.CardValueBorderBrush"] as Brush,
+            BorderThickness = new Thickness(1),
+            HorizontalAlignment = HorizontalAlignment.Stretch
+        };
+
+        var row = new Grid { ColumnSpacing = 8 };
+        row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(32) });
+        row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+
+        var grip = new TextBlock
+        {
+            Text = "⋮⋮",
+            Tag = effectKey,
+            Width = 16,
+            Opacity = 0.55,
+            FontSize = 15,
+            VerticalAlignment = VerticalAlignment.Center
+        };
+        ToolTipService.SetToolTip(grip, "Drag to processing chain");
+        grip.PointerPressed += OnEffectLibraryGripPointerPressed;
+        grip.PointerMoved += OnEffectDragPointerMoved;
+        grip.PointerReleased += OnEffectDragPointerReleased;
+        grip.PointerCanceled += OnEffectDragPointerCanceled;
+        row.Children.Add(grip);
+
+        var iconHost = new Border
+        {
+            Width = 30,
+            Height = 30,
+            CornerRadius = new CornerRadius(7),
+            Background = Application.Current.Resources["VoiSee.PanelBackgroundBrush"] as Brush,
+            BorderBrush = Application.Current.Resources["VoiSee.PanelBorderBrush"] as Brush,
+            BorderThickness = new Thickness(1),
+            VerticalAlignment = VerticalAlignment.Center,
+            Child = new TextBlock
+            {
+                Text = GetEffectIconGlyph(effectKey),
+                FontSize = 16,
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center
+            }
+        };
+        Grid.SetColumn(iconHost, 1);
+        row.Children.Add(iconHost);
+
+        var textStack = new StackPanel { Spacing = 1, VerticalAlignment = VerticalAlignment.Center };
+        textStack.Children.Add(new TextBlock
+        {
+            Text = GetEffectDisplayName(effectKey),
+            FontSize = 12.5,
+            FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
+            TextTrimming = TextTrimming.CharacterEllipsis
+        });
+        textStack.Children.Add(new TextBlock
+        {
+            Text = GetEffectLibraryDescription(effectKey),
+            FontSize = 9.5,
+            Opacity = 0.55,
+            TextTrimming = TextTrimming.CharacterEllipsis
+        });
+        Grid.SetColumn(textStack, 2);
+        row.Children.Add(textStack);
+
+        var addButton = new Button
+        {
+            Content = "Add",
+            Tag = effectKey,
+            MinWidth = 46,
+            Height = 30,
+            Padding = new Thickness(8, 3, 8, 3),
+            VerticalAlignment = VerticalAlignment.Center,
+            Style = Application.Current.Resources["VoiSee.Style.Button"] as Style
+        };
+        addButton.Click += OnAddEffectFromLibraryClick;
+        Grid.SetColumn(addButton, 3);
+        row.Children.Add(addButton);
+
+        card.Child = row;
+        return card;
+    }
+
+    private static string GetEffectLibraryDescription(string effectKey)
+    {
+        return effectKey switch
+        {
+            "VoiceGain" => "Input level before effects",
+            "Gate" => "Remove signal below threshold",
+            "Compressor" => "Control peaks and dynamics",
+            "Pitch" => "Shift the pitch of your voice",
+            "Formant" => "Change vocal tone character",
+            "Bass" => "Boost or cut low frequencies",
+            "Treble" => "Boost or cut high frequencies",
+            "Tremolo" => "Rhythmic volume modulation",
+            "Echo" => "Add repeating echo",
+            "Reverb" => "Add space and ambience",
+            "Distortion" => "Add grit and harmonic edge",
+            "Robot" => "Robotic metallic character",
+            "Radio" => "Broadcast and radio character",
+            "BitCrusher" => "Lo-fi digital degradation",
+            "Alien" => "Otherworldly vocal effect",
+            _ => string.Empty
+        };
     }
 
     private void ApplyEffectLibraryFilter()
