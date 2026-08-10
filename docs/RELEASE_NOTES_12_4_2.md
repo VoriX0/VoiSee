@@ -1,4 +1,4 @@
-# VoiSee 12.4.2
+# VoiSee 12.4.3
 
 - Removed Low Pass and High Pass from Voice Changer because their audible result was not useful in the current realtime chain.
 - Added five comic Voice Changer effects: Chipmunk, Giant, Ghost, Stutter and Wobbly.
