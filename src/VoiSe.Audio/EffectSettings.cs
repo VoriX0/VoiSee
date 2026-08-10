@@ -39,6 +39,14 @@ public sealed class EffectSettings
     public float GhostAmount { get; set; } = 0.0f;
     public float StutterAmount { get; set; } = 0.0f;
     public float WobblyAmount { get; set; } = 0.0f;
+    public float GenderMaleAmount { get; set; } = 0.0f;
+    public float GenderFemaleAmount { get; set; } = 0.0f;
+    public float PossessedAmount { get; set; } = 0.0f;
+    public float MegaphoneAmount { get; set; } = 0.0f;
+    public float HelicopterAmount { get; set; } = 0.0f;
+    public float CyborgAmount { get; set; } = 0.0f;
+    public float BrokenRadioAmount { get; set; } = 0.0f;
+    public float VocoderAmount { get; set; } = 0.0f;
 
     public bool LimiterEnabled { get; set; } = true;
     public float LimiterCeilingDb { get; set; } = -1.0f;
@@ -70,6 +78,14 @@ public sealed class EffectSettings
         VoiceEffectKind.Ghost,
         VoiceEffectKind.Stutter,
         VoiceEffectKind.Wobbly,
+        VoiceEffectKind.GenderMale,
+        VoiceEffectKind.GenderFemale,
+        VoiceEffectKind.Possessed,
+        VoiceEffectKind.Megaphone,
+        VoiceEffectKind.Helicopter,
+        VoiceEffectKind.Cyborg,
+        VoiceEffectKind.BrokenRadio,
+        VoiceEffectKind.Vocoder,
         VoiceEffectKind.Radio,
         VoiceEffectKind.Robot,
         VoiceEffectKind.Alien,

@@ -17,6 +17,9 @@ public sealed class SimpleVoiceProcessor
     private const int GhostBufferSamples = 8192;
     private const int WobblyBufferSamples = 4096;
     private const int PhaserStageCount = 4;
+    private const int GenderFormantBandCount = 4;
+    private const int PossessedBufferSamples = 8192;
+    private const int VocoderBandCount = 6;
 
     private readonly object _sync = new();
     private EffectSettings _settings;
@@ -48,6 +51,14 @@ public sealed class SimpleVoiceProcessor
     private float _ghostAmount;
     private float _stutterAmount;
     private float _wobblyAmount;
+    private float _genderMaleAmount;
+    private float _genderFemaleAmount;
+    private float _possessedAmount;
+    private float _megaphoneAmount;
+    private float _helicopterAmount;
+    private float _cyborgAmount;
+    private float _brokenRadioAmount;
+    private float _vocoderAmount;
     private VoiceEffectKind[] _effectOrder = Array.Empty<VoiceEffectKind>();
 
     private readonly float[] _bassLow = new float[Channels];
@@ -85,6 +96,42 @@ public sealed class SimpleVoiceProcessor
     private readonly float[][] _wobblyBuffers = { new float[WobblyBufferSamples], new float[WobblyBufferSamples] };
     private readonly int[] _wobblyWriteIndex = new int[Channels];
     private readonly float[,] _phaserState = new float[Channels, PhaserStageCount];
+    private readonly float[][] _genderMalePitchBuffers = { new float[PitchBufferSamples], new float[PitchBufferSamples] };
+    private readonly int[] _genderMalePitchWriteIndex = new int[Channels];
+    private readonly float[][] _genderFemalePitchBuffers = { new float[PitchBufferSamples], new float[PitchBufferSamples] };
+    private readonly int[] _genderFemalePitchWriteIndex = new int[Channels];
+    private readonly float[,] _genderMaleZ1 = new float[Channels, GenderFormantBandCount];
+    private readonly float[,] _genderMaleZ2 = new float[Channels, GenderFormantBandCount];
+    private readonly float[,] _genderFemaleZ1 = new float[Channels, GenderFormantBandCount];
+    private readonly float[,] _genderFemaleZ2 = new float[Channels, GenderFormantBandCount];
+    private readonly float[] _genderMaleB0 = new float[GenderFormantBandCount];
+    private readonly float[] _genderMaleB1 = new float[GenderFormantBandCount];
+    private readonly float[] _genderMaleB2 = new float[GenderFormantBandCount];
+    private readonly float[] _genderMaleA1 = new float[GenderFormantBandCount];
+    private readonly float[] _genderMaleA2 = new float[GenderFormantBandCount];
+    private readonly float[] _genderFemaleB0 = new float[GenderFormantBandCount];
+    private readonly float[] _genderFemaleB1 = new float[GenderFormantBandCount];
+    private readonly float[] _genderFemaleB2 = new float[GenderFormantBandCount];
+    private readonly float[] _genderFemaleA1 = new float[GenderFormantBandCount];
+    private readonly float[] _genderFemaleA2 = new float[GenderFormantBandCount];
+    private readonly float[][] _possessedPitchBuffers = { new float[PitchBufferSamples], new float[PitchBufferSamples] };
+    private readonly int[] _possessedPitchWriteIndex = new int[Channels];
+    private readonly float[][] _possessedDelayBuffers = { new float[PossessedBufferSamples], new float[PossessedBufferSamples] };
+    private readonly int[] _possessedDelayWriteIndex = new int[Channels];
+    private readonly float[] _megaphoneLow = new float[Channels];
+    private readonly float[] _megaphoneBand = new float[Channels];
+    private readonly float[] _brokenRadioLow = new float[Channels];
+    private readonly float[] _brokenRadioBand = new float[Channels];
+    private readonly float[,] _vocoderAnalysisZ1 = new float[Channels, VocoderBandCount];
+    private readonly float[,] _vocoderAnalysisZ2 = new float[Channels, VocoderBandCount];
+    private readonly float[,] _vocoderCarrierZ1 = new float[Channels, VocoderBandCount];
+    private readonly float[,] _vocoderCarrierZ2 = new float[Channels, VocoderBandCount];
+    private readonly float[,] _vocoderEnvelope = new float[Channels, VocoderBandCount];
+    private readonly float[] _vocoderB0 = new float[VocoderBandCount];
+    private readonly float[] _vocoderB1 = new float[VocoderBandCount];
+    private readonly float[] _vocoderB2 = new float[VocoderBandCount];
+    private readonly float[] _vocoderA1 = new float[VocoderBandCount];
+    private readonly float[] _vocoderA2 = new float[VocoderBandCount];
     private int _echoIndex;
     private int _reverbIndex;
     private double _robotPhase;
@@ -101,6 +148,15 @@ public sealed class SimpleVoiceProcessor
     private double _ghostPhase;
     private double _stutterPhase;
     private double _wobblyPhase;
+    private double _genderMalePitchPhase;
+    private double _genderFemalePitchPhase;
+    private double _possessedPitchPhase;
+    private double _possessedPhase;
+    private double _helicopterPhase;
+    private double _cyborgPhase;
+    private double _brokenRadioPhase;
+    private double _vocoderCarrierPhase;
+    private uint _brokenRadioNoiseState = 0x5A17C9E3u;
     private float _robotMod = 1.0f;
     private float _tremoloMod = 1.0f;
     private float _alienMod = 1.0f;
@@ -152,6 +208,14 @@ public sealed class SimpleVoiceProcessor
         float ghostAmount;
         float stutterAmount;
         float wobblyAmount;
+        float genderMaleAmount;
+        float genderFemaleAmount;
+        float possessedAmount;
+        float megaphoneAmount;
+        float helicopterAmount;
+        float cyborgAmount;
+        float brokenRadioAmount;
+        float vocoderAmount;
 
         lock (_sync)
         {
@@ -185,6 +249,14 @@ public sealed class SimpleVoiceProcessor
             ghostAmount = _ghostAmount;
             stutterAmount = _stutterAmount;
             wobblyAmount = _wobblyAmount;
+            genderMaleAmount = _genderMaleAmount;
+            genderFemaleAmount = _genderFemaleAmount;
+            possessedAmount = _possessedAmount;
+            megaphoneAmount = _megaphoneAmount;
+            helicopterAmount = _helicopterAmount;
+            cyborgAmount = _cyborgAmount;
+            brokenRadioAmount = _brokenRadioAmount;
+            vocoderAmount = _vocoderAmount;
         }
 
         var bassGain = Decibels.DbToLinear(bassAmount * 10.0f);
@@ -213,6 +285,14 @@ public sealed class SimpleVoiceProcessor
         var ghostMix = Math.Clamp(Math.Max(0.0f, ghostAmount), 0.0f, 1.0f);
         var stutterMix = Math.Clamp(Math.Max(0.0f, stutterAmount), 0.0f, 1.0f);
         var wobblyMix = Math.Clamp(Math.Max(0.0f, wobblyAmount), 0.0f, 1.0f);
+        var genderMaleMix = Math.Clamp(Math.Max(0.0f, genderMaleAmount), 0.0f, 1.0f);
+        var genderFemaleMix = Math.Clamp(Math.Max(0.0f, genderFemaleAmount), 0.0f, 1.0f);
+        var possessedMix = Math.Clamp(Math.Max(0.0f, possessedAmount), 0.0f, 1.0f);
+        var megaphoneMix = Math.Clamp(Math.Max(0.0f, megaphoneAmount), 0.0f, 1.0f);
+        var helicopterMix = Math.Clamp(Math.Max(0.0f, helicopterAmount), 0.0f, 1.0f);
+        var cyborgMix = Math.Clamp(Math.Max(0.0f, cyborgAmount), 0.0f, 1.0f);
+        var brokenRadioMix = Math.Clamp(Math.Max(0.0f, brokenRadioAmount), 0.0f, 1.0f);
+        var vocoderMix = Math.Clamp(Math.Max(0.0f, vocoderAmount), 0.0f, 1.0f);
         var alienFrequency = 35.0f + alienMix * 180.0f;
         var bitDepth = (int)Math.Round(16 - bitMix * 12);
         bitDepth = Math.Clamp(bitDepth, 4, 16);
@@ -224,7 +304,7 @@ public sealed class SimpleVoiceProcessor
             var channel = i % Channels;
             if (channel == 0)
             {
-                AdvanceModulators(robotMix, tremoloDepth, alienMix, alienFrequency, chorusMix, flangerMix, phaserMix, vibratoMix, ringModMix, ghostMix, stutterMix, wobblyMix);
+                AdvanceModulators(robotMix, tremoloDepth, alienMix, alienFrequency, chorusMix, flangerMix, phaserMix, vibratoMix, ringModMix, ghostMix, stutterMix, wobblyMix, possessedMix, helicopterMix, cyborgMix, brokenRadioMix, vocoderMix);
             }
 
             var sample = samples[i] * inputGain;
@@ -292,6 +372,30 @@ public sealed class SimpleVoiceProcessor
                         break;
                     case VoiceEffectKind.Wobbly:
                         sample = ApplyWobbly(sample, channel, wobblyMix);
+                        break;
+                    case VoiceEffectKind.GenderMale:
+                        sample = ApplyGenderMale(sample, channel, genderMaleMix);
+                        break;
+                    case VoiceEffectKind.GenderFemale:
+                        sample = ApplyGenderFemale(sample, channel, genderFemaleMix);
+                        break;
+                    case VoiceEffectKind.Possessed:
+                        sample = ApplyPossessed(sample, channel, possessedMix);
+                        break;
+                    case VoiceEffectKind.Megaphone:
+                        sample = ApplyMegaphone(sample, channel, megaphoneMix);
+                        break;
+                    case VoiceEffectKind.Helicopter:
+                        sample = ApplyHelicopter(sample, helicopterMix);
+                        break;
+                    case VoiceEffectKind.Cyborg:
+                        sample = ApplyCyborg(sample, cyborgMix);
+                        break;
+                    case VoiceEffectKind.BrokenRadio:
+                        sample = ApplyBrokenRadio(sample, channel, brokenRadioMix);
+                        break;
+                    case VoiceEffectKind.Vocoder:
+                        sample = ApplyVocoder(sample, channel, vocoderMix);
                         break;
                     case VoiceEffectKind.Distortion:
                         sample = ApplyDistortion(sample, distortionMix, distortionDrive);
@@ -364,6 +468,17 @@ public sealed class SimpleVoiceProcessor
         _ghostAmount = ClampEffectAmount(settings.GhostAmount);
         _stutterAmount = ClampEffectAmount(settings.StutterAmount);
         _wobblyAmount = ClampEffectAmount(settings.WobblyAmount);
+        _genderMaleAmount = ClampEffectAmount(settings.GenderMaleAmount);
+        _genderFemaleAmount = ClampEffectAmount(settings.GenderFemaleAmount);
+        _possessedAmount = ClampEffectAmount(settings.PossessedAmount);
+        _megaphoneAmount = ClampEffectAmount(settings.MegaphoneAmount);
+        _helicopterAmount = ClampEffectAmount(settings.HelicopterAmount);
+        _cyborgAmount = ClampEffectAmount(settings.CyborgAmount);
+        _brokenRadioAmount = ClampEffectAmount(settings.BrokenRadioAmount);
+        _vocoderAmount = ClampEffectAmount(settings.VocoderAmount);
+        UpdateGenderFormantCoefficients(_genderMaleAmount, isFemale: false);
+        UpdateGenderFormantCoefficients(_genderFemaleAmount, isFemale: true);
+        UpdateVocoderCoefficients();
         _effectOrder = settings.EffectOrder?.ToArray() ?? Array.Empty<VoiceEffectKind>();
     }
 
@@ -371,7 +486,8 @@ public sealed class SimpleVoiceProcessor
 
     private void AdvanceModulators(float robotMix, float tremoloDepth, float alienMix, float alienFrequency,
         float chorusMix, float flangerMix, float phaserMix, float vibratoMix, float ringModMix,
-        float ghostMix, float stutterMix, float wobblyMix)
+        float ghostMix, float stutterMix, float wobblyMix, float possessedMix, float helicopterMix,
+        float cyborgMix, float brokenRadioMix, float vocoderMix)
     {
         if (robotMix > 0.001f)
         {
@@ -415,6 +531,11 @@ public sealed class SimpleVoiceProcessor
         AdvanceLfo(ref _ghostPhase, 2.4 + ghostMix * 2.2, ghostMix);
         AdvanceLfo(ref _stutterPhase, 5.0 + stutterMix * 8.0, stutterMix);
         AdvanceLfo(ref _wobblyPhase, 1.4 + wobblyMix * 2.8, wobblyMix);
+        AdvanceLfo(ref _possessedPhase, 24.0 + possessedMix * 28.0, possessedMix);
+        AdvanceLfo(ref _helicopterPhase, 6.5 + helicopterMix * 17.0, helicopterMix);
+        AdvanceLfo(ref _cyborgPhase, 48.0 + cyborgMix * 235.0, cyborgMix);
+        AdvanceLfo(ref _brokenRadioPhase, 1.8 + brokenRadioMix * 3.2, brokenRadioMix);
+        AdvanceLfo(ref _vocoderCarrierPhase, 82.0 + vocoderMix * 58.0, vocoderMix);
     }
 
     private static void AdvanceLfo(ref double phase, double frequency, float amount)
@@ -766,6 +887,235 @@ public sealed class SimpleVoiceProcessor
         var delayed = ReadDelayTap(buffer, writeIndex, baseDelay + depth * (0.5f + 0.5f * wobble));
         _wobblyWriteIndex[channel] = (writeIndex + 1) % buffer.Length;
         return Lerp(sample, delayed, 0.38f + mix * 0.62f);
+    }
+
+    private void UpdateGenderFormantCoefficients(float amount, bool isFemale)
+    {
+        var mix = Math.Clamp(Math.Max(0.0f, amount), 0.0f, 1.0f);
+        var shiftSemitones = isFemale
+            ? 1.5f + mix * 4.5f
+            : -1.5f - mix * 4.5f;
+        var shift = MathF.Pow(2.0f, shiftSemitones / 12.0f);
+        ReadOnlySpan<float> baseFrequencies = stackalloc float[] { 520.0f, 1450.0f, 2450.0f, 3400.0f };
+        ReadOnlySpan<float> qValues = stackalloc float[] { 4.0f, 5.0f, 4.8f, 4.2f };
+        var b0 = isFemale ? _genderFemaleB0 : _genderMaleB0;
+        var b1 = isFemale ? _genderFemaleB1 : _genderMaleB1;
+        var b2 = isFemale ? _genderFemaleB2 : _genderMaleB2;
+        var a1 = isFemale ? _genderFemaleA1 : _genderMaleA1;
+        var a2 = isFemale ? _genderFemaleA2 : _genderMaleA2;
+
+        for (var band = 0; band < GenderFormantBandCount; band++)
+        {
+            ConfigureBandPass(baseFrequencies[band] * shift, qValues[band], b0, b1, b2, a1, a2, band);
+        }
+    }
+
+    private void UpdateVocoderCoefficients()
+    {
+        ReadOnlySpan<float> frequencies = stackalloc float[] { 220.0f, 430.0f, 820.0f, 1500.0f, 2700.0f, 4700.0f };
+        ReadOnlySpan<float> qValues = stackalloc float[] { 1.35f, 1.45f, 1.55f, 1.65f, 1.75f, 1.85f };
+        for (var band = 0; band < VocoderBandCount; band++)
+        {
+            ConfigureBandPass(frequencies[band], qValues[band], _vocoderB0, _vocoderB1, _vocoderB2, _vocoderA1, _vocoderA2, band);
+        }
+    }
+
+    private static void ConfigureBandPass(float frequency, float q, float[] b0, float[] b1, float[] b2, float[] a1, float[] a2, int band)
+    {
+        frequency = Math.Clamp(frequency, 70.0f, SampleRate * 0.45f);
+        q = Math.Clamp(q, 0.5f, 12.0f);
+        var omega = 2.0f * MathF.PI * frequency / SampleRate;
+        var sin = MathF.Sin(omega);
+        var cos = MathF.Cos(omega);
+        var alpha = sin / (2.0f * q);
+        var a0 = 1.0f + alpha;
+        b0[band] = alpha / a0;
+        b1[band] = 0.0f;
+        b2[band] = -alpha / a0;
+        a1[band] = -2.0f * cos / a0;
+        a2[band] = (1.0f - alpha) / a0;
+    }
+
+    private static float ProcessBiquadBand(float input, int channel, int band,
+        float[] b0, float[] b1, float[] b2, float[] a1, float[] a2, float[,] z1, float[,] z2)
+    {
+        var output = b0[band] * input + z1[channel, band];
+        z1[channel, band] = b1[band] * input - a1[band] * output + z2[channel, band];
+        z2[channel, band] = b2[band] * input - a2[band] * output;
+        return output;
+    }
+
+    private float ApplyGenderMale(float sample, int channel, float mix)
+    {
+        var semitones = -(1.5f + mix * 3.5f);
+        var shifted = ApplyPitchShiftWithState(sample, channel, semitones, _genderMalePitchBuffers, _genderMalePitchWriteIndex, ref _genderMalePitchPhase);
+        if (mix <= 0.001f)
+        {
+            return sample;
+        }
+
+        var resonant = 0.0f;
+        for (var band = 0; band < GenderFormantBandCount; band++)
+        {
+            resonant += ProcessBiquadBand(shifted, channel, band, _genderMaleB0, _genderMaleB1, _genderMaleB2, _genderMaleA1, _genderMaleA2, _genderMaleZ1, _genderMaleZ2)
+                * _formantWeights[band];
+        }
+
+        var body = MathF.Tanh(shifted * (1.45f + mix * 0.45f) + resonant * (1.15f + mix * 0.85f));
+        return Lerp(sample, body * 0.90f, 0.35f + mix * 0.65f);
+    }
+
+    private float ApplyGenderFemale(float sample, int channel, float mix)
+    {
+        var semitones = 1.0f + mix * 3.0f;
+        var shifted = ApplyPitchShiftWithState(sample, channel, semitones, _genderFemalePitchBuffers, _genderFemalePitchWriteIndex, ref _genderFemalePitchPhase);
+        if (mix <= 0.001f)
+        {
+            return sample;
+        }
+
+        var resonant = 0.0f;
+        for (var band = 0; band < GenderFormantBandCount; band++)
+        {
+            resonant += ProcessBiquadBand(shifted, channel, band, _genderFemaleB0, _genderFemaleB1, _genderFemaleB2, _genderFemaleA1, _genderFemaleA2, _genderFemaleZ1, _genderFemaleZ2)
+                * _formantWeights[band];
+        }
+
+        var presence = MathF.Tanh(shifted * (1.15f + mix * 0.25f) + resonant * (1.35f + mix * 1.05f));
+        return Lerp(sample, presence * 0.88f, 0.35f + mix * 0.65f);
+    }
+
+    private float ApplyPossessed(float sample, int channel, float mix)
+    {
+        var lowered = ApplyPitchShiftWithState(sample, channel, -(6.0f + mix * 6.0f), _possessedPitchBuffers, _possessedPitchWriteIndex, ref _possessedPitchPhase);
+        var buffer = _possessedDelayBuffers[channel];
+        var writeIndex = _possessedDelayWriteIndex[channel];
+        buffer[writeIndex] = lowered;
+
+        if (mix <= 0.001f)
+        {
+            _possessedDelayWriteIndex[channel] = (writeIndex + 1) % buffer.Length;
+            return sample;
+        }
+
+        var delayed = ReadDelayTap(buffer, writeIndex, SampleRate * (0.020f + mix * 0.040f));
+        _possessedDelayWriteIndex[channel] = (writeIndex + 1) % buffer.Length;
+        var carrier = 0.76f + 0.24f * (float)Math.Sin(_possessedPhase + channel * 0.45);
+        var layer = delayed * carrier;
+        var possessed = MathF.Tanh(sample * (1.05f - mix * 0.20f) + layer * (0.85f + mix * 0.95f));
+        return Lerp(sample, possessed * 0.92f, 0.35f + mix * 0.62f);
+    }
+
+    private float ApplyMegaphone(float sample, int channel, float mix)
+    {
+        if (mix <= 0.001f)
+        {
+            return sample;
+        }
+
+        _megaphoneLow[channel] += 0.020f * (sample - _megaphoneLow[channel]);
+        var highPassed = sample - _megaphoneLow[channel];
+        _megaphoneBand[channel] += (0.16f + mix * 0.08f) * (highPassed - _megaphoneBand[channel]);
+        var band = _megaphoneBand[channel];
+        var driven = MathF.Tanh(band * (3.5f + mix * 8.5f));
+        var compressed = CompressSample(driven, 0.22f, 4.0f + mix * 8.0f);
+        var nasal = Math.Clamp(compressed * 1.28f, -1.0f, 1.0f);
+        return Lerp(sample, nasal, 0.42f + mix * 0.58f);
+    }
+
+    private float ApplyHelicopter(float sample, float mix)
+    {
+        if (mix <= 0.001f)
+        {
+            return sample;
+        }
+
+        var sine = 0.5f + 0.5f * (float)Math.Sin(_helicopterPhase);
+        var rotor = sine * sine;
+        rotor *= rotor;
+        var blade = 0.08f + 0.92f * rotor;
+        var flutter = 0.86f + 0.14f * (float)Math.Sin(_helicopterPhase * 5.0 + 0.7);
+        var depth = 0.50f + mix * 0.48f;
+        var chopped = sample * ((1.0f - depth) + depth * blade) * flutter;
+        return Lerp(sample, chopped, 0.42f + mix * 0.58f);
+    }
+
+    private float ApplyCyborg(float sample, float mix)
+    {
+        if (mix <= 0.001f)
+        {
+            return sample;
+        }
+
+        var carrier = (float)Math.Sin(_cyborgPhase);
+        var harmonic = (float)Math.Sin(_cyborgPhase * 2.0 + 0.35);
+        var metallic = MathF.Tanh((sample * 0.55f + sample * carrier * (0.75f + mix * 0.55f) + sample * harmonic * 0.22f) * (1.5f + mix * 2.4f));
+        var levels = Math.Max(12, (int)Math.Round(72 - mix * 56));
+        var normalized = Math.Clamp(metallic * 0.5f + 0.5f, 0.0f, 1.0f);
+        var quantized = (MathF.Round(normalized * levels) / levels) * 2.0f - 1.0f;
+        return Lerp(sample, quantized * 0.92f, 0.38f + mix * 0.62f);
+    }
+
+    private float ApplyBrokenRadio(float sample, int channel, float mix)
+    {
+        if (mix <= 0.001f)
+        {
+            return sample;
+        }
+
+        _brokenRadioLow[channel] += 0.025f * (sample - _brokenRadioLow[channel]);
+        var highPassed = sample - _brokenRadioLow[channel];
+        _brokenRadioBand[channel] += 0.19f * (highPassed - _brokenRadioBand[channel]);
+
+        _brokenRadioNoiseState = unchecked(_brokenRadioNoiseState * 1664525u + 1013904223u);
+        var noise = (((_brokenRadioNoiseState >> 8) & 0xFFFFu) / 32767.5f) - 1.0f;
+        var phase = (float)(_brokenRadioPhase / (Math.PI * 2.0));
+        var dropout = phase > (0.72f - mix * 0.16f) && phase < (0.83f + mix * 0.08f) ? 0.12f : 1.0f;
+        var crackle = Math.Abs(noise) > (0.965f - mix * 0.025f) ? noise * (0.18f + mix * 0.22f) : noise * 0.018f * mix;
+        var dirty = MathF.Tanh(_brokenRadioBand[channel] * (2.8f + mix * 3.2f)) * dropout + crackle;
+        var levels = Math.Max(10, (int)Math.Round(46 - mix * 32));
+        var normalized = Math.Clamp(dirty * 0.5f + 0.5f, 0.0f, 1.0f);
+        var quantized = (MathF.Round(normalized * levels) / levels) * 2.0f - 1.0f;
+        return Lerp(sample, Math.Clamp(quantized, -1.0f, 1.0f), 0.45f + mix * 0.55f);
+    }
+
+    private float ApplyVocoder(float sample, int channel, float mix)
+    {
+        if (mix <= 0.001f)
+        {
+            return sample;
+        }
+
+        var p = (float)_vocoderCarrierPhase;
+        var carrier = 0.58f * MathF.Sin(p)
+            + 0.25f * MathF.Sin(p * 2.0f)
+            + 0.12f * MathF.Sin(p * 3.0f)
+            + 0.07f * MathF.Sin(p * 4.0f);
+        var vocoded = 0.0f;
+        var envelopeTotal = 0.0f;
+
+        for (var band = 0; band < VocoderBandCount; band++)
+        {
+            var analysis = ProcessBiquadBand(sample, channel, band, _vocoderB0, _vocoderB1, _vocoderB2, _vocoderA1, _vocoderA2, _vocoderAnalysisZ1, _vocoderAnalysisZ2);
+            var target = Math.Abs(analysis);
+            var envelope = _vocoderEnvelope[channel, band];
+            var coefficient = target > envelope ? 0.075f : 0.0035f;
+            envelope += coefficient * (target - envelope);
+            _vocoderEnvelope[channel, band] = envelope;
+
+            var carrierBand = ProcessBiquadBand(carrier, channel, band, _vocoderB0, _vocoderB1, _vocoderB2, _vocoderA1, _vocoderA2, _vocoderCarrierZ1, _vocoderCarrierZ2);
+            var bandEnvelope = Math.Min(1.4f, envelope * (5.5f + band * 0.65f));
+            vocoded += carrierBand * bandEnvelope;
+            envelopeTotal += bandEnvelope;
+        }
+
+        if (envelopeTotal > 0.001f)
+        {
+            vocoded *= 2.4f / MathF.Sqrt(envelopeTotal);
+        }
+
+        var robotVoice = MathF.Tanh(vocoded * (1.7f + mix * 1.0f));
+        return Lerp(sample, robotVoice * 0.95f, 0.38f + mix * 0.62f);
     }
 
     private static float ReadDelayTap(float[] buffer, int writeIndex, float delaySamples)

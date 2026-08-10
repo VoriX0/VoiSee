@@ -142,7 +142,8 @@ public sealed partial class MainWindow : Window
         "VoiceGain", "Gate", "Compressor", "Pitch", "Formant", "Bass", "Treble",
         "Distortion", "Robot", "Tremolo", "Echo", "Reverb", "Radio", "BitCrusher", "Alien",
         "Chorus", "Flanger", "Phaser", "Vibrato", "Doubler", "RingMod",
-        "Chipmunk", "Giant", "Ghost", "Stutter", "Wobbly"
+        "Chipmunk", "Giant", "Ghost", "Stutter", "Wobbly",
+        "GenderMale", "GenderFemale", "Possessed", "Megaphone", "Helicopter", "Cyborg", "BrokenRadio", "Vocoder"
     };
     private bool _suppressSoundBoardTimelineForEditorPreview;
     private bool _soundEditorActive;
@@ -247,7 +248,7 @@ public sealed partial class MainWindow : Window
         };
         _discordCableSessionIsolationTimer.Tick += OnDiscordCableSessionIsolationTimerTick;
 
-        AppendLog("VoiSee Version 12.4.3 UI started.");
+        AppendLog("VoiSee Version 12.5.0 UI started.");
         AppendLog($"Settings path: {_settingsStore.SettingsPath}");
 
         var isolationResult = _discordCableSessionIsolationService.Enable();
@@ -6579,6 +6580,14 @@ public sealed partial class MainWindow : Window
             GhostAmount = ToEffectAmount(GetEffectiveEffectValue("Ghost")),
             StutterAmount = ToEffectAmount(GetEffectiveEffectValue("Stutter")),
             WobblyAmount = ToEffectAmount(GetEffectiveEffectValue("Wobbly")),
+            GenderMaleAmount = ToEffectAmount(GetEffectiveEffectValue("GenderMale")),
+            GenderFemaleAmount = ToEffectAmount(GetEffectiveEffectValue("GenderFemale")),
+            PossessedAmount = ToEffectAmount(GetEffectiveEffectValue("Possessed")),
+            MegaphoneAmount = ToEffectAmount(GetEffectiveEffectValue("Megaphone")),
+            HelicopterAmount = ToEffectAmount(GetEffectiveEffectValue("Helicopter")),
+            CyborgAmount = ToEffectAmount(GetEffectiveEffectValue("Cyborg")),
+            BrokenRadioAmount = ToEffectAmount(GetEffectiveEffectValue("BrokenRadio")),
+            VocoderAmount = ToEffectAmount(GetEffectiveEffectValue("Vocoder")),
             GateEnabled = IsEffectEnabledInSignalPath("Gate"),
             CompressorEnabled = IsEffectEnabledInSignalPath("Compressor"),
             LimiterEnabled = true,
@@ -7898,6 +7907,14 @@ public sealed partial class MainWindow : Window
             "Ghost" => "♧",
             "Stutter" => "▥",
             "Wobbly" => "〰",
+            "GenderMale" => "♂",
+            "GenderFemale" => "♀",
+            "Possessed" => "☠",
+            "Megaphone" => "📣",
+            "Helicopter" => "✣",
+            "Cyborg" => "⚙",
+            "BrokenRadio" => "📻",
+            "Vocoder" => "▤",
             _ => "●"
         };
     }
@@ -7932,6 +7949,14 @@ public sealed partial class MainWindow : Window
             "Ghost" => "Amount",
             "Stutter" => "Amount",
             "Wobbly" => "Amount",
+            "GenderMale" => "Transformation",
+            "GenderFemale" => "Transformation",
+            "Possessed" => "Intensity",
+            "Megaphone" => "Intensity",
+            "Helicopter" => "Rotor",
+            "Cyborg" => "Intensity",
+            "BrokenRadio" => "Damage",
+            "Vocoder" => "Intensity",
             _ => "Amount"
         };
     }
@@ -8126,7 +8151,7 @@ public sealed partial class MainWindow : Window
         EffectLibraryListView.Items.Add(CreateEffectLibrarySection("Dynamics", "Gate", "Compressor"));
         EffectLibraryListView.Items.Add(CreateEffectLibrarySection("Tone", "Pitch", "Formant", "Bass", "Treble"));
         EffectLibraryListView.Items.Add(CreateEffectLibrarySection("Space", "Tremolo", "Echo", "Reverb", "Chorus", "Flanger", "Phaser", "Vibrato", "Doubler"));
-        EffectLibraryListView.Items.Add(CreateEffectLibrarySection("Special", "Distortion", "Robot", "Radio", "BitCrusher", "Alien", "RingMod", "Chipmunk", "Giant", "Ghost", "Stutter", "Wobbly"));
+        EffectLibraryListView.Items.Add(CreateEffectLibrarySection("Special", "Distortion", "Robot", "Radio", "BitCrusher", "Alien", "RingMod", "Chipmunk", "Giant", "Ghost", "Stutter", "Wobbly", "GenderMale", "GenderFemale", "Possessed", "Megaphone", "Helicopter", "Cyborg", "BrokenRadio", "Vocoder"));
         ApplyEffectLibraryFilter();
     }
 
@@ -8307,6 +8332,14 @@ public sealed partial class MainWindow : Window
             "Ghost" => "Wavering spectral echo",
             "Stutter" => "Hard rhythmic voice chopping",
             "Wobbly" => "Woozy unstable pitch wobble",
+            "GenderMale" => "Lower pitch plus shifted vocal resonances",
+            "GenderFemale" => "Raised pitch plus shifted vocal resonances",
+            "Possessed" => "Low delayed voice layer with dark modulation",
+            "Megaphone" => "Aggressive narrow-band amplified speaker",
+            "Helicopter" => "Hard rotor-like rhythmic voice chopping",
+            "Cyborg" => "Metallic carrier with digital articulation",
+            "BrokenRadio" => "Damaged radio band, dropouts and crackle",
+            "Vocoder" => "Multiband speech envelopes driving a synth carrier",
             _ => string.Empty
         };
     }
@@ -8466,7 +8499,8 @@ public sealed partial class MainWindow : Window
             "Compressor" => (0, 200, 0),
             "Robot" or "Echo" or "Radio" or "Alien" or "Distortion" or "Tremolo" or "Reverb" or "BitCrusher"
                 or "Chorus" or "Flanger" or "Phaser" or "Vibrato" or "Doubler" or "RingMod"
-                or "Chipmunk" or "Giant" or "Ghost" or "Stutter" or "Wobbly" => (0, 100, 0),
+                or "Chipmunk" or "Giant" or "Ghost" or "Stutter" or "Wobbly"
+                or "GenderMale" or "GenderFemale" or "Possessed" or "Megaphone" or "Helicopter" or "Cyborg" or "BrokenRadio" or "Vocoder" => (0, 100, 0),
             _ => (-100, 100, 0)
         };
     }
@@ -8490,7 +8524,8 @@ public sealed partial class MainWindow : Window
             "Compressor" => legacyValue + 100.0,
             "Robot" or "Echo" or "Radio" or "Alien" or "Distortion" or "Tremolo" or "Reverb" or "BitCrusher"
                 or "Chorus" or "Flanger" or "Phaser" or "Vibrato" or "Doubler" or "RingMod"
-                or "Chipmunk" or "Giant" or "Ghost" or "Stutter" or "Wobbly" => Math.Max(0.0, legacyValue),
+                or "Chipmunk" or "Giant" or "Ghost" or "Stutter" or "Wobbly"
+                or "GenderMale" or "GenderFemale" or "Possessed" or "Megaphone" or "Helicopter" or "Cyborg" or "BrokenRadio" or "Vocoder" => Math.Max(0.0, legacyValue),
             _ => legacyValue
         };
         return Clamp(uiValue, range.Minimum, range.Maximum);
@@ -8515,7 +8550,10 @@ public sealed partial class MainWindow : Window
             "Chorus" => ChorusSlider, "Flanger" => FlangerSlider, "Phaser" => PhaserSlider,
             "Vibrato" => VibratoSlider, "Doubler" => DoublerSlider, "RingMod" => RingModSlider,
             "Chipmunk" => ChipmunkSlider, "Giant" => GiantSlider, "Ghost" => GhostSlider,
-            "Stutter" => StutterSlider, "Wobbly" => WobblySlider, _ => null
+            "Stutter" => StutterSlider, "Wobbly" => WobblySlider,
+            "GenderMale" => GenderMaleSlider, "GenderFemale" => GenderFemaleSlider,
+            "Possessed" => PossessedSlider, "Megaphone" => MegaphoneSlider, "Helicopter" => HelicopterSlider,
+            "Cyborg" => CyborgSlider, "BrokenRadio" => BrokenRadioSlider, "Vocoder" => VocoderSlider, _ => null
         };
     }
 
@@ -8525,6 +8563,9 @@ public sealed partial class MainWindow : Window
         {
             "VoiceGain" => "Voice Gain", "BitCrusher" => "Bit Crusher",
             "RingMod" => "Ring Mod",
+            "GenderMale" => "Gender Male",
+            "GenderFemale" => "Gender Female",
+            "BrokenRadio" => "Broken Radio",
             _ => effectKey
         };
     }
@@ -11826,7 +11867,8 @@ public sealed partial class MainWindow : Window
             "Gate" or "Compressor" => legacyValue > -99.5,
             "Robot" or "Echo" or "Radio" or "Alien" or "Distortion" or "Tremolo" or "Reverb" or "BitCrusher"
                 or "Chorus" or "Flanger" or "Phaser" or "Vibrato" or "Doubler" or "RingMod"
-                or "Chipmunk" or "Giant" or "Ghost" or "Stutter" or "Wobbly" => legacyValue > 0.5,
+                or "Chipmunk" or "Giant" or "Ghost" or "Stutter" or "Wobbly"
+                or "GenderMale" or "GenderFemale" or "Possessed" or "Megaphone" or "Helicopter" or "Cyborg" or "BrokenRadio" or "Vocoder" => legacyValue > 0.5,
             _ => Math.Abs(legacyValue) > 0.5
         };
     }
@@ -11901,6 +11943,14 @@ public sealed partial class MainWindow : Window
         if (slider == GhostSlider) return GhostValueBox;
         if (slider == StutterSlider) return StutterValueBox;
         if (slider == WobblySlider) return WobblyValueBox;
+        if (slider == GenderMaleSlider) return GenderMaleValueBox;
+        if (slider == GenderFemaleSlider) return GenderFemaleValueBox;
+        if (slider == PossessedSlider) return PossessedValueBox;
+        if (slider == MegaphoneSlider) return MegaphoneValueBox;
+        if (slider == HelicopterSlider) return HelicopterValueBox;
+        if (slider == CyborgSlider) return CyborgValueBox;
+        if (slider == BrokenRadioSlider) return BrokenRadioValueBox;
+        if (slider == VocoderSlider) return VocoderValueBox;
         return null;
     }
 
@@ -11932,6 +11982,14 @@ public sealed partial class MainWindow : Window
         if (textBox == GhostValueBox) return GhostSlider;
         if (textBox == StutterValueBox) return StutterSlider;
         if (textBox == WobblyValueBox) return WobblySlider;
+        if (textBox == GenderMaleValueBox) return GenderMaleSlider;
+        if (textBox == GenderFemaleValueBox) return GenderFemaleSlider;
+        if (textBox == PossessedValueBox) return PossessedSlider;
+        if (textBox == MegaphoneValueBox) return MegaphoneSlider;
+        if (textBox == HelicopterValueBox) return HelicopterSlider;
+        if (textBox == CyborgValueBox) return CyborgSlider;
+        if (textBox == BrokenRadioValueBox) return BrokenRadioSlider;
+        if (textBox == VocoderValueBox) return VocoderSlider;
         return null;
     }
 
@@ -12050,6 +12108,14 @@ public sealed partial class MainWindow : Window
         GhostLabel.Text = "Ghost";
         StutterLabel.Text = "Stutter";
         WobblyLabel.Text = "Wobbly";
+        GenderMaleLabel.Text = "Gender Male";
+        GenderFemaleLabel.Text = "Gender Female";
+        PossessedLabel.Text = "Possessed";
+        MegaphoneLabel.Text = "Megaphone";
+        HelicopterLabel.Text = "Helicopter";
+        CyborgLabel.Text = "Cyborg";
+        BrokenRadioLabel.Text = "Broken Radio";
+        VocoderLabel.Text = "Vocoder";
     }
 
     private static string FormatSigned(double value)

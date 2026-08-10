@@ -27,5 +27,13 @@ public enum VoiceEffectKind
     Giant,
     Ghost,
     Stutter,
-    Wobbly
+    Wobbly,
+    GenderMale,
+    GenderFemale,
+    Possessed,
+    Megaphone,
+    Helicopter,
+    Cyborg,
+    BrokenRadio,
+    Vocoder
 }
