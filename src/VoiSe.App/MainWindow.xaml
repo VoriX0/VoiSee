@@ -810,10 +810,7 @@
                 </TabViewItem>
 
                 <TabViewItem x:Name="MediaBridgeTabViewItem" Header="Media Bridge" IsClosable="False">
-                    <ScrollViewer x:Name="MediaBridgeScrollViewer"
-                                  VerticalScrollBarVisibility="Hidden" VerticalScrollMode="Disabled"
-                                  HorizontalScrollBarVisibility="Hidden" HorizontalScrollMode="Disabled"
-                                  ZoomMode="Disabled">
+                    <!-- 12.4.0 buildfix 1: Media Bridge is a fixed panel, not a scroll surface. -->
                     <Grid x:Name="MediaBridgeTabRoot" Padding="0,16,48,24" RowSpacing="14">
                         <Grid.RowDefinitions>
                             <RowDefinition Height="Auto" />
@@ -1182,7 +1179,6 @@
                             </Border>
                         </Grid>
                     </Grid>
-                    </ScrollViewer>
                 </TabViewItem>
 
                 <TabViewItem Header="Settings" IsClosable="False">

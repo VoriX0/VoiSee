@@ -4065,11 +4065,35 @@ public sealed partial class MainWindow : Window
             _settings.LastSoundFilePath = null;
         }
 
-        RebuildSoundRows();
+        // 12.4.0 buildfix 1: selecting a track must not rebuild ListView.Items.
+        // Rebuilding here resets the native ListView viewport and, on RightTapped,
+        // removes the row that is about to be used as the MenuFlyout anchor.
+        UpdateSoundRowSelectionVisuals();
         UpdateBottomStats();
         if (save)
         {
             SaveCurrentSettings();
+        }
+    }
+
+    private void UpdateSoundRowSelectionVisuals()
+    {
+        if (SoundItemsListView is null)
+        {
+            return;
+        }
+
+        foreach (var row in SoundItemsListView.Items.OfType<Border>())
+        {
+            if (row.Tag is not SoundBoardSound rowSound)
+            {
+                continue;
+            }
+
+            var isSelected = _selectedSound?.Id == rowSound.Id;
+            row.Background = new SolidColorBrush(isSelected
+                ? Microsoft.UI.ColorHelper.FromArgb(0x28, 0xFF, 0xFF, 0xFF)
+                : Microsoft.UI.ColorHelper.FromArgb(0x01, 0x00, 0x00, 0x00));
         }
     }
 
@@ -4533,8 +4557,8 @@ public sealed partial class MainWindow : Window
 
         SelectSound(sound);
 
-        // 12.4.0: ListView item containers can consume the automatic ContextFlyout gesture.
-        // Own RightTapped explicitly so the SoundBoard menu opens reliably on the actual track row.
+        // 12.4.0 buildfix 1: SelectSound now updates row visuals in-place, so this row
+        // stays in the visual tree and remains a valid MenuFlyout anchor.
         var flyout = CreateSoundContextFlyout();
         var options = new Microsoft.UI.Xaml.Controls.Primitives.FlyoutShowOptions
         {

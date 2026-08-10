@@ -1,6 +1,6 @@
 ﻿# VoiSee 12.4.0
 
-> **12.4.0:** keeps the validated Per-Monitor V2 DPI fix from 12.3.3 buildfix 6, restores the SoundBoard track context menu, and removes scrolling from Media Bridge.
+> **12.4.0 buildfix 1:** keeps the validated Per-Monitor V2 DPI fix, fixes SoundBoard right-click without rebuilding/resetting the native ListView, and removes the Media Bridge scroll container entirely.
 
 ## VoiSee 12.4.0 — SoundBoard context menu + Media Bridge scroll cleanup
 
