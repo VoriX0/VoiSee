@@ -28,6 +28,14 @@ public sealed class EffectSettings
     public float RadioAmount { get; set; } = 0.0f;
     public float BitCrusherAmount { get; set; } = 0.0f;
     public float AlienAmount { get; set; } = 0.0f;
+    public float LowPassAmount { get; set; } = 0.0f;
+    public float HighPassAmount { get; set; } = 0.0f;
+    public float ChorusAmount { get; set; } = 0.0f;
+    public float FlangerAmount { get; set; } = 0.0f;
+    public float PhaserAmount { get; set; } = 0.0f;
+    public float VibratoAmount { get; set; } = 0.0f;
+    public float DoublerAmount { get; set; } = 0.0f;
+    public float RingModAmount { get; set; } = 0.0f;
 
     public bool LimiterEnabled { get; set; } = true;
     public float LimiterCeilingDb { get; set; } = -1.0f;
@@ -48,6 +56,14 @@ public sealed class EffectSettings
         VoiceEffectKind.Formant,
         VoiceEffectKind.Bass,
         VoiceEffectKind.Treble,
+        VoiceEffectKind.LowPass,
+        VoiceEffectKind.HighPass,
+        VoiceEffectKind.Chorus,
+        VoiceEffectKind.Flanger,
+        VoiceEffectKind.Phaser,
+        VoiceEffectKind.Vibrato,
+        VoiceEffectKind.Doubler,
+        VoiceEffectKind.RingMod,
         VoiceEffectKind.Radio,
         VoiceEffectKind.Robot,
         VoiceEffectKind.Alien,

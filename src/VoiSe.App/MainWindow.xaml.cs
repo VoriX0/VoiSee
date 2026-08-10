@@ -139,7 +139,8 @@ public sealed partial class MainWindow : Window
     private static readonly string[] KnownVoiceEffectKeys =
     {
         "VoiceGain", "Gate", "Compressor", "Pitch", "Formant", "Bass", "Treble",
-        "Distortion", "Robot", "Tremolo", "Echo", "Reverb", "Radio", "BitCrusher", "Alien"
+        "Distortion", "Robot", "Tremolo", "Echo", "Reverb", "Radio", "BitCrusher", "Alien",
+        "LowPass", "HighPass", "Chorus", "Flanger", "Phaser", "Vibrato", "Doubler", "RingMod"
     };
     private bool _suppressSoundBoardTimelineForEditorPreview;
     private bool _soundEditorActive;
@@ -244,7 +245,7 @@ public sealed partial class MainWindow : Window
         };
         _discordCableSessionIsolationTimer.Tick += OnDiscordCableSessionIsolationTimerTick;
 
-        AppendLog("VoiSee Version 12.4.0 UI started.");
+        AppendLog("VoiSee Version 12.4.1 UI started.");
         AppendLog($"Settings path: {_settingsStore.SettingsPath}");
 
         var isolationResult = _discordCableSessionIsolationService.Enable();
@@ -6565,6 +6566,14 @@ public sealed partial class MainWindow : Window
             RadioAmount = ToEffectAmount(GetEffectiveEffectValue("Radio")),
             BitCrusherAmount = ToEffectAmount(GetEffectiveEffectValue("BitCrusher")),
             AlienAmount = ToEffectAmount(GetEffectiveEffectValue("Alien")),
+            LowPassAmount = ToEffectAmount(GetEffectiveEffectValue("LowPass")),
+            HighPassAmount = ToEffectAmount(GetEffectiveEffectValue("HighPass")),
+            ChorusAmount = ToEffectAmount(GetEffectiveEffectValue("Chorus")),
+            FlangerAmount = ToEffectAmount(GetEffectiveEffectValue("Flanger")),
+            PhaserAmount = ToEffectAmount(GetEffectiveEffectValue("Phaser")),
+            VibratoAmount = ToEffectAmount(GetEffectiveEffectValue("Vibrato")),
+            DoublerAmount = ToEffectAmount(GetEffectiveEffectValue("Doubler")),
+            RingModAmount = ToEffectAmount(GetEffectiveEffectValue("RingMod")),
             GateEnabled = IsEffectEnabledInSignalPath("Gate"),
             CompressorEnabled = IsEffectEnabledInSignalPath("Compressor"),
             LimiterEnabled = true,
@@ -7585,7 +7594,7 @@ public sealed partial class MainWindow : Window
         };
 
         var row = new Grid { ColumnSpacing = 8 };
-        row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(18) });
+        row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(34) });
         row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(34) });
         row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(34) });
         row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(164) });
@@ -7594,15 +7603,22 @@ public sealed partial class MainWindow : Window
         row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(38) });
         row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(32) });
 
-        var grip = new TextBlock
+        var grip = new Grid
+        {
+            Tag = effectKey,
+            Width = 34,
+            MinHeight = 48,
+            Background = new SolidColorBrush(Microsoft.UI.Colors.Transparent),
+            VerticalAlignment = VerticalAlignment.Stretch
+        };
+        grip.Children.Add(new TextBlock
         {
             Text = "⋮⋮",
-            Tag = effectKey,
-            Width = 18,
             Opacity = 0.58,
-            VerticalAlignment = VerticalAlignment.Center,
-            FontSize = 15
-        };
+            FontSize = 15,
+            HorizontalAlignment = HorizontalAlignment.Center,
+            VerticalAlignment = VerticalAlignment.Center
+        });
         ToolTipService.SetToolTip(grip, "Drag to reorder");
         grip.PointerPressed += OnEffectChainGripPointerPressed;
         grip.PointerMoved += OnEffectDragPointerMoved;
@@ -7866,6 +7882,14 @@ public sealed partial class MainWindow : Window
             "Radio" => "▣",
             "BitCrusher" => "▥",
             "Alien" => "◉",
+            "LowPass" => "◜",
+            "HighPass" => "◝",
+            "Chorus" => "≋",
+            "Flanger" => "⌁",
+            "Phaser" => "◌",
+            "Vibrato" => "≈",
+            "Doubler" => "◫",
+            "RingMod" => "⊗",
             _ => "●"
         };
     }
@@ -7889,6 +7913,14 @@ public sealed partial class MainWindow : Window
             "Radio" => "Amount",
             "BitCrusher" => "Amount",
             "Alien" => "Amount",
+            "LowPass" => "Cutoff",
+            "HighPass" => "Cutoff",
+            "Chorus" => "Depth",
+            "Flanger" => "Depth",
+            "Phaser" => "Depth",
+            "Vibrato" => "Depth",
+            "Doubler" => "Amount",
+            "RingMod" => "Amount",
             _ => "Amount"
         };
     }
@@ -8081,9 +8113,9 @@ public sealed partial class MainWindow : Window
         EffectLibraryListView.Items.Clear();
         EffectLibraryListView.Items.Add(CreateEffectLibrarySection("Utility", "VoiceGain"));
         EffectLibraryListView.Items.Add(CreateEffectLibrarySection("Dynamics", "Gate", "Compressor"));
-        EffectLibraryListView.Items.Add(CreateEffectLibrarySection("Tone", "Pitch", "Formant", "Bass", "Treble"));
-        EffectLibraryListView.Items.Add(CreateEffectLibrarySection("Space", "Tremolo", "Echo", "Reverb"));
-        EffectLibraryListView.Items.Add(CreateEffectLibrarySection("Special", "Distortion", "Robot", "Radio", "BitCrusher", "Alien"));
+        EffectLibraryListView.Items.Add(CreateEffectLibrarySection("Tone", "Pitch", "Formant", "Bass", "Treble", "LowPass", "HighPass"));
+        EffectLibraryListView.Items.Add(CreateEffectLibrarySection("Space", "Tremolo", "Echo", "Reverb", "Chorus", "Flanger", "Phaser", "Vibrato", "Doubler"));
+        EffectLibraryListView.Items.Add(CreateEffectLibrarySection("Special", "Distortion", "Robot", "Radio", "BitCrusher", "Alien", "RingMod"));
         ApplyEffectLibraryFilter();
     }
 
@@ -8155,15 +8187,22 @@ public sealed partial class MainWindow : Window
         row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
         row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
 
-        var grip = new TextBlock
+        var grip = new Grid
+        {
+            Tag = effectKey,
+            Width = 32,
+            MinHeight = 46,
+            Background = new SolidColorBrush(Microsoft.UI.Colors.Transparent),
+            VerticalAlignment = VerticalAlignment.Stretch
+        };
+        grip.Children.Add(new TextBlock
         {
             Text = "⋮⋮",
-            Tag = effectKey,
-            Width = 16,
             Opacity = 0.55,
             FontSize = 15,
+            HorizontalAlignment = HorizontalAlignment.Center,
             VerticalAlignment = VerticalAlignment.Center
-        };
+        });
         ToolTipService.SetToolTip(grip, "Drag to processing chain");
         grip.PointerPressed += OnEffectLibraryGripPointerPressed;
         grip.PointerMoved += OnEffectDragPointerMoved;
@@ -8246,6 +8285,14 @@ public sealed partial class MainWindow : Window
             "Radio" => "Broadcast and radio character",
             "BitCrusher" => "Lo-fi digital degradation",
             "Alien" => "Otherworldly vocal effect",
+            "LowPass" => "Darken and muffle high frequencies",
+            "HighPass" => "Thin the voice by removing lows",
+            "Chorus" => "Wide layered modulation",
+            "Flanger" => "Sweeping jet-like resonance",
+            "Phaser" => "Smooth moving phase notches",
+            "Vibrato" => "Periodic pitch wobble",
+            "Doubler" => "Add a short second voice layer",
+            "RingMod" => "Metallic carrier modulation",
             _ => string.Empty
         };
     }
@@ -8309,8 +8356,8 @@ public sealed partial class MainWindow : Window
         {
             "VoiceGain" => "Utility",
             "Gate" or "Compressor" => "Dynamics",
-            "Pitch" or "Formant" or "Bass" or "Treble" => "Tone",
-            "Echo" or "Reverb" or "Tremolo" => "Space",
+            "Pitch" or "Formant" or "Bass" or "Treble" or "LowPass" or "HighPass" => "Tone",
+            "Echo" or "Reverb" or "Tremolo" or "Chorus" or "Flanger" or "Phaser" or "Vibrato" or "Doubler" => "Space",
             _ => "Special"
         };
     }
@@ -8403,7 +8450,8 @@ public sealed partial class MainWindow : Window
         {
             "Gate" => (0, 100, 0),
             "Compressor" => (0, 200, 0),
-            "Robot" or "Echo" or "Radio" or "Alien" or "Distortion" or "Tremolo" or "Reverb" or "BitCrusher" => (0, 100, 0),
+            "Robot" or "Echo" or "Radio" or "Alien" or "Distortion" or "Tremolo" or "Reverb" or "BitCrusher"
+                or "LowPass" or "HighPass" or "Chorus" or "Flanger" or "Phaser" or "Vibrato" or "Doubler" or "RingMod" => (0, 100, 0),
             _ => (-100, 100, 0)
         };
     }
@@ -8425,7 +8473,8 @@ public sealed partial class MainWindow : Window
         {
             "Gate" => legacyValue + 100.0,
             "Compressor" => legacyValue + 100.0,
-            "Robot" or "Echo" or "Radio" or "Alien" or "Distortion" or "Tremolo" or "Reverb" or "BitCrusher" => Math.Max(0.0, legacyValue),
+            "Robot" or "Echo" or "Radio" or "Alien" or "Distortion" or "Tremolo" or "Reverb" or "BitCrusher"
+                or "LowPass" or "HighPass" or "Chorus" or "Flanger" or "Phaser" or "Vibrato" or "Doubler" or "RingMod" => Math.Max(0.0, legacyValue),
             _ => legacyValue
         };
         return Clamp(uiValue, range.Minimum, range.Maximum);
@@ -8446,7 +8495,10 @@ public sealed partial class MainWindow : Window
             "Pitch" => PitchSlider, "Formant" => FormantSlider, "Bass" => BassSlider, "Treble" => TrebleSlider,
             "Distortion" => DistortionSlider, "Robot" => RobotSlider, "Tremolo" => TremoloSlider,
             "Echo" => EchoSlider, "Reverb" => ReverbSlider, "Radio" => RadioSlider,
-            "BitCrusher" => BitCrusherSlider, "Alien" => AlienSlider, _ => null
+            "BitCrusher" => BitCrusherSlider, "Alien" => AlienSlider,
+            "LowPass" => LowPassSlider, "HighPass" => HighPassSlider, "Chorus" => ChorusSlider,
+            "Flanger" => FlangerSlider, "Phaser" => PhaserSlider, "Vibrato" => VibratoSlider,
+            "Doubler" => DoublerSlider, "RingMod" => RingModSlider, _ => null
         };
     }
 
@@ -8454,7 +8506,9 @@ public sealed partial class MainWindow : Window
     {
         return effectKey switch
         {
-            "VoiceGain" => "Voice Gain", "BitCrusher" => "Bit Crusher", _ => effectKey
+            "VoiceGain" => "Voice Gain", "BitCrusher" => "Bit Crusher",
+            "LowPass" => "Low Pass", "HighPass" => "High Pass", "RingMod" => "Ring Mod",
+            _ => effectKey
         };
     }
 
@@ -11749,7 +11803,8 @@ public sealed partial class MainWindow : Window
         return effectKey switch
         {
             "Gate" or "Compressor" => legacyValue > -99.5,
-            "Robot" or "Echo" or "Radio" or "Alien" or "Distortion" or "Tremolo" or "Reverb" or "BitCrusher" => legacyValue > 0.5,
+            "Robot" or "Echo" or "Radio" or "Alien" or "Distortion" or "Tremolo" or "Reverb" or "BitCrusher"
+                or "LowPass" or "HighPass" or "Chorus" or "Flanger" or "Phaser" or "Vibrato" or "Doubler" or "RingMod" => legacyValue > 0.5,
             _ => Math.Abs(legacyValue) > 0.5
         };
     }
@@ -11813,6 +11868,14 @@ public sealed partial class MainWindow : Window
         if (slider == RadioSlider) return RadioValueBox;
         if (slider == BitCrusherSlider) return BitCrusherValueBox;
         if (slider == AlienSlider) return AlienValueBox;
+        if (slider == LowPassSlider) return LowPassValueBox;
+        if (slider == HighPassSlider) return HighPassValueBox;
+        if (slider == ChorusSlider) return ChorusValueBox;
+        if (slider == FlangerSlider) return FlangerValueBox;
+        if (slider == PhaserSlider) return PhaserValueBox;
+        if (slider == VibratoSlider) return VibratoValueBox;
+        if (slider == DoublerSlider) return DoublerValueBox;
+        if (slider == RingModSlider) return RingModValueBox;
         return null;
     }
 
@@ -11833,6 +11896,14 @@ public sealed partial class MainWindow : Window
         if (textBox == RadioValueBox) return RadioSlider;
         if (textBox == BitCrusherValueBox) return BitCrusherSlider;
         if (textBox == AlienValueBox) return AlienSlider;
+        if (textBox == LowPassValueBox) return LowPassSlider;
+        if (textBox == HighPassValueBox) return HighPassSlider;
+        if (textBox == ChorusValueBox) return ChorusSlider;
+        if (textBox == FlangerValueBox) return FlangerSlider;
+        if (textBox == PhaserValueBox) return PhaserSlider;
+        if (textBox == VibratoValueBox) return VibratoSlider;
+        if (textBox == DoublerValueBox) return DoublerSlider;
+        if (textBox == RingModValueBox) return RingModSlider;
         return null;
     }
 
@@ -11940,6 +12011,14 @@ public sealed partial class MainWindow : Window
         RadioLabel.Text = "Radio";
         BitCrusherLabel.Text = "Bit Crusher";
         AlienLabel.Text = "Alien";
+        LowPassLabel.Text = "Low Pass";
+        HighPassLabel.Text = "High Pass";
+        ChorusLabel.Text = "Chorus";
+        FlangerLabel.Text = "Flanger";
+        PhaserLabel.Text = "Phaser";
+        VibratoLabel.Text = "Vibrato";
+        DoublerLabel.Text = "Doubler";
+        RingModLabel.Text = "Ring Mod";
     }
 
     private static string FormatSigned(double value)

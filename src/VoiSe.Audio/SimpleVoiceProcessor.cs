@@ -10,6 +10,11 @@ public sealed class SimpleVoiceProcessor
     private const int PitchMinDelaySamples = 256;                         // ~5 ms safety delay
     private const int PitchDepthSamples = 2048;                           // ~43 ms pitch-shift grain depth
     private const int FormantBandCount = 4;
+    private const int ChorusBufferSamples = 4096;
+    private const int FlangerBufferSamples = 1024;
+    private const int VibratoBufferSamples = 2048;
+    private const int DoublerBufferSamples = 4096;
+    private const int PhaserStageCount = 4;
 
     private readonly object _sync = new();
     private EffectSettings _settings;
@@ -30,6 +35,14 @@ public sealed class SimpleVoiceProcessor
     private float _radioAmount;
     private float _bitCrusherAmount;
     private float _alienAmount;
+    private float _lowPassAmount;
+    private float _highPassAmount;
+    private float _chorusAmount;
+    private float _flangerAmount;
+    private float _phaserAmount;
+    private float _vibratoAmount;
+    private float _doublerAmount;
+    private float _ringModAmount;
     private VoiceEffectKind[] _effectOrder = Array.Empty<VoiceEffectKind>();
 
     private readonly float[] _bassLow = new float[Channels];
@@ -50,12 +63,28 @@ public sealed class SimpleVoiceProcessor
     private readonly float[] _reverbBuffer = new float[ReverbDelaySamples];
     private readonly float[][] _pitchBuffers = { new float[PitchBufferSamples], new float[PitchBufferSamples] };
     private readonly int[] _pitchWriteIndex = new int[Channels];
+    private readonly float[] _lowPassState = new float[Channels];
+    private readonly float[] _highPassLowState = new float[Channels];
+    private readonly float[][] _chorusBuffers = { new float[ChorusBufferSamples], new float[ChorusBufferSamples] };
+    private readonly int[] _chorusWriteIndex = new int[Channels];
+    private readonly float[][] _flangerBuffers = { new float[FlangerBufferSamples], new float[FlangerBufferSamples] };
+    private readonly int[] _flangerWriteIndex = new int[Channels];
+    private readonly float[][] _vibratoBuffers = { new float[VibratoBufferSamples], new float[VibratoBufferSamples] };
+    private readonly int[] _vibratoWriteIndex = new int[Channels];
+    private readonly float[][] _doublerBuffers = { new float[DoublerBufferSamples], new float[DoublerBufferSamples] };
+    private readonly int[] _doublerWriteIndex = new int[Channels];
+    private readonly float[,] _phaserState = new float[Channels, PhaserStageCount];
     private int _echoIndex;
     private int _reverbIndex;
     private double _robotPhase;
     private double _tremoloPhase;
     private double _alienPhase;
     private double _pitchPhase;
+    private double _chorusPhase;
+    private double _flangerPhase;
+    private double _phaserPhase;
+    private double _vibratoPhase;
+    private double _ringModPhase;
     private float _robotMod = 1.0f;
     private float _tremoloMod = 1.0f;
     private float _alienMod = 1.0f;
@@ -96,6 +125,14 @@ public sealed class SimpleVoiceProcessor
         float radioAmount;
         float bitCrusherAmount;
         float alienAmount;
+        float lowPassAmount;
+        float highPassAmount;
+        float chorusAmount;
+        float flangerAmount;
+        float phaserAmount;
+        float vibratoAmount;
+        float doublerAmount;
+        float ringModAmount;
 
         lock (_sync)
         {
@@ -118,6 +155,14 @@ public sealed class SimpleVoiceProcessor
             radioAmount = _radioAmount;
             bitCrusherAmount = _bitCrusherAmount;
             alienAmount = _alienAmount;
+            lowPassAmount = _lowPassAmount;
+            highPassAmount = _highPassAmount;
+            chorusAmount = _chorusAmount;
+            flangerAmount = _flangerAmount;
+            phaserAmount = _phaserAmount;
+            vibratoAmount = _vibratoAmount;
+            doublerAmount = _doublerAmount;
+            ringModAmount = _ringModAmount;
         }
 
         var bassGain = Decibels.DbToLinear(bassAmount * 10.0f);
@@ -135,6 +180,14 @@ public sealed class SimpleVoiceProcessor
         var radioMix = Math.Clamp(Math.Max(0.0f, radioAmount), 0.0f, 1.0f);
         var bitMix = Math.Clamp(Math.Max(0.0f, bitCrusherAmount), 0.0f, 1.0f);
         var alienMix = Math.Clamp(Math.Max(0.0f, alienAmount), 0.0f, 1.0f);
+        var lowPassMix = Math.Clamp(Math.Max(0.0f, lowPassAmount), 0.0f, 1.0f);
+        var highPassMix = Math.Clamp(Math.Max(0.0f, highPassAmount), 0.0f, 1.0f);
+        var chorusMix = Math.Clamp(Math.Max(0.0f, chorusAmount), 0.0f, 1.0f);
+        var flangerMix = Math.Clamp(Math.Max(0.0f, flangerAmount), 0.0f, 1.0f);
+        var phaserMix = Math.Clamp(Math.Max(0.0f, phaserAmount), 0.0f, 1.0f);
+        var vibratoMix = Math.Clamp(Math.Max(0.0f, vibratoAmount), 0.0f, 1.0f);
+        var doublerMix = Math.Clamp(Math.Max(0.0f, doublerAmount), 0.0f, 1.0f);
+        var ringModMix = Math.Clamp(Math.Max(0.0f, ringModAmount), 0.0f, 1.0f);
         var alienFrequency = 35.0f + alienMix * 180.0f;
         var bitDepth = (int)Math.Round(16 - bitMix * 12);
         bitDepth = Math.Clamp(bitDepth, 4, 16);
@@ -146,7 +199,7 @@ public sealed class SimpleVoiceProcessor
             var channel = i % Channels;
             if (channel == 0)
             {
-                AdvanceModulators(robotMix, tremoloDepth, alienMix, alienFrequency);
+                AdvanceModulators(robotMix, tremoloDepth, alienMix, alienFrequency, chorusMix, flangerMix, phaserMix, vibratoMix, ringModMix);
             }
 
             var sample = samples[i] * inputGain;
@@ -180,6 +233,30 @@ public sealed class SimpleVoiceProcessor
                         break;
                     case VoiceEffectKind.Treble:
                         sample = ApplyTreble(sample, channel, trebleGain, trebleMix);
+                        break;
+                    case VoiceEffectKind.LowPass:
+                        sample = ApplyLowPass(sample, channel, lowPassMix);
+                        break;
+                    case VoiceEffectKind.HighPass:
+                        sample = ApplyHighPass(sample, channel, highPassMix);
+                        break;
+                    case VoiceEffectKind.Chorus:
+                        sample = ApplyChorus(sample, channel, chorusMix);
+                        break;
+                    case VoiceEffectKind.Flanger:
+                        sample = ApplyFlanger(sample, channel, flangerMix);
+                        break;
+                    case VoiceEffectKind.Phaser:
+                        sample = ApplyPhaser(sample, channel, phaserMix);
+                        break;
+                    case VoiceEffectKind.Vibrato:
+                        sample = ApplyVibrato(sample, channel, vibratoMix);
+                        break;
+                    case VoiceEffectKind.Doubler:
+                        sample = ApplyDoubler(sample, channel, doublerMix);
+                        break;
+                    case VoiceEffectKind.RingMod:
+                        sample = ApplyRingMod(sample, ringModMix);
                         break;
                     case VoiceEffectKind.Distortion:
                         sample = ApplyDistortion(sample, distortionMix, distortionDrive);
@@ -241,12 +318,21 @@ public sealed class SimpleVoiceProcessor
         _radioAmount = ClampEffectAmount(settings.RadioAmount);
         _bitCrusherAmount = ClampEffectAmount(settings.BitCrusherAmount);
         _alienAmount = ClampEffectAmount(settings.AlienAmount);
+        _lowPassAmount = ClampEffectAmount(settings.LowPassAmount);
+        _highPassAmount = ClampEffectAmount(settings.HighPassAmount);
+        _chorusAmount = ClampEffectAmount(settings.ChorusAmount);
+        _flangerAmount = ClampEffectAmount(settings.FlangerAmount);
+        _phaserAmount = ClampEffectAmount(settings.PhaserAmount);
+        _vibratoAmount = ClampEffectAmount(settings.VibratoAmount);
+        _doublerAmount = ClampEffectAmount(settings.DoublerAmount);
+        _ringModAmount = ClampEffectAmount(settings.RingModAmount);
         _effectOrder = settings.EffectOrder?.ToArray() ?? Array.Empty<VoiceEffectKind>();
     }
 
     private static float ClampEffectAmount(float value) => Math.Clamp(value, -4.0f, 4.0f);
 
-    private void AdvanceModulators(float robotMix, float tremoloDepth, float alienMix, float alienFrequency)
+    private void AdvanceModulators(float robotMix, float tremoloDepth, float alienMix, float alienFrequency,
+        float chorusMix, float flangerMix, float phaserMix, float vibratoMix, float ringModMix)
     {
         if (robotMix > 0.001f)
         {
@@ -280,6 +366,26 @@ public sealed class SimpleVoiceProcessor
         else
         {
             _alienMod = 1.0f;
+        }
+
+        AdvanceLfo(ref _chorusPhase, 0.82, chorusMix);
+        AdvanceLfo(ref _flangerPhase, 0.28, flangerMix);
+        AdvanceLfo(ref _phaserPhase, 0.36, phaserMix);
+        AdvanceLfo(ref _vibratoPhase, 5.2, vibratoMix);
+        AdvanceLfo(ref _ringModPhase, 34.0 + ringModMix * 210.0, ringModMix);
+    }
+
+    private static void AdvanceLfo(ref double phase, double frequency, float amount)
+    {
+        if (amount <= 0.001f)
+        {
+            return;
+        }
+
+        phase += 2.0 * Math.PI * frequency / SampleRate;
+        if (phase >= Math.PI * 2.0)
+        {
+            phase -= Math.PI * 2.0;
         }
     }
 
@@ -432,6 +538,165 @@ public sealed class SimpleVoiceProcessor
         var high = sample - low;
         var processed = low + high * trebleGain;
         return Lerp(sample, processed, mix);
+    }
+
+    private float ApplyLowPass(float sample, int channel, float mix)
+    {
+        if (mix <= 0.001f)
+        {
+            return sample;
+        }
+
+        // Amount moves the cutoff from an almost transparent 14 kHz down to ~650 Hz.
+        var cutoff = 14_000.0f * MathF.Pow(650.0f / 14_000.0f, mix);
+        var alpha = 1.0f - MathF.Exp(-2.0f * MathF.PI * cutoff / SampleRate);
+        _lowPassState[channel] += alpha * (sample - _lowPassState[channel]);
+        return Lerp(sample, _lowPassState[channel], 0.35f + mix * 0.65f);
+    }
+
+    private float ApplyHighPass(float sample, int channel, float mix)
+    {
+        if (mix <= 0.001f)
+        {
+            return sample;
+        }
+
+        // Amount raises the cutoff from ~70 Hz to ~1.4 kHz for thin/telephone-like tones.
+        var cutoff = 70.0f * MathF.Pow(1_400.0f / 70.0f, mix);
+        var alpha = 1.0f - MathF.Exp(-2.0f * MathF.PI * cutoff / SampleRate);
+        _highPassLowState[channel] += alpha * (sample - _highPassLowState[channel]);
+        var high = sample - _highPassLowState[channel];
+        return Lerp(sample, high, 0.35f + mix * 0.65f);
+    }
+
+    private float ApplyChorus(float sample, int channel, float mix)
+    {
+        var buffer = _chorusBuffers[channel];
+        var writeIndex = _chorusWriteIndex[channel];
+        buffer[writeIndex] = sample;
+
+        if (mix <= 0.001f)
+        {
+            _chorusWriteIndex[channel] = (writeIndex + 1) % buffer.Length;
+            return sample;
+        }
+
+        var stereoPhase = _chorusPhase + (channel == 0 ? 0.0 : Math.PI * 0.55);
+        var lfo = 0.5f + 0.5f * (float)Math.Sin(stereoPhase);
+        var baseDelay = SampleRate * 0.016f;
+        var depth = SampleRate * (0.0025f + 0.0065f * mix);
+        var delayed = ReadDelayTap(buffer, writeIndex, baseDelay + depth * lfo);
+        _chorusWriteIndex[channel] = (writeIndex + 1) % buffer.Length;
+        return Lerp(sample, delayed, 0.12f + mix * 0.48f);
+    }
+
+    private float ApplyFlanger(float sample, int channel, float mix)
+    {
+        var buffer = _flangerBuffers[channel];
+        var writeIndex = _flangerWriteIndex[channel];
+
+        if (mix <= 0.001f)
+        {
+            buffer[writeIndex] = sample;
+            _flangerWriteIndex[channel] = (writeIndex + 1) % buffer.Length;
+            return sample;
+        }
+
+        var stereoPhase = _flangerPhase + (channel == 0 ? 0.0 : Math.PI);
+        var lfo = 0.5f + 0.5f * (float)Math.Sin(stereoPhase);
+        var delay = SampleRate * (0.0007f + (0.0010f + 0.0043f * mix) * lfo);
+        var delayed = ReadDelayTap(buffer, writeIndex, delay);
+        var feedback = 0.12f + mix * 0.43f;
+        buffer[writeIndex] = Math.Clamp(sample + delayed * feedback, -1.0f, 1.0f);
+        _flangerWriteIndex[channel] = (writeIndex + 1) % buffer.Length;
+        return Lerp(sample, delayed, 0.10f + mix * 0.55f);
+    }
+
+    private float ApplyPhaser(float sample, int channel, float mix)
+    {
+        if (mix <= 0.001f)
+        {
+            return sample;
+        }
+
+        var lfo = 0.5f + 0.5f * (float)Math.Sin(_phaserPhase);
+        var centerFrequency = 260.0f + lfo * (900.0f + 1_700.0f * mix);
+        var processed = sample;
+        for (var stage = 0; stage < PhaserStageCount; stage++)
+        {
+            var frequency = Math.Clamp(centerFrequency * (1.0f + stage * 0.34f), 90.0f, SampleRate * 0.42f);
+            var tangent = MathF.Tan(MathF.PI * frequency / SampleRate);
+            var coefficient = (tangent - 1.0f) / (tangent + 1.0f);
+            var output = -coefficient * processed + _phaserState[channel, stage];
+            _phaserState[channel, stage] = processed + coefficient * output;
+            processed = output;
+        }
+
+        return Lerp(sample, processed, 0.15f + mix * 0.65f);
+    }
+
+    private float ApplyVibrato(float sample, int channel, float mix)
+    {
+        var buffer = _vibratoBuffers[channel];
+        var writeIndex = _vibratoWriteIndex[channel];
+        buffer[writeIndex] = sample;
+
+        if (mix <= 0.001f)
+        {
+            _vibratoWriteIndex[channel] = (writeIndex + 1) % buffer.Length;
+            return sample;
+        }
+
+        var lfo = 0.5f + 0.5f * (float)Math.Sin(_vibratoPhase);
+        var baseDelay = SampleRate * 0.0070f;
+        var depth = SampleRate * (0.0008f + 0.0042f * mix);
+        var delayed = ReadDelayTap(buffer, writeIndex, baseDelay + depth * lfo);
+        _vibratoWriteIndex[channel] = (writeIndex + 1) % buffer.Length;
+        return Lerp(sample, delayed, 0.25f + mix * 0.75f);
+    }
+
+    private float ApplyDoubler(float sample, int channel, float mix)
+    {
+        var buffer = _doublerBuffers[channel];
+        var writeIndex = _doublerWriteIndex[channel];
+        buffer[writeIndex] = sample;
+
+        if (mix <= 0.001f)
+        {
+            _doublerWriteIndex[channel] = (writeIndex + 1) % buffer.Length;
+            return sample;
+        }
+
+        // Slightly different delays per channel keep the copy from collapsing into a simple echo.
+        var delaySeconds = channel == 0 ? 0.017f : 0.024f;
+        var delayed = ReadDelayTap(buffer, writeIndex, SampleRate * delaySeconds);
+        _doublerWriteIndex[channel] = (writeIndex + 1) % buffer.Length;
+        var wet = 0.10f + mix * 0.48f;
+        return Math.Clamp(sample * (1.0f - wet * 0.30f) + delayed * wet, -1.0f, 1.0f);
+    }
+
+    private float ApplyRingMod(float sample, float mix)
+    {
+        if (mix <= 0.001f)
+        {
+            return sample;
+        }
+
+        var carrier = (float)Math.Sin(_ringModPhase);
+        return Lerp(sample, sample * carrier, mix);
+    }
+
+    private static float ReadDelayTap(float[] buffer, int writeIndex, float delaySamples)
+    {
+        var readPosition = writeIndex - Math.Clamp(delaySamples, 1.0f, buffer.Length - 2.0f);
+        while (readPosition < 0.0f) readPosition += buffer.Length;
+        while (readPosition >= buffer.Length) readPosition -= buffer.Length;
+
+        var index0 = (int)MathF.Floor(readPosition);
+        var index1 = index0 + 1;
+        if (index1 >= buffer.Length) index1 = 0;
+        var fraction = readPosition - index0;
+        return buffer[index0] * (1.0f - fraction) + buffer[index1] * fraction;
     }
 
     private float ApplyRadio(float sample, int channel, float mix)

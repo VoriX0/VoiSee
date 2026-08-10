@@ -1,4 +1,4 @@
-namespace VoiSe.Audio;
+﻿namespace VoiSe.Audio;
 
 public enum VoiceEffectKind
 {
@@ -16,5 +16,13 @@ public enum VoiceEffectKind
     Reverb,
     Radio,
     BitCrusher,
-    Alien
+    Alien,
+    LowPass,
+    HighPass,
+    Chorus,
+    Flanger,
+    Phaser,
+    Vibrato,
+    Doubler,
+    RingMod
 }
