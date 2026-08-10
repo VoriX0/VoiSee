@@ -248,7 +248,7 @@ public sealed partial class MainWindow : Window
         };
         _discordCableSessionIsolationTimer.Tick += OnDiscordCableSessionIsolationTimerTick;
 
-        AppendLog("VoiSee Version 12.5.0 UI started.");
+        AppendLog("VoiSee Version 12.5.1 UI started.");
         AppendLog($"Settings path: {_settingsStore.SettingsPath}");
 
         var isolationResult = _discordCableSessionIsolationService.Enable();
@@ -451,6 +451,7 @@ public sealed partial class MainWindow : Window
             var resourceCount = _themeManager.ApplyTheme(RootGrid, theme);
             _activeTheme = theme;
             ApplyTitleBarTheme();
+            RefreshDynamicThemeVisuals();
             if (ThemeStatusTextBlock is not null)
             {
                 ThemeStatusTextBlock.Text = string.IsNullOrWhiteSpace(theme.SourcePath)
@@ -478,6 +479,47 @@ public sealed partial class MainWindow : Window
                 ThemeStatusTextBlock.Text = $"Theme error — kept {previousTheme.Name}: {ex.Message}";
             }
             AppendLog($"XAML theme apply error; previous theme kept: {ex.Message}");
+        }
+    }
+
+    private void RefreshDynamicThemeVisuals()
+    {
+        // Programmatically created Voice Changer controls intentionally take explicit
+        // Style/Brush objects from Application.Current.Resources. Unlike XAML
+        // ThemeResource expressions, those are snapshots of the dictionary that was
+        // active when the control was created. Recreate only those dynamic surfaces
+        // after every successful dictionary swap so they cannot retain a previous
+        // user theme. The backing preset/effect data is not modified.
+        try
+        {
+            BuildEffectLibraryList();
+        }
+        catch (Exception ex)
+        {
+            AppendLog($"Theme refresh warning (Effect Library): {ex.Message}");
+        }
+
+        try
+        {
+            RebuildVoicePresetButtons();
+        }
+        catch (Exception ex)
+        {
+            AppendLog($"Theme refresh warning (Voice Presets): {ex.Message}");
+        }
+
+        try
+        {
+            // A theme change is not a chain edit, so suppress insertion/reorder
+            // animations while materializing the same cards with fresh resources.
+            _pendingEffectChainPreviousYPositions = null;
+            _pendingEffectChainAttentionKey = null;
+            _pendingEffectChainAttentionOffsetY = 0.0;
+            RebuildEffectChainCards();
+        }
+        catch (Exception ex)
+        {
+            AppendLog($"Theme refresh warning (Processing Chain): {ex.Message}");
         }
     }
 
