@@ -244,7 +244,7 @@ public sealed partial class MainWindow : Window
         };
         _discordCableSessionIsolationTimer.Tick += OnDiscordCableSessionIsolationTimerTick;
 
-        AppendLog("VoiSee Version 12.3.3 UI started.");
+        AppendLog("VoiSee Version 12.4.0 UI started.");
         AppendLog($"Settings path: {_settingsStore.SettingsPath}");
 
         var isolationResult = _discordCableSessionIsolationService.Enable();
@@ -3988,7 +3988,6 @@ public sealed partial class MainWindow : Window
                 ? Microsoft.UI.ColorHelper.FromArgb(0x28, 0xFF, 0xFF, 0xFF)
                 : Microsoft.UI.ColorHelper.FromArgb(0x01, 0x00, 0x00, 0x00)),
             HorizontalAlignment = HorizontalAlignment.Stretch,
-            ContextFlyout = CreateSoundContextFlyout(),
             IsTapEnabled = true,
             IsDoubleTapEnabled = true,
             IsRightTapEnabled = true
@@ -4527,10 +4526,22 @@ public sealed partial class MainWindow : Window
 
     private void OnSoundRowRightTapped(object sender, RightTappedRoutedEventArgs e)
     {
-        if (sender is FrameworkElement { Tag: SoundBoardSound sound })
+        if (sender is not FrameworkElement { Tag: SoundBoardSound sound } row)
         {
-            SelectSound(sound);
+            return;
         }
+
+        SelectSound(sound);
+
+        // 12.4.0: ListView item containers can consume the automatic ContextFlyout gesture.
+        // Own RightTapped explicitly so the SoundBoard menu opens reliably on the actual track row.
+        var flyout = CreateSoundContextFlyout();
+        var options = new Microsoft.UI.Xaml.Controls.Primitives.FlyoutShowOptions
+        {
+            Position = e.GetPosition(row)
+        };
+        flyout.ShowAt(row, options);
+        e.Handled = true;
     }
 
     private void OnSoundRowDoubleTapped(object sender, DoubleTappedRoutedEventArgs e)

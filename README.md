@@ -1,10 +1,14 @@
-# VoiSee 12.3.3
+﻿# VoiSee 12.4.0
 
-> **Buildfix 3:** restored the standard MSBuild `obj\` layout after buildfix 2 caused duplicate generated assembly attributes. If updating an existing working folder, run `scripts\run-dev-clean.ps1` once before development.
+> **12.4.0:** keeps the validated Per-Monitor V2 DPI fix from 12.3.3 buildfix 6, restores the SoundBoard track context menu, and removes scrolling from Media Bridge.
 
-## VoiSee 12.3.3 — Collection-native scrolling
+## VoiSee 12.4.0 — SoundBoard context menu + Media Bridge scroll cleanup
 
-This build replaces the 12.2.3 horizontal Voice Changer experiment with the approved three-column design.
+- Right-clicking a SoundBoard track again selects that track and opens the existing context menu at the pointer position.
+- Media Bridge no longer scrolls and no longer shows scroll bars.
+- The 125% Windows scaling fix remains enabled through `PerMonitorV2` DPI awareness.
+
+The Voice Changer keeps the approved three-column Modular Rack design.
 
 - **Left:** Noise Suppression above a searchable, independently scrollable Presets browser.
 - **Center:** the primary **vertical Processing Chain**, from Microphone In to Output / Monitor.
@@ -134,13 +138,13 @@ Set-ExecutionPolicy -Scope Process Bypass
 Expected installer:
 
 ```text
-artifacts\installer\VoiSee-Setup-12.3.3-x64.exe
+artifacts\installer\VoiSee-Setup-12.4.0-x64.exe
 ```
 
 Portable build:
 
 ```text
-artifacts\installer\VoiSee-Portable-12.3.3-x64.zip
+artifacts\installer\VoiSee-Portable-12.4.0-x64.zip
 ```
 
 ## Native XAML themes (VoiSee 10.1)
