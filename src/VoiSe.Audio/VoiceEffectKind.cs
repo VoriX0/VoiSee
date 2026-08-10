@@ -17,12 +17,15 @@ public enum VoiceEffectKind
     Radio,
     BitCrusher,
     Alien,
-    LowPass,
-    HighPass,
     Chorus,
     Flanger,
     Phaser,
     Vibrato,
     Doubler,
-    RingMod
+    RingMod,
+    Chipmunk,
+    Giant,
+    Ghost,
+    Stutter,
+    Wobbly
 }
