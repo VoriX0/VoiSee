@@ -1,4 +1,4 @@
-$ErrorActionPreference = 'Stop'
+﻿$ErrorActionPreference = 'Stop'
 
 $projectRoot = Split-Path -Parent $PSScriptRoot
 $projects = @(
@@ -6,6 +6,10 @@ $projects = @(
     (Join-Path $projectRoot 'src\VoiSe.Audio'),
     (Join-Path $projectRoot 'src\VoiSe.Gate0.Cli')
 )
+
+Write-Host 'Stopping any running VoiSe.App instance...' -ForegroundColor Cyan
+Get-Process -Name 'VoiSe.App' -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
+Start-Sleep -Milliseconds 250
 
 Write-Host 'Cleaning VoiSee build artifacts...' -ForegroundColor Cyan
 foreach ($project in $projects) {

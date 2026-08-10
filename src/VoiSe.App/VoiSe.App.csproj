@@ -19,6 +19,7 @@
     <InformationalVersion>12.3.3</InformationalVersion>
     <DeepFilterNetNativePath>$(MSBuildProjectDirectory)\..\VoiSe.Audio\runtimes\win-x64\native\deep_filter_ladspa.dll</DeepFilterNetNativePath>
     <DeepFilterNetFetchScript>$(MSBuildProjectDirectory)\..\..\scripts\fetch-deepfilternet.ps1</DeepFilterNetFetchScript>
+    <StopRunningVoiSeeBeforeDebugBuild Condition="'$(StopRunningVoiSeeBeforeDebugBuild)' == ''">true</StopRunningVoiSeeBeforeDebugBuild>
   </PropertyGroup>
   <ItemGroup>
     <!-- User-generated data must never be published or packed into the installer.
@@ -57,6 +58,12 @@
   <ItemGroup>
     <Manifest Include="$(ApplicationManifest)" />
   </ItemGroup>
+  <Target Name="StopRunningVoiSeeBeforeDebugBuild"
+          BeforeTargets="PrepareForBuild"
+          Condition="'$(OS)' == 'Windows_NT' and '$(Configuration)' == 'Debug' and '$(StopRunningVoiSeeBeforeDebugBuild)' == 'true'">
+    <Exec Command="cmd.exe /c &quot;taskkill /IM VoiSe.App.exe /F &gt;nul 2&gt;nul || exit /b 0&quot;" />
+  </Target>
+
   <Target Name="FetchDeepFilterNetNative"
           BeforeTargets="PrepareForBuild"
           Condition="'$(OS)' == 'Windows_NT'">
