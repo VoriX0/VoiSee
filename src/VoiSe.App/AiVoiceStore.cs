@@ -103,7 +103,11 @@ public sealed class AiVoiceStore
         return preset;
     }
 
-    public AiVoicePreset CreateImportedModel(IReadOnlyList<string> modelFiles)
+    public AiVoicePreset CreateImportedModel(
+        IReadOnlyList<string> modelFiles,
+        string? requestedName = null,
+        string source = "Local import",
+        string? notes = null)
     {
         var validFiles = modelFiles.Where(File.Exists).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
         if (validFiles.Count == 0)
@@ -113,7 +117,9 @@ public sealed class AiVoiceStore
 
         var primary = validFiles.FirstOrDefault(p => string.Equals(Path.GetExtension(p), ".pth", StringComparison.OrdinalIgnoreCase))
             ?? validFiles.First();
-        var packagePath = GetAvailablePackagePath(Path.GetFileNameWithoutExtension(primary));
+        var packagePath = GetAvailablePackagePath(string.IsNullOrWhiteSpace(requestedName)
+            ? Path.GetFileNameWithoutExtension(primary)
+            : requestedName!);
         var assets = new List<(string Source, string Entry)>();
         foreach (var file in validFiles)
         {
@@ -135,9 +141,11 @@ public sealed class AiVoiceStore
             VoiceType = "Imported",
             Engine = engine,
             Compatibility = compatibility,
-            Source = "Local import",
+            Source = string.IsNullOrWhiteSpace(source) ? "Local import" : source,
             AssetEntries = assets.Select(a => a.Entry).ToList(),
-            Notes = "Stored successfully. Runtime compatibility is verified when the AI backend is connected."
+            Notes = string.IsNullOrWhiteSpace(notes)
+                ? "Stored successfully. Runtime compatibility is verified when the AI backend is connected."
+                : notes
         };
 
         WritePackage(packagePath, preset, assets);

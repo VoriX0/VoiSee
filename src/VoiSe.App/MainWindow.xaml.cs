@@ -17,6 +17,7 @@ using System.IO.Compression;
 using System.Linq;
 using System.Runtime.InteropServices;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using VoiSe.Audio;
 using Windows.ApplicationModel.DataTransfer;
@@ -59,6 +60,11 @@ public sealed partial class MainWindow : Window
     private AiVoiceStore? _aiVoiceStore;
     private IReadOnlyList<AiVoicePreset> _aiVoices = Array.Empty<AiVoicePreset>();
     private AiVoicePreset? _selectedAiVoice;
+    private readonly HuggingFaceVoiceLibraryProvider _aiVoiceLibraryProvider = new();
+    private readonly DispatcherTimer _aiLibrarySearchTimer = new();
+    private CancellationTokenSource? _aiLibrarySearchCts;
+    private IReadOnlyList<AiVoiceLibraryItem> _aiLibraryItems = Array.Empty<AiVoiceLibraryItem>();
+    private string _aiLibraryFilter = "All";
     private string? _soundFilePath;
     private SoundBoardSound? _selectedSound;
     private bool _loadingLibrary;
@@ -204,6 +210,10 @@ public sealed partial class MainWindow : Window
         UpdateAiVoiceStorageSettingsUi();
         RefreshAiVoiceUi();
         UpdateVoiceMonitorButton();
+        _aiLibrarySearchTimer.Interval = TimeSpan.FromMilliseconds(450);
+        _aiLibrarySearchTimer.Tick += OnAiLibrarySearchTimerTick;
+        UpdateAiLibraryFilterButtons();
+        _ = RefreshAiLibraryAsync();
 
         if (ThemeFolderPathTextBlock is not null)
         {
@@ -260,7 +270,7 @@ public sealed partial class MainWindow : Window
         };
         _discordCableSessionIsolationTimer.Tick += OnDiscordCableSessionIsolationTimerTick;
 
-        AppendLog("VoiSee Version 13.2.2 UI started.");
+        AppendLog("VoiSee Version 13.3.0 UI started.");
         AppendLog($"Settings path: {_settingsStore.SettingsPath}");
 
         var isolationResult = _discordCableSessionIsolationService.Enable();
@@ -3890,6 +3900,11 @@ public sealed partial class MainWindow : Window
         SaveCurrentSettings();
         StopEngine(log: false);
         _timelineTimer.Stop();
+        _aiLibrarySearchTimer.Stop();
+        _aiLibrarySearchCts?.Cancel();
+        _aiLibrarySearchCts?.Dispose();
+        _aiLibrarySearchCts = null;
+        _aiVoiceLibraryProvider.Dispose();
         _mediaBridgeUiTimer.Stop();
         _discordCableSessionIsolationTimer.Stop();
         _themeReloadTimer.Stop();
@@ -12219,7 +12234,7 @@ public sealed partial class MainWindow : Window
             _aiVoiceStore = new AiVoiceStore(storageDirectory);
             _aiVoices = _aiVoiceStore.LoadVoices();
 
-            // 13.2.2: persist the built-in VoiSee storage as the explicit default once resolved.
+            // 13.3.0: persist the built-in VoiSee storage as the explicit default once resolved.
             if (string.IsNullOrWhiteSpace(_settings.AiVoiceStorageDirectory))
             {
                 _settings.AiVoiceStorageDirectory = storageDirectory;
@@ -12549,8 +12564,215 @@ public sealed partial class MainWindow : Window
         }
     }
 
+    private void OnAiLibrarySearchTextChanged(object sender, TextChangedEventArgs e)
+    {
+        _aiLibrarySearchTimer.Stop();
+        _aiLibrarySearchTimer.Start();
+    }
+
+    private async void OnAiLibrarySearchTimerTick(object? sender, object e)
+    {
+        _aiLibrarySearchTimer.Stop();
+        await RefreshAiLibraryAsync();
+    }
+
+    private void OnAiLibraryFiltersClick(object sender, RoutedEventArgs e)
+    {
+        if (AiLibraryFilterPanel is null) return;
+        AiLibraryFilterPanel.Visibility = AiLibraryFilterPanel.Visibility == Visibility.Visible
+            ? Visibility.Collapsed
+            : Visibility.Visible;
+    }
+
+    private void OnAiLibraryFilterClick(object sender, RoutedEventArgs e)
+    {
+        if (sender is ToggleButton button && button.Content is string filter)
+        {
+            _aiLibraryFilter = filter;
+            UpdateAiLibraryFilterButtons();
+            _aiLibrarySearchTimer.Stop();
+            _ = RefreshAiLibraryAsync();
+        }
+    }
+
+    private void UpdateAiLibraryFilterButtons()
+    {
+        if (AiLibraryAllFilterButton is not null) AiLibraryAllFilterButton.IsChecked = string.Equals(_aiLibraryFilter, "All", StringComparison.OrdinalIgnoreCase);
+        if (AiLibraryRvcFilterButton is not null) AiLibraryRvcFilterButton.IsChecked = string.Equals(_aiLibraryFilter, "RVC", StringComparison.OrdinalIgnoreCase);
+        if (AiLibraryMaleFilterButton is not null) AiLibraryMaleFilterButton.IsChecked = string.Equals(_aiLibraryFilter, "Male", StringComparison.OrdinalIgnoreCase);
+        if (AiLibraryFemaleFilterButton is not null) AiLibraryFemaleFilterButton.IsChecked = string.Equals(_aiLibraryFilter, "Female", StringComparison.OrdinalIgnoreCase);
+        if (AiLibraryCharacterFilterButton is not null) AiLibraryCharacterFilterButton.IsChecked = string.Equals(_aiLibraryFilter, "Character", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private void SetAiLibraryEmptyState(string title, string description, bool visible)
+    {
+        if (AiLibraryEmptyState is not null) AiLibraryEmptyState.Visibility = visible ? Visibility.Visible : Visibility.Collapsed;
+        if (AiLibraryEmptyTitleTextBlock is not null) AiLibraryEmptyTitleTextBlock.Text = title;
+        if (AiLibraryEmptyDescriptionTextBlock is not null) AiLibraryEmptyDescriptionTextBlock.Text = description;
+    }
+
+    private async Task RefreshAiLibraryAsync()
+    {
+        if (AiOnlineLibraryListView is null) return;
+
+        _aiLibrarySearchCts?.Cancel();
+        _aiLibrarySearchCts?.Dispose();
+        var cts = new CancellationTokenSource();
+        _aiLibrarySearchCts = cts;
+
+        AiOnlineLibraryListView.Items.Clear();
+        SetAiLibraryEmptyState("Loading online library...", $"Searching {_aiVoiceLibraryProvider.Name} for compatible voice models.", true);
+        var query = AiLibrarySearchTextBox?.Text?.Trim() ?? string.Empty;
+
+        try
+        {
+            _aiLibraryItems = await _aiVoiceLibraryProvider.SearchAsync(query, _aiLibraryFilter, cts.Token);
+            if (cts.IsCancellationRequested) return;
+
+            foreach (var item in _aiLibraryItems)
+            {
+                AiOnlineLibraryListView.Items.Add(CreateAiLibraryListItem(item));
+            }
+
+            if (_aiLibraryItems.Count == 0)
+            {
+                SetAiLibraryEmptyState("No compatible voices found", "Try another search or filter. VoiSee only surfaces repositories that look like RVC/voice-conversion models.", true);
+            }
+            else
+            {
+                SetAiLibraryEmptyState(string.Empty, string.Empty, false);
+            }
+
+            AppendLog($"AI Voice library: {_aiLibraryItems.Count} item(s) from {_aiVoiceLibraryProvider.Name}.");
+        }
+        catch (OperationCanceledException)
+        {
+            // A newer search replaced this one.
+        }
+        catch (Exception ex)
+        {
+            if (cts.IsCancellationRequested) return;
+            _aiLibraryItems = Array.Empty<AiVoiceLibraryItem>();
+            SetAiLibraryEmptyState("Online library unavailable", "Check the internet connection and try again. You can still import local .vsee/RVC models.", true);
+            AppendLog($"AI Voice library error: {ex.Message}");
+        }
+    }
+
+    private FrameworkElement CreateAiLibraryListItem(AiVoiceLibraryItem item)
+    {
+        var root = new Grid
+        {
+            Tag = item,
+            Padding = new Thickness(4, 7, 4, 7),
+            ColumnSpacing = 10,
+            HorizontalAlignment = HorizontalAlignment.Stretch
+        };
+        root.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        root.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+
+        var text = new StackPanel { Spacing = 3 };
+        text.Children.Add(new TextBlock
+        {
+            Text = item.DisplayName,
+            FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
+            TextTrimming = TextTrimming.CharacterEllipsis
+        });
+        text.Children.Add(new TextBlock
+        {
+            Text = $"{item.Engine} · {item.Compatibility} · {FormatAiLibraryDownloads(item.Downloads)} downloads",
+            FontSize = 10,
+            Opacity = 0.70,
+            TextTrimming = TextTrimming.CharacterEllipsis
+        });
+        text.Children.Add(new TextBlock
+        {
+            Text = item.RepositoryId,
+            FontSize = 10,
+            Opacity = 0.50,
+            TextTrimming = TextTrimming.CharacterEllipsis
+        });
+        root.Children.Add(text);
+
+        var download = new Button
+        {
+            Content = item.IsDownloadable ? "Download" : "Not supported",
+            Tag = item,
+            MinWidth = 104,
+            Padding = new Thickness(10, 6, 10, 6),
+            HorizontalAlignment = HorizontalAlignment.Right,
+            VerticalAlignment = VerticalAlignment.Center,
+            IsEnabled = item.IsDownloadable
+        };
+        download.Click += OnAiLibraryDownloadClick;
+        Grid.SetColumn(download, 1);
+        root.Children.Add(download);
+        return root;
+    }
+
+    private static string FormatAiLibraryDownloads(long value)
+    {
+        if (value >= 1_000_000) return $"{value / 1_000_000.0:0.#}M";
+        if (value >= 1_000) return $"{value / 1_000.0:0.#}K";
+        return value.ToString();
+    }
+
+    private async void OnAiLibraryDownloadClick(object sender, RoutedEventArgs e)
+    {
+        if (sender is not Button button || button.Tag is not AiVoiceLibraryItem item) return;
+        if (!item.IsDownloadable) return;
+        if (!await EnsureAiVoiceStorageAsync() || _aiVoiceStore is null) return;
+
+        var previousContent = button.Content;
+        button.IsEnabled = false;
+        button.Content = "Downloading...";
+        var tempDirectory = Path.Combine(Path.GetTempPath(), "VoiSee", "AI Library", Guid.NewGuid().ToString("N"));
+        try
+        {
+            var assets = await _aiVoiceLibraryProvider.DownloadModelAssetsAsync(item, tempDirectory, CancellationToken.None);
+            var voice = _aiVoiceStore.CreateImportedModel(
+                assets,
+                item.DisplayName,
+                $"Hugging Face: {item.RepositoryId}",
+                $"Downloaded from {item.RepositoryId}. Runtime compatibility is verified by the AI backend before activation.");
+            RefreshAiVoiceUi(voice.Id);
+            AppendLog($"AI Voice downloaded: {item.RepositoryId} -> {voice.Name}.vsee");
+            await ShowMessageDialogAsync("AI Voice downloaded", $"'{voice.Name}' was downloaded and stored as a .vsee voice preset.");
+        }
+        catch (Exception ex)
+        {
+            AppendLog($"AI Voice download error ({item.RepositoryId}): {ex.Message}");
+            await ShowMessageDialogAsync("Download AI Voice", ex.Message);
+        }
+        finally
+        {
+            button.Content = previousContent;
+            button.IsEnabled = item.IsDownloadable;
+            try
+            {
+                if (Directory.Exists(tempDirectory)) Directory.Delete(tempDirectory, recursive: true);
+            }
+            catch
+            {
+                // Temporary download cleanup is best-effort.
+            }
+        }
+    }
+
     private async void OnAiOpenLibraryInBrowserClick(object sender, RoutedEventArgs e)
-        => await ShowAiVoiceSkeletonDialogAsync("Online Library", "The library UI is ready. The first online provider and its browser URL are connected in Gate 13.3.");
+    {
+        try
+        {
+            var uri = _aiVoiceLibraryProvider.GetBrowserUri(AiLibrarySearchTextBox?.Text?.Trim() ?? string.Empty, _aiLibraryFilter);
+            if (!await Launcher.LaunchUriAsync(uri))
+            {
+                await ShowMessageDialogAsync("Online Library", "Windows could not open the online library in the default browser.");
+            }
+        }
+        catch (Exception ex)
+        {
+            await ShowMessageDialogAsync("Online Library", ex.Message);
+        }
+    }
 
     private async void OnAiRenameVoiceClick(object sender, RoutedEventArgs e)
     {
