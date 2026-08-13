@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using NAudio.CoreAudioApi;
 using NAudio.Wave;
 using NAudio.Wave.SampleProviders;
@@ -6,6 +7,13 @@ namespace VoiSe.Audio;
 
 public sealed class Gate2UnifiedAudioEngine : IDisposable
 {
+    // VoiSee 13.0.1 latency foundation. Keep the device buffers bounded and
+    // substantially shorter than the previous 50 ms render target. These are
+    // requested WASAPI latencies; actual device/driver latency is measured
+    // externally and may differ.
+    private const int CaptureLatencyTargetMs = 10;
+    private const int RenderLatencyTargetMs = 20;
+    private const int MaxMicrophoneQueueMs = 250;
     private readonly MMDevice _inputDevice;
     private readonly MMDevice _virtualOutputDevice;
     private readonly MMDevice? _monitorDevice;
@@ -16,6 +24,7 @@ public sealed class Gate2UnifiedAudioEngine : IDisposable
     private readonly FloatSampleQueue _monitorMicQueue;
     private readonly SoundboardTransport _soundboard;
     private readonly MediaBridgeTransport _mediaBridge;
+    private readonly AudioLatencyTelemetry _latencyTelemetry = new();
 
     private WasapiCapture? _capture;
     private WasapiOut? _virtualOutput;
@@ -30,7 +39,11 @@ public sealed class Gate2UnifiedAudioEngine : IDisposable
     private bool _virtualMicMuted;
     private readonly object _voiceMonitorRouteSync = new();
     private bool _voiceMonitorRouteEnabled;
+    private volatile bool _fullProcessingEnabled;
+    private AiPerformanceProfile _performanceProfile = AiPerformanceProfile.Balanced;
     private bool _disposed;
+
+    public event Action<AudioProcessingPath>? ProcessingPathChanged;
 
     public Gate2UnifiedAudioEngine(
         MMDevice inputDevice,
@@ -45,16 +58,30 @@ public sealed class Gate2UnifiedAudioEngine : IDisposable
         _voiceMonitorRouteEnabled = settings.VoiceMonitorGain > 0.0001f;
         _mixFormat = WaveFormat.CreateIeeeFloatWaveFormat(48_000, 2);
 
-        // Keep up to ~2 seconds of microphone route audio. If an output route falls behind,
-        // old samples are dropped instead of increasing latency forever.
-        var maxSamples = _mixFormat.SampleRate * _mixFormat.Channels * 2;
+        // Bound microphone route backlog to 250 ms. The previous ~2 second queue could
+        // turn a temporary render stall into seconds of perceived voice latency. Old
+        // samples are still dropped rather than allowing latency to grow without bound.
+        var maxSamples = (int)Math.Ceiling(_mixFormat.SampleRate * _mixFormat.Channels * (MaxMicrophoneQueueMs / 1000.0));
         _virtualMicQueue = new FloatSampleQueue(maxSamples);
         _monitorMicQueue = new FloatSampleQueue(maxSamples);
         _soundboard = new SoundboardTransport(_mixFormat);
         _mediaBridge = new MediaBridgeTransport(_mixFormat);
+        _fullProcessingEnabled = RequiresFullProcessing(settings);
     }
 
     public WaveFormat MixFormat => _mixFormat;
+    public AudioProcessingPath CurrentProcessingPath => _fullProcessingEnabled ? AudioProcessingPath.Full : AudioProcessingPath.Fast;
+    public AiPerformanceProfile PerformanceProfile => _performanceProfile;
+    public int CaptureLatencyTarget => CaptureLatencyTargetMs;
+    public int RenderLatencyTarget => RenderLatencyTargetMs;
+    public AudioLatencySnapshot GetLatencySnapshot() => _latencyTelemetry.Snapshot();
+
+    public void SetPerformanceProfile(AiPerformanceProfile profile)
+    {
+        // Gate 13.0.1 only establishes the contract. Profile-specific DSP/AI
+        // tuning is intentionally deferred until the AI Voice runtime exists.
+        _performanceProfile = profile;
+    }
 
     public bool NoiseSuppressionAvailable => _settings.NoiseSuppressionMode switch
     {
@@ -90,7 +117,7 @@ public sealed class Gate2UnifiedAudioEngine : IDisposable
 
     public void Start()
     {
-        _capture = new WasapiCapture(_inputDevice, true, 20);
+        _capture = new WasapiCapture(_inputDevice, true, CaptureLatencyTargetMs);
         _capture.DataAvailable += OnDataAvailable;
         _capture.RecordingStopped += (_, args) =>
         {
@@ -123,7 +150,7 @@ public sealed class Gate2UnifiedAudioEngine : IDisposable
             _settings);
         _virtualProvider.SetVirtualMicMuted(_virtualMicMuted);
 
-        _virtualOutput = new WasapiOut(_virtualOutputDevice, AudioClientShareMode.Shared, true, 50);
+        _virtualOutput = new WasapiOut(_virtualOutputDevice, AudioClientShareMode.Shared, true, RenderLatencyTargetMs);
         _virtualOutput.Init(new SampleToWaveProvider(_virtualProvider));
         _virtualOutput.Play();
 
@@ -137,7 +164,7 @@ public sealed class Gate2UnifiedAudioEngine : IDisposable
                 _mediaBridge,
                 _settings);
 
-            _monitorOutput = new WasapiOut(_monitorDevice, AudioClientShareMode.Shared, true, 50);
+            _monitorOutput = new WasapiOut(_monitorDevice, AudioClientShareMode.Shared, true, RenderLatencyTargetMs);
             _monitorOutput.Init(new SampleToWaveProvider(_monitorProvider));
             _monitorOutput.Play();
         }
@@ -257,9 +284,29 @@ public sealed class Gate2UnifiedAudioEngine : IDisposable
         _deepFilterNetSuppressor?.UpdateSettings(
             settings.NoiseSuppressionMode == NoiseSuppressionMode.DeepFilterNet,
             settings.NoiseSuppressionStrength);
-        _processor?.UpdateSettings(settings);
+
+        var shouldUseFullPath = RequiresFullProcessing(settings);
+        var pathChanged = shouldUseFullPath != _fullProcessingEnabled;
+        if (pathChanged && shouldUseFullPath)
+        {
+            // Stateful delay/pitch effects may contain audio from the previous Full
+            // session. Recreate the processor when re-entering Full so stale audio
+            // can never leak across a Fast -> Full transition.
+            _processor = new SimpleVoiceProcessor(settings);
+        }
+        else
+        {
+            _processor?.UpdateSettings(settings);
+        }
+
+        _fullProcessingEnabled = shouldUseFullPath;
         _virtualProvider?.UpdateSettings(settings);
         _monitorProvider?.UpdateSettings(settings);
+
+        if (pathChanged)
+        {
+            ProcessingPathChanged?.Invoke(CurrentProcessingPath);
+        }
     }
 
     /// <summary>
@@ -318,15 +365,20 @@ public sealed class Gate2UnifiedAudioEngine : IDisposable
 
         try
         {
+            var captureBufferMs = _capture.WaveFormat.AverageBytesPerSecond > 0
+                ? (e.BytesRecorded * 1000.0) / _capture.WaveFormat.AverageBytesPerSecond
+                : CaptureLatencyTargetMs;
+
+            var stageStart = Stopwatch.GetTimestamp();
             var targetSamples = AudioFormatConverter.CaptureBufferToTargetStereoFloat(
                 e.Buffer,
                 e.BytesRecorded,
                 _capture.WaveFormat,
                 _mixFormat);
+            var conversionMs = ElapsedMilliseconds(stageStart);
 
-            // Noise suppression is intentionally microphone-only and remains
-            // outside voice presets. Exactly one cleanup engine runs before
-            // gate/compressor and the preset-controlled effects.
+            // Noise suppression remains microphone-only and remains part of Fast Path.
+            stageStart = Stopwatch.GetTimestamp();
             switch (_settings.NoiseSuppressionMode)
             {
                 case NoiseSuppressionMode.RnNoise:
@@ -336,13 +388,22 @@ public sealed class Gate2UnifiedAudioEngine : IDisposable
                     _deepFilterNetSuppressor?.ProcessInPlace(targetSamples);
                     break;
             }
-            _processor.ProcessInPlace(targetSamples);
+            var noiseSuppressionMs = ElapsedMilliseconds(stageStart);
+
+            // Fast Path physically bypasses the regular Voice Changer processor.
+            // It is not a loop over disabled effects; the processor is not called.
+            var dspMs = 0.0;
+            var processingPath = CurrentProcessingPath;
+            if (processingPath == AudioProcessingPath.Full)
+            {
+                stageStart = Stopwatch.GetTimestamp();
+                _processor.ProcessInPlace(targetSamples);
+                dspMs = ElapsedMilliseconds(stageStart);
+            }
+
             _virtualMicQueue.Add(targetSamples);
 
             // Voice Monitor Off is a hard route disconnect, not only a zero gain.
-            // This prevents processed microphone audio and stale queued samples
-            // from reaching a physical render session that an application screen
-            // share may capture. SoundBoard monitoring uses its own route.
             lock (_voiceMonitorRouteSync)
             {
                 if (_voiceMonitorRouteEnabled)
@@ -350,11 +411,52 @@ public sealed class Gate2UnifiedAudioEngine : IDisposable
                     _monitorMicQueue.Add(targetSamples);
                 }
             }
+
+            // Queue latency is backlog ahead of the just-captured block. Excluding
+            // the current block avoids double-counting capture-buffer duration.
+            var virtualQueuedMs = SamplesToMilliseconds(Math.Max(0, _virtualMicQueue.Count - targetSamples.Length));
+            var monitorQueuedMs = SamplesToMilliseconds(Math.Max(0, _monitorMicQueue.Count - targetSamples.Length));
+            _latencyTelemetry.Record(
+                processingPath,
+                captureBufferMs,
+                conversionMs,
+                noiseSuppressionMs,
+                0.0,
+                dspMs,
+                virtualQueuedMs,
+                monitorQueuedMs,
+                RenderLatencyTargetMs,
+                _virtualMicQueue.DroppedSampleCount,
+                _monitorMicQueue.DroppedSampleCount);
         }
         catch (NotSupportedException ex)
         {
             Console.Error.WriteLine($"Capture format is not supported: {ex.Message}");
         }
+    }
+
+    private static bool RequiresFullProcessing(EffectSettings settings)
+    {
+        // EffectOrder is built from active, non-bypassed Processing Chain cards.
+        // Mixer limiting/output gain remain outside SimpleVoiceProcessor, so an
+        // empty chain can safely bypass it without changing route semantics.
+        return settings.EffectOrder is { Count: > 0 };
+    }
+
+    private double SamplesToMilliseconds(int sampleCount)
+    {
+        if (sampleCount <= 0)
+        {
+            return 0.0;
+        }
+
+        return sampleCount * 1000.0 / (_mixFormat.SampleRate * _mixFormat.Channels);
+    }
+
+    private static double ElapsedMilliseconds(long startTimestamp)
+    {
+        var elapsedTicks = Stopwatch.GetTimestamp() - startTimestamp;
+        return elapsedTicks * 1000.0 / Stopwatch.Frequency;
     }
 
     public void Dispose()

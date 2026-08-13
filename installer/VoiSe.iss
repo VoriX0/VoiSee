@@ -1,8 +1,8 @@
-﻿; VoiSee installer script
+; VoiSee installer script
 ; Build with Inno Setup 6 using scripts\build-installer.ps1
 
 #define MyAppName "VoiSee"
-#define MyAppVersion "12.5.1"
+#define MyAppVersion "13.0.1"
 #define MyAppPublisher "VoriX"
 #define MyAppURL "https://github.com/VoriX0/VoiSe"
 #define MyAppExeName "VoiSe.App.exe"

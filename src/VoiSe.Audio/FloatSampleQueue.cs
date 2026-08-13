@@ -5,6 +5,7 @@ internal sealed class FloatSampleQueue
     private readonly Queue<float> _samples = new();
     private readonly int _maxSamples;
     private readonly object _sync = new();
+    private long _droppedSampleCount;
 
     public FloatSampleQueue(int maxSamples)
     {
@@ -22,6 +23,18 @@ internal sealed class FloatSampleQueue
         }
     }
 
+
+    public long DroppedSampleCount
+    {
+        get
+        {
+            lock (_sync)
+            {
+                return _droppedSampleCount;
+            }
+        }
+    }
+
     public void Add(ReadOnlySpan<float> samples)
     {
         lock (_sync)
@@ -34,6 +47,7 @@ internal sealed class FloatSampleQueue
             while (_samples.Count > _maxSamples)
             {
                 _samples.Dequeue();
+                _droppedSampleCount++;
             }
         }
     }

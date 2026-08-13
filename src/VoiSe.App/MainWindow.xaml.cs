@@ -1,4 +1,4 @@
-﻿using Microsoft.UI.Windowing;
+using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Controls.Primitives;
@@ -168,6 +168,8 @@ public sealed partial class MainWindow : Window
     private double _activeModalWheelZoneHorizontalShiftRatio;
     private TextBlock? _advancedEngineStatusTextBlock;
     private TextBlock? _advancedRouteStatusTextBlock;
+    private TextBlock? _advancedLatencyStatusTextBlock;
+    private DateTimeOffset? _lastLatencyWarningAt;
     private TextBlock? _advancedLogTextBlock;
     private ScrollViewer? _advancedLogScrollViewer;
     private readonly WindowCaptureService _windowCaptureService = new();
@@ -248,7 +250,7 @@ public sealed partial class MainWindow : Window
         };
         _discordCableSessionIsolationTimer.Tick += OnDiscordCableSessionIsolationTimerTick;
 
-        AppendLog("VoiSee Version 12.5.1 UI started.");
+        AppendLog("VoiSee Version 13.0.1 UI started.");
         AppendLog($"Settings path: {_settingsStore.SettingsPath}");
 
         var isolationResult = _discordCableSessionIsolationService.Enable();
@@ -1602,6 +1604,23 @@ public sealed partial class MainWindow : Window
 
     private void OnMediaBridgeUiTimerTick(object? sender, object e)
     {
+        if (_advancedLatencyStatusTextBlock is not null)
+        {
+            RefreshAdvancedSettingsStatus();
+        }
+
+        if (_engine is not null)
+        {
+            var latency = _engine.GetLatencySnapshot();
+            var now = DateTimeOffset.UtcNow;
+            if (latency.EstimatedTotalMs > 250.0
+                && (!_lastLatencyWarningAt.HasValue || now - _lastLatencyWarningAt.Value >= TimeSpan.FromSeconds(10)))
+            {
+                _lastLatencyWarningAt = now;
+                AppendLog($"Audio latency warning: estimated {latency.EstimatedTotalMs:F0} ms; path={latency.ProcessingPath}; queued={latency.VirtualMicQueuedAudioMs:F0} ms.");
+            }
+        }
+
         var selected = _mediaBridgeWindow;
         if (selected is not null && !_windowCaptureService.IsAvailable(selected))
         {
@@ -2181,6 +2200,14 @@ public sealed partial class MainWindow : Window
                 FontSize = 12
             };
 
+            _advancedLatencyStatusTextBlock = new TextBlock
+            {
+                Opacity = 0.82,
+                TextWrapping = TextWrapping.WrapWholeWords,
+                FontFamily = new FontFamily("Consolas"),
+                FontSize = 12
+            };
+
             var startButton = new Button
             {
                 Content = "Start Engine",
@@ -2273,6 +2300,14 @@ public sealed partial class MainWindow : Window
                 Margin = new Thickness(0, 8, 0, 0)
             });
             enginePanel.Children.Add(_advancedRouteStatusTextBlock);
+            enginePanel.Children.Add(new TextBlock
+            {
+                Text = "Latency diagnostics",
+                FontSize = 16,
+                FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
+                Margin = new Thickness(0, 8, 0, 0)
+            });
+            enginePanel.Children.Add(_advancedLatencyStatusTextBlock);
 
             var engineScrollViewer = new ScrollViewer
             {
@@ -2443,6 +2478,7 @@ public sealed partial class MainWindow : Window
             {
                 _advancedEngineStatusTextBlock = null;
                 _advancedRouteStatusTextBlock = null;
+                _advancedLatencyStatusTextBlock = null;
                 _advancedLogTextBlock = null;
                 _advancedLogScrollViewer = null;
                 _activeIconPickerScrollViewer = null;
@@ -2488,6 +2524,30 @@ public sealed partial class MainWindow : Window
                 $"Monitor Device: {monitor}\n" +
                 $"Route state: {routeState}\n" +
                 $"Virtual Mic: {(_virtualMicMuted ? "Muted" : "Live")}";
+        }
+
+        if (_advancedLatencyStatusTextBlock is not null)
+        {
+            if (_engine is null)
+            {
+                _advancedLatencyStatusTextBlock.Text = "Audio engine is stopped.";
+            }
+            else
+            {
+                var latency = _engine.GetLatencySnapshot();
+                _advancedLatencyStatusTextBlock.Text =
+                    $"Processing path: {latency.ProcessingPath}\n" +
+                    $"Capture block: {latency.CaptureBufferMs:F1} ms\n" +
+                    $"Format conversion CPU: {latency.FormatConversionProcessingMs:F2} ms\n" +
+                    $"Noise suppression CPU: {latency.NoiseSuppressionProcessingMs:F2} ms\n" +
+                    $"AI Voice: {latency.AiProcessingMs:F1} ms (inactive)\n" +
+                    $"DSP CPU: {latency.DspProcessingMs:F2} ms\n" +
+                    $"Virtual Mic queued: {latency.VirtualMicQueuedAudioMs:F1} ms\n" +
+                    $"Monitor queued: {latency.MonitorQueuedAudioMs:F1} ms\n" +
+                    $"Render target: {latency.RenderBufferTargetMs:F1} ms\n" +
+                    $"Estimated VoiSee path: {latency.EstimatedTotalMs:F1} ms\n" +
+                    $"Dropped mic samples: {latency.VirtualMicDroppedSamples}";
+            }
         }
     }
 
@@ -6424,6 +6484,7 @@ public sealed partial class MainWindow : Window
         {
             SaveCurrentSettings();
             _engine = new Gate2UnifiedAudioEngine(input, virtualOutput, monitor, CreateEffectSettings());
+            _engine.ProcessingPathChanged += OnAudioProcessingPathChanged;
             _engine.Start();
             _engine.SetVirtualMicMuted(_virtualMicMuted);
             _engine.UpdateMediaBridgeVolume((float)(MediaBridgeVolumeSlider?.Value ?? _settings.MediaBridgeVirtualMicVolume));
@@ -6432,6 +6493,7 @@ public sealed partial class MainWindow : Window
             AppendLog($"Virtual output: {virtualOutput.FriendlyName}");
             AppendLog($"Monitor: {(monitor is null ? "disabled" : monitor.FriendlyName)}");
             AppendLog($"Voice monitor route: {(_engine.VoiceMonitorRouteEnabled ? "connected" : "hard disconnected")}");
+            AppendLog($"Audio route: {_engine.CurrentProcessingPath} Path; capture target: {_engine.CaptureLatencyTarget} ms; render target: {_engine.RenderLatencyTarget} ms.");
             var noiseMode = GetSelectedNoiseSuppressionMode();
             if (noiseMode != NoiseSuppressionMode.Off)
             {
@@ -6452,6 +6514,15 @@ public sealed partial class MainWindow : Window
             RefreshAdvancedSettingsStatus();
             return false;
         }
+    }
+
+    private void OnAudioProcessingPathChanged(AudioProcessingPath path)
+    {
+        DispatcherQueue.TryEnqueue(() =>
+        {
+            AppendLog($"Audio route changed: {path} Path.");
+            RefreshAdvancedSettingsStatus();
+        });
     }
 
     private void StopEngine(bool log)

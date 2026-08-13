@@ -1,4 +1,4 @@
-﻿param(
+param(
     [string]$Configuration = "Release",
     [string]$Runtime = "win-x64",
     [switch]$SkipInstaller
@@ -6,7 +6,7 @@
 
 $ErrorActionPreference = "Stop"
 
-$Version = "12.5.1"
+$Version = "13.0.1"
 $Root = Resolve-Path (Join-Path $PSScriptRoot "..")
 $PublishDir = Join-Path $Root "artifacts\publish\VoiSe"
 $InstallerDir = Join-Path $Root "artifacts\installer"
@@ -158,8 +158,8 @@ dotnet publish $Project `
     -p:PublishSingleFile=false `
     -p:EnableCompressionInSingleFile=false `
     -p:Version=$Version `
-    -p:AssemblyVersion=12.5.1.0 `
-    -p:FileVersion=12.5.1.0 `
+    -p:AssemblyVersion=13.0.1.0 `
+    -p:FileVersion=13.0.1.0 `
     -p:InformationalVersion=$Version `
     -o $PublishDir
 
