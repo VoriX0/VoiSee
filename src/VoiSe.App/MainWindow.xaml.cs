@@ -260,7 +260,7 @@ public sealed partial class MainWindow : Window
         };
         _discordCableSessionIsolationTimer.Tick += OnDiscordCableSessionIsolationTimerTick;
 
-        AppendLog("VoiSee Version 13.2.1 UI started.");
+        AppendLog("VoiSee Version 13.2.2 UI started.");
         AppendLog($"Settings path: {_settingsStore.SettingsPath}");
 
         var isolationResult = _discordCableSessionIsolationService.Enable();
@@ -12219,7 +12219,7 @@ public sealed partial class MainWindow : Window
             _aiVoiceStore = new AiVoiceStore(storageDirectory);
             _aiVoices = _aiVoiceStore.LoadVoices();
 
-            // 13.2.1: persist the built-in VoiSee storage as the explicit default once resolved.
+            // 13.2.2: persist the built-in VoiSee storage as the explicit default once resolved.
             if (string.IsNullOrWhiteSpace(_settings.AiVoiceStorageDirectory))
             {
                 _settings.AiVoiceStorageDirectory = storageDirectory;
