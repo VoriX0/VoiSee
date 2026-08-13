@@ -1,4 +1,4 @@
-using Microsoft.UI.Windowing;
+﻿using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Controls.Primitives;
@@ -56,6 +56,9 @@ public sealed partial class MainWindow : Window
     private readonly DispatcherTimer _voiceSettingsApplyTimer;
     private Gate2UnifiedAudioEngine? _engine;
     private AiPerformanceProfile _aiPerformanceProfile = AiPerformanceProfile.Balanced;
+    private AiVoiceStore? _aiVoiceStore;
+    private IReadOnlyList<AiVoicePreset> _aiVoices = Array.Empty<AiVoicePreset>();
+    private AiVoicePreset? _selectedAiVoice;
     private string? _soundFilePath;
     private SoundBoardSound? _selectedSound;
     private bool _loadingLibrary;
@@ -192,11 +195,14 @@ public sealed partial class MainWindow : Window
         _libraryStore = new SoundBoardLibraryStore(_settingsStore.DataDirectory);
         _voicePresetStore = new VoicePresetStore(_settingsStore.DataDirectory);
         _sceneStore = new SceneStore(_settingsStore.DataDirectory);
+        InitializeAiVoiceStoreFromSettings();
         _themeManager = new ThemeManager(_settingsStore.DataDirectory);
         _library = _libraryStore.Load();
         InitializeComponent();
         BuildEffectLibraryList();
         UpdateAiPerformanceUi();
+        UpdateAiVoiceStorageSettingsUi();
+        RefreshAiVoiceUi();
         UpdateVoiceMonitorButton();
 
         if (ThemeFolderPathTextBlock is not null)
@@ -254,7 +260,7 @@ public sealed partial class MainWindow : Window
         };
         _discordCableSessionIsolationTimer.Tick += OnDiscordCableSessionIsolationTimerTick;
 
-        AppendLog("VoiSee Version 13.1.0 UI started.");
+        AppendLog("VoiSee Version 13.2.1 UI started.");
         AppendLog($"Settings path: {_settingsStore.SettingsPath}");
 
         var isolationResult = _discordCableSessionIsolationService.Enable();
@@ -12192,10 +12198,256 @@ public sealed partial class MainWindow : Window
         var aiText = $"{aiMs:0.#} ms";
         var totalText = totalMs.HasValue ? $"{totalMs.Value:0.#} ms" : "—";
 
-        if (AiLatencyTextBlock is not null) AiLatencyTextBlock.Text = aiText;
-        if (AiTotalLatencyTextBlock is not null) AiTotalLatencyTextBlock.Text = totalText;
         if (AiSelectedLatencyTextBlock is not null) AiSelectedLatencyTextBlock.Text = aiText;
         if (AiSelectedTotalLatencyTextBlock is not null) AiSelectedTotalLatencyTextBlock.Text = totalText;
+    }
+
+    private string GetDefaultAiVoiceStorageDirectory()
+        => Path.Combine(_settingsStore.DataDirectory, "AI Voices");
+
+    private void InitializeAiVoiceStoreFromSettings()
+    {
+        _aiVoiceStore = null;
+        _aiVoices = Array.Empty<AiVoicePreset>();
+
+        var storageDirectory = string.IsNullOrWhiteSpace(_settings.AiVoiceStorageDirectory)
+            ? GetDefaultAiVoiceStorageDirectory()
+            : _settings.AiVoiceStorageDirectory!;
+
+        try
+        {
+            _aiVoiceStore = new AiVoiceStore(storageDirectory);
+            _aiVoices = _aiVoiceStore.LoadVoices();
+
+            // 13.2.1: persist the built-in VoiSee storage as the explicit default once resolved.
+            if (string.IsNullOrWhiteSpace(_settings.AiVoiceStorageDirectory))
+            {
+                _settings.AiVoiceStorageDirectory = storageDirectory;
+                _settingsStore.Save(_settings);
+            }
+        }
+        catch (Exception ex)
+        {
+            AppendLog($"AI Voice storage init error: {ex.Message}");
+        }
+    }
+
+    private void UpdateAiVoiceStorageSettingsUi()
+    {
+        if (AiVoiceStorageFolderTextBlock is not null)
+        {
+            AiVoiceStorageFolderTextBlock.Text = _aiVoiceStore?.StorageDirectory
+                ?? _settings.AiVoiceStorageDirectory
+                ?? GetDefaultAiVoiceStorageDirectory();
+        }
+    }
+
+    private Task<bool> EnsureAiVoiceStorageAsync()
+    {
+        if (_aiVoiceStore is not null)
+        {
+            return Task.FromResult(true);
+        }
+
+        try
+        {
+            var storageDirectory = string.IsNullOrWhiteSpace(_settings.AiVoiceStorageDirectory)
+                ? GetDefaultAiVoiceStorageDirectory()
+                : _settings.AiVoiceStorageDirectory!;
+            _settings.AiVoiceStorageDirectory = storageDirectory;
+            _settingsStore.Save(_settings);
+            _aiVoiceStore = new AiVoiceStore(storageDirectory);
+            _aiVoices = _aiVoiceStore.LoadVoices();
+            UpdateAiVoiceStorageSettingsUi();
+            RefreshAiVoiceUi();
+            AppendLog($"AI Voice storage folder: {storageDirectory}");
+            return Task.FromResult(true);
+        }
+        catch (Exception ex)
+        {
+            AppendLog($"AI Voice storage init error: {ex.Message}");
+            return Task.FromResult(false);
+        }
+    }
+
+    private async void OnChangeAiVoiceStorageFolderClick(object sender, RoutedEventArgs e)
+    {
+        var picker = new FolderPicker
+        {
+            SuggestedStartLocation = PickerLocationId.DocumentsLibrary
+        };
+        picker.FileTypeFilter.Add("*");
+        InitializeWithWindow.Initialize(picker, _windowHandle != IntPtr.Zero ? _windowHandle : WindowNative.GetWindowHandle(this));
+        var folder = await picker.PickSingleFolderAsync();
+        if (folder is null || string.IsNullOrWhiteSpace(folder.Path))
+        {
+            return;
+        }
+
+        try
+        {
+            _settings.AiVoiceStorageDirectory = folder.Path;
+            _settingsStore.Save(_settings);
+            _aiVoiceStore = new AiVoiceStore(folder.Path);
+            _aiVoices = _aiVoiceStore.LoadVoices();
+            _selectedAiVoice = null;
+            UpdateAiVoiceStorageSettingsUi();
+            RefreshAiVoiceUi();
+            AppendLog($"AI Voice storage changed: {folder.Path}");
+        }
+        catch (Exception ex)
+        {
+            await ShowMessageDialogAsync("AI Voice storage", ex.Message);
+        }
+    }
+
+    private async void OnOpenAiVoiceStorageFolderFromSettingsClick(object sender, RoutedEventArgs e)
+    {
+        if (!await EnsureAiVoiceStorageAsync() || _aiVoiceStore is null) return;
+        try
+        {
+            OpenFolderWithShell(_aiVoiceStore.StorageDirectory);
+        }
+        catch (Exception ex)
+        {
+            await ShowMessageDialogAsync("AI Voice storage", ex.Message);
+        }
+    }
+
+    private void RefreshAiVoiceUi(string? selectVoiceId = null)
+    {
+        if (AiVoiceListView is null)
+        {
+            return;
+        }
+
+        var previousId = selectVoiceId ?? _selectedAiVoice?.Id;
+        AiVoiceListView.Items.Clear();
+
+        if (_aiVoiceStore is not null)
+        {
+            try
+            {
+                _aiVoices = _aiVoiceStore.LoadVoices();
+            }
+            catch (Exception ex)
+            {
+                _aiVoices = Array.Empty<AiVoicePreset>();
+                AppendLog($"AI Voice refresh error: {ex.Message}");
+            }
+        }
+        else
+        {
+            _aiVoices = Array.Empty<AiVoicePreset>();
+        }
+
+        var filter = AiVoiceSearchTextBox?.Text?.Trim() ?? string.Empty;
+        FrameworkElement? itemToSelect = null;
+        var visibleCount = 0;
+        foreach (var voice in _aiVoices)
+        {
+            if (!string.IsNullOrWhiteSpace(filter)
+                && !voice.Name.Contains(filter, StringComparison.CurrentCultureIgnoreCase)
+                && !voice.Engine.Contains(filter, StringComparison.CurrentCultureIgnoreCase)
+                && !voice.VoiceType.Contains(filter, StringComparison.CurrentCultureIgnoreCase))
+            {
+                continue;
+            }
+
+            var item = CreateAiVoiceListItem(voice);
+            AiVoiceListView.Items.Add(item);
+            visibleCount++;
+            if (!string.IsNullOrWhiteSpace(previousId) && string.Equals(voice.Id, previousId, StringComparison.OrdinalIgnoreCase))
+            {
+                itemToSelect = item;
+            }
+        }
+
+        if (AiVoiceEmptyState is not null)
+        {
+            AiVoiceEmptyState.Visibility = visibleCount == 0 ? Visibility.Visible : Visibility.Collapsed;
+        }
+
+        if (itemToSelect is not null)
+        {
+            AiVoiceListView.SelectedItem = itemToSelect;
+            _selectedAiVoice = itemToSelect.Tag as AiVoicePreset;
+        }
+        else if (_selectedAiVoice is not null && _aiVoices.All(v => !string.Equals(v.Id, _selectedAiVoice.Id, StringComparison.OrdinalIgnoreCase)))
+        {
+            _selectedAiVoice = null;
+        }
+
+        UpdateSelectedAiVoiceUi();
+    }
+
+    private static FrameworkElement CreateAiVoiceListItem(AiVoicePreset voice)
+    {
+        var root = new Grid
+        {
+            Tag = voice,
+            Padding = new Thickness(2, 5, 2, 5),
+            ColumnSpacing = 8,
+            HorizontalAlignment = HorizontalAlignment.Stretch
+        };
+        root.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        root.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+
+        var text = new StackPanel { Spacing = 2 };
+        text.Children.Add(new TextBlock
+        {
+            Text = voice.Name,
+            FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
+            TextTrimming = TextTrimming.CharacterEllipsis
+        });
+        text.Children.Add(new TextBlock
+        {
+            Text = $"{voice.Engine} · {voice.Compatibility}",
+            FontSize = 10,
+            Opacity = 0.62,
+            TextTrimming = TextTrimming.CharacterEllipsis
+        });
+        root.Children.Add(text);
+
+        var type = new TextBlock
+        {
+            Text = voice.VoiceType,
+            FontSize = 10,
+            Opacity = 0.76,
+            VerticalAlignment = VerticalAlignment.Center,
+            HorizontalAlignment = HorizontalAlignment.Right
+        };
+        Grid.SetColumn(type, 1);
+        root.Children.Add(type);
+        return root;
+    }
+
+    private void UpdateSelectedAiVoiceUi()
+    {
+        if (_selectedAiVoice is null)
+        {
+            if (AiSelectedVoiceNameTextBlock is not null) AiSelectedVoiceNameTextBlock.Text = "No voice selected";
+            if (AiSelectedVoiceTypeTextBlock is not null) AiSelectedVoiceTypeTextBlock.Text = _aiVoiceStore is null
+                ? "Choose a storage folder, create a reference voice, or import a .vsee/model file."
+                : "Select or create an AI voice to see its details.";
+            if (AiSelectedCompatibilityTextBlock is not null) AiSelectedCompatibilityTextBlock.Text = "—";
+            if (AiSelectedStorageTextBlock is not null) AiSelectedStorageTextBlock.Text = _aiVoiceStore?.StorageDirectory ?? "Not configured";
+            return;
+        }
+
+        if (AiSelectedVoiceNameTextBlock is not null) AiSelectedVoiceNameTextBlock.Text = _selectedAiVoice.Name;
+        if (AiSelectedVoiceTypeTextBlock is not null) AiSelectedVoiceTypeTextBlock.Text = $"{_selectedAiVoice.VoiceType} · {_selectedAiVoice.Engine}";
+        if (AiSelectedCompatibilityTextBlock is not null) AiSelectedCompatibilityTextBlock.Text = _selectedAiVoice.Compatibility;
+        if (AiSelectedStorageTextBlock is not null) AiSelectedStorageTextBlock.Text = _selectedAiVoice.FilePath ?? _aiVoiceStore?.StorageDirectory ?? "Not configured";
+    }
+
+    private void OnAiVoiceSearchTextChanged(object sender, TextChangedEventArgs e) => RefreshAiVoiceUi();
+
+    private void OnAiVoiceSelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        _selectedAiVoice = (AiVoiceListView?.SelectedItem as FrameworkElement)?.Tag as AiVoicePreset;
+        UpdateSelectedAiVoiceUi();
+        UpdateAiVoiceLatencyUi();
     }
 
     private async Task ShowAiVoiceSkeletonDialogAsync(string title, string message)
@@ -12217,19 +12469,206 @@ public sealed partial class MainWindow : Window
     }
 
     private async void OnAiCreateFromAudioClick(object sender, RoutedEventArgs e)
-        => await ShowAiVoiceSkeletonDialogAsync("Create from Audio", "The AI Voice UI is ready. Quick Clone is connected in a later VoiSee 13.x Gate; no AI runtime is installed by 13.1.");
+    {
+        if (!await EnsureAiVoiceStorageAsync() || _aiVoiceStore is null) return;
+
+        var picker = new FileOpenPicker();
+        picker.FileTypeFilter.Add(".wav");
+        picker.FileTypeFilter.Add(".mp3");
+        picker.FileTypeFilter.Add(".ogg");
+        picker.FileTypeFilter.Add(".flac");
+        picker.FileTypeFilter.Add(".m4a");
+        picker.FileTypeFilter.Add(".aac");
+        InitializeWithWindow.Initialize(picker, _windowHandle);
+        var file = await picker.PickSingleFileAsync();
+        if (file is null) return;
+
+        try
+        {
+            var voice = _aiVoiceStore.CreateReferenceVoice(file.Path);
+            RefreshAiVoiceUi(voice.Id);
+            AppendLog($"AI Voice reference package created: {voice.Name}");
+            await ShowMessageDialogAsync("AI Voice created", $"'{voice.Name}' was stored as a .vsee reference voice. Quick Clone processing is connected in a later Gate.");
+        }
+        catch (Exception ex)
+        {
+            AppendLog($"Create AI Voice reference error: {ex.Message}");
+            await ShowMessageDialogAsync("Create from Audio", ex.Message);
+        }
+    }
 
     private async void OnAiImportVoiceClick(object sender, RoutedEventArgs e)
-        => await ShowAiVoiceSkeletonDialogAsync("Import AI Voice", "The import entry point is reserved. Model storage and the .vsee format are implemented in the next Gate.");
+    {
+        if (!await EnsureAiVoiceStorageAsync() || _aiVoiceStore is null) return;
+
+        var picker = new FileOpenPicker();
+        picker.FileTypeFilter.Add(AiVoiceStore.VoiceExtension);
+        picker.FileTypeFilter.Add(".pth");
+        picker.FileTypeFilter.Add(".index");
+        picker.FileTypeFilter.Add(".onnx");
+        InitializeWithWindow.Initialize(picker, _windowHandle);
+        var files = await picker.PickMultipleFilesAsync();
+        if (files is null || files.Count == 0) return;
+
+        try
+        {
+            AiVoicePreset? last = null;
+            var packages = files.Where(f => string.Equals(Path.GetExtension(f.Path), AiVoiceStore.VoiceExtension, StringComparison.OrdinalIgnoreCase)).ToList();
+            var rawModels = files.Where(f => !string.Equals(Path.GetExtension(f.Path), AiVoiceStore.VoiceExtension, StringComparison.OrdinalIgnoreCase)).ToList();
+
+            foreach (var package in packages)
+            {
+                last = _aiVoiceStore.ImportPackage(package.Path);
+            }
+
+            if (rawModels.Count > 0)
+            {
+                last = _aiVoiceStore.CreateImportedModel(rawModels.Select(f => f.Path).ToList());
+            }
+
+            RefreshAiVoiceUi(last?.Id);
+            AppendLog($"AI Voice import completed: {files.Count} file(s).");
+        }
+        catch (Exception ex)
+        {
+            AppendLog($"AI Voice import error: {ex.Message}");
+            await ShowMessageDialogAsync("Import AI Voice", ex.Message);
+        }
+    }
 
     private async void OnAiOpenVoiceFolderClick(object sender, RoutedEventArgs e)
-        => await ShowAiVoiceSkeletonDialogAsync("AI Voice storage", "The user-selected AI Voice storage folder is introduced with the .vsee storage Gate.");
+    {
+        if (!await EnsureAiVoiceStorageAsync() || _aiVoiceStore is null) return;
+        try
+        {
+            OpenFolderWithShell(_aiVoiceStore.StorageDirectory);
+        }
+        catch (Exception ex)
+        {
+            await ShowMessageDialogAsync("AI Voice storage", ex.Message);
+        }
+    }
 
     private async void OnAiOpenLibraryInBrowserClick(object sender, RoutedEventArgs e)
-        => await ShowAiVoiceSkeletonDialogAsync("Online Library", "The embedded library shell is ready. The first online provider and browser link are connected in the Online Library Gate.");
+        => await ShowAiVoiceSkeletonDialogAsync("Online Library", "The library UI is ready. The first online provider and its browser URL are connected in Gate 13.3.");
 
-    private async void OnAiModelManagerPlaceholderClick(object sender, RoutedEventArgs e)
-        => await ShowAiVoiceSkeletonDialogAsync("Model Manager", "Select or create an AI Voice after the .vsee storage layer is connected.");
+    private async void OnAiRenameVoiceClick(object sender, RoutedEventArgs e)
+    {
+        if (_selectedAiVoice is null || _aiVoiceStore is null)
+        {
+            await ShowMessageDialogAsync("Rename AI Voice", "Select an AI Voice first.");
+            return;
+        }
+
+        var nameBox = new TextBox
+        {
+            Text = _selectedAiVoice.Name,
+            PlaceholderText = "Voice name",
+            MinWidth = 300,
+            SelectionStart = 0,
+            SelectionLength = _selectedAiVoice.Name.Length
+        };
+        var dialog = new ContentDialog
+        {
+            XamlRoot = RootGrid.XamlRoot,
+            Title = "Rename AI Voice",
+            Content = nameBox,
+            PrimaryButtonText = "Rename",
+            CloseButtonText = "Cancel",
+            DefaultButton = ContentDialogButton.Primary
+        };
+        if (await dialog.ShowAsync() != ContentDialogResult.Primary) return;
+
+        try
+        {
+            var id = _selectedAiVoice.Id;
+            _aiVoiceStore.Rename(_selectedAiVoice, nameBox.Text);
+            RefreshAiVoiceUi(id);
+        }
+        catch (Exception ex)
+        {
+            await ShowMessageDialogAsync("Rename AI Voice", ex.Message);
+        }
+    }
+
+    private async void OnAiExportVoiceClick(object sender, RoutedEventArgs e)
+    {
+        if (_selectedAiVoice is null || _aiVoiceStore is null)
+        {
+            await ShowMessageDialogAsync("Export AI Voice", "Select an AI Voice first.");
+            return;
+        }
+
+        var picker = new FileSavePicker
+        {
+            SuggestedFileName = _selectedAiVoice.Name
+        };
+        picker.FileTypeChoices.Add("VoiSee AI Voice", new List<string> { AiVoiceStore.VoiceExtension });
+        InitializeWithWindow.Initialize(picker, _windowHandle);
+        var file = await picker.PickSaveFileAsync();
+        if (file is null) return;
+
+        try
+        {
+            _aiVoiceStore.Export(_selectedAiVoice, file.Path);
+            AppendLog($"AI Voice exported: {_selectedAiVoice.Name} -> {file.Path}");
+        }
+        catch (Exception ex)
+        {
+            await ShowMessageDialogAsync("Export AI Voice", ex.Message);
+        }
+    }
+
+    private async void OnAiSelectedVoiceFolderClick(object sender, RoutedEventArgs e)
+    {
+        if (_selectedAiVoice?.FilePath is null)
+        {
+            await ShowMessageDialogAsync("AI Voice folder", "Select an AI Voice first.");
+            return;
+        }
+
+        try
+        {
+            OpenFolderWithShell(Path.GetDirectoryName(_selectedAiVoice.FilePath)!);
+        }
+        catch (Exception ex)
+        {
+            await ShowMessageDialogAsync("AI Voice folder", ex.Message);
+        }
+    }
+
+    private async void OnAiDeleteVoiceClick(object sender, RoutedEventArgs e)
+    {
+        if (_selectedAiVoice is null || _aiVoiceStore is null)
+        {
+            await ShowMessageDialogAsync("Delete AI Voice", "Select an AI Voice first.");
+            return;
+        }
+
+        var voice = _selectedAiVoice;
+        var dialog = new ContentDialog
+        {
+            XamlRoot = RootGrid.XamlRoot,
+            Title = "Delete AI Voice?",
+            Content = $"Delete '{voice.Name}' and all assets stored inside its .vsee package?",
+            PrimaryButtonText = "Delete",
+            CloseButtonText = "Cancel",
+            DefaultButton = ContentDialogButton.Close
+        };
+        if (await dialog.ShowAsync() != ContentDialogResult.Primary) return;
+
+        try
+        {
+            _aiVoiceStore.Delete(voice);
+            _selectedAiVoice = null;
+            RefreshAiVoiceUi();
+            AppendLog($"AI Voice deleted: {voice.Name}");
+        }
+        catch (Exception ex)
+        {
+            await ShowMessageDialogAsync("Delete AI Voice", ex.Message);
+        }
+    }
 
     private void UpdateAllLabels()
     {

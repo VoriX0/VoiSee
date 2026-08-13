@@ -88,7 +88,10 @@ public sealed class VoiSeUserSettings
     // VoiSee 10.1 native XAML ResourceDictionary theme. Null means built-in Default Dark.
     public string? ThemeFilePath { get; set; }
 
-    // VoiSee 13.1 global AI Voice performance profile. The runtime is connected in later Gates.
+    // VoiSee 13.x global AI Voice performance profile. The runtime is connected in later Gates.
     public string AiVoicePerformanceProfile { get; set; } = "Balanced";
+
+    // VoiSee 13.2.1 AI Voice storage folder. Defaults to the VoiSee data directory and may be changed in Settings.
+    public string? AiVoiceStorageDirectory { get; set; }
 }
 
