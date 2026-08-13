@@ -41,9 +41,13 @@ public sealed class Gate2UnifiedAudioEngine : IDisposable
     private bool _voiceMonitorRouteEnabled;
     private volatile bool _fullProcessingEnabled;
     private AiPerformanceProfile _performanceProfile = AiPerformanceProfile.Balanced;
+    private readonly object _aiVoiceSync = new();
+    private IAiVoiceRealtimeProcessor? _aiVoiceProcessor;
+    private AiVoiceRuntimeConfiguration? _aiVoiceConfiguration;
     private bool _disposed;
 
     public event Action<AudioProcessingPath>? ProcessingPathChanged;
+    public event Action<AiVoiceRuntimeStatus>? AiVoiceRuntimeStatusChanged;
 
     public Gate2UnifiedAudioEngine(
         MMDevice inputDevice,
@@ -70,17 +74,154 @@ public sealed class Gate2UnifiedAudioEngine : IDisposable
     }
 
     public WaveFormat MixFormat => _mixFormat;
-    public AudioProcessingPath CurrentProcessingPath => _fullProcessingEnabled ? AudioProcessingPath.Full : AudioProcessingPath.Fast;
+    public AudioProcessingPath CurrentProcessingPath
+    {
+        get
+        {
+            var aiActive = IsAiVoiceRuntimeActive;
+            if (aiActive)
+            {
+                return _fullProcessingEnabled ? AudioProcessingPath.AiFull : AudioProcessingPath.Ai;
+            }
+
+            return _fullProcessingEnabled ? AudioProcessingPath.Full : AudioProcessingPath.Fast;
+        }
+    }
     public AiPerformanceProfile PerformanceProfile => _performanceProfile;
+    public bool IsAiVoiceRuntimeActive
+    {
+        get
+        {
+            lock (_aiVoiceSync)
+            {
+                return _aiVoiceProcessor is not null
+                    && _aiVoiceProcessor.GetStatus().State != AiVoiceRuntimeState.Disabled;
+            }
+        }
+    }
+    public AiVoiceRuntimeStatus GetAiVoiceRuntimeStatus()
+    {
+        lock (_aiVoiceSync)
+        {
+            return _aiVoiceProcessor?.GetStatus() ?? AiVoiceRuntimeStatus.Disabled;
+        }
+    }
     public int CaptureLatencyTarget => CaptureLatencyTargetMs;
     public int RenderLatencyTarget => RenderLatencyTargetMs;
     public AudioLatencySnapshot GetLatencySnapshot() => _latencyTelemetry.Snapshot();
 
     public void SetPerformanceProfile(AiPerformanceProfile profile)
     {
-        // Gate 13.0.1 only establishes the contract. Profile-specific DSP/AI
-        // tuning is intentionally deferred until the AI Voice runtime exists.
         _performanceProfile = profile;
+
+        AiVoiceRuntimeConfiguration? current;
+        lock (_aiVoiceSync)
+        {
+            current = _aiVoiceConfiguration;
+        }
+
+        if (current is not null && current.PerformanceProfile != profile)
+        {
+            _ = RestartAiVoiceForProfileAsync(current with { PerformanceProfile = profile });
+        }
+    }
+
+    private static IAiVoiceRealtimeProcessor CreateAiVoiceProcessor(AiVoiceRuntimeConfiguration configuration)
+        => configuration.Backend switch
+        {
+            AiVoiceRuntimeBackend.Rvc => new RvcRealtimeAiVoiceProcessor(configuration),
+            _ => throw new NotSupportedException($"AI Voice backend '{configuration.Backend}' is not supported by this build."),
+        };
+
+    public async Task EnableAiVoiceAsync(AiVoiceRuntimeConfiguration configuration, CancellationToken cancellationToken = default)
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+        var effective = configuration with { PerformanceProfile = _performanceProfile };
+        var candidate = CreateAiVoiceProcessor(effective);
+        candidate.StatusChanged += OnAiVoiceRuntimeStatusChanged;
+
+        try
+        {
+            await candidate.StartAsync(cancellationToken).ConfigureAwait(false);
+        }
+        catch
+        {
+            candidate.StatusChanged -= OnAiVoiceRuntimeStatusChanged;
+            candidate.Dispose();
+            throw;
+        }
+
+        IAiVoiceRealtimeProcessor? previous;
+        var oldPath = CurrentProcessingPath;
+        lock (_aiVoiceSync)
+        {
+            if (_disposed)
+            {
+                candidate.StatusChanged -= OnAiVoiceRuntimeStatusChanged;
+                candidate.Dispose();
+                throw new ObjectDisposedException(nameof(Gate2UnifiedAudioEngine));
+            }
+            previous = _aiVoiceProcessor;
+            _aiVoiceProcessor = candidate;
+            _aiVoiceConfiguration = effective;
+        }
+        if (previous is not null)
+        {
+            previous.StatusChanged -= OnAiVoiceRuntimeStatusChanged;
+            previous.Dispose();
+        }
+
+        var newPath = CurrentProcessingPath;
+        if (oldPath != newPath)
+        {
+            ProcessingPathChanged?.Invoke(newPath);
+        }
+        AiVoiceRuntimeStatusChanged?.Invoke(candidate.GetStatus());
+    }
+
+    public void DisableAiVoice()
+    {
+        var oldPath = CurrentProcessingPath;
+        IAiVoiceRealtimeProcessor? previous;
+        lock (_aiVoiceSync)
+        {
+            previous = _aiVoiceProcessor;
+            _aiVoiceProcessor = null;
+            _aiVoiceConfiguration = null;
+        }
+        if (previous is not null)
+        {
+            previous.StatusChanged -= OnAiVoiceRuntimeStatusChanged;
+            previous.Dispose();
+        }
+        var newPath = CurrentProcessingPath;
+        if (oldPath != newPath)
+        {
+            ProcessingPathChanged?.Invoke(newPath);
+        }
+        AiVoiceRuntimeStatusChanged?.Invoke(AiVoiceRuntimeStatus.Disabled);
+    }
+
+    private async Task RestartAiVoiceForProfileAsync(AiVoiceRuntimeConfiguration configuration)
+    {
+        try
+        {
+            await EnableAiVoiceAsync(configuration).ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            AiVoiceRuntimeStatusChanged?.Invoke(new AiVoiceRuntimeStatus(
+                AiVoiceRuntimeState.Faulted,
+                configuration.VoiceId,
+                configuration.VoiceName,
+                $"AI runtime profile switch failed: {ex.Message}",
+                0, 0.0, 0.0, 0.0, 0.0, 0, 0));
+        }
+    }
+
+    private void OnAiVoiceRuntimeStatusChanged(AiVoiceRuntimeStatus status)
+    {
+        AiVoiceRuntimeStatusChanged?.Invoke(status);
     }
 
     public bool NoiseSuppressionAvailable => _settings.NoiseSuppressionMode switch
@@ -347,6 +488,7 @@ public sealed class Gate2UnifiedAudioEngine : IDisposable
 
     public void Stop()
     {
+        DisableAiVoice();
         StopMediaBridge();
         _soundboard.Stop();
         _capture?.StopRecording();
@@ -390,11 +532,25 @@ public sealed class Gate2UnifiedAudioEngine : IDisposable
             }
             var noiseSuppressionMs = ElapsedMilliseconds(stageStart);
 
-            // Fast Path physically bypasses the regular Voice Changer processor.
-            // It is not a loop over disabled effects; the processor is not called.
+            // AI Voice sits after microphone cleanup and before the ordinary DSP chain.
+            // Inference itself runs on a worker process; the capture callback only enqueues
+            // the current microphone block and consumes already-converted output.
+            var aiMs = 0.0;
+            IAiVoiceRealtimeProcessor? aiVoiceProcessor;
+            lock (_aiVoiceSync)
+            {
+                aiVoiceProcessor = _aiVoiceProcessor;
+            }
+            if (aiVoiceProcessor is not null)
+            {
+                aiVoiceProcessor.ProcessInPlace(targetSamples);
+                aiMs = aiVoiceProcessor.EstimatedStageLatencyMs;
+            }
+
+            // The regular Voice Changer DSP remains after AI Voice.
             var dspMs = 0.0;
             var processingPath = CurrentProcessingPath;
-            if (processingPath == AudioProcessingPath.Full)
+            if (_fullProcessingEnabled)
             {
                 stageStart = Stopwatch.GetTimestamp();
                 _processor.ProcessInPlace(targetSamples);
@@ -421,7 +577,7 @@ public sealed class Gate2UnifiedAudioEngine : IDisposable
                 captureBufferMs,
                 conversionMs,
                 noiseSuppressionMs,
-                0.0,
+                aiMs,
                 dspMs,
                 virtualQueuedMs,
                 monitorQueuedMs,
@@ -466,12 +622,12 @@ public sealed class Gate2UnifiedAudioEngine : IDisposable
             return;
         }
 
+        _disposed = true;
         Stop();
         _capture?.Dispose();
         _virtualOutput?.Dispose();
         _monitorOutput?.Dispose();
         _rnNoiseSuppressor?.Dispose();
         _deepFilterNetSuppressor?.Dispose();
-        _disposed = true;
     }
 }

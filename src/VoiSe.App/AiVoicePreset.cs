@@ -47,12 +47,11 @@ public sealed class AiVoicePreset
     [JsonIgnore]
     public bool CanOptimize => IsReference || IsQuickClone;
 
-    // 13.5 activation gate: imported RVC packages and prepared Quick/Optimized voices
-    // can be selected as the active AI Voice. Realtime inference is connected later.
+    // VoiSee 13.7 first realtime backend: imported/downloaded RVC .pth packages
+    // can drive the live microphone path. Quick/Optimized reference voices keep
+    // their lifecycle state but wait for the zero-shot runtime Gate.
     [JsonIgnore]
     public bool CanActivate =>
-        (string.Equals(Engine, "RVC", StringComparison.OrdinalIgnoreCase)
-         && AssetEntries.Exists(entry => entry.EndsWith(".pth", StringComparison.OrdinalIgnoreCase)))
-        || IsQuickClone
-        || IsOptimized;
+        string.Equals(Engine, "RVC", StringComparison.OrdinalIgnoreCase)
+        && AssetEntries.Exists(entry => entry.EndsWith(".pth", StringComparison.OrdinalIgnoreCase));
 }

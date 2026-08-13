@@ -6,7 +6,7 @@
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     mc:Ignorable="d"
-    Title="VoiSee Version 13.6.1">
+    Title="VoiSee Version 13.7.0">
 
     <Grid x:Name="RootGrid" RequestedTheme="Dark" Background="{ThemeResource VoiSee.AppBackgroundBrush}" SizeChanged="OnRootGridSizeChanged">
         <Grid.RowDefinitions>
@@ -21,7 +21,7 @@
             </Grid.ColumnDefinitions>
             <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center" Margin="10,0,0,0">
                 <Image Source="ms-appx:///Assets/AppIcon_24.png" Width="16" Height="16" VerticalAlignment="Center" />
-                <TextBlock x:Name="TitleBarVersionTextBlock" Text="VoiSee Version 13.6.1" FontSize="12" Foreground="{ThemeResource VoiSee.PrimaryTextBrush}" VerticalAlignment="Center" />
+                <TextBlock x:Name="TitleBarVersionTextBlock" Text="VoiSee Version 13.7.0" FontSize="12" Foreground="{ThemeResource VoiSee.PrimaryTextBrush}" VerticalAlignment="Center" />
             </StackPanel>
         </Grid>
 
@@ -39,7 +39,7 @@
                 </Grid.ColumnDefinitions>
                 <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
                     <Image Source="ms-appx:///Assets/AppIcon_48.png" Width="34" Height="34" VerticalAlignment="Center" />
-                    <TextBlock x:Name="MainTitle" Text="VoiSee Version 13.6.1" FontSize="28" FontWeight="SemiBold" Foreground="{ThemeResource VoiSee.PrimaryTextBrush}" VerticalAlignment="Center" />
+                    <TextBlock x:Name="MainTitle" Text="VoiSee Version 13.7.0" FontSize="28" FontWeight="SemiBold" Foreground="{ThemeResource VoiSee.PrimaryTextBrush}" VerticalAlignment="Center" />
                 </StackPanel>
                 <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center" HorizontalAlignment="Right">
                     <TextBlock Text="Mic Output" Foreground="{ThemeResource VoiSee.PrimaryTextBrush}" Opacity="0.62" VerticalAlignment="Center" />
@@ -648,7 +648,7 @@
 
 
                 <TabViewItem x:Name="AiVoiceTabViewItem" Header="AI Voice" IsClosable="False">
-                    <!-- VoiSee 13.6.1: model activation/compatibility state is live; AI inference remains deferred. -->
+                    <!-- VoiSee 13.7.0: imported/downloaded RVC voices can run through the separate realtime AI runtime. -->
                     <Grid x:Name="AiVoiceTabRoot" Padding="0,10,32,0" VerticalAlignment="Stretch">
                         <Grid ColumnSpacing="14" VerticalAlignment="Stretch">
                             <Grid.ColumnDefinitions>
@@ -1668,6 +1668,29 @@
                                             <Button Grid.Column="1" Style="{ThemeResource VoiSee.Style.Button}"
                                                     Content="Open Folder" HorizontalAlignment="Stretch"
                                                     Padding="12,6" MinHeight="32" Click="OnOpenAiVoiceStorageFolderFromSettingsClick" />
+                                        </Grid>
+                                    </StackPanel>
+                                </Border>
+
+                                <Border Style="{ThemeResource VoiSee.Style.Panel.SettingsCard}">
+                                    <StackPanel Spacing="10">
+                                        <TextBlock Text="AI Voice Runtime" FontSize="18" FontWeight="SemiBold" />
+                                        <TextBlock Text="The realtime AI engine is installed separately so the main VoiSee installer stays lightweight. Hardware-dependent runtime packages are selected during installation."
+                                                   Opacity="0.7" TextWrapping="WrapWholeWords" />
+                                        <TextBlock x:Name="AiRuntimeStatusTextBlock"
+                                                   Text="Checking runtime..."
+                                                   Opacity="0.82" TextWrapping="WrapWholeWords" />
+                                        <Grid ColumnSpacing="8">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="*" />
+                                            </Grid.ColumnDefinitions>
+                                            <Button Grid.Column="0" Style="{ThemeResource VoiSee.Style.Button}"
+                                                    Content="Install / Repair" HorizontalAlignment="Stretch"
+                                                    Padding="12,6" MinHeight="32" Click="OnInstallAiRuntimeClick" />
+                                            <Button Grid.Column="1" Style="{ThemeResource VoiSee.Style.Button}"
+                                                    Content="Open Runtime Folder" HorizontalAlignment="Stretch"
+                                                    Padding="12,6" MinHeight="32" Click="OnOpenAiRuntimeFolderClick" />
                                         </Grid>
                                     </StackPanel>
                                 </Border>

@@ -20,7 +20,7 @@ public sealed class HuggingFaceVoiceLibraryProvider : IAiVoiceLibraryProvider, I
         {
             Timeout = TimeSpan.FromSeconds(45)
         };
-        _httpClient.DefaultRequestHeaders.UserAgent.ParseAdd("VoiSee/13.6.1");
+        _httpClient.DefaultRequestHeaders.UserAgent.ParseAdd("VoiSee/13.7.0");
     }
 
     public string Name => "Hugging Face";

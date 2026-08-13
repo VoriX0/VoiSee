@@ -13,10 +13,10 @@
     <EnableMsixTooling>true</EnableMsixTooling>
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>
     <ApplicationIcon>Assets\AppIcon.ico</ApplicationIcon>
-    <Version>13.6.1</Version>
-    <AssemblyVersion>13.6.1.0</AssemblyVersion>
-    <FileVersion>13.6.1.0</FileVersion>
-    <InformationalVersion>13.6.1</InformationalVersion>
+    <Version>13.7.0</Version>
+    <AssemblyVersion>13.7.0.0</AssemblyVersion>
+    <FileVersion>13.7.0.0</FileVersion>
+    <InformationalVersion>13.7.0</InformationalVersion>
     <DeepFilterNetNativePath>$(MSBuildProjectDirectory)\..\VoiSe.Audio\runtimes\win-x64\native\deep_filter_ladspa.dll</DeepFilterNetNativePath>
     <DeepFilterNetFetchScript>$(MSBuildProjectDirectory)\..\..\scripts\fetch-deepfilternet.ps1</DeepFilterNetFetchScript>
     <StopRunningVoiSeeBeforeDebugBuild Condition="'$(StopRunningVoiSeeBeforeDebugBuild)' == ''">true</StopRunningVoiSeeBeforeDebugBuild>
@@ -41,6 +41,10 @@
       <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
     </Content>
     <Content Include="Themes\UserThemeTemplate.voiseetheme.template">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+    </Content>
+    <Content Include="AiRuntime\**\*">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
     </Content>

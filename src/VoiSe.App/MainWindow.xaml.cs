@@ -58,6 +58,7 @@ public sealed partial class MainWindow : Window
     private Gate2UnifiedAudioEngine? _engine;
     private AiPerformanceProfile _aiPerformanceProfile = AiPerformanceProfile.Balanced;
     private AiVoiceStore? _aiVoiceStore;
+    private readonly AiRuntimeManager _aiRuntimeManager;
     private IReadOnlyList<AiVoicePreset> _aiVoices = Array.Empty<AiVoicePreset>();
     private AiVoicePreset? _selectedAiVoice;
     private string? _activeAiVoiceId;
@@ -182,6 +183,8 @@ public sealed partial class MainWindow : Window
     private TextBlock? _advancedRouteStatusTextBlock;
     private TextBlock? _advancedLatencyStatusTextBlock;
     private DateTimeOffset? _lastLatencyWarningAt;
+    private DateTimeOffset? _lastAiRuntimeWarningAt;
+    private long _lastAiRuntimeUnderrunSamples;
     private TextBlock? _advancedLogTextBlock;
     private ScrollViewer? _advancedLogScrollViewer;
     private readonly WindowCaptureService _windowCaptureService = new();
@@ -197,6 +200,7 @@ public sealed partial class MainWindow : Window
     {
         StartupLog.Write("MainWindow constructor started.");
         _settings = _settingsStore.Load();
+        _aiRuntimeManager = new AiRuntimeManager(_settingsStore.DataDirectory);
         _aiPerformanceProfile = ParseAiPerformanceProfile(_settings.AiVoicePerformanceProfile);
         _activeAiVoiceId = _settings.AiVoiceActivePresetId;
         _settings.MediaBridgeProfiles ??= new List<MediaBridgeProfile>();
@@ -211,6 +215,7 @@ public sealed partial class MainWindow : Window
         BuildEffectLibraryList();
         UpdateAiPerformanceUi();
         UpdateAiVoiceStorageSettingsUi();
+        UpdateAiRuntimeSettingsUi();
         RefreshAiVoiceUi();
         UpdateVoiceMonitorButton();
         _aiLibrarySearchTimer.Interval = TimeSpan.FromMilliseconds(450);
@@ -273,7 +278,7 @@ public sealed partial class MainWindow : Window
         };
         _discordCableSessionIsolationTimer.Tick += OnDiscordCableSessionIsolationTimerTick;
 
-        AppendLog("VoiSee Version 13.6.1 UI started.");
+        AppendLog("VoiSee Version 13.7.0 UI started.");
         AppendLog($"Settings path: {_settingsStore.SettingsPath}");
 
         var isolationResult = _discordCableSessionIsolationService.Enable();
@@ -1640,6 +1645,7 @@ public sealed partial class MainWindow : Window
         {
             RefreshAdvancedSettingsStatus();
         }
+        UpdateAiRuntimeSettingsUi();
 
         if (_engine is not null)
         {
@@ -1650,6 +1656,24 @@ public sealed partial class MainWindow : Window
             {
                 _lastLatencyWarningAt = now;
                 AppendLog($"Audio latency warning: estimated {latency.EstimatedTotalMs:F0} ms; path={latency.ProcessingPath}; queued={latency.VirtualMicQueuedAudioMs:F0} ms.");
+            }
+
+            var aiRuntime = _engine.GetAiVoiceRuntimeStatus();
+            if (aiRuntime.State == AiVoiceRuntimeState.Ready)
+            {
+                var underrunAdvanced = aiRuntime.OutputUnderrunSamples > _lastAiRuntimeUnderrunSamples;
+                var inferenceOverBudget = aiRuntime.BlockMs > 0 && Math.Max(aiRuntime.LastInferenceMs, aiRuntime.LastRoundTripMs) > aiRuntime.BlockMs;
+                if ((underrunAdvanced || inferenceOverBudget)
+                    && (!_lastAiRuntimeWarningAt.HasValue || now - _lastAiRuntimeWarningAt.Value >= TimeSpan.FromSeconds(8)))
+                {
+                    _lastAiRuntimeWarningAt = now;
+                    AppendLog($"AI Voice overload warning: inference={aiRuntime.LastInferenceMs:F0} ms, round-trip={aiRuntime.LastRoundTripMs:F0} ms, block={aiRuntime.BlockMs} ms, underrun samples={aiRuntime.OutputUnderrunSamples}. Audible artifacts may occur; try Balanced/Quality or a lighter model.");
+                }
+                _lastAiRuntimeUnderrunSamples = aiRuntime.OutputUnderrunSamples;
+            }
+            else
+            {
+                _lastAiRuntimeUnderrunSamples = 0;
             }
         }
 
@@ -2568,12 +2592,16 @@ public sealed partial class MainWindow : Window
             else
             {
                 var latency = _engine.GetLatencySnapshot();
+                var aiRuntime = _engine.GetAiVoiceRuntimeStatus();
+                var aiDetail = aiRuntime.State == AiVoiceRuntimeState.Ready
+                    ? $"{latency.AiProcessingMs:F1} ms estimated stage; inference={aiRuntime.LastInferenceMs:F1} ms; IPC round-trip={aiRuntime.LastRoundTripMs:F1} ms; block={aiRuntime.BlockMs} ms; in={aiRuntime.InputQueuedMs:F1} ms; out={aiRuntime.OutputQueuedMs:F1} ms; underrun={aiRuntime.OutputUnderrunSamples}"
+                    : $"{aiRuntime.State}{(string.IsNullOrWhiteSpace(aiRuntime.Error) ? string.Empty : $" · {aiRuntime.Error}")}";
                 _advancedLatencyStatusTextBlock.Text =
                     $"Processing path: {latency.ProcessingPath}\n" +
                     $"Capture block: {latency.CaptureBufferMs:F1} ms\n" +
                     $"Format conversion CPU: {latency.FormatConversionProcessingMs:F2} ms\n" +
                     $"Noise suppression CPU: {latency.NoiseSuppressionProcessingMs:F2} ms\n" +
-                    $"AI Voice: {latency.AiProcessingMs:F1} ms (inactive)\n" +
+                    $"AI Voice: {aiDetail}\n" +
                     $"DSP CPU: {latency.DspProcessingMs:F2} ms\n" +
                     $"Virtual Mic queued: {latency.VirtualMicQueuedAudioMs:F1} ms\n" +
                     $"Monitor queued: {latency.MonitorQueuedAudioMs:F1} ms\n" +
@@ -6523,6 +6551,7 @@ public sealed partial class MainWindow : Window
             SaveCurrentSettings();
             _engine = new Gate2UnifiedAudioEngine(input, virtualOutput, monitor, CreateEffectSettings());
             _engine.ProcessingPathChanged += OnAudioProcessingPathChanged;
+            _engine.AiVoiceRuntimeStatusChanged += OnAiVoiceRuntimeStatusChanged;
             _engine.SetPerformanceProfile(_aiPerformanceProfile);
             _engine.Start();
             _engine.SetVirtualMicMuted(_virtualMicMuted);
@@ -6542,6 +6571,7 @@ public sealed partial class MainWindow : Window
             }
             WarmSoundCacheInBackground();
             RefreshAdvancedSettingsStatus();
+            _ = RestoreActiveAiVoiceRuntimeAsync();
             return true;
         }
         catch (Exception ex)
@@ -12246,7 +12276,7 @@ public sealed partial class MainWindow : Window
             _aiVoiceStore = new AiVoiceStore(storageDirectory);
             _aiVoices = _aiVoiceStore.LoadVoices();
 
-            // 13.6.1: persist the built-in VoiSee storage as the explicit default once resolved.
+            // 13.7.0: persist the built-in VoiSee storage as the explicit default once resolved.
             if (string.IsNullOrWhiteSpace(_settings.AiVoiceStorageDirectory))
             {
                 _settings.AiVoiceStorageDirectory = storageDirectory;
@@ -12266,6 +12296,94 @@ public sealed partial class MainWindow : Window
             AiVoiceStorageFolderTextBlock.Text = _aiVoiceStore?.StorageDirectory
                 ?? _settings.AiVoiceStorageDirectory
                 ?? GetDefaultAiVoiceStorageDirectory();
+        }
+    }
+
+    private void UpdateAiRuntimeSettingsUi()
+    {
+        if (AiRuntimeStatusTextBlock is null)
+        {
+            return;
+        }
+
+        if (_aiRuntimeManager.IsInstalled(out var problem))
+        {
+            var active = _engine?.GetAiVoiceRuntimeStatus();
+            AiRuntimeStatusTextBlock.Text = active?.State switch
+            {
+                AiVoiceRuntimeState.Starting => $"Installed · loading {active.VoiceName ?? "AI Voice"}...",
+                AiVoiceRuntimeState.Ready => $"Installed · realtime active: {active.VoiceName ?? "AI Voice"}",
+                AiVoiceRuntimeState.Faulted => $"Installed · runtime error: {active.Error ?? "unknown error"}",
+                _ => "Installed · ready for RVC realtime voices"
+            };
+        }
+        else
+        {
+            AiRuntimeStatusTextBlock.Text = $"Not installed · {problem}";
+        }
+    }
+
+    private async void OnInstallAiRuntimeClick(object sender, RoutedEventArgs e)
+    {
+        if (RootGrid?.XamlRoot is null)
+        {
+            return;
+        }
+
+        var alreadyInstalled = _aiRuntimeManager.IsInstalled(out _);
+        var dialog = new ContentDialog
+        {
+            XamlRoot = RootGrid.XamlRoot,
+            Title = alreadyInstalled ? "Repair AI Runtime?" : "Install AI Runtime?",
+            Content = "The realtime RVC runtime is separate from VoiSee and may download several gigabytes of Python and AI dependencies. Installation opens in a PowerShell window and selects a suitable dependency path for the detected GPU/CPU.",
+            PrimaryButtonText = alreadyInstalled ? "Repair" : "Install",
+            CloseButtonText = "Cancel",
+            DefaultButton = ContentDialogButton.Primary
+        };
+        if (await dialog.ShowAsync() != ContentDialogResult.Primary)
+        {
+            return;
+        }
+
+        if (_engine is not null && _engine.GetAiVoiceRuntimeStatus().State != AiVoiceRuntimeState.Disabled)
+        {
+            _engine.DisableAiVoice();
+            _activeAiVoiceId = null;
+            _settings.AiVoiceActivePresetId = null;
+            _settingsStore.Save(_settings);
+            RefreshAiVoiceUi();
+            AppendLog("AI Voice disabled before AI runtime install/repair.");
+        }
+
+        try
+        {
+            _aiRuntimeManager.StartInstaller();
+            AppendLog("AI runtime installer started from Settings.");
+            await ShowMessageDialogAsync("AI Runtime", "The installer is running in a separate PowerShell window. When it reports success, VoiSee will detect the runtime automatically.");
+        }
+        catch (Exception ex)
+        {
+            AppendLog($"AI runtime installer error: {ex.Message}");
+            await ShowMessageDialogAsync("AI Runtime", ex.Message);
+        }
+        finally
+        {
+            UpdateAiRuntimeSettingsUi();
+        }
+    }
+
+    private async void OnOpenAiRuntimeFolderClick(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            var parent = Path.GetDirectoryName(_aiRuntimeManager.RuntimeRoot)
+                ?? Path.Combine(_settingsStore.DataDirectory, "AI Runtime");
+            Directory.CreateDirectory(parent);
+            OpenFolderWithShell(parent);
+        }
+        catch (Exception ex)
+        {
+            await ShowMessageDialogAsync("AI Runtime folder", ex.Message);
         }
     }
 
@@ -12318,6 +12436,7 @@ public sealed partial class MainWindow : Window
             _aiVoiceStore = new AiVoiceStore(folder.Path);
             _aiVoices = _aiVoiceStore.LoadVoices();
             _selectedAiVoice = null;
+            _engine?.DisableAiVoice();
             _activeAiVoiceId = null;
             _settings.AiVoiceActivePresetId = null;
             _settingsStore.Save(_settings);
@@ -12371,12 +12490,16 @@ public sealed partial class MainWindow : Window
             _aiVoices = Array.Empty<AiVoicePreset>();
         }
 
-        if (!string.IsNullOrWhiteSpace(_activeAiVoiceId)
-            && _aiVoices.All(v => !string.Equals(v.Id, _activeAiVoiceId, StringComparison.OrdinalIgnoreCase)))
+        if (!string.IsNullOrWhiteSpace(_activeAiVoiceId))
         {
-            _activeAiVoiceId = null;
-            _settings.AiVoiceActivePresetId = null;
-            _settingsStore.Save(_settings);
+            var activeVoice = _aiVoices.FirstOrDefault(v => string.Equals(v.Id, _activeAiVoiceId, StringComparison.OrdinalIgnoreCase));
+            if (activeVoice is null || !activeVoice.CanActivate)
+            {
+                _activeAiVoiceId = null;
+                _settings.AiVoiceActivePresetId = null;
+                _engine?.DisableAiVoice();
+                _settingsStore.Save(_settings);
+            }
         }
 
         var filter = AiVoiceSearchTextBox?.Text?.Trim() ?? string.Empty;
@@ -12480,7 +12603,11 @@ public sealed partial class MainWindow : Window
         activate.Click += OnAiVoiceCardActivateClick;
         ToolTipService.SetToolTip(activate, voice.CanActivate
             ? (isActive ? "Disable this AI Voice." : "Activate this AI Voice.")
-            : (voice.IsReference ? "Create a Quick or Optimized version before activation." : "This voice is not activatable yet."));
+            : (voice.IsReference
+                ? "Prepare Quick or Optimized first. Reference-based realtime activation uses the upcoming zero-shot backend."
+                : (voice.IsQuickClone || voice.IsOptimized
+                    ? "Prepared reference voice; zero-shot realtime backend is not in 13.7 yet."
+                    : "This voice is not activatable yet.")));
         Grid.SetRow(activate, 1);
         Grid.SetColumn(activate, 1);
         root.Children.Add(activate);
@@ -12580,7 +12707,7 @@ public sealed partial class MainWindow : Window
             AppendLog($"AI Voice optimized: {optimized.Name}; quality={optimized.ReferenceQuality}; reference={optimized.OptimizedReferenceDurationSeconds:0.0}s; preparation={optimized.OptimizationDurationMs:0} ms.");
             await ShowMessageDialogAsync(
                 "Voice optimized",
-                $"'{optimized.Name}' is now Optimized. Usable reference: {optimized.OptimizedReferenceDurationSeconds:0.0} s. Reference quality: {optimized.ReferenceQuality}. The same .vsee preset and ID were preserved; its Quick profile was replaced by the optimized profile.");
+                $"'{optimized.Name}' is now Optimized. Usable reference: {optimized.OptimizedReferenceDurationSeconds:0.0} s. Reference quality: {optimized.ReferenceQuality}. The same .vsee preset and ID were preserved; its Quick profile was replaced by the optimized profile. Realtime activation of prepared reference voices will use the zero-shot backend in the next runtime Gate.");
         }
         catch (Exception ex)
         {
@@ -12606,7 +12733,7 @@ public sealed partial class MainWindow : Window
             AppendLog($"AI Voice Quick Clone prepared: {prepared.Name} ({prepared.ReferenceDurationSeconds:0.0}s reference).");
             await ShowMessageDialogAsync(
                 "Quick Clone prepared",
-                $"'{prepared.Name}' is now a Quick Clone using {prepared.ReferenceDurationSeconds:0.0} seconds of reference audio. It can be selected as the active AI Voice; realtime inference is connected in the later AI runtime Gate.");
+                $"'{prepared.Name}' is now a Quick Clone using {prepared.ReferenceDurationSeconds:0.0} seconds of reference audio. The prepared .vsee is ready for the upcoming zero-shot realtime backend; VoiSee 13.7 realtime activation currently targets RVC .pth voices.");
         }
         catch (Exception ex)
         {
@@ -12618,6 +12745,7 @@ public sealed partial class MainWindow : Window
     private void DisableAiVoice(AiVoicePreset voice)
     {
         if (!IsAiVoiceActive(voice)) return;
+        _engine?.DisableAiVoice();
         _activeAiVoiceId = null;
         _settings.AiVoiceActivePresetId = null;
         _settingsStore.Save(_settings);
@@ -12630,18 +12758,153 @@ public sealed partial class MainWindow : Window
     {
         if (!voice.CanActivate)
         {
-            await ShowMessageDialogAsync(
-                "Activate AI Voice",
-                "This package is not an activatable RVC model yet. Import/download a .pth RVC model or create/optimize this voice in a later Gate.");
+            var message = voice.IsQuickClone || voice.IsOptimized
+                ? "This prepared reference voice is waiting for the zero-shot realtime backend. VoiSee 13.7 enables live inference for imported/downloaded RVC .pth voices first."
+                : "This package is not an activatable RVC .pth model.";
+            await ShowMessageDialogAsync("Activate AI Voice", message);
             return;
         }
 
-        _activeAiVoiceId = voice.Id;
-        _settings.AiVoiceActivePresetId = voice.Id;
-        _settingsStore.Save(_settings);
-        _selectedAiVoice = voice;
-        RefreshAiVoiceUi(voice.Id);
-        AppendLog($"AI Voice activated for runtime: {voice.Name} [{voice.Id}].");
+        if (!_aiRuntimeManager.IsInstalled(out var runtimeProblem))
+        {
+            if (RootGrid?.XamlRoot is null) return;
+            var dialog = new ContentDialog
+            {
+                XamlRoot = RootGrid.XamlRoot,
+                Title = "Install AI Runtime",
+                Content = $"{runtimeProblem} VoiSee can install the separate RVC runtime now. It is intentionally not bundled with the main app and may download several gigabytes of Python/AI dependencies. The installer chooses an NVIDIA or CPU/AMD/Intel dependency path automatically.",
+                PrimaryButtonText = "Install Runtime",
+                CloseButtonText = "Cancel",
+                DefaultButton = ContentDialogButton.Primary
+            };
+            if (await dialog.ShowAsync() == ContentDialogResult.Primary)
+            {
+                try
+                {
+                    _aiRuntimeManager.StartInstaller();
+                    AppendLog("AI runtime installer started. Activate the voice again after the installer reports success.");
+                    await ShowMessageDialogAsync("AI Runtime", "The runtime installer was opened in a separate PowerShell window. When it finishes successfully, return to VoiSee and activate this voice again.");
+                }
+                catch (Exception ex)
+                {
+                    AppendLog($"AI runtime installer error: {ex.Message}");
+                    await ShowMessageDialogAsync("AI Runtime", ex.Message);
+                }
+                UpdateAiRuntimeSettingsUi();
+            }
+            return;
+        }
+
+        if (_engine is null && !StartEngine(logAlreadyRunning: false))
+        {
+            await ShowMessageDialogAsync("Activate AI Voice", "The audio engine could not be started. Check the microphone and VB-CABLE route first.");
+            return;
+        }
+        if (_engine is null) return;
+        var engine = _engine;
+
+        var previousButtonContent = AiActivateSelectedVoiceButton?.Content;
+        if (AiActivateSelectedVoiceButton is not null)
+        {
+            AiActivateSelectedVoiceButton.Content = "Loading…";
+            AiActivateSelectedVoiceButton.IsEnabled = false;
+        }
+        AppendLog($"AI Voice runtime loading: {voice.Name} [{voice.Id}], profile={_aiPerformanceProfile}.");
+
+        try
+        {
+            var configuration = await Task.Run(() => _aiRuntimeManager.PrepareRvcConfiguration(voice, _aiPerformanceProfile));
+            await engine.EnableAiVoiceAsync(configuration);
+            if (!ReferenceEquals(_engine, engine))
+            {
+                // The route was rebuilt while the model loaded. The old engine is no
+                // longer authoritative; keep the persisted state disabled and let the
+                // user activate again on the current route.
+                engine.DisableAiVoice();
+                throw new InvalidOperationException("The audio route changed while the AI Voice was loading. Activate the voice again on the current route.");
+            }
+            _activeAiVoiceId = voice.Id;
+            _settings.AiVoiceActivePresetId = voice.Id;
+            _settingsStore.Save(_settings);
+            _selectedAiVoice = voice;
+            RefreshAiVoiceUi(voice.Id);
+            UpdateAiVoiceLatencyUi();
+            AppendLog($"AI Voice realtime runtime active: {voice.Name} [{voice.Id}].");
+        }
+        catch (Exception ex)
+        {
+            AppendLog($"Activate AI Voice runtime error: {ex.Message}");
+            await ShowMessageDialogAsync("Activate AI Voice", ex.Message);
+        }
+        finally
+        {
+            if (AiActivateSelectedVoiceButton is not null && !IsAiVoiceActive(voice))
+            {
+                AiActivateSelectedVoiceButton.Content = previousButtonContent ?? "Activate Voice";
+            }
+            UpdateSelectedAiVoiceUi();
+        }
+    }
+
+    private async Task RestoreActiveAiVoiceRuntimeAsync()
+    {
+        if (_engine is null || string.IsNullOrWhiteSpace(_activeAiVoiceId)) return;
+        var engine = _engine;
+        var voice = _aiVoices.FirstOrDefault(v => string.Equals(v.Id, _activeAiVoiceId, StringComparison.OrdinalIgnoreCase));
+        if (voice is null || !voice.CanActivate)
+        {
+            _activeAiVoiceId = null;
+            _settings.AiVoiceActivePresetId = null;
+            _settingsStore.Save(_settings);
+            return;
+        }
+        if (!_aiRuntimeManager.IsInstalled(out var problem))
+        {
+            AppendLog($"AI Voice runtime was not restored: {problem}");
+            _activeAiVoiceId = null;
+            _settings.AiVoiceActivePresetId = null;
+            _settingsStore.Save(_settings);
+            RefreshAiVoiceUi(voice.Id);
+            return;
+        }
+
+        try
+        {
+            var configuration = await Task.Run(() => _aiRuntimeManager.PrepareRvcConfiguration(voice, _aiPerformanceProfile));
+            await engine.EnableAiVoiceAsync(configuration);
+            if (!ReferenceEquals(_engine, engine))
+            {
+                engine.DisableAiVoice();
+                return;
+            }
+            AppendLog($"AI Voice runtime restored: {voice.Name} [{voice.Id}].");
+            RefreshAiVoiceUi(voice.Id);
+        }
+        catch (Exception ex)
+        {
+            AppendLog($"AI Voice runtime restore failed: {ex.Message}");
+            if (ReferenceEquals(_engine, engine))
+            {
+                engine.DisableAiVoice();
+                _activeAiVoiceId = null;
+                _settings.AiVoiceActivePresetId = null;
+                _settingsStore.Save(_settings);
+                RefreshAiVoiceUi(voice.Id);
+            }
+        }
+    }
+
+    private void OnAiVoiceRuntimeStatusChanged(AiVoiceRuntimeStatus status)
+    {
+        DispatcherQueue.TryEnqueue(() =>
+        {
+            UpdateAiVoiceLatencyUi();
+            RefreshAdvancedSettingsStatus();
+            if (status.State == AiVoiceRuntimeState.Faulted && !string.IsNullOrWhiteSpace(status.Error))
+            {
+                AppendLog($"AI runtime fault: {status.Error}");
+            }
+        });
     }
 
     private void UpdateSelectedAiVoiceUi()
@@ -12688,12 +12951,21 @@ public sealed partial class MainWindow : Window
             else if (_selectedAiVoice.IsQuickClone)
             {
                 Grid.SetColumnSpan(AiActivateSelectedVoiceButton, 1);
-                AiActivateSelectedVoiceButton.Content = active ? "Disable Voice" : "Activate Voice";
-                AiActivateSelectedVoiceButton.IsEnabled = true;
+                AiActivateSelectedVoiceButton.Content = "Activate Voice";
+                AiActivateSelectedVoiceButton.IsEnabled = false;
                 AiOptimizeSelectedVoiceButton.Visibility = Visibility.Visible;
                 AiOptimizeSelectedVoiceButton.IsEnabled = _selectedAiVoice.CanOptimize;
-                ToolTipService.SetToolTip(AiActivateSelectedVoiceButton, active ? "Disable this AI Voice." : "Activate this Quick Clone.");
+                ToolTipService.SetToolTip(AiActivateSelectedVoiceButton, "Quick Clone is prepared; its zero-shot realtime backend is connected in the next runtime Gate.");
                 ToolTipService.SetToolTip(AiOptimizeSelectedVoiceButton, "Replace Quick Clone with an optimized version.");
+            }
+            else if (_selectedAiVoice.IsOptimized)
+            {
+                Grid.SetColumnSpan(AiActivateSelectedVoiceButton, 2);
+                AiActivateSelectedVoiceButton.Content = "Activate Voice";
+                AiActivateSelectedVoiceButton.IsEnabled = false;
+                AiOptimizeSelectedVoiceButton.Visibility = Visibility.Collapsed;
+                AiOptimizeSelectedVoiceButton.IsEnabled = false;
+                ToolTipService.SetToolTip(AiActivateSelectedVoiceButton, "Optimized reference is ready; its zero-shot realtime backend is connected in the next runtime Gate.");
             }
             else
             {
@@ -13137,6 +13409,7 @@ public sealed partial class MainWindow : Window
             _aiVoiceStore.Delete(voice);
             if (IsAiVoiceActive(voice))
             {
+                _engine?.DisableAiVoice();
                 _activeAiVoiceId = null;
                 _settings.AiVoiceActivePresetId = null;
                 _settingsStore.Save(_settings);
