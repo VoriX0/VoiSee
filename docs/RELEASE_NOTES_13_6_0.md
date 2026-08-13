@@ -1,4 +1,4 @@
-# VoiSee 13.6.0 — Optimize Voice preparation
+# VoiSee 13.6.1 — Optimize Voice preparation
 
 - Optimize Voice is now a real explicit foreground operation for Reference and Quick Clone presets.
 - The original reference is decoded and downmixed to mono, leading/trailing silence is trimmed, DC offset is removed, level is normalized, and a canonical 48 kHz mono PCM16 reference is generated.

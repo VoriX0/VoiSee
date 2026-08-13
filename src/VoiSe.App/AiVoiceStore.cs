@@ -169,13 +169,34 @@ public sealed class AiVoiceStore
         }
 
         var packagePath = Path.GetFullPath(preset.FilePath);
-        var durationSeconds = MeasureReferenceDurationSeconds(packagePath, preset.ReferenceAudioEntry);
-        if (durationSeconds < 10.0)
+        var quickTempDirectory = Path.Combine(Path.GetTempPath(), "VoiSee", "QuickClone", Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(quickTempDirectory);
+        SpeechContentAnalysis speechAnalysis;
+        double durationSeconds;
+        try
         {
-            throw new InvalidDataException($"Reference audio is {durationSeconds:0.0} seconds long. Quick Clone requires at least 10 seconds of usable reference audio.");
+            var extractedReferencePath = ExtractReferenceAudio(packagePath, preset.ReferenceAudioEntry, quickTempDirectory);
+            var decoded = DecodeReferenceToMono(extractedReferencePath);
+            if (decoded.Samples.Length == 0 || decoded.SampleRate <= 0)
+            {
+                throw new InvalidDataException("The reference audio could not be decoded into usable samples.");
+            }
+
+            durationSeconds = decoded.Samples.Length / (double)decoded.SampleRate;
+            if (durationSeconds < 10.0)
+            {
+                throw new InvalidDataException($"Reference audio is {durationSeconds:0.0} seconds long. Quick Clone requires at least 10 seconds of reference audio.");
+            }
+
+            speechAnalysis = AnalyzeSpeechContent(decoded.Samples, decoded.SampleRate);
+            ValidateSpeechContent(speechAnalysis, "Quick Clone");
+        }
+        finally
+        {
+            try { Directory.Delete(quickTempDirectory, recursive: true); } catch { }
         }
 
-        preset.SchemaVersion = Math.Max(2, preset.SchemaVersion);
+        preset.SchemaVersion = Math.Max(4, preset.SchemaVersion);
         preset.VoiceType = "Quick Clone";
         preset.Engine = "Quick Clone";
         preset.Compatibility = "Quick Clone ready · runtime pending";
@@ -188,7 +209,7 @@ public sealed class AiVoiceStore
         }
         preset.Notes = "Quick Clone profile prepared from the stored reference. Realtime AI inference is connected in a later runtime Gate.";
 
-        RewritePackageWithQuickProfile(packagePath, preset);
+        RewritePackageWithQuickProfile(packagePath, preset, speechAnalysis);
         preset.FilePath = packagePath;
         return preset;
     }
@@ -227,10 +248,13 @@ public sealed class AiVoiceStore
                 throw new InvalidDataException("The reference audio could not be decoded into usable samples.");
             }
 
+            var speechAnalysis = AnalyzeSpeechContent(decoded.Samples, decoded.SampleRate);
+            ValidateSpeechContent(speechAnalysis, "Optimize Voice");
+
             var analysis = AnalyzeAndNormalizeReference(decoded.Samples, decoded.SampleRate);
             if (analysis.UsableDurationSeconds < 10.0)
             {
-                throw new InvalidDataException($"Reference audio contains only {analysis.UsableDurationSeconds:0.0} seconds of usable speech after trimming. Optimize Voice requires at least 10 seconds.");
+                throw new InvalidDataException($"Reference audio contains only {analysis.UsableDurationSeconds:0.0} seconds after trimming. Optimize Voice requires at least 10 seconds of reference audio.");
             }
 
             var optimizedSamples = ResampleLinear(analysis.NormalizedSamples, decoded.SampleRate, 48000);
@@ -238,7 +262,7 @@ public sealed class AiVoiceStore
             WritePcm16Wave(optimizedReferencePath, optimizedSamples, 48000);
 
             stopwatch.Stop();
-            preset.SchemaVersion = Math.Max(3, preset.SchemaVersion);
+            preset.SchemaVersion = Math.Max(4, preset.SchemaVersion);
             preset.VoiceType = "Optimized";
             preset.Engine = "Optimized";
             preset.Compatibility = "Optimized voice · runtime pending";
@@ -259,7 +283,7 @@ public sealed class AiVoiceStore
             preset.AssetEntries.Add(preset.OptimizedReferenceEntry);
             preset.AssetEntries.Add(preset.OptimizedProfileEntry);
 
-            RewritePackageWithOptimizedProfile(packagePath, preset, optimizedReferencePath, analysis);
+            RewritePackageWithOptimizedProfile(packagePath, preset, optimizedReferencePath, analysis, speechAnalysis);
             preset.FilePath = packagePath;
             return preset;
         }
@@ -386,6 +410,15 @@ public sealed class AiVoiceStore
         double AppliedGain,
         string Quality);
 
+    private sealed record SpeechContentAnalysis(
+        double TotalDurationSeconds,
+        double ActiveDurationSeconds,
+        double VoicedDurationSeconds,
+        double ActiveRatio,
+        double VoicedRatioOfActive,
+        double MedianActiveRms,
+        double MedianVoicedPeriodicity);
+
     private static DecodedReference DecodeReferenceToMono(string referencePath)
     {
         var extension = Path.GetExtension(referencePath);
@@ -423,6 +456,175 @@ public sealed class AiVoiceStore
         }
 
         return new DecodedReference(mono.ToArray(), sampleRate);
+    }
+
+    private static string ExtractReferenceAudio(string packagePath, string referenceEntryName, string destinationDirectory)
+    {
+        using var archive = ZipFile.OpenRead(packagePath);
+        var referenceEntry = archive.GetEntry(referenceEntryName)
+            ?? throw new InvalidDataException("The .vsee package no longer contains its reference audio.");
+        var extension = Path.GetExtension(referenceEntry.Name);
+        var destinationPath = Path.Combine(destinationDirectory, "reference" + extension);
+        referenceEntry.ExtractToFile(destinationPath, overwrite: true);
+        return destinationPath;
+    }
+
+    private static void ValidateSpeechContent(SpeechContentAnalysis analysis, string operationName)
+    {
+        // Duration alone is not sufficient for a voice reference. Long breaths, room noise and
+        // sustained non-speech sounds can have plenty of energy, so require a meaningful amount
+        // of periodic/voiced material as well as active audio.
+        const double MinimumActiveSeconds = 6.0;
+        const double MinimumVoicedSeconds = 2.5;
+        const double MinimumVoicedRatioOfActive = 0.18;
+
+        if (analysis.ActiveDurationSeconds < MinimumActiveSeconds)
+        {
+            throw new InvalidDataException($"{operationName} needs spoken reference audio. Only {analysis.ActiveDurationSeconds:0.0} seconds of active audio were detected; record at least 10 seconds containing normal speech.");
+        }
+
+        if (analysis.VoicedDurationSeconds < MinimumVoicedSeconds
+            || analysis.VoicedRatioOfActive < MinimumVoicedRatioOfActive)
+        {
+            throw new InvalidDataException($"{operationName} needs actual spoken voice, not only breathing, noise or silence. Detected about {analysis.VoicedDurationSeconds:0.0} seconds of voiced speech-like material. Use a reference with several seconds of normal words and phrases.");
+        }
+    }
+
+    private static SpeechContentAnalysis AnalyzeSpeechContent(float[] samples, int sampleRate)
+    {
+        if (samples.Length == 0 || sampleRate <= 0)
+        {
+            return new SpeechContentAnalysis(0, 0, 0, 0, 0, 0, 0);
+        }
+
+        // Speech-content validation is intentionally lightweight and offline. Analyze at 8 kHz:
+        // this keeps the CPU cost small while preserving the pitch band needed to distinguish
+        // voiced speech from broadband breathing/noise.
+        const int analysisRate = 8000;
+        var analysisSamples = sampleRate == analysisRate
+            ? samples
+            : ResampleLinear(samples, sampleRate, analysisRate);
+
+        var frameSize = Math.Max(80, (int)Math.Round(analysisRate * 0.030)); // 30 ms
+        var hopSize = Math.Max(40, (int)Math.Round(analysisRate * 0.015));   // 15 ms
+        if (analysisSamples.Length < frameSize)
+        {
+            return new SpeechContentAnalysis(samples.Length / (double)sampleRate, 0, 0, 0, 0, 0, 0);
+        }
+
+        var frameRms = new List<double>();
+        var frameZcr = new List<double>();
+        var framePeriodicity = new List<double>();
+
+        for (var start = 0; start + frameSize <= analysisSamples.Length; start += hopSize)
+        {
+            double mean = 0;
+            for (var i = 0; i < frameSize; i++) mean += analysisSamples[start + i];
+            mean /= frameSize;
+
+            double squares = 0;
+            var zeroCrossings = 0;
+            var previous = analysisSamples[start] - mean;
+            for (var i = 0; i < frameSize; i++)
+            {
+                var value = analysisSamples[start + i] - mean;
+                squares += value * value;
+                if (i > 0 && ((previous >= 0 && value < 0) || (previous < 0 && value >= 0))) zeroCrossings++;
+                previous = value;
+            }
+
+            var rms = Math.Sqrt(squares / frameSize);
+            var zcr = zeroCrossings / (double)Math.Max(1, frameSize - 1);
+            var periodicity = rms < 0.001 ? 0 : EstimateVoicedPeriodicity(analysisSamples, start, frameSize, analysisRate, mean, squares);
+            frameRms.Add(rms);
+            frameZcr.Add(zcr);
+            framePeriodicity.Add(periodicity);
+        }
+
+        if (frameRms.Count == 0)
+        {
+            return new SpeechContentAnalysis(samples.Length / (double)sampleRate, 0, 0, 0, 0, 0, 0);
+        }
+
+        var sortedRms = frameRms.OrderBy(value => value).ToArray();
+        var p20 = sortedRms[(int)Math.Clamp(Math.Round((sortedRms.Length - 1) * 0.20), 0, sortedRms.Length - 1)];
+        var p90 = sortedRms[(int)Math.Clamp(Math.Round((sortedRms.Length - 1) * 0.90), 0, sortedRms.Length - 1)];
+        // Do not assume the file contains silence from which a noise floor can be learned.
+        // The percentile cap keeps continuously spoken references from being classified as inactive.
+        var activeThreshold = Math.Max(0.003, Math.Min(p20 * 2.5, p90 * 0.25));
+        var activeFrames = new List<int>();
+        var voicedFrames = new List<int>();
+
+        for (var i = 0; i < frameRms.Count; i++)
+        {
+            if (frameRms[i] < activeThreshold) continue;
+            activeFrames.Add(i);
+
+            // Normal voiced speech contains a stable fundamental period for a meaningful subset
+            // of frames. Breathing is generally broadband/aperiodic and therefore fails this gate.
+            if (framePeriodicity[i] >= 0.35 && frameZcr[i] <= 0.18)
+            {
+                voicedFrames.Add(i);
+            }
+        }
+
+        var frameSeconds = hopSize / (double)analysisRate;
+        var activeDuration = activeFrames.Count * frameSeconds;
+        var voicedDuration = voicedFrames.Count * frameSeconds;
+        var activeRatio = activeFrames.Count / (double)frameRms.Count;
+        var voicedRatio = activeFrames.Count == 0 ? 0 : voicedFrames.Count / (double)activeFrames.Count;
+        var medianActiveRms = activeFrames.Count == 0 ? 0 : Median(activeFrames.Select(i => frameRms[i]));
+        var medianVoicedPeriodicity = voicedFrames.Count == 0 ? 0 : Median(voicedFrames.Select(i => framePeriodicity[i]));
+
+        return new SpeechContentAnalysis(
+            samples.Length / (double)sampleRate,
+            activeDuration,
+            voicedDuration,
+            activeRatio,
+            voicedRatio,
+            medianActiveRms,
+            medianVoicedPeriodicity);
+    }
+
+    private static double EstimateVoicedPeriodicity(float[] samples, int start, int frameSize, int sampleRate, double mean, double frameEnergy)
+    {
+        if (frameEnergy <= 1e-9) return 0;
+        var minLag = Math.Max(1, sampleRate / 400); // ~400 Hz
+        var maxLag = Math.Min(frameSize / 2, sampleRate / 70); // ~70 Hz
+        double best = 0;
+
+        for (var lag = minLag; lag <= maxLag; lag++)
+        {
+            double correlation = 0;
+            double leftEnergy = 0;
+            double rightEnergy = 0;
+            var length = frameSize - lag;
+            for (var i = 0; i < length; i++)
+            {
+                var left = samples[start + i] - mean;
+                var right = samples[start + i + lag] - mean;
+                correlation += left * right;
+                leftEnergy += left * left;
+                rightEnergy += right * right;
+            }
+
+            var denominator = Math.Sqrt(leftEnergy * rightEnergy);
+            if (denominator <= 1e-9) continue;
+            var normalized = correlation / denominator;
+            if (normalized > best) best = normalized;
+        }
+
+        return Math.Clamp(best, 0, 1);
+    }
+
+    private static double Median(IEnumerable<double> values)
+    {
+        var ordered = values.OrderBy(value => value).ToArray();
+        if (ordered.Length == 0) return 0;
+        var middle = ordered.Length / 2;
+        return ordered.Length % 2 == 0
+            ? (ordered[middle - 1] + ordered[middle]) / 2.0
+            : ordered[middle];
     }
 
     private static ReferenceOptimizationAnalysis AnalyzeAndNormalizeReference(float[] samples, int sampleRate)
@@ -539,7 +741,8 @@ public sealed class AiVoiceStore
         string packagePath,
         AiVoicePreset preset,
         string optimizedReferencePath,
-        ReferenceOptimizationAnalysis analysis)
+        ReferenceOptimizationAnalysis analysis,
+        SpeechContentAnalysis speechAnalysis)
     {
         var tempPackage = packagePath + ".optimized.tmp";
         if (File.Exists(tempPackage)) File.Delete(tempPackage);
@@ -575,7 +778,7 @@ public sealed class AiVoiceStore
             {
                 var profile = new
                 {
-                    schema = 1,
+                    schema = 2,
                     kind = "optimized-reference",
                     sourceReferenceEntry = preset.ReferenceAudioEntry,
                     canonicalReferenceEntry = preset.OptimizedReferenceEntry,
@@ -589,6 +792,15 @@ public sealed class AiVoiceStore
                     rmsBeforeNormalization = analysis.RmsBeforeNormalization,
                     appliedGain = analysis.AppliedGain,
                     referenceQuality = analysis.Quality,
+                    speechContent = new
+                    {
+                        activeDurationSeconds = speechAnalysis.ActiveDurationSeconds,
+                        voicedDurationSeconds = speechAnalysis.VoicedDurationSeconds,
+                        activeRatio = speechAnalysis.ActiveRatio,
+                        voicedRatioOfActive = speechAnalysis.VoicedRatioOfActive,
+                        medianActiveRms = speechAnalysis.MedianActiveRms,
+                        medianVoicedPeriodicity = speechAnalysis.MedianVoicedPeriodicity
+                    },
                     preparedUtc = preset.OptimizedPreparedUtc,
                     preparationDurationMs = preset.OptimizationDurationMs
                 };
@@ -631,7 +843,7 @@ public sealed class AiVoiceStore
         }
     }
 
-    private static void RewritePackageWithQuickProfile(string packagePath, AiVoicePreset preset)
+    private static void RewritePackageWithQuickProfile(string packagePath, AiVoicePreset preset, SpeechContentAnalysis speechAnalysis)
     {
         var tempPackage = packagePath + ".quick.tmp";
         if (File.Exists(tempPackage)) File.Delete(tempPackage);
@@ -658,10 +870,19 @@ public sealed class AiVoiceStore
             {
                 var profile = new
                 {
-                    schema = 1,
+                    schema = 2,
                     kind = "zero-shot-reference",
                     referenceEntry = preset.ReferenceAudioEntry,
                     referenceDurationSeconds = preset.ReferenceDurationSeconds,
+                    speechContent = new
+                    {
+                        activeDurationSeconds = speechAnalysis.ActiveDurationSeconds,
+                        voicedDurationSeconds = speechAnalysis.VoicedDurationSeconds,
+                        activeRatio = speechAnalysis.ActiveRatio,
+                        voicedRatioOfActive = speechAnalysis.VoicedRatioOfActive,
+                        medianActiveRms = speechAnalysis.MedianActiveRms,
+                        medianVoicedPeriodicity = speechAnalysis.MedianVoicedPeriodicity
+                    },
                     preparedUtc = preset.QuickPreparedUtc
                 };
                 JsonSerializer.Serialize(stream, profile, JsonOptions);

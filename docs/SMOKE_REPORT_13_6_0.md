@@ -1,4 +1,4 @@
-# VoiSee 13.6.0 — static smoke report
+# VoiSee 13.6.1 — static smoke report
 
 ## Scope
 
