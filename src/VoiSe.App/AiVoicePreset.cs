@@ -17,16 +17,36 @@ public sealed class AiVoicePreset
     public DateTimeOffset CreatedUtc { get; set; } = DateTimeOffset.UtcNow;
     public List<string> AssetEntries { get; set; } = new();
     public string? ReferenceAudioEntry { get; set; }
+    public string? QuickProfileEntry { get; set; }
+    public double? ReferenceDurationSeconds { get; set; }
+    public DateTimeOffset? QuickPreparedUtc { get; set; }
     public string? Notes { get; set; }
 
     // Runtime-only path to the installed .vsee package.
     [JsonIgnore]
     public string? FilePath { get; set; }
 
-    // 13.4 activation gate: RVC packages containing a .pth model can be selected
-    // as the active AI Voice. The actual realtime inference runtime is connected later.
+    [JsonIgnore]
+    public bool IsReference => string.Equals(VoiceType, "Reference", StringComparison.OrdinalIgnoreCase);
+
+    [JsonIgnore]
+    public bool IsQuickClone => string.Equals(VoiceType, "Quick Clone", StringComparison.OrdinalIgnoreCase);
+
+    [JsonIgnore]
+    public bool IsOptimized => string.Equals(VoiceType, "Optimized", StringComparison.OrdinalIgnoreCase);
+
+    [JsonIgnore]
+    public bool CanQuickClone => IsReference && !string.IsNullOrWhiteSpace(ReferenceAudioEntry);
+
+    [JsonIgnore]
+    public bool CanOptimize => IsReference || IsQuickClone;
+
+    // 13.5 activation gate: imported RVC packages and prepared Quick/Optimized voices
+    // can be selected as the active AI Voice. Realtime inference is connected later.
     [JsonIgnore]
     public bool CanActivate =>
-        string.Equals(Engine, "RVC", StringComparison.OrdinalIgnoreCase)
-        && AssetEntries.Exists(entry => entry.EndsWith(".pth", StringComparison.OrdinalIgnoreCase));
+        (string.Equals(Engine, "RVC", StringComparison.OrdinalIgnoreCase)
+         && AssetEntries.Exists(entry => entry.EndsWith(".pth", StringComparison.OrdinalIgnoreCase)))
+        || IsQuickClone
+        || IsOptimized;
 }

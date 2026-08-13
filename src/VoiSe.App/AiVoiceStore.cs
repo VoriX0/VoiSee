@@ -96,7 +96,7 @@ public sealed class AiVoiceStore
             Source = "Reference audio",
             ReferenceAudioEntry = audioEntry,
             AssetEntries = new List<string> { audioEntry },
-            Notes = "Reference audio stored. AI generation is connected in a later VoiSee 13.x Gate."
+            Notes = "Reference audio stored. Use Quick Clone or Optimize Voice from the Selected Voice panel."
         };
 
         WritePackage(packagePath, preset, new[] { (sourceAudioPath, audioEntry) });
@@ -150,6 +150,43 @@ public sealed class AiVoiceStore
         };
 
         WritePackage(packagePath, preset, assets);
+        preset.FilePath = packagePath;
+        return preset;
+    }
+
+    public AiVoicePreset PrepareQuickClone(AiVoicePreset preset)
+    {
+        if (preset.FilePath is null || !File.Exists(preset.FilePath))
+        {
+            throw new FileNotFoundException("The selected AI Voice package no longer exists.", preset.FilePath);
+        }
+
+        if (!preset.CanQuickClone || string.IsNullOrWhiteSpace(preset.ReferenceAudioEntry))
+        {
+            throw new InvalidOperationException("Quick Clone can only be prepared from a Reference voice.");
+        }
+
+        var packagePath = Path.GetFullPath(preset.FilePath);
+        var durationSeconds = MeasureReferenceDurationSeconds(packagePath, preset.ReferenceAudioEntry);
+        if (durationSeconds < 10.0)
+        {
+            throw new InvalidDataException($"Reference audio is {durationSeconds:0.0} seconds long. Quick Clone requires at least 10 seconds of usable reference audio.");
+        }
+
+        preset.SchemaVersion = Math.Max(2, preset.SchemaVersion);
+        preset.VoiceType = "Quick Clone";
+        preset.Engine = "Quick Clone";
+        preset.Compatibility = "Quick Clone ready · runtime pending";
+        preset.ReferenceDurationSeconds = durationSeconds;
+        preset.QuickPreparedUtc = DateTimeOffset.UtcNow;
+        preset.QuickProfileEntry = "quick/profile.json";
+        if (!preset.AssetEntries.Contains(preset.QuickProfileEntry, StringComparer.OrdinalIgnoreCase))
+        {
+            preset.AssetEntries.Add(preset.QuickProfileEntry);
+        }
+        preset.Notes = "Quick Clone profile prepared from the stored reference. Realtime AI inference is connected in a later runtime Gate.";
+
+        RewritePackageWithQuickProfile(packagePath, preset);
         preset.FilePath = packagePath;
         return preset;
     }
@@ -219,6 +256,20 @@ public sealed class AiVoiceStore
         var hasIndex = assets.Any(entry => entry.EndsWith(".index", StringComparison.OrdinalIgnoreCase));
         var hasOnnx = assets.Any(entry => entry.EndsWith(".onnx", StringComparison.OrdinalIgnoreCase));
 
+        if (string.Equals(preset.VoiceType, "Quick Clone", StringComparison.OrdinalIgnoreCase))
+        {
+            preset.Engine = "Quick Clone";
+            preset.Compatibility = "Quick Clone ready · runtime pending";
+            return;
+        }
+
+        if (string.Equals(preset.VoiceType, "Optimized", StringComparison.OrdinalIgnoreCase))
+        {
+            preset.Engine = string.IsNullOrWhiteSpace(preset.Engine) ? "Optimized" : preset.Engine;
+            preset.Compatibility = "Optimized voice · runtime pending";
+            return;
+        }
+
         if (hasPth)
         {
             preset.Engine = "RVC";
@@ -243,6 +294,78 @@ public sealed class AiVoiceStore
         }
 
         preset.Compatibility = "Not supported";
+    }
+
+    private static double MeasureReferenceDurationSeconds(string packagePath, string referenceEntryName)
+    {
+        var tempDirectory = Path.Combine(Path.GetTempPath(), "VoiSee", "QuickClone", Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(tempDirectory);
+        try
+        {
+            using var archive = ZipFile.OpenRead(packagePath);
+            var referenceEntry = archive.GetEntry(referenceEntryName)
+                ?? throw new InvalidDataException("The .vsee package no longer contains its reference audio.");
+            var extension = Path.GetExtension(referenceEntry.Name);
+            var tempPath = Path.Combine(tempDirectory, "reference" + extension);
+            referenceEntry.ExtractToFile(tempPath, overwrite: true);
+
+            if (string.Equals(extension, ".ogg", StringComparison.OrdinalIgnoreCase))
+            {
+                using var reader = new NAudio.Vorbis.VorbisWaveReader(tempPath);
+                return reader.TotalTime.TotalSeconds;
+            }
+
+            using var audio = new NAudio.Wave.AudioFileReader(tempPath);
+            return audio.TotalTime.TotalSeconds;
+        }
+        finally
+        {
+            try { Directory.Delete(tempDirectory, recursive: true); } catch { }
+        }
+    }
+
+    private static void RewritePackageWithQuickProfile(string packagePath, AiVoicePreset preset)
+    {
+        var tempPackage = packagePath + ".quick.tmp";
+        if (File.Exists(tempPackage)) File.Delete(tempPackage);
+
+        using (var source = ZipFile.OpenRead(packagePath))
+        using (var destination = ZipFile.Open(tempPackage, ZipArchiveMode.Create))
+        {
+            foreach (var entry in source.Entries)
+            {
+                if (string.Equals(entry.FullName, ManifestEntryName, StringComparison.OrdinalIgnoreCase)
+                    || string.Equals(entry.FullName, "quick/profile.json", StringComparison.OrdinalIgnoreCase))
+                {
+                    continue;
+                }
+
+                var copy = destination.CreateEntry(entry.FullName, CompressionLevel.NoCompression);
+                using var input = entry.Open();
+                using var output = copy.Open();
+                input.CopyTo(output);
+            }
+
+            var quickProfile = destination.CreateEntry("quick/profile.json", CompressionLevel.Fastest);
+            using (var stream = quickProfile.Open())
+            {
+                var profile = new
+                {
+                    schema = 1,
+                    kind = "zero-shot-reference",
+                    referenceEntry = preset.ReferenceAudioEntry,
+                    referenceDurationSeconds = preset.ReferenceDurationSeconds,
+                    preparedUtc = preset.QuickPreparedUtc
+                };
+                JsonSerializer.Serialize(stream, profile, JsonOptions);
+            }
+
+            var manifest = destination.CreateEntry(ManifestEntryName, CompressionLevel.Fastest);
+            using var manifestStream = manifest.Open();
+            JsonSerializer.Serialize(manifestStream, preset, JsonOptions);
+        }
+
+        File.Move(tempPackage, packagePath, overwrite: true);
     }
 
     private static void WritePackage(

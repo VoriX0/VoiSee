@@ -272,7 +272,7 @@ public sealed partial class MainWindow : Window
         };
         _discordCableSessionIsolationTimer.Tick += OnDiscordCableSessionIsolationTimerTick;
 
-        AppendLog("VoiSee Version 13.4.0 UI started.");
+        AppendLog("VoiSee Version 13.5.0 UI started.");
         AppendLog($"Settings path: {_settingsStore.SettingsPath}");
 
         var isolationResult = _discordCableSessionIsolationService.Enable();
@@ -12245,7 +12245,7 @@ public sealed partial class MainWindow : Window
             _aiVoiceStore = new AiVoiceStore(storageDirectory);
             _aiVoices = _aiVoiceStore.LoadVoices();
 
-            // 13.4.0: persist the built-in VoiSee storage as the explicit default once resolved.
+            // 13.5.0: persist the built-in VoiSee storage as the explicit default once resolved.
             if (string.IsNullOrWhiteSpace(_settings.AiVoiceStorageDirectory))
             {
                 _settings.AiVoiceStorageDirectory = storageDirectory;
@@ -12467,19 +12467,19 @@ public sealed partial class MainWindow : Window
         var activate = new Button
         {
             Tag = voice,
-            Content = isActive ? "Active" : "Activate",
+            Content = isActive ? "Disable" : "Activate",
             MinWidth = 72,
             MinHeight = 28,
             Padding = new Thickness(8, 3, 8, 3),
             HorizontalAlignment = HorizontalAlignment.Right,
             VerticalAlignment = VerticalAlignment.Center,
-            IsEnabled = voice.CanActivate && !isActive
+            IsEnabled = voice.CanActivate
         };
         activate.Style = Application.Current.Resources["VoiSee.Style.Button"] as Style;
         activate.Click += OnAiVoiceCardActivateClick;
         ToolTipService.SetToolTip(activate, voice.CanActivate
-            ? (isActive ? "This AI Voice is selected for activation." : "Activate this AI Voice.")
-            : "This voice is not an activatable RVC model yet.");
+            ? (isActive ? "Disable this AI Voice." : "Activate this AI Voice.")
+            : (voice.IsReference ? "Create a Quick or Optimized version before activation." : "This voice is not activatable yet."));
         Grid.SetRow(activate, 1);
         Grid.SetColumn(activate, 1);
         root.Children.Add(activate);
@@ -12501,18 +12501,75 @@ public sealed partial class MainWindow : Window
     private async void OnAiVoiceCardActivateClick(object sender, RoutedEventArgs e)
     {
         if (sender is not Button button || button.Tag is not AiVoicePreset voice) return;
+        if (IsAiVoiceActive(voice))
+        {
+            DisableAiVoice(voice);
+            return;
+        }
+
         await ActivateAiVoiceAsync(voice);
     }
 
-    private async void OnAiActivateSelectedVoiceClick(object sender, RoutedEventArgs e)
+    private async void OnAiSelectedPrimaryActionClick(object sender, RoutedEventArgs e)
     {
         if (_selectedAiVoice is null)
         {
-            await ShowMessageDialogAsync("Activate AI Voice", "Select an AI Voice first.");
+            await ShowMessageDialogAsync("AI Voice", "Select an AI Voice first.");
+            return;
+        }
+
+        if (_selectedAiVoice.IsReference)
+        {
+            await PrepareQuickCloneAsync(_selectedAiVoice);
+            return;
+        }
+
+        if (IsAiVoiceActive(_selectedAiVoice))
+        {
+            DisableAiVoice(_selectedAiVoice);
             return;
         }
 
         await ActivateAiVoiceAsync(_selectedAiVoice);
+    }
+
+    private async void OnAiOptimizeSelectedVoiceClick(object sender, RoutedEventArgs e)
+    {
+        if (_selectedAiVoice is null) return;
+        await ShowMessageDialogAsync(
+            "Optimize Voice",
+            "Optimize Voice is the next Gate (13.6). You can keep using the same Reference/Quick .vsee preset; optimization will replace Quick Clone in-place when that runtime is connected.");
+    }
+
+    private async Task PrepareQuickCloneAsync(AiVoicePreset voice)
+    {
+        if (_aiVoiceStore is null) return;
+        try
+        {
+            var prepared = _aiVoiceStore.PrepareQuickClone(voice);
+            _selectedAiVoice = prepared;
+            RefreshAiVoiceUi(prepared.Id);
+            AppendLog($"AI Voice Quick Clone prepared: {prepared.Name} ({prepared.ReferenceDurationSeconds:0.0}s reference).");
+            await ShowMessageDialogAsync(
+                "Quick Clone prepared",
+                $"'{prepared.Name}' is now a Quick Clone using {prepared.ReferenceDurationSeconds:0.0} seconds of reference audio. It can be selected as the active AI Voice; realtime inference is connected in the later AI runtime Gate.");
+        }
+        catch (Exception ex)
+        {
+            AppendLog($"Quick Clone preparation error: {ex.Message}");
+            await ShowMessageDialogAsync("Quick Clone", ex.Message);
+        }
+    }
+
+    private void DisableAiVoice(AiVoicePreset voice)
+    {
+        if (!IsAiVoiceActive(voice)) return;
+        _activeAiVoiceId = null;
+        _settings.AiVoiceActivePresetId = null;
+        _settingsStore.Save(_settings);
+        _selectedAiVoice = voice;
+        RefreshAiVoiceUi(voice.Id);
+        AppendLog($"AI Voice disabled: {voice.Name} [{voice.Id}].");
     }
 
     private async Task ActivateAiVoiceAsync(AiVoicePreset voice)
@@ -12547,6 +12604,12 @@ public sealed partial class MainWindow : Window
             {
                 AiActivateSelectedVoiceButton.Content = "Activate Voice";
                 AiActivateSelectedVoiceButton.IsEnabled = false;
+                Grid.SetColumnSpan(AiActivateSelectedVoiceButton, 2);
+            }
+            if (AiOptimizeSelectedVoiceButton is not null)
+            {
+                AiOptimizeSelectedVoiceButton.Visibility = Visibility.Collapsed;
+                AiOptimizeSelectedVoiceButton.IsEnabled = false;
             }
             return;
         }
@@ -12555,14 +12618,40 @@ public sealed partial class MainWindow : Window
         if (AiSelectedVoiceTypeTextBlock is not null) AiSelectedVoiceTypeTextBlock.Text = $"{_selectedAiVoice.VoiceType} · {_selectedAiVoice.Engine}";
         if (AiSelectedCompatibilityTextBlock is not null) AiSelectedCompatibilityTextBlock.Text = _selectedAiVoice.Compatibility;
         if (AiSelectedStorageTextBlock is not null) AiSelectedStorageTextBlock.Text = _selectedAiVoice.FilePath ?? _aiVoiceStore?.StorageDirectory ?? "Not configured";
-        if (AiActivateSelectedVoiceButton is not null)
+        if (AiActivateSelectedVoiceButton is not null && AiOptimizeSelectedVoiceButton is not null)
         {
             var active = IsAiVoiceActive(_selectedAiVoice);
-            AiActivateSelectedVoiceButton.Content = active ? "Active Voice" : "Activate Voice";
-            AiActivateSelectedVoiceButton.IsEnabled = _selectedAiVoice.CanActivate && !active;
-            ToolTipService.SetToolTip(AiActivateSelectedVoiceButton, _selectedAiVoice.CanActivate
-                ? (active ? "This is the active AI Voice." : "Activate the selected AI Voice.")
-                : "This voice is not an activatable RVC model yet.");
+            if (_selectedAiVoice.IsReference)
+            {
+                Grid.SetColumnSpan(AiActivateSelectedVoiceButton, 1);
+                AiActivateSelectedVoiceButton.Content = "Quick";
+                AiActivateSelectedVoiceButton.IsEnabled = _selectedAiVoice.CanQuickClone;
+                AiOptimizeSelectedVoiceButton.Visibility = Visibility.Visible;
+                AiOptimizeSelectedVoiceButton.IsEnabled = _selectedAiVoice.CanOptimize;
+                ToolTipService.SetToolTip(AiActivateSelectedVoiceButton, "Prepare a Quick Clone from this reference.");
+                ToolTipService.SetToolTip(AiOptimizeSelectedVoiceButton, "Prepare an optimized version of this voice (Gate 13.6).");
+            }
+            else if (_selectedAiVoice.IsQuickClone)
+            {
+                Grid.SetColumnSpan(AiActivateSelectedVoiceButton, 1);
+                AiActivateSelectedVoiceButton.Content = active ? "Disable Voice" : "Activate Voice";
+                AiActivateSelectedVoiceButton.IsEnabled = true;
+                AiOptimizeSelectedVoiceButton.Visibility = Visibility.Visible;
+                AiOptimizeSelectedVoiceButton.IsEnabled = _selectedAiVoice.CanOptimize;
+                ToolTipService.SetToolTip(AiActivateSelectedVoiceButton, active ? "Disable this AI Voice." : "Activate this Quick Clone.");
+                ToolTipService.SetToolTip(AiOptimizeSelectedVoiceButton, "Replace Quick Clone with an optimized version (Gate 13.6).");
+            }
+            else
+            {
+                Grid.SetColumnSpan(AiActivateSelectedVoiceButton, 2);
+                AiActivateSelectedVoiceButton.Content = active ? "Disable Voice" : (_selectedAiVoice.CanActivate ? "Activate Voice" : "Not supported");
+                AiActivateSelectedVoiceButton.IsEnabled = _selectedAiVoice.CanActivate;
+                AiOptimizeSelectedVoiceButton.Visibility = Visibility.Collapsed;
+                AiOptimizeSelectedVoiceButton.IsEnabled = false;
+                ToolTipService.SetToolTip(AiActivateSelectedVoiceButton, _selectedAiVoice.CanActivate
+                    ? (active ? "Disable this AI Voice." : "Activate the selected AI Voice.")
+                    : "This voice is not activatable yet.");
+            }
         }
     }
 
@@ -12613,7 +12702,7 @@ public sealed partial class MainWindow : Window
             var voice = _aiVoiceStore.CreateReferenceVoice(file.Path);
             RefreshAiVoiceUi(voice.Id);
             AppendLog($"AI Voice reference package created: {voice.Name}");
-            await ShowMessageDialogAsync("AI Voice created", $"'{voice.Name}' was stored as a .vsee reference voice. Quick Clone processing is connected in a later Gate.");
+            await ShowMessageDialogAsync("AI Voice created", $"'{voice.Name}' was stored as a .vsee Reference voice. Select it and choose Quick or Optimize in the Selected Voice panel.");
         }
         catch (Exception ex)
         {

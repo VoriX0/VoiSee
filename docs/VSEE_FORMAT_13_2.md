@@ -41,3 +41,14 @@ The package filename is the installed user-facing name. This allows Rename to re
 - Raw model files are wrapped into one `.vsee` package.
 - Export copies the complete package.
 - AI runtime compatibility and inference are intentionally deferred.
+
+
+## Schema 2 / VoiSee 13.5 Quick Clone fields
+
+Reference packages may be upgraded in place to Quick Clone while preserving the same preset ID and package filename. Added optional manifest fields:
+
+- `QuickProfileEntry` — normally `quick/profile.json`;
+- `ReferenceDurationSeconds`;
+- `QuickPreparedUtc`.
+
+Quick preparation requires at least 10 seconds of decodable reference audio and adds a small `quick/profile.json` descriptor while retaining the original reference asset. The realtime neural runtime remains a later Gate.
