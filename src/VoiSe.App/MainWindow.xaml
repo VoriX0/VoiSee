@@ -6,7 +6,7 @@
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     mc:Ignorable="d"
-    Title="VoiSee Version 13.0.1">
+    Title="VoiSee Version 13.1.0">
 
     <Grid x:Name="RootGrid" RequestedTheme="Dark" Background="{ThemeResource VoiSee.AppBackgroundBrush}" SizeChanged="OnRootGridSizeChanged">
         <Grid.RowDefinitions>
@@ -21,7 +21,7 @@
             </Grid.ColumnDefinitions>
             <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center" Margin="10,0,0,0">
                 <Image Source="ms-appx:///Assets/AppIcon_24.png" Width="16" Height="16" VerticalAlignment="Center" />
-                <TextBlock x:Name="TitleBarVersionTextBlock" Text="VoiSee Version 13.0.1" FontSize="12" Foreground="{ThemeResource VoiSee.PrimaryTextBrush}" VerticalAlignment="Center" />
+                <TextBlock x:Name="TitleBarVersionTextBlock" Text="VoiSee Version 13.1.0" FontSize="12" Foreground="{ThemeResource VoiSee.PrimaryTextBrush}" VerticalAlignment="Center" />
             </StackPanel>
         </Grid>
 
@@ -39,7 +39,7 @@
                 </Grid.ColumnDefinitions>
                 <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
                     <Image Source="ms-appx:///Assets/AppIcon_48.png" Width="34" Height="34" VerticalAlignment="Center" />
-                    <TextBlock x:Name="MainTitle" Text="VoiSee Version 13.0.1" FontSize="28" FontWeight="SemiBold" Foreground="{ThemeResource VoiSee.PrimaryTextBrush}" VerticalAlignment="Center" />
+                    <TextBlock x:Name="MainTitle" Text="VoiSee Version 13.1.0" FontSize="28" FontWeight="SemiBold" Foreground="{ThemeResource VoiSee.PrimaryTextBrush}" VerticalAlignment="Center" />
                 </StackPanel>
                 <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center" HorizontalAlignment="Right">
                     <TextBlock Text="Mic Output" Foreground="{ThemeResource VoiSee.PrimaryTextBrush}" Opacity="0.62" VerticalAlignment="Center" />
@@ -643,6 +643,266 @@
                             <Canvas x:Name="EffectDragOverlay" Grid.ColumnSpan="3"
                                     HorizontalAlignment="Stretch" VerticalAlignment="Stretch"
                                     IsHitTestVisible="False" Canvas.ZIndex="1000" />
+                    </Grid>
+                </TabViewItem>
+
+
+                <TabViewItem x:Name="AiVoiceTabViewItem" Header="AI Voice" IsClosable="False">
+                    <!-- VoiSee 13.1: UI skeleton only. AI runtime/model execution is intentionally deferred. -->
+                    <Grid x:Name="AiVoiceTabRoot" Padding="0,16,32,22" RowSpacing="14">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="*" />
+                        </Grid.RowDefinitions>
+
+                        <!-- Global performance profile for the whole AI Voice tab. -->
+                        <Border Grid.Row="0"
+                                Padding="14,10"
+                                CornerRadius="{ThemeResource VoiSee.CornerRadius.Medium}"
+                                Background="{ThemeResource VoiSee.PanelBackgroundBrush}"
+                                BorderBrush="{ThemeResource VoiSee.AccentBrush}"
+                                BorderThickness="1">
+                            <Grid ColumnSpacing="16">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+
+                                <Grid Grid.Column="0" ColumnSpacing="8">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="*" />
+                                    </Grid.ColumnDefinitions>
+                                    <ToggleButton Grid.Column="0" x:Name="AiGamingModeButton"
+                                                  Style="{ThemeResource VoiSee.Style.ToggleButton}"
+                                                  MinHeight="54" HorizontalAlignment="Stretch"
+                                                  Content="Gaming" Click="OnAiGamingModeClick" />
+                                    <ToggleButton Grid.Column="1" x:Name="AiBalancedModeButton"
+                                                  Style="{ThemeResource VoiSee.Style.ToggleButton}"
+                                                  MinHeight="54" HorizontalAlignment="Stretch"
+                                                  Content="Balanced" Click="OnAiBalancedModeClick" />
+                                    <ToggleButton Grid.Column="2" x:Name="AiQualityModeButton"
+                                                  Style="{ThemeResource VoiSee.Style.ToggleButton}"
+                                                  MinHeight="54" HorizontalAlignment="Stretch"
+                                                  Content="Quality" Click="OnAiQualityModeClick" />
+                                </Grid>
+
+                                <Grid Grid.Column="1" ColumnSpacing="22" MinWidth="260" VerticalAlignment="Center">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel Grid.Column="0" MinWidth="105">
+                                        <TextBlock Text="AI latency" FontSize="10" Opacity="0.62" />
+                                        <TextBlock x:Name="AiLatencyTextBlock" Text="0 ms" FontSize="19" FontWeight="SemiBold" />
+                                    </StackPanel>
+                                    <StackPanel Grid.Column="1" MinWidth="115">
+                                        <TextBlock Text="Total latency" FontSize="10" Opacity="0.62" />
+                                        <TextBlock x:Name="AiTotalLatencyTextBlock" Text="—" FontSize="19" FontWeight="SemiBold" />
+                                    </StackPanel>
+                                </Grid>
+                            </Grid>
+                        </Border>
+
+                        <Grid Grid.Row="1" ColumnSpacing="14">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="320" />
+                                <ColumnDefinition Width="*" MinWidth="420" />
+                                <ColumnDefinition Width="350" />
+                            </Grid.ColumnDefinitions>
+
+                            <!-- LEFT: local AI voice presets. -->
+                            <Border Grid.Column="0" Padding="14,12"
+                                    CornerRadius="{ThemeResource VoiSee.CornerRadius.Medium}"
+                                    Background="{ThemeResource VoiSee.PanelBackgroundBrush}"
+                                    BorderBrush="{ThemeResource VoiSee.PanelBorderBrush}" BorderThickness="1">
+                                <Grid RowSpacing="10">
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto" />
+                                        <RowDefinition Height="Auto" />
+                                        <RowDefinition Height="*" />
+                                        <RowDefinition Height="Auto" />
+                                    </Grid.RowDefinitions>
+                                    <TextBlock Grid.Row="0" Text="My AI Voices" FontSize="18" FontWeight="SemiBold" />
+                                    <TextBox Grid.Row="1" x:Name="AiVoiceSearchTextBox"
+                                             PlaceholderText="Search my voices..." />
+
+                                    <Grid Grid.Row="2" MinHeight="220">
+                                        <ListView x:Name="AiVoiceListView"
+                                                  Style="{ThemeResource VoiSee.Style.ListView}"
+                                                  ItemContainerStyle="{ThemeResource VoiSee.Style.ListViewItem}"
+                                                  SelectionMode="Single"
+                                                  ScrollViewer.VerticalScrollBarVisibility="Auto"
+                                                  ScrollViewer.VerticalScrollMode="Enabled"
+                                                  HorizontalContentAlignment="Stretch" />
+                                        <StackPanel x:Name="AiVoiceEmptyState" Spacing="8"
+                                                    HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                    MaxWidth="250">
+                                            <TextBlock Text="No AI voices yet" FontSize="16" FontWeight="SemiBold" TextAlignment="Center" />
+                                            <TextBlock Text="Create one from audio, import a model, or download a voice from the online library."
+                                                       Opacity="0.62" TextWrapping="Wrap" TextAlignment="Center" />
+                                        </StackPanel>
+                                    </Grid>
+
+                                    <Grid Grid.Row="3" ColumnSpacing="6">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="1.4*" />
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="*" />
+                                        </Grid.ColumnDefinitions>
+                                        <Button Grid.Column="0" Style="{ThemeResource VoiSee.Style.Button}"
+                                                Padding="6,7" MinWidth="0" Click="OnAiCreateFromAudioClick">
+                                            <TextBlock Text="Create from Audio" FontSize="10" TextWrapping="Wrap" TextAlignment="Center" />
+                                        </Button>
+                                        <Button Grid.Column="1" Style="{ThemeResource VoiSee.Style.Button}"
+                                                Content="Import" Padding="8,7" MinWidth="0"
+                                                Click="OnAiImportVoiceClick" />
+                                        <Button Grid.Column="2" Style="{ThemeResource VoiSee.Style.Button}"
+                                                Content="Open Folder" Padding="8,7" MinWidth="0"
+                                                Click="OnAiOpenVoiceFolderClick" />
+                                    </Grid>
+                                </Grid>
+                            </Border>
+
+                            <!-- CENTER: online library only. -->
+                            <Border Grid.Column="1" Padding="14,12"
+                                    CornerRadius="{ThemeResource VoiSee.CornerRadius.Medium}"
+                                    Background="{ThemeResource VoiSee.PanelBackgroundBrush}"
+                                    BorderBrush="{ThemeResource VoiSee.PanelBorderBrush}" BorderThickness="1">
+                                <Grid RowSpacing="10">
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto" />
+                                        <RowDefinition Height="Auto" />
+                                        <RowDefinition Height="Auto" />
+                                        <RowDefinition Height="*" />
+                                    </Grid.RowDefinitions>
+                                    <TextBlock Grid.Row="0" Text="Online Library" FontSize="18" FontWeight="SemiBold" />
+
+                                    <Grid Grid.Row="1" ColumnSpacing="8">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="Auto" />
+                                            <ColumnDefinition Width="Auto" />
+                                        </Grid.ColumnDefinitions>
+                                        <TextBox Grid.Column="0" x:Name="AiLibrarySearchTextBox"
+                                                 PlaceholderText="Search online library..." />
+                                        <Button Grid.Column="1" Style="{ThemeResource VoiSee.Style.Button}"
+                                                Content="Filters" MinWidth="82" />
+                                        <Button Grid.Column="2" Style="{ThemeResource VoiSee.Style.Button}"
+                                                Content="Open in Browser" MinWidth="128"
+                                                Click="OnAiOpenLibraryInBrowserClick" />
+                                    </Grid>
+
+                                    <StackPanel Grid.Row="2" Orientation="Horizontal" Spacing="6">
+                                        <ToggleButton Style="{ThemeResource VoiSee.Style.ToggleButton}" Content="All" IsChecked="True" />
+                                        <ToggleButton Style="{ThemeResource VoiSee.Style.ToggleButton}" Content="RVC" />
+                                        <ToggleButton Style="{ThemeResource VoiSee.Style.ToggleButton}" Content="Male" />
+                                        <ToggleButton Style="{ThemeResource VoiSee.Style.ToggleButton}" Content="Female" />
+                                        <ToggleButton Style="{ThemeResource VoiSee.Style.ToggleButton}" Content="Character" />
+                                    </StackPanel>
+
+                                    <Grid Grid.Row="3">
+                                        <ListView x:Name="AiOnlineLibraryListView"
+                                                  Style="{ThemeResource VoiSee.Style.ListView}"
+                                                  ItemContainerStyle="{ThemeResource VoiSee.Style.ListViewItem}"
+                                                  SelectionMode="Single"
+                                                  ScrollViewer.VerticalScrollBarVisibility="Auto"
+                                                  ScrollViewer.VerticalScrollMode="Enabled"
+                                                  HorizontalContentAlignment="Stretch" />
+                                        <StackPanel x:Name="AiLibraryEmptyState" Spacing="8"
+                                                    HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                    MaxWidth="360">
+                                            <TextBlock Text="Online library is ready for a provider" FontSize="16" FontWeight="SemiBold" TextAlignment="Center" />
+                                            <TextBlock Text="The UI shell is complete. Provider search, compatibility detection and downloads are connected in a later Gate."
+                                                       Opacity="0.62" TextWrapping="Wrap" TextAlignment="Center" />
+                                        </StackPanel>
+                                    </Grid>
+                                </Grid>
+                            </Border>
+
+                            <!-- RIGHT: selected model summary, output-only voice monitor, compact manager. -->
+                            <Grid Grid.Column="2" RowSpacing="12">
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="*" />
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="Auto" />
+                                </Grid.RowDefinitions>
+
+                                <Border Grid.Row="0" Padding="14,12"
+                                        CornerRadius="{ThemeResource VoiSee.CornerRadius.Medium}"
+                                        Background="{ThemeResource VoiSee.PanelBackgroundBrush}"
+                                        BorderBrush="{ThemeResource VoiSee.PanelBorderBrush}" BorderThickness="1">
+                                    <StackPanel Spacing="12">
+                                        <TextBlock Text="Selected Voice" FontSize="18" FontWeight="SemiBold" />
+                                        <Border Padding="12" CornerRadius="{ThemeResource VoiSee.CornerRadius.Small}"
+                                                BorderBrush="{ThemeResource VoiSee.PanelBorderBrush}" BorderThickness="1"
+                                                Background="{ThemeResource VoiSee.PanelBackgroundBrush}">
+                                            <StackPanel Spacing="5">
+                                                <TextBlock x:Name="AiSelectedVoiceNameTextBlock" Text="No voice selected" FontSize="17" FontWeight="SemiBold" />
+                                                <TextBlock x:Name="AiSelectedVoiceTypeTextBlock" Text="Select or create an AI voice to see its details." Opacity="0.62" TextWrapping="Wrap" />
+                                            </StackPanel>
+                                        </Border>
+
+                                        <Grid RowSpacing="7" ColumnSpacing="12">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="Auto" />
+                                                <ColumnDefinition Width="*" />
+                                            </Grid.ColumnDefinitions>
+                                            <Grid.RowDefinitions>
+                                                <RowDefinition Height="Auto" />
+                                                <RowDefinition Height="Auto" />
+                                                <RowDefinition Height="Auto" />
+                                                <RowDefinition Height="Auto" />
+                                            </Grid.RowDefinitions>
+                                            <TextBlock Grid.Row="0" Grid.Column="0" Text="Compatibility" Opacity="0.62" />
+                                            <TextBlock Grid.Row="0" Grid.Column="1" x:Name="AiSelectedCompatibilityTextBlock" Text="—" HorizontalAlignment="Right" />
+                                            <TextBlock Grid.Row="1" Grid.Column="0" Text="AI latency" Opacity="0.62" />
+                                            <TextBlock Grid.Row="1" Grid.Column="1" x:Name="AiSelectedLatencyTextBlock" Text="0 ms" HorizontalAlignment="Right" />
+                                            <TextBlock Grid.Row="2" Grid.Column="0" Text="Total latency" Opacity="0.62" />
+                                            <TextBlock Grid.Row="2" Grid.Column="1" x:Name="AiSelectedTotalLatencyTextBlock" Text="—" HorizontalAlignment="Right" />
+                                            <TextBlock Grid.Row="3" Grid.Column="0" Text="Storage folder" Opacity="0.62" />
+                                            <TextBlock Grid.Row="3" Grid.Column="1" x:Name="AiSelectedStorageTextBlock" Text="Not configured" HorizontalAlignment="Right" TextTrimming="CharacterEllipsis" MaxWidth="190" />
+                                        </Grid>
+                                    </StackPanel>
+                                </Border>
+
+                                <Border Grid.Row="1" Padding="14,12"
+                                        CornerRadius="{ThemeResource VoiSee.CornerRadius.Medium}"
+                                        Background="{ThemeResource VoiSee.PanelBackgroundBrush}"
+                                        BorderBrush="{ThemeResource VoiSee.PanelBorderBrush}" BorderThickness="1">
+                                    <StackPanel Spacing="8">
+                                        <TextBlock Text="Voice Monitor" FontSize="16" FontWeight="SemiBold" />
+                                        <Button x:Name="AiVoiceMonitorButton" Style="{ThemeResource VoiSee.Style.Button}"
+                                                Content="Voice Monitor: Off" HorizontalAlignment="Stretch"
+                                                Click="OnToggleVoiceMonitorClick" />
+                                        <TextBlock Text="Monitors the outgoing processed voice. AI Voice and all later Voice Changer effects are included; SoundBoard sounds are excluded from this voice route."
+                                                   FontSize="10" Opacity="0.62" TextWrapping="Wrap" />
+                                    </StackPanel>
+                                </Border>
+
+                                <Border Grid.Row="2" Padding="14,12"
+                                        CornerRadius="{ThemeResource VoiSee.CornerRadius.Medium}"
+                                        Background="{ThemeResource VoiSee.PanelBackgroundBrush}"
+                                        BorderBrush="{ThemeResource VoiSee.PanelBorderBrush}" BorderThickness="1">
+                                    <StackPanel Spacing="8">
+                                        <TextBlock Text="Model Manager" FontSize="16" FontWeight="SemiBold" />
+                                        <Grid ColumnSpacing="5">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="*" />
+                                            </Grid.ColumnDefinitions>
+                                            <Button Grid.Column="0" Style="{ThemeResource VoiSee.Style.Button}" Content="Rename" Padding="6" MinWidth="0" Click="OnAiModelManagerPlaceholderClick" />
+                                            <Button Grid.Column="1" Style="{ThemeResource VoiSee.Style.Button}" Content="Export" Padding="6" MinWidth="0" Click="OnAiModelManagerPlaceholderClick" />
+                                            <Button Grid.Column="2" Style="{ThemeResource VoiSee.Style.Button}" Content="Folder" Padding="6" MinWidth="0" Click="OnAiModelManagerPlaceholderClick" />
+                                            <Button Grid.Column="3" Style="{ThemeResource VoiSee.Style.Button}" Content="Delete" Padding="6" MinWidth="0" Click="OnAiModelManagerPlaceholderClick" />
+                                        </Grid>
+                                    </StackPanel>
+                                </Border>
+                            </Grid>
+                        </Grid>
                     </Grid>
                 </TabViewItem>
 

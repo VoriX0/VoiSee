@@ -4,7 +4,7 @@ namespace VoiSe.App;
 
 public sealed class VoiSeUserSettings
 {
-    public int SchemaVersion { get; set; } = 12;
+    public int SchemaVersion { get; set; } = 13;
 
     public string? InputDeviceId { get; set; }
     public string? InputDeviceName { get; set; }
@@ -87,5 +87,8 @@ public sealed class VoiSeUserSettings
 
     // VoiSee 10.1 native XAML ResourceDictionary theme. Null means built-in Default Dark.
     public string? ThemeFilePath { get; set; }
+
+    // VoiSee 13.1 global AI Voice performance profile. The runtime is connected in later Gates.
+    public string AiVoicePerformanceProfile { get; set; } = "Balanced";
 }
 

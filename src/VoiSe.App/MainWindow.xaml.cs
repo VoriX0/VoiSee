@@ -55,6 +55,7 @@ public sealed partial class MainWindow : Window
     private readonly StringBuilder _logBuffer = new();
     private readonly DispatcherTimer _voiceSettingsApplyTimer;
     private Gate2UnifiedAudioEngine? _engine;
+    private AiPerformanceProfile _aiPerformanceProfile = AiPerformanceProfile.Balanced;
     private string? _soundFilePath;
     private SoundBoardSound? _selectedSound;
     private bool _loadingLibrary;
@@ -185,6 +186,7 @@ public sealed partial class MainWindow : Window
     {
         StartupLog.Write("MainWindow constructor started.");
         _settings = _settingsStore.Load();
+        _aiPerformanceProfile = ParseAiPerformanceProfile(_settings.AiVoicePerformanceProfile);
         _settings.MediaBridgeProfiles ??= new List<MediaBridgeProfile>();
         MigrateLegacyMediaBridgeProfile();
         _libraryStore = new SoundBoardLibraryStore(_settingsStore.DataDirectory);
@@ -194,6 +196,8 @@ public sealed partial class MainWindow : Window
         _library = _libraryStore.Load();
         InitializeComponent();
         BuildEffectLibraryList();
+        UpdateAiPerformanceUi();
+        UpdateVoiceMonitorButton();
 
         if (ThemeFolderPathTextBlock is not null)
         {
@@ -250,7 +254,7 @@ public sealed partial class MainWindow : Window
         };
         _discordCableSessionIsolationTimer.Tick += OnDiscordCableSessionIsolationTimerTick;
 
-        AppendLog("VoiSee Version 13.0.1 UI started.");
+        AppendLog("VoiSee Version 13.1.0 UI started.");
         AppendLog($"Settings path: {_settingsStore.SettingsPath}");
 
         var isolationResult = _discordCableSessionIsolationService.Enable();
@@ -1986,9 +1990,10 @@ public sealed partial class MainWindow : Window
         {
             0 => IsPointInSoundBoardWheelZone(xDip, yDip) && TryScrollSoundOverlay(delta),
             1 => TryHandleVoiceChangerWheel(xDip, yDip, delta),
-            2 => TryHandleScenesWheel(xDip, yDip, delta),
-            3 => false,
+            2 => false, // AI Voice owns native ListView scrolling.
+            3 => TryHandleScenesWheel(xDip, yDip, delta),
             4 => false,
+            5 => false,
             _ => false
         };
     }
@@ -6485,6 +6490,7 @@ public sealed partial class MainWindow : Window
             SaveCurrentSettings();
             _engine = new Gate2UnifiedAudioEngine(input, virtualOutput, monitor, CreateEffectSettings());
             _engine.ProcessingPathChanged += OnAudioProcessingPathChanged;
+            _engine.SetPerformanceProfile(_aiPerformanceProfile);
             _engine.Start();
             _engine.SetVirtualMicMuted(_virtualMicMuted);
             _engine.UpdateMediaBridgeVolume((float)(MediaBridgeVolumeSlider?.Value ?? _settings.MediaBridgeVirtualMicVolume));
@@ -8769,6 +8775,7 @@ public sealed partial class MainWindow : Window
     {
         UpdateTimeline();
         UpdateSceneTimelines();
+        UpdateAiVoiceLatencyUi();
     }
 
     private void UpdateTimeline()
@@ -12142,7 +12149,87 @@ public sealed partial class MainWindow : Window
         {
             SceneVoiceMonitorButton.Content = text;
         }
+
+        if (AiVoiceMonitorButton is not null)
+        {
+            AiVoiceMonitorButton.Content = text;
+        }
     }
+
+    private static AiPerformanceProfile ParseAiPerformanceProfile(string? value)
+    {
+        return Enum.TryParse<AiPerformanceProfile>(value, ignoreCase: true, out var profile)
+            ? profile
+            : AiPerformanceProfile.Balanced;
+    }
+
+    private void SetAiPerformanceProfile(AiPerformanceProfile profile)
+    {
+        _aiPerformanceProfile = profile;
+        _settings.AiVoicePerformanceProfile = profile.ToString();
+        _settingsStore.Save(_settings);
+        _engine?.SetPerformanceProfile(profile);
+        UpdateAiPerformanceUi();
+        AppendLog($"AI Voice performance profile: {profile}.");
+    }
+
+    private void OnAiGamingModeClick(object sender, RoutedEventArgs e) => SetAiPerformanceProfile(AiPerformanceProfile.Gaming);
+    private void OnAiBalancedModeClick(object sender, RoutedEventArgs e) => SetAiPerformanceProfile(AiPerformanceProfile.Balanced);
+    private void OnAiQualityModeClick(object sender, RoutedEventArgs e) => SetAiPerformanceProfile(AiPerformanceProfile.Quality);
+
+    private void UpdateAiPerformanceUi()
+    {
+        if (AiGamingModeButton is not null) AiGamingModeButton.IsChecked = _aiPerformanceProfile == AiPerformanceProfile.Gaming;
+        if (AiBalancedModeButton is not null) AiBalancedModeButton.IsChecked = _aiPerformanceProfile == AiPerformanceProfile.Balanced;
+        if (AiQualityModeButton is not null) AiQualityModeButton.IsChecked = _aiPerformanceProfile == AiPerformanceProfile.Quality;
+    }
+
+    private void UpdateAiVoiceLatencyUi()
+    {
+        var snapshot = _engine?.GetLatencySnapshot();
+        var aiMs = snapshot?.AiProcessingMs ?? 0.0;
+        var totalMs = snapshot?.EstimatedTotalMs;
+        var aiText = $"{aiMs:0.#} ms";
+        var totalText = totalMs.HasValue ? $"{totalMs.Value:0.#} ms" : "—";
+
+        if (AiLatencyTextBlock is not null) AiLatencyTextBlock.Text = aiText;
+        if (AiTotalLatencyTextBlock is not null) AiTotalLatencyTextBlock.Text = totalText;
+        if (AiSelectedLatencyTextBlock is not null) AiSelectedLatencyTextBlock.Text = aiText;
+        if (AiSelectedTotalLatencyTextBlock is not null) AiSelectedTotalLatencyTextBlock.Text = totalText;
+    }
+
+    private async Task ShowAiVoiceSkeletonDialogAsync(string title, string message)
+    {
+        if (RootGrid?.XamlRoot is null)
+        {
+            return;
+        }
+
+        var dialog = new ContentDialog
+        {
+            XamlRoot = RootGrid.XamlRoot,
+            Title = title,
+            Content = message,
+            CloseButtonText = "OK",
+            DefaultButton = ContentDialogButton.Close
+        };
+        await dialog.ShowAsync();
+    }
+
+    private async void OnAiCreateFromAudioClick(object sender, RoutedEventArgs e)
+        => await ShowAiVoiceSkeletonDialogAsync("Create from Audio", "The AI Voice UI is ready. Quick Clone is connected in a later VoiSee 13.x Gate; no AI runtime is installed by 13.1.");
+
+    private async void OnAiImportVoiceClick(object sender, RoutedEventArgs e)
+        => await ShowAiVoiceSkeletonDialogAsync("Import AI Voice", "The import entry point is reserved. Model storage and the .vsee format are implemented in the next Gate.");
+
+    private async void OnAiOpenVoiceFolderClick(object sender, RoutedEventArgs e)
+        => await ShowAiVoiceSkeletonDialogAsync("AI Voice storage", "The user-selected AI Voice storage folder is introduced with the .vsee storage Gate.");
+
+    private async void OnAiOpenLibraryInBrowserClick(object sender, RoutedEventArgs e)
+        => await ShowAiVoiceSkeletonDialogAsync("Online Library", "The embedded library shell is ready. The first online provider and browser link are connected in the Online Library Gate.");
+
+    private async void OnAiModelManagerPlaceholderClick(object sender, RoutedEventArgs e)
+        => await ShowAiVoiceSkeletonDialogAsync("Model Manager", "Select or create an AI Voice after the .vsee storage layer is connected.");
 
     private void UpdateAllLabels()
     {
