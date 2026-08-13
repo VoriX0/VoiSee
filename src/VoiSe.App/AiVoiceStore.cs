@@ -72,6 +72,7 @@ public sealed class AiVoiceStore
         // even for very large model packages without rewriting their payload.
         preset.Name = Path.GetFileNameWithoutExtension(packagePath);
         preset.AssetEntries ??= new List<string>();
+        NormalizeCompatibility(preset);
         preset.FilePath = Path.GetFullPath(packagePath);
         return preset;
     }
@@ -132,8 +133,8 @@ public sealed class AiVoiceStore
         var hasOnnx = validFiles.Any(p => string.Equals(Path.GetExtension(p), ".onnx", StringComparison.OrdinalIgnoreCase));
         var engine = hasPth ? "RVC" : hasOnnx ? "ONNX" : "Unknown";
         var compatibility = hasPth
-            ? (hasIndex ? "RVC candidate" : "RVC model · index optional")
-            : hasOnnx ? "Conversion check required" : "Runtime check required";
+            ? (hasIndex ? "RVC activation candidate" : "RVC activation candidate · index optional")
+            : hasOnnx ? "Not supported · conversion required" : "Not supported";
 
         var preset = new AiVoicePreset
         {
@@ -209,6 +210,39 @@ public sealed class AiVoiceStore
         }
 
         File.Copy(preset.FilePath, destinationPath, overwrite: true);
+    }
+
+    private static void NormalizeCompatibility(AiVoicePreset preset)
+    {
+        var assets = preset.AssetEntries ?? new List<string>();
+        var hasPth = assets.Any(entry => entry.EndsWith(".pth", StringComparison.OrdinalIgnoreCase));
+        var hasIndex = assets.Any(entry => entry.EndsWith(".index", StringComparison.OrdinalIgnoreCase));
+        var hasOnnx = assets.Any(entry => entry.EndsWith(".onnx", StringComparison.OrdinalIgnoreCase));
+
+        if (hasPth)
+        {
+            preset.Engine = "RVC";
+            preset.Compatibility = hasIndex
+                ? "RVC activation candidate"
+                : "RVC activation candidate · index optional";
+            return;
+        }
+
+        if (hasOnnx)
+        {
+            preset.Engine = "ONNX";
+            preset.Compatibility = "Not supported · conversion required";
+            return;
+        }
+
+        if (string.Equals(preset.VoiceType, "Reference", StringComparison.OrdinalIgnoreCase))
+        {
+            preset.Engine = "Pending";
+            preset.Compatibility = "Ready for Quick Clone";
+            return;
+        }
+
+        preset.Compatibility = "Not supported";
     }
 
     private static void WritePackage(

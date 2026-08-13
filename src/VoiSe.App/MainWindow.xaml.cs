@@ -60,6 +60,7 @@ public sealed partial class MainWindow : Window
     private AiVoiceStore? _aiVoiceStore;
     private IReadOnlyList<AiVoicePreset> _aiVoices = Array.Empty<AiVoicePreset>();
     private AiVoicePreset? _selectedAiVoice;
+    private string? _activeAiVoiceId;
     private readonly HuggingFaceVoiceLibraryProvider _aiVoiceLibraryProvider = new();
     private readonly DispatcherTimer _aiLibrarySearchTimer = new();
     private CancellationTokenSource? _aiLibrarySearchCts;
@@ -196,6 +197,7 @@ public sealed partial class MainWindow : Window
         StartupLog.Write("MainWindow constructor started.");
         _settings = _settingsStore.Load();
         _aiPerformanceProfile = ParseAiPerformanceProfile(_settings.AiVoicePerformanceProfile);
+        _activeAiVoiceId = _settings.AiVoiceActivePresetId;
         _settings.MediaBridgeProfiles ??= new List<MediaBridgeProfile>();
         MigrateLegacyMediaBridgeProfile();
         _libraryStore = new SoundBoardLibraryStore(_settingsStore.DataDirectory);
@@ -270,7 +272,7 @@ public sealed partial class MainWindow : Window
         };
         _discordCableSessionIsolationTimer.Tick += OnDiscordCableSessionIsolationTimerTick;
 
-        AppendLog("VoiSee Version 13.3.0 UI started.");
+        AppendLog("VoiSee Version 13.4.0 UI started.");
         AppendLog($"Settings path: {_settingsStore.SettingsPath}");
 
         var isolationResult = _discordCableSessionIsolationService.Enable();
@@ -528,6 +530,15 @@ public sealed partial class MainWindow : Window
         catch (Exception ex)
         {
             AppendLog($"Theme refresh warning (Voice Presets): {ex.Message}");
+        }
+
+        try
+        {
+            RefreshAiVoiceUi(_selectedAiVoice?.Id);
+        }
+        catch (Exception ex)
+        {
+            AppendLog($"Theme refresh warning (AI Voices): {ex.Message}");
         }
 
         try
@@ -12234,7 +12245,7 @@ public sealed partial class MainWindow : Window
             _aiVoiceStore = new AiVoiceStore(storageDirectory);
             _aiVoices = _aiVoiceStore.LoadVoices();
 
-            // 13.3.0: persist the built-in VoiSee storage as the explicit default once resolved.
+            // 13.4.0: persist the built-in VoiSee storage as the explicit default once resolved.
             if (string.IsNullOrWhiteSpace(_settings.AiVoiceStorageDirectory))
             {
                 _settings.AiVoiceStorageDirectory = storageDirectory;
@@ -12306,6 +12317,9 @@ public sealed partial class MainWindow : Window
             _aiVoiceStore = new AiVoiceStore(folder.Path);
             _aiVoices = _aiVoiceStore.LoadVoices();
             _selectedAiVoice = null;
+            _activeAiVoiceId = null;
+            _settings.AiVoiceActivePresetId = null;
+            _settingsStore.Save(_settings);
             UpdateAiVoiceStorageSettingsUi();
             RefreshAiVoiceUi();
             AppendLog($"AI Voice storage changed: {folder.Path}");
@@ -12356,6 +12370,14 @@ public sealed partial class MainWindow : Window
             _aiVoices = Array.Empty<AiVoicePreset>();
         }
 
+        if (!string.IsNullOrWhiteSpace(_activeAiVoiceId)
+            && _aiVoices.All(v => !string.Equals(v.Id, _activeAiVoiceId, StringComparison.OrdinalIgnoreCase)))
+        {
+            _activeAiVoiceId = null;
+            _settings.AiVoiceActivePresetId = null;
+            _settingsStore.Save(_settings);
+        }
+
         var filter = AiVoiceSearchTextBox?.Text?.Trim() ?? string.Empty;
         FrameworkElement? itemToSelect = null;
         var visibleCount = 0;
@@ -12396,15 +12418,19 @@ public sealed partial class MainWindow : Window
         UpdateSelectedAiVoiceUi();
     }
 
-    private static FrameworkElement CreateAiVoiceListItem(AiVoicePreset voice)
+    private FrameworkElement CreateAiVoiceListItem(AiVoicePreset voice)
     {
         var root = new Grid
         {
             Tag = voice,
-            Padding = new Thickness(2, 5, 2, 5),
+            Padding = new Thickness(4, 7, 4, 7),
+            RowSpacing = 5,
             ColumnSpacing = 8,
-            HorizontalAlignment = HorizontalAlignment.Stretch
+            HorizontalAlignment = HorizontalAlignment.Stretch,
+            Opacity = 1.0
         };
+        root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+        root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
         root.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
         root.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
 
@@ -12422,19 +12448,89 @@ public sealed partial class MainWindow : Window
             Opacity = 0.62,
             TextTrimming = TextTrimming.CharacterEllipsis
         });
+        Grid.SetColumnSpan(text, 2);
         root.Children.Add(text);
 
+        // Imported / Reference / future Quick/Optimized state lives on the left.
         var type = new TextBlock
         {
             Text = voice.VoiceType,
             FontSize = 10,
             Opacity = 0.76,
             VerticalAlignment = VerticalAlignment.Center,
-            HorizontalAlignment = HorizontalAlignment.Right
+            HorizontalAlignment = HorizontalAlignment.Left
         };
-        Grid.SetColumn(type, 1);
+        Grid.SetRow(type, 1);
         root.Children.Add(type);
+
+        var isActive = IsAiVoiceActive(voice);
+        var activate = new Button
+        {
+            Tag = voice,
+            Content = isActive ? "Active" : "Activate",
+            MinWidth = 72,
+            MinHeight = 28,
+            Padding = new Thickness(8, 3, 8, 3),
+            HorizontalAlignment = HorizontalAlignment.Right,
+            VerticalAlignment = VerticalAlignment.Center,
+            IsEnabled = voice.CanActivate && !isActive
+        };
+        activate.Style = Application.Current.Resources["VoiSee.Style.Button"] as Style;
+        activate.Click += OnAiVoiceCardActivateClick;
+        ToolTipService.SetToolTip(activate, voice.CanActivate
+            ? (isActive ? "This AI Voice is selected for activation." : "Activate this AI Voice.")
+            : "This voice is not an activatable RVC model yet.");
+        Grid.SetRow(activate, 1);
+        Grid.SetColumn(activate, 1);
+        root.Children.Add(activate);
+
+        // Extra tactile feedback on top of the ListViewItem hover/pressed/selected visual states.
+        root.PointerEntered += (_, _) => root.Opacity = 0.94;
+        root.PointerExited += (_, _) => root.Opacity = 1.0;
+        root.PointerPressed += (_, _) => root.Opacity = 0.80;
+        root.PointerReleased += (_, _) => root.Opacity = 0.94;
+        root.PointerCanceled += (_, _) => root.Opacity = 1.0;
+
         return root;
+    }
+
+    private bool IsAiVoiceActive(AiVoicePreset voice)
+        => !string.IsNullOrWhiteSpace(_activeAiVoiceId)
+           && string.Equals(_activeAiVoiceId, voice.Id, StringComparison.OrdinalIgnoreCase);
+
+    private async void OnAiVoiceCardActivateClick(object sender, RoutedEventArgs e)
+    {
+        if (sender is not Button button || button.Tag is not AiVoicePreset voice) return;
+        await ActivateAiVoiceAsync(voice);
+    }
+
+    private async void OnAiActivateSelectedVoiceClick(object sender, RoutedEventArgs e)
+    {
+        if (_selectedAiVoice is null)
+        {
+            await ShowMessageDialogAsync("Activate AI Voice", "Select an AI Voice first.");
+            return;
+        }
+
+        await ActivateAiVoiceAsync(_selectedAiVoice);
+    }
+
+    private async Task ActivateAiVoiceAsync(AiVoicePreset voice)
+    {
+        if (!voice.CanActivate)
+        {
+            await ShowMessageDialogAsync(
+                "Activate AI Voice",
+                "This package is not an activatable RVC model yet. Import/download a .pth RVC model or create/optimize this voice in a later Gate.");
+            return;
+        }
+
+        _activeAiVoiceId = voice.Id;
+        _settings.AiVoiceActivePresetId = voice.Id;
+        _settingsStore.Save(_settings);
+        _selectedAiVoice = voice;
+        RefreshAiVoiceUi(voice.Id);
+        AppendLog($"AI Voice activated for runtime: {voice.Name} [{voice.Id}].");
     }
 
     private void UpdateSelectedAiVoiceUi()
@@ -12447,6 +12543,11 @@ public sealed partial class MainWindow : Window
                 : "Select or create an AI voice to see its details.";
             if (AiSelectedCompatibilityTextBlock is not null) AiSelectedCompatibilityTextBlock.Text = "—";
             if (AiSelectedStorageTextBlock is not null) AiSelectedStorageTextBlock.Text = _aiVoiceStore?.StorageDirectory ?? "Not configured";
+            if (AiActivateSelectedVoiceButton is not null)
+            {
+                AiActivateSelectedVoiceButton.Content = "Activate Voice";
+                AiActivateSelectedVoiceButton.IsEnabled = false;
+            }
             return;
         }
 
@@ -12454,6 +12555,15 @@ public sealed partial class MainWindow : Window
         if (AiSelectedVoiceTypeTextBlock is not null) AiSelectedVoiceTypeTextBlock.Text = $"{_selectedAiVoice.VoiceType} · {_selectedAiVoice.Engine}";
         if (AiSelectedCompatibilityTextBlock is not null) AiSelectedCompatibilityTextBlock.Text = _selectedAiVoice.Compatibility;
         if (AiSelectedStorageTextBlock is not null) AiSelectedStorageTextBlock.Text = _selectedAiVoice.FilePath ?? _aiVoiceStore?.StorageDirectory ?? "Not configured";
+        if (AiActivateSelectedVoiceButton is not null)
+        {
+            var active = IsAiVoiceActive(_selectedAiVoice);
+            AiActivateSelectedVoiceButton.Content = active ? "Active Voice" : "Activate Voice";
+            AiActivateSelectedVoiceButton.IsEnabled = _selectedAiVoice.CanActivate && !active;
+            ToolTipService.SetToolTip(AiActivateSelectedVoiceButton, _selectedAiVoice.CanActivate
+                ? (active ? "This is the active AI Voice." : "Activate the selected AI Voice.")
+                : "This voice is not an activatable RVC model yet.");
+        }
     }
 
     private void OnAiVoiceSearchTextChanged(object sender, TextChangedEventArgs e) => RefreshAiVoiceUi();
@@ -12882,6 +12992,12 @@ public sealed partial class MainWindow : Window
         try
         {
             _aiVoiceStore.Delete(voice);
+            if (IsAiVoiceActive(voice))
+            {
+                _activeAiVoiceId = null;
+                _settings.AiVoiceActivePresetId = null;
+                _settingsStore.Save(_settings);
+            }
             _selectedAiVoice = null;
             RefreshAiVoiceUi();
             AppendLog($"AI Voice deleted: {voice.Name}");

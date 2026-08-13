@@ -93,5 +93,8 @@ public sealed class VoiSeUserSettings
 
     // VoiSee 13.x AI Voice storage folder. Defaults to the VoiSee data directory and may be changed in Settings.
     public string? AiVoiceStorageDirectory { get; set; }
+
+    // The AI Voice selected for activation. Runtime inference is connected by a later Gate.
+    public string? AiVoiceActivePresetId { get; set; }
 }
 

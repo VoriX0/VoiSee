@@ -22,4 +22,11 @@ public sealed class AiVoicePreset
     // Runtime-only path to the installed .vsee package.
     [JsonIgnore]
     public string? FilePath { get; set; }
+
+    // 13.4 activation gate: RVC packages containing a .pth model can be selected
+    // as the active AI Voice. The actual realtime inference runtime is connected later.
+    [JsonIgnore]
+    public bool CanActivate =>
+        string.Equals(Engine, "RVC", StringComparison.OrdinalIgnoreCase)
+        && AssetEntries.Exists(entry => entry.EndsWith(".pth", StringComparison.OrdinalIgnoreCase));
 }
