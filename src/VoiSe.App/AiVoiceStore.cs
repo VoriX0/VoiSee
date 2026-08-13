@@ -1,9 +1,11 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.IO.Compression;
 using System.Linq;
 using System.Text.Json;
+using NAudio.Wave;
 
 namespace VoiSe.App;
 
@@ -191,6 +193,82 @@ public sealed class AiVoiceStore
         return preset;
     }
 
+    public AiVoicePreset PrepareOptimizedVoice(AiVoicePreset preset)
+    {
+        if (preset.FilePath is null || !File.Exists(preset.FilePath))
+        {
+            throw new FileNotFoundException("The selected AI Voice package no longer exists.", preset.FilePath);
+        }
+
+        if (!preset.CanOptimize || string.IsNullOrWhiteSpace(preset.ReferenceAudioEntry))
+        {
+            throw new InvalidOperationException("Optimize Voice can only be prepared from a Reference or Quick Clone voice that still contains its reference audio.");
+        }
+
+        var packagePath = Path.GetFullPath(preset.FilePath);
+        var tempDirectory = Path.Combine(Path.GetTempPath(), "VoiSee", "OptimizeVoice", Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(tempDirectory);
+        var stopwatch = Stopwatch.StartNew();
+        try
+        {
+            string extractedReferencePath;
+            using (var archive = ZipFile.OpenRead(packagePath))
+            {
+                var referenceEntry = archive.GetEntry(preset.ReferenceAudioEntry)
+                    ?? throw new InvalidDataException("The .vsee package no longer contains its reference audio.");
+                var extension = Path.GetExtension(referenceEntry.Name);
+                extractedReferencePath = Path.Combine(tempDirectory, "reference" + extension);
+                referenceEntry.ExtractToFile(extractedReferencePath, overwrite: true);
+            }
+
+            var decoded = DecodeReferenceToMono(extractedReferencePath);
+            if (decoded.Samples.Length == 0 || decoded.SampleRate <= 0)
+            {
+                throw new InvalidDataException("The reference audio could not be decoded into usable samples.");
+            }
+
+            var analysis = AnalyzeAndNormalizeReference(decoded.Samples, decoded.SampleRate);
+            if (analysis.UsableDurationSeconds < 10.0)
+            {
+                throw new InvalidDataException($"Reference audio contains only {analysis.UsableDurationSeconds:0.0} seconds of usable speech after trimming. Optimize Voice requires at least 10 seconds.");
+            }
+
+            var optimizedSamples = ResampleLinear(analysis.NormalizedSamples, decoded.SampleRate, 48000);
+            var optimizedReferencePath = Path.Combine(tempDirectory, "reference_48k_mono.wav");
+            WritePcm16Wave(optimizedReferencePath, optimizedSamples, 48000);
+
+            stopwatch.Stop();
+            preset.SchemaVersion = Math.Max(3, preset.SchemaVersion);
+            preset.VoiceType = "Optimized";
+            preset.Engine = "Optimized";
+            preset.Compatibility = "Optimized voice · runtime pending";
+            preset.ReferenceDurationSeconds = decoded.Samples.Length / (double)decoded.SampleRate;
+            preset.OptimizedReferenceDurationSeconds = optimizedSamples.Length / 48000.0;
+            preset.ReferenceQuality = analysis.Quality;
+            preset.OptimizedPreparedUtc = DateTimeOffset.UtcNow;
+            preset.OptimizationDurationMs = stopwatch.Elapsed.TotalMilliseconds;
+            preset.OptimizedReferenceEntry = "optimized/reference_48k_mono.wav";
+            preset.OptimizedProfileEntry = "optimized/profile.json";
+            preset.QuickProfileEntry = null;
+            preset.Notes = "Reference decoded, silence-trimmed, level-normalized and converted to canonical 48 kHz mono PCM. The neural realtime runtime is connected in a later Gate.";
+
+            preset.AssetEntries.RemoveAll(entry =>
+                string.Equals(entry, "quick/profile.json", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(entry, "optimized/profile.json", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(entry, "optimized/reference_48k_mono.wav", StringComparison.OrdinalIgnoreCase));
+            preset.AssetEntries.Add(preset.OptimizedReferenceEntry);
+            preset.AssetEntries.Add(preset.OptimizedProfileEntry);
+
+            RewritePackageWithOptimizedProfile(packagePath, preset, optimizedReferencePath, analysis);
+            preset.FilePath = packagePath;
+            return preset;
+        }
+        finally
+        {
+            try { Directory.Delete(tempDirectory, recursive: true); } catch { }
+        }
+    }
+
     public AiVoicePreset ImportPackage(string sourcePackagePath)
     {
         var source = LoadPackage(sourcePackagePath); // validates before copying
@@ -294,6 +372,235 @@ public sealed class AiVoiceStore
         }
 
         preset.Compatibility = "Not supported";
+    }
+
+    private sealed record DecodedReference(float[] Samples, int SampleRate);
+
+    private sealed record ReferenceOptimizationAnalysis(
+        float[] NormalizedSamples,
+        double UsableDurationSeconds,
+        double TrimmedLeadingSeconds,
+        double TrimmedTrailingSeconds,
+        double PeakBeforeNormalization,
+        double RmsBeforeNormalization,
+        double AppliedGain,
+        string Quality);
+
+    private static DecodedReference DecodeReferenceToMono(string referencePath)
+    {
+        var extension = Path.GetExtension(referencePath);
+        if (string.Equals(extension, ".ogg", StringComparison.OrdinalIgnoreCase))
+        {
+            using var reader = new NAudio.Vorbis.VorbisWaveReader(referencePath);
+            var provider = reader.ToSampleProvider();
+            return ReadProviderToMono(provider, reader.WaveFormat.Channels, reader.WaveFormat.SampleRate);
+        }
+
+        using var audio = new NAudio.Wave.AudioFileReader(referencePath);
+        return ReadProviderToMono(audio, audio.WaveFormat.Channels, audio.WaveFormat.SampleRate);
+    }
+
+    private static DecodedReference ReadProviderToMono(NAudio.Wave.ISampleProvider provider, int channels, int sampleRate)
+    {
+        channels = Math.Max(1, channels);
+        var readBuffer = new float[4096 * channels];
+        var mono = new List<float>();
+        while (true)
+        {
+            var read = provider.Read(readBuffer, 0, readBuffer.Length);
+            if (read <= 0) break;
+            var frames = read / channels;
+            for (var frame = 0; frame < frames; frame++)
+            {
+                double sum = 0;
+                var baseIndex = frame * channels;
+                for (var channel = 0; channel < channels; channel++)
+                {
+                    sum += readBuffer[baseIndex + channel];
+                }
+                mono.Add((float)(sum / channels));
+            }
+        }
+
+        return new DecodedReference(mono.ToArray(), sampleRate);
+    }
+
+    private static ReferenceOptimizationAnalysis AnalyzeAndNormalizeReference(float[] samples, int sampleRate)
+    {
+        if (samples.Length == 0) throw new InvalidDataException("Reference audio is empty.");
+
+        double peak = 0;
+        double sumSquares = 0;
+        double mean = 0;
+        foreach (var sample in samples)
+        {
+            peak = Math.Max(peak, Math.Abs(sample));
+            sumSquares += sample * sample;
+            mean += sample;
+        }
+        mean /= samples.Length;
+        var rms = Math.Sqrt(sumSquares / samples.Length);
+        if (peak < 0.0005 || rms < 0.0001)
+        {
+            throw new InvalidDataException("Reference audio is effectively silent.");
+        }
+
+        var threshold = Math.Max(0.004, peak * 0.015);
+        var first = 0;
+        while (first < samples.Length && Math.Abs(samples[first] - mean) < threshold) first++;
+        var last = samples.Length - 1;
+        while (last > first && Math.Abs(samples[last] - mean) < threshold) last--;
+        if (last <= first)
+        {
+            throw new InvalidDataException("No usable speech was detected in the reference audio.");
+        }
+
+        var padding = Math.Max(1, (int)Math.Round(sampleRate * 0.15));
+        var start = Math.Max(0, first - padding);
+        var end = Math.Min(samples.Length - 1, last + padding);
+        var count = end - start + 1;
+        var trimmed = new float[count];
+
+        double trimmedPeak = 0;
+        double trimmedSquares = 0;
+        for (var i = 0; i < count; i++)
+        {
+            var centered = (float)(samples[start + i] - mean);
+            trimmed[i] = centered;
+            trimmedPeak = Math.Max(trimmedPeak, Math.Abs(centered));
+            trimmedSquares += centered * centered;
+        }
+        var trimmedRms = Math.Sqrt(trimmedSquares / count);
+        var gain = trimmedPeak > 0 ? Math.Min(4.0, 0.92 / trimmedPeak) : 1.0;
+        for (var i = 0; i < trimmed.Length; i++)
+        {
+            trimmed[i] = (float)Math.Clamp(trimmed[i] * gain, -0.98, 0.98);
+        }
+
+        var usableSeconds = count / (double)sampleRate;
+        var leading = start / (double)sampleRate;
+        var trailing = (samples.Length - end - 1) / (double)sampleRate;
+        var clippingRatio = samples.Count(sample => Math.Abs(sample) >= 0.995f) / (double)samples.Length;
+        var quality = usableSeconds >= 30 && trimmedRms >= 0.025 && clippingRatio < 0.005
+            ? "Good"
+            : usableSeconds >= 10 && trimmedRms >= 0.012 && clippingRatio < 0.02
+                ? "Fair"
+                : "Poor";
+
+        return new ReferenceOptimizationAnalysis(
+            trimmed,
+            usableSeconds,
+            leading,
+            trailing,
+            trimmedPeak,
+            trimmedRms,
+            gain,
+            quality);
+    }
+
+    private static float[] ResampleLinear(float[] input, int inputRate, int outputRate)
+    {
+        if (input.Length == 0 || inputRate <= 0 || outputRate <= 0) return Array.Empty<float>();
+        if (inputRate == outputRate) return input.ToArray();
+        var outputLength = Math.Max(1, (int)Math.Round(input.Length * (double)outputRate / inputRate));
+        var output = new float[outputLength];
+        var ratio = inputRate / (double)outputRate;
+        for (var i = 0; i < outputLength; i++)
+        {
+            var sourcePosition = i * ratio;
+            var index = Math.Min(input.Length - 1, (int)sourcePosition);
+            var next = Math.Min(input.Length - 1, index + 1);
+            var fraction = sourcePosition - index;
+            output[i] = (float)(input[index] + ((input[next] - input[index]) * fraction));
+        }
+        return output;
+    }
+
+    private static void WritePcm16Wave(string path, float[] samples, int sampleRate)
+    {
+        using var writer = new NAudio.Wave.WaveFileWriter(path, new NAudio.Wave.WaveFormat(sampleRate, 16, 1));
+        var bytes = new byte[8192];
+        var byteIndex = 0;
+        foreach (var sample in samples)
+        {
+            var pcm = (short)Math.Round(Math.Clamp(sample, -1.0f, 1.0f) * short.MaxValue);
+            bytes[byteIndex++] = (byte)(pcm & 0xff);
+            bytes[byteIndex++] = (byte)((pcm >> 8) & 0xff);
+            if (byteIndex >= bytes.Length)
+            {
+                writer.Write(bytes, 0, byteIndex);
+                byteIndex = 0;
+            }
+        }
+        if (byteIndex > 0) writer.Write(bytes, 0, byteIndex);
+    }
+
+    private static void RewritePackageWithOptimizedProfile(
+        string packagePath,
+        AiVoicePreset preset,
+        string optimizedReferencePath,
+        ReferenceOptimizationAnalysis analysis)
+    {
+        var tempPackage = packagePath + ".optimized.tmp";
+        if (File.Exists(tempPackage)) File.Delete(tempPackage);
+
+        using (var source = ZipFile.OpenRead(packagePath))
+        using (var destination = ZipFile.Open(tempPackage, ZipArchiveMode.Create))
+        {
+            foreach (var entry in source.Entries)
+            {
+                if (string.Equals(entry.FullName, ManifestEntryName, StringComparison.OrdinalIgnoreCase)
+                    || string.Equals(entry.FullName, "quick/profile.json", StringComparison.OrdinalIgnoreCase)
+                    || string.Equals(entry.FullName, "optimized/profile.json", StringComparison.OrdinalIgnoreCase)
+                    || string.Equals(entry.FullName, "optimized/reference_48k_mono.wav", StringComparison.OrdinalIgnoreCase))
+                {
+                    continue;
+                }
+
+                var copy = destination.CreateEntry(entry.FullName, CompressionLevel.NoCompression);
+                using var input = entry.Open();
+                using var output = copy.Open();
+                input.CopyTo(output);
+            }
+
+            var optimizedAudio = destination.CreateEntry("optimized/reference_48k_mono.wav", CompressionLevel.NoCompression);
+            using (var input = File.OpenRead(optimizedReferencePath))
+            using (var output = optimizedAudio.Open())
+            {
+                input.CopyTo(output);
+            }
+
+            var optimizedProfile = destination.CreateEntry("optimized/profile.json", CompressionLevel.Fastest);
+            using (var stream = optimizedProfile.Open())
+            {
+                var profile = new
+                {
+                    schema = 1,
+                    kind = "optimized-reference",
+                    sourceReferenceEntry = preset.ReferenceAudioEntry,
+                    canonicalReferenceEntry = preset.OptimizedReferenceEntry,
+                    sampleRate = 48000,
+                    channels = 1,
+                    format = "pcm16",
+                    usableDurationSeconds = analysis.UsableDurationSeconds,
+                    trimmedLeadingSeconds = analysis.TrimmedLeadingSeconds,
+                    trimmedTrailingSeconds = analysis.TrimmedTrailingSeconds,
+                    peakBeforeNormalization = analysis.PeakBeforeNormalization,
+                    rmsBeforeNormalization = analysis.RmsBeforeNormalization,
+                    appliedGain = analysis.AppliedGain,
+                    referenceQuality = analysis.Quality,
+                    preparedUtc = preset.OptimizedPreparedUtc,
+                    preparationDurationMs = preset.OptimizationDurationMs
+                };
+                JsonSerializer.Serialize(stream, profile, JsonOptions);
+            }
+
+            var manifest = destination.CreateEntry(ManifestEntryName, CompressionLevel.Fastest);
+            using var manifestStream = manifest.Open();
+            JsonSerializer.Serialize(manifestStream, preset, JsonOptions);
+        }
+
+        File.Move(tempPackage, packagePath, overwrite: true);
     }
 
     private static double MeasureReferenceDurationSeconds(string packagePath, string referenceEntryName)

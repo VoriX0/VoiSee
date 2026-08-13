@@ -18,8 +18,14 @@ public sealed class AiVoicePreset
     public List<string> AssetEntries { get; set; } = new();
     public string? ReferenceAudioEntry { get; set; }
     public string? QuickProfileEntry { get; set; }
+    public string? OptimizedProfileEntry { get; set; }
+    public string? OptimizedReferenceEntry { get; set; }
     public double? ReferenceDurationSeconds { get; set; }
+    public double? OptimizedReferenceDurationSeconds { get; set; }
+    public string? ReferenceQuality { get; set; }
     public DateTimeOffset? QuickPreparedUtc { get; set; }
+    public DateTimeOffset? OptimizedPreparedUtc { get; set; }
+    public double? OptimizationDurationMs { get; set; }
     public string? Notes { get; set; }
 
     // Runtime-only path to the installed .vsee package.

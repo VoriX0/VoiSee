@@ -61,6 +61,7 @@ public sealed partial class MainWindow : Window
     private IReadOnlyList<AiVoicePreset> _aiVoices = Array.Empty<AiVoicePreset>();
     private AiVoicePreset? _selectedAiVoice;
     private string? _activeAiVoiceId;
+    private bool _aiVoiceOptimizationInProgress;
     private readonly HuggingFaceVoiceLibraryProvider _aiVoiceLibraryProvider = new();
     private readonly DispatcherTimer _aiLibrarySearchTimer = new();
     private CancellationTokenSource? _aiLibrarySearchCts;
@@ -272,7 +273,7 @@ public sealed partial class MainWindow : Window
         };
         _discordCableSessionIsolationTimer.Tick += OnDiscordCableSessionIsolationTimerTick;
 
-        AppendLog("VoiSee Version 13.5.0 UI started.");
+        AppendLog("VoiSee Version 13.6.0 UI started.");
         AppendLog($"Settings path: {_settingsStore.SettingsPath}");
 
         var isolationResult = _discordCableSessionIsolationService.Enable();
@@ -12245,7 +12246,7 @@ public sealed partial class MainWindow : Window
             _aiVoiceStore = new AiVoiceStore(storageDirectory);
             _aiVoices = _aiVoiceStore.LoadVoices();
 
-            // 13.5.0: persist the built-in VoiSee storage as the explicit default once resolved.
+            // 13.6.0: persist the built-in VoiSee storage as the explicit default once resolved.
             if (string.IsNullOrWhiteSpace(_settings.AiVoiceStorageDirectory))
             {
                 _settings.AiVoiceStorageDirectory = storageDirectory;
@@ -12535,10 +12536,63 @@ public sealed partial class MainWindow : Window
 
     private async void OnAiOptimizeSelectedVoiceClick(object sender, RoutedEventArgs e)
     {
-        if (_selectedAiVoice is null) return;
-        await ShowMessageDialogAsync(
-            "Optimize Voice",
-            "Optimize Voice is the next Gate (13.6). You can keep using the same Reference/Quick .vsee preset; optimization will replace Quick Clone in-place when that runtime is connected.");
+        if (_selectedAiVoice is null || _aiVoiceStore is null || _aiVoiceOptimizationInProgress) return;
+        if (!_selectedAiVoice.CanOptimize)
+        {
+            await ShowMessageDialogAsync("Optimize Voice", "Only Reference and Quick Clone voices can be optimized.");
+            return;
+        }
+
+        var dialog = new ContentDialog
+        {
+            XamlRoot = RootGrid.XamlRoot,
+            Title = "Optimize Voice",
+            Content = "VoiSee will prepare this voice in the foreground. The stored reference is decoded, silence-trimmed, normalized and converted to canonical 48 kHz mono audio. Controls are temporarily locked so optimization cannot run unnoticed while gaming.",
+            PrimaryButtonText = "Optimize",
+            CloseButtonText = "Cancel",
+            DefaultButton = ContentDialogButton.Primary
+        };
+        if (await dialog.ShowAsync() != ContentDialogResult.Primary) return;
+
+        var voice = _selectedAiVoice;
+        var wasActive = IsAiVoiceActive(voice);
+        _aiVoiceOptimizationInProgress = true;
+        if (MainTabView is not null) MainTabView.IsEnabled = false;
+        if (AiOptimizeSelectedVoiceButton is not null)
+        {
+            AiOptimizeSelectedVoiceButton.IsEnabled = false;
+            AiOptimizeSelectedVoiceButton.Content = "Optimizing…";
+        }
+        AppendLog($"AI Voice optimization started: {voice.Name} [{voice.Id}].");
+
+        try
+        {
+            var packagePath = voice.FilePath ?? throw new FileNotFoundException("The selected AI Voice package no longer exists.");
+            var optimized = await Task.Run(() => _aiVoiceStore.PrepareOptimizedVoice(_aiVoiceStore.LoadPackage(packagePath)));
+            _selectedAiVoice = optimized;
+            if (wasActive)
+            {
+                _activeAiVoiceId = optimized.Id;
+                _settings.AiVoiceActivePresetId = optimized.Id;
+                _settingsStore.Save(_settings);
+            }
+            RefreshAiVoiceUi(optimized.Id);
+            AppendLog($"AI Voice optimized: {optimized.Name}; quality={optimized.ReferenceQuality}; reference={optimized.OptimizedReferenceDurationSeconds:0.0}s; preparation={optimized.OptimizationDurationMs:0} ms.");
+            await ShowMessageDialogAsync(
+                "Voice optimized",
+                $"'{optimized.Name}' is now Optimized. Usable reference: {optimized.OptimizedReferenceDurationSeconds:0.0} s. Reference quality: {optimized.ReferenceQuality}. The same .vsee preset and ID were preserved; its Quick profile was replaced by the optimized profile.");
+        }
+        catch (Exception ex)
+        {
+            AppendLog($"Optimize Voice error: {ex.Message}");
+            await ShowMessageDialogAsync("Optimize Voice", ex.Message);
+        }
+        finally
+        {
+            _aiVoiceOptimizationInProgress = false;
+            if (MainTabView is not null) MainTabView.IsEnabled = true;
+            UpdateSelectedAiVoiceUi();
+        }
     }
 
     private async Task PrepareQuickCloneAsync(AiVoicePreset voice)
@@ -12629,7 +12683,7 @@ public sealed partial class MainWindow : Window
                 AiOptimizeSelectedVoiceButton.Visibility = Visibility.Visible;
                 AiOptimizeSelectedVoiceButton.IsEnabled = _selectedAiVoice.CanOptimize;
                 ToolTipService.SetToolTip(AiActivateSelectedVoiceButton, "Prepare a Quick Clone from this reference.");
-                ToolTipService.SetToolTip(AiOptimizeSelectedVoiceButton, "Prepare an optimized version of this voice (Gate 13.6).");
+                ToolTipService.SetToolTip(AiOptimizeSelectedVoiceButton, "Prepare an optimized version of this voice.");
             }
             else if (_selectedAiVoice.IsQuickClone)
             {
@@ -12639,7 +12693,7 @@ public sealed partial class MainWindow : Window
                 AiOptimizeSelectedVoiceButton.Visibility = Visibility.Visible;
                 AiOptimizeSelectedVoiceButton.IsEnabled = _selectedAiVoice.CanOptimize;
                 ToolTipService.SetToolTip(AiActivateSelectedVoiceButton, active ? "Disable this AI Voice." : "Activate this Quick Clone.");
-                ToolTipService.SetToolTip(AiOptimizeSelectedVoiceButton, "Replace Quick Clone with an optimized version (Gate 13.6).");
+                ToolTipService.SetToolTip(AiOptimizeSelectedVoiceButton, "Replace Quick Clone with an optimized version.");
             }
             else
             {

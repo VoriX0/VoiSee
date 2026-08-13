@@ -52,3 +52,18 @@ Reference packages may be upgraded in place to Quick Clone while preserving the 
 - `QuickPreparedUtc`.
 
 Quick preparation requires at least 10 seconds of decodable reference audio and adds a small `quick/profile.json` descriptor while retaining the original reference asset. The realtime neural runtime remains a later Gate.
+
+## Schema 3 / VoiSee 13.6 Optimized Voice fields
+
+Reference or Quick Clone packages may be upgraded in place to `Optimized` while preserving the same preset ID and package filename. Added optional manifest fields:
+
+- `OptimizedProfileEntry` — normally `optimized/profile.json`;
+- `OptimizedReferenceEntry` — normally `optimized/reference_48k_mono.wav`;
+- `OptimizedReferenceDurationSeconds`;
+- `ReferenceQuality` — `Good`, `Fair`, or `Poor` based on deterministic reference checks;
+- `OptimizedPreparedUtc`;
+- `OptimizationDurationMs`.
+
+Optimize is an explicit foreground operation. It decodes the original reference, downmixes to mono, trims leading/trailing silence with guard padding, removes DC offset, normalizes level, linearly resamples to 48 kHz, and writes PCM16 canonical audio. The previous `quick/profile.json` is removed when the optimized profile replaces Quick Clone. The original reference remains in the package.
+
+Schema 3 prepares deterministic reusable runtime input; it does not claim that a neural conversion model has already been inferred or trained. Realtime inference is connected by the later AI runtime Gate.
