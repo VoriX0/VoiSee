@@ -28,7 +28,7 @@
     <Content Remove="data\**;sounds\**;presets\**;scenes\**;settings.json;soundboard.json;voice-presets.json" />
   </ItemGroup>
   <ItemGroup>
-    <PackageReference Include="Microsoft.WindowsAppSDK" Version="1.6.*" />
+    <PackageReference Include="Microsoft.WindowsAppSDK" Version="1.6.250602001" />
     <FrameworkReference Include="Microsoft.WindowsDesktop.App.WindowsForms" />
   </ItemGroup>
   <ItemGroup>
