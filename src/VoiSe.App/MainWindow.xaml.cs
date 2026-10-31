@@ -192,6 +192,7 @@ public sealed partial class MainWindow : Window
         _library = _libraryStore.Load();
         InitializeComponent();
         InitializeEqualizer();
+        InitializeMicrophoneCleanup();
         BuildEffectLibraryList();
 
         if (ThemeFolderPathTextBlock is not null)
@@ -249,7 +250,7 @@ public sealed partial class MainWindow : Window
         };
         _discordCableSessionIsolationTimer.Tick += OnDiscordCableSessionIsolationTimerTick;
 
-        AppendLog("VoiSee Version 14.3.5 UI started.");
+        AppendLog("VoiSee Version 14.4.1 UI started.");
         AppendLog($"Settings path: {_settingsStore.SettingsPath}");
 
         var isolationResult = _discordCableSessionIsolationService.Enable();
@@ -1624,6 +1625,8 @@ public sealed partial class MainWindow : Window
             return;
         }
 
+        if (!_windowHiddenToTray && ReferenceEquals(MainTabView.SelectedItem, EqualizerTab))
+        { UpdateNoiseSuppressionUi(); UpdateMicrophoneCleanupStatus(); }
         if (_advancedRouteStatusTextBlock is not null) RefreshAdvancedSettingsStatus();
         if (_windowHiddenToTray || !ReferenceEquals(MainTabView.SelectedItem, MediaBridgeTabViewItem)) return;
 
@@ -3956,6 +3959,7 @@ public sealed partial class MainWindow : Window
         InputDeviceComboBox.SelectedItem = selectedInput;
         VirtualOutputComboBox.SelectedItem = selectedVirtual;
         MonitorOutputComboBox.SelectedItem = selectedMonitor;
+        FillEchoReferenceDevices(renderDevices);
 
         AppendLog($"Devices refreshed: {captureDevices.Count} capture, {renderDevices.Count} render.");
         AppendLog($"Selected input: {selectedInput?.FriendlyName ?? "none"}");
@@ -6652,6 +6656,9 @@ public sealed partial class MainWindow : Window
 
         return new EffectSettings
         {
+            EchoCancellationEnabled = EchoCancellationSwitch.IsOn,
+            RoomEchoReductionEnabled = RoomEchoReductionSwitch.IsOn,
+            EchoReferenceDeviceId = SelectedEchoReferenceId,
             NoiseSuppressionMode = GetSelectedNoiseSuppressionMode(),
             NoiseSuppressionStrength = (float)Clamp((NoiseSuppressionStrengthSlider?.Value ?? 70.0) / 100.0, 0.0, 1.0),
             InputGainDb = 0.0f,
@@ -7075,20 +7082,23 @@ public sealed partial class MainWindow : Window
         NoiseSuppressionStrengthSlider.IsEnabled = enabled;
         NoiseSuppressionStrengthValueText.Text = $"{(int)Math.Round(NoiseSuppressionStrengthSlider.Value)}%";
         NoiseSuppressionStrengthValueText.Opacity = enabled ? 0.78 : 0.45;
-        NoiseSuppressionStatusText.Text = enabled
-            ? $"{GetNoiseSuppressionDisplayName(mode)} processes only the microphone before effects"
-            : "Noise suppression is off";
+        var active = enabled && NoiseSuppressionStrengthSlider.Value > 0 && _engine?.NoiseSuppressionAvailable == true && _engine.NoiseSuppressionError is null;
+        NoiseSuppressionStatusText.Text = !enabled ? "Шумоподавление выключено."
+            : NoiseSuppressionStrengthSlider.Value == 0 ? "Сила шумоподавления — 0%."
+            : _engine is null ? "Выбранный режим включится после запуска микрофона."
+            : !active ? "Шумоподавление недоступно: " + (_engine.NoiseSuppressionError ?? "не удалось загрузить обработчик")
+            : $"Шумоподавление включено: {GetNoiseSuppressionDisplayName(mode)}.";
 
         if (NoiseSuppressionActiveIndicator is not null)
         {
-            NoiseSuppressionActiveIndicator.Fill = new SolidColorBrush(enabled
+            NoiseSuppressionActiveIndicator.Fill = new SolidColorBrush(active
                 ? Microsoft.UI.ColorHelper.FromArgb(0xFF, 0x55, 0xD8, 0x5A)
                 : Microsoft.UI.ColorHelper.FromArgb(0xFF, 0x7A, 0x7A, 0x7A));
         }
 
         if (NoiseSuppressionActiveText is not null)
         {
-            NoiseSuppressionActiveText.Text = enabled ? "Active" : "Off";
+            NoiseSuppressionActiveText.Text = active ? "Включено" : enabled ? "Выбрано" : "Выкл.";
             NoiseSuppressionActiveText.Opacity = enabled ? 0.72 : 0.55;
         }
     }
@@ -12332,6 +12342,9 @@ public sealed partial class MainWindow : Window
         _settings.SoundBoardVirtualMicDelayMs = SoundVirtualDelaySlider?.Value ?? 85.0;
         _settings.MediaBridgeVirtualMicVolume = MediaBridgeVolumeSlider?.Value ?? 1.0;
         var noiseMode = GetSelectedNoiseSuppressionMode();
+        _settings.EchoCancellationEnabled = EchoCancellationSwitch.IsOn;
+        _settings.RoomEchoReductionEnabled = RoomEchoReductionSwitch.IsOn;
+        _settings.EchoReferenceDeviceId = SelectedEchoReferenceId;
         _settings.NoiseSuppressionMode = noiseMode.ToString();
         _settings.NoiseSuppressionEnabled = noiseMode != NoiseSuppressionMode.Off;
         _settings.NoiseSuppressionStrength = NoiseSuppressionStrengthSlider?.Value ?? 70.0;

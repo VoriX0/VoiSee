@@ -27,6 +27,18 @@ public sealed class Gate2UnifiedAudioEngine : IDisposable
     private double _lastProcessingMs;
     private RnNoiseSuppressionProcessor? _rnNoiseSuppressor;
     private DeepFilterNetSuppressionProcessor? _deepFilterNetSuppressor;
+    private WebRtcEchoCanceller? _echoCanceller;
+    private RoomEchoReducer? _roomEchoReducer;
+    private EchoReferenceCapture? _echoReferenceCapture;
+    private CaptureSampleConverter? _echoReferenceConverter;
+    private MMDevice? _echoReferenceDevice;
+    private readonly float[] _echoSilence = new float[960];
+    private long _lastEchoReference;
+    private string? _echoError;
+    private string? _echoReferenceName;
+    public string? EchoCancellationError => _echoError;
+    public bool EchoCancellationAvailable => _echoCanceller is not null && _echoError is null;
+    public string? EchoReferenceDeviceName => _echoReferenceName;
     private RouteMixSampleProvider? _virtualProvider;
     private RouteMixSampleProvider? _monitorProvider;
     private ProcessLoopbackCapture? _mediaBridgeCapture;
@@ -158,6 +170,8 @@ public sealed class Gate2UnifiedAudioEngine : IDisposable
             _settings.NoiseSuppressionStrength);
         _processor = new VoiceProcessingChain(_settings);
         _captureConverter = new CaptureSampleConverter(_capture.WaveFormat, _mixFormat);
+        if (_settings.RoomEchoReductionEnabled) _roomEchoReducer = new RoomEchoReducer();
+        if (_settings.EchoCancellationEnabled) StartEchoReference();
 
         _virtualProvider = new RouteMixSampleProvider(
             _mixFormat,
@@ -190,6 +204,49 @@ public sealed class Gate2UnifiedAudioEngine : IDisposable
         }
 
         _capture.StartRecording();
+    }
+
+    private void StartEchoReference()
+    {
+        try
+        {
+            using var catalog = new AudioDeviceCatalog();
+            _echoReferenceDevice = catalog.FindRenderDevice(_settings.EchoReferenceDeviceId)
+                ?? throw new InvalidOperationException("Устройство воспроизведения отключено. Выберите колонки или наушники.");
+            if (_echoReferenceDevice.ID == _virtualOutputDevice.ID)
+                throw new InvalidOperationException("Для удаления эха выберите физические колонки или наушники, а не виртуальный микрофон.");
+            _echoReferenceName = _echoReferenceDevice.FriendlyName;
+            _echoCanceller = new WebRtcEchoCanceller();
+            _echoReferenceCapture = new EchoReferenceCapture(_echoReferenceDevice);
+            _echoReferenceConverter = new CaptureSampleConverter(_echoReferenceCapture.WaveFormat, _mixFormat);
+            _echoReferenceCapture.DataAvailable += OnEchoReferenceAvailable;
+            _echoReferenceCapture.RecordingStopped += (_, args) =>
+            {
+                if (_running || args.Exception is not null)
+                    lock (_processing) _echoError = args.Exception?.Message ?? "Захват звука устройства остановлен. Обновите список устройств.";
+            };
+            _echoReferenceCapture.StartRecording();
+        }
+        catch (Exception ex)
+        {
+            _echoError = ex.Message;
+            Cleanup(() => _echoReferenceCapture?.Dispose()); _echoReferenceCapture = null;
+            Cleanup(() => _echoCanceller?.Dispose()); _echoCanceller = null;
+            Cleanup(() => _echoReferenceDevice?.Dispose()); _echoReferenceDevice = null;
+        }
+    }
+    private void OnEchoReferenceAvailable(object? sender, WaveInEventArgs args)
+    {
+        lock (_processing)
+        {
+            if (_disposed || _echoCanceller is null || _echoReferenceConverter is null || _echoError is not null || args.BytesRecorded == 0) return;
+            try
+            {
+                _echoCanceller.AddReference(_echoReferenceConverter.Convert(args.Buffer, args.BytesRecorded));
+                _lastEchoReference = Stopwatch.GetTimestamp();
+            }
+            catch (Exception ex) { _echoError = ex.Message; }
+        }
     }
 
 
@@ -366,6 +423,7 @@ public sealed class Gate2UnifiedAudioEngine : IDisposable
             Cleanup(StopMediaBridge);
             Cleanup(() => _soundboard.Stop());
             Cleanup(() => _capture?.StopRecording());
+            Cleanup(() => _echoReferenceCapture?.StopRecording());
             Cleanup(() => _virtualOutput?.Stop());
             Cleanup(() => _monitorOutput?.Stop());
             lock (_processing) { _virtualMicQueue.Clear(); _monitorMicQueue.Clear(); }
@@ -385,6 +443,20 @@ public sealed class Gate2UnifiedAudioEngine : IDisposable
             {
                 var started = Stopwatch.GetTimestamp();
                 var targetSamples = _captureConverter.Convert(e.Buffer, e.BytesRecorded);
+                if (_echoCanceller is not null && _echoError is null)
+                {
+                    try
+                    {
+                        // Loopback sends no packets when the endpoint is idle.
+                        // Clock silence into the reverse path instead of reusing stale sound.
+                        if (Stopwatch.GetElapsedTime(_lastEchoReference).TotalMilliseconds > 60)
+                            for (var offset = 0; offset < targetSamples.Length; offset += _echoSilence.Length)
+                                _echoCanceller.AddReference(_echoSilence.AsSpan(0, Math.Min(_echoSilence.Length, targetSamples.Length - offset)));
+                        _echoCanceller.Process(targetSamples);
+                    }
+                    catch (Exception ex) { _echoError = ex.Message; }
+                }
+                _roomEchoReducer?.Process(targetSamples);
 
                 // Noise suppression is intentionally microphone-only and remains
                 // outside voice presets. Exactly one cleanup engine runs before
@@ -429,6 +501,9 @@ public sealed class Gate2UnifiedAudioEngine : IDisposable
             lock (_processing)
             {
                 Cleanup(() => _capture?.Dispose());
+                Cleanup(() => _echoReferenceCapture?.Dispose());
+                Cleanup(() => _echoCanceller?.Dispose());
+                Cleanup(() => _echoReferenceDevice?.Dispose());
                 Cleanup(() => _virtualOutput?.Dispose());
                 Cleanup(() => _monitorOutput?.Dispose());
                 Cleanup(() => _rnNoiseSuppressor?.Dispose());

@@ -10,6 +10,9 @@ public sealed class VoiSeUserSettings
     // Global microphone correction, outside device and voice profiles.
     public EqualizerSettings Equalizer { get; set; } = new();
     public bool EqualizerAdvancedMode { get; set; }
+    public bool EchoCancellationEnabled { get; set; }
+    public bool RoomEchoReductionEnabled { get; set; }
+    public string? EchoReferenceDeviceId { get; set; }
 
     public string? InputDeviceId { get; set; }
     public string? InputDeviceName { get; set; }

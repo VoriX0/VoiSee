@@ -6,7 +6,7 @@
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     mc:Ignorable="d"
-    Title="VoiSee Version 14.3.5">
+    Title="VoiSee Version 14.4.1">
 
     <Grid x:Name="RootGrid" RequestedTheme="Dark" Background="{ThemeResource VoiSee.AppBackgroundBrush}" SizeChanged="OnRootGridSizeChanged">
         <Grid.RowDefinitions>
@@ -21,7 +21,7 @@
             </Grid.ColumnDefinitions>
             <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center" Margin="10,0,0,0">
                 <Image Source="ms-appx:///Assets/AppIcon_24.png" Width="16" Height="16" VerticalAlignment="Center" />
-                <TextBlock x:Name="TitleBarVersionTextBlock" Text="VoiSee Version 14.3.5" FontSize="12" Foreground="{ThemeResource VoiSee.PrimaryTextBrush}" VerticalAlignment="Center" />
+                <TextBlock x:Name="TitleBarVersionTextBlock" Text="VoiSee Version 14.4.1" FontSize="12" Foreground="{ThemeResource VoiSee.PrimaryTextBrush}" VerticalAlignment="Center" />
             </StackPanel>
         </Grid>
 
@@ -39,7 +39,7 @@
                 </Grid.ColumnDefinitions>
                 <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
                     <Image Source="ms-appx:///Assets/AppIcon_48.png" Width="34" Height="34" VerticalAlignment="Center" />
-                    <TextBlock x:Name="MainTitle" Text="VoiSee Version 14.3.5" FontSize="28" FontWeight="SemiBold" Foreground="{ThemeResource VoiSee.PrimaryTextBrush}" VerticalAlignment="Center" />
+                    <TextBlock x:Name="MainTitle" Text="VoiSee Version 14.4.1" FontSize="28" FontWeight="SemiBold" Foreground="{ThemeResource VoiSee.PrimaryTextBrush}" VerticalAlignment="Center" />
                 </StackPanel>
                 <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center" HorizontalAlignment="Right">
                     <TextBlock Text="Mic Output" Foreground="{ThemeResource VoiSee.PrimaryTextBrush}" Opacity="0.62" VerticalAlignment="Center" />
@@ -287,58 +287,14 @@
                                 <ColumnDefinition Width="470" />
                             </Grid.ColumnDefinitions>
 
-                            <!-- LEFT: Noise Suppression stays fixed; only the preset panel itself scrolls. -->
+                            <!-- Voice presets fill the left column; microphone cleanup lives on the equalizer tab. -->
                             <Grid Grid.Column="0" x:Name="VoiceChangerLeftColumn" RowSpacing="12">
                                 <Grid.RowDefinitions>
                                     <RowDefinition Height="Auto" />
                                     <RowDefinition Height="*" />
                                 </Grid.RowDefinitions>
 
-                                <Border Grid.Row="0" x:Name="NoiseSuppressionSurface" Padding="14,12"
-                                        CornerRadius="{ThemeResource VoiSee.CornerRadius.Medium}"
-                                        Background="{ThemeResource VoiSee.PanelBackgroundBrush}"
-                                        BorderBrush="{ThemeResource VoiSee.PanelBorderBrush}" BorderThickness="1">
-                                    <StackPanel Spacing="10">
-                                        <Grid>
-                                            <TextBlock Text="Noise Suppression" FontSize="17" FontWeight="SemiBold" />
-                                            <StackPanel Orientation="Horizontal" Spacing="5" HorizontalAlignment="Right" VerticalAlignment="Center">
-                                                <Ellipse x:Name="NoiseSuppressionActiveIndicator" Width="7" Height="7" Fill="#55D85A" />
-                                                <TextBlock x:Name="NoiseSuppressionActiveText" Text="Active" FontSize="10" Opacity="0.72" />
-                                            </StackPanel>
-                                        </Grid>
-                                        <TextBlock Text="Engine" FontSize="10" Opacity="0.62" />
-                                        <Grid ColumnSpacing="5">
-                                            <Grid.ColumnDefinitions>
-                                                <ColumnDefinition Width="*" />
-                                                <ColumnDefinition Width="*" />
-                                                <ColumnDefinition Width="*" />
-                                            </Grid.ColumnDefinitions>
-                                            <ToggleButton Style="{ThemeResource VoiSee.Style.ToggleButton}" x:Name="NoiseSuppressionOffButton"
-                                                          Content="Off" Tag="Off" Height="34" Click="OnNoiseSuppressionModeButtonClick" />
-                                            <ToggleButton Style="{ThemeResource VoiSee.Style.ToggleButton}" Grid.Column="1" x:Name="NoiseSuppressionRnNoiseButton"
-                                                          Content="RNNoise" Tag="RnNoise" Height="34" Click="OnNoiseSuppressionModeButtonClick" />
-                                            <ToggleButton Style="{ThemeResource VoiSee.Style.ToggleButton}" Grid.Column="2" x:Name="NoiseSuppressionDeepFilterNetButton"
-                                                          Content="DeepFilterNet" Tag="DeepFilterNet" Height="34" Click="OnNoiseSuppressionModeButtonClick" />
-                                        </Grid>
-                                        <ComboBox Style="{ThemeResource VoiSee.Style.ComboBox}"
-                                                  x:Name="NoiseSuppressionModeComboBox" Visibility="Collapsed"
-                                                  SelectionChanged="OnNoiseSuppressionModeChanged">
-                                            <ComboBoxItem Content="Off" Tag="Off" />
-                                            <ComboBoxItem Content="RNNoise" Tag="RnNoise" />
-                                            <ComboBoxItem Content="DeepFilterNet" Tag="DeepFilterNet" />
-                                        </ComboBox>
-                                        <Grid>
-                                            <TextBlock Text="Strength" FontSize="10" Opacity="0.62" />
-                                            <TextBlock x:Name="NoiseSuppressionStrengthValueText" Text="70%" HorizontalAlignment="Right" FontSize="10" Opacity="0.75" />
-                                        </Grid>
-                                        <Slider Style="{ThemeResource VoiSee.Style.Slider}" x:Name="NoiseSuppressionStrengthSlider"
-                                                Minimum="0" Maximum="100" Value="70" StepFrequency="1"
-                                                ValueChanged="OnNoiseSuppressionStrengthChanged" />
-                                        <TextBlock x:Name="NoiseSuppressionStatusText" Text="Noise suppression is off"
-                                                   FontSize="10" Opacity="0.67" TextWrapping="Wrap" />
-                                        <TextBlock Text="Microphone cleanup runs before the effect chain." FontSize="9.5" Opacity="0.48" TextWrapping="Wrap" />
-                                    </StackPanel>
-                                </Border>
+
 
                                 <Border Grid.Row="1" x:Name="VoicePresetSurface" Padding="12" MinHeight="0"
                                         CornerRadius="{ThemeResource VoiSee.CornerRadius.Medium}"
@@ -1297,6 +1253,61 @@
                                     <TextBlock FontSize="11" x:Name="EqualizerHeadroom" TextWrapping="Wrap" Style="{StaticResource VoiSee.Style.Text.Secondary}"/>
                                 </StackPanel>
                             </Border>
+                            <Expander x:Name="MicrophoneCleanupExpander" Header="Шум и эхо" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch" IsExpanded="True">
+                                <Border x:Name="NoiseSuppressionSurface" Padding="14,12"
+                                        CornerRadius="{ThemeResource VoiSee.CornerRadius.Medium}"
+                                        Background="{ThemeResource VoiSee.PanelBackgroundBrush}"
+                                        BorderBrush="{ThemeResource VoiSee.PanelBorderBrush}" BorderThickness="1">
+                                    <StackPanel Spacing="10">
+                                        <Grid>
+                                            <TextBlock Text="Очистка микрофона" FontSize="17" FontWeight="SemiBold" />
+                                            <StackPanel Orientation="Horizontal" Spacing="5" HorizontalAlignment="Right" VerticalAlignment="Center">
+                                                <Ellipse x:Name="NoiseSuppressionActiveIndicator" Width="7" Height="7" Fill="#55D85A" />
+                                                <TextBlock x:Name="NoiseSuppressionActiveText" Text="Выбрано" FontSize="10" Opacity="0.72" />
+                                            </StackPanel>
+                                        </Grid>
+                                        <TextBlock Text="Шумоподавление" FontSize="10" Opacity="0.62" />
+                                        <Grid ColumnSpacing="5">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="*" />
+                                            </Grid.ColumnDefinitions>
+                                            <ToggleButton Style="{ThemeResource VoiSee.Style.ToggleButton}" x:Name="NoiseSuppressionOffButton"
+                                                          Content="Выкл." Tag="Off" Height="34" Click="OnNoiseSuppressionModeButtonClick" />
+                                            <ToggleButton Style="{ThemeResource VoiSee.Style.ToggleButton}" Grid.Column="1" x:Name="NoiseSuppressionRnNoiseButton"
+                                                          Content="Обычное" Tag="RnNoise" Height="34" Click="OnNoiseSuppressionModeButtonClick" />
+                                            <ToggleButton Style="{ThemeResource VoiSee.Style.ToggleButton}" Grid.Column="2" x:Name="NoiseSuppressionDeepFilterNetButton"
+                                                          Content="Усиленное" Tag="DeepFilterNet" Height="34" Click="OnNoiseSuppressionModeButtonClick" />
+                                        </Grid>
+                                        <ComboBox Style="{ThemeResource VoiSee.Style.ComboBox}"
+                                                  x:Name="NoiseSuppressionModeComboBox" Visibility="Collapsed"
+                                                  SelectionChanged="OnNoiseSuppressionModeChanged">
+                                            <ComboBoxItem Content="Выкл." Tag="Off" />
+                                            <ComboBoxItem Content="Обычное" Tag="RnNoise" />
+                                            <ComboBoxItem Content="Усиленное" Tag="DeepFilterNet" />
+                                        </ComboBox>
+                                        <Grid>
+                                            <TextBlock Text="Сила шумоподавления" FontSize="10" Opacity="0.62" />
+                                            <TextBlock x:Name="NoiseSuppressionStrengthValueText" Text="70%" HorizontalAlignment="Right" FontSize="10" Opacity="0.75" />
+                                        </Grid>
+                                        <Slider Style="{ThemeResource VoiSee.Style.Slider}" x:Name="NoiseSuppressionStrengthSlider"
+                                                Minimum="0" Maximum="100" Value="70" StepFrequency="1"
+                                                ValueChanged="OnNoiseSuppressionStrengthChanged" />
+                                        <ToggleSwitch x:Name="EchoCancellationSwitch" Header="Убрать звук колонок и собеседника" OnContent="Вкл." OffContent="Выкл." Toggled="OnEchoCleanupChanged"/>
+                                        <ToggleSwitch x:Name="RoomEchoReductionSwitch" Header="Уменьшить эхо собственного голоса в комнате" OnContent="Вкл." OffContent="Выкл." Toggled="OnEchoCleanupChanged"/>
+                                        <Grid ColumnSpacing="8">
+                                            <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                                            <ComboBox x:Name="EchoReferenceComboBox" Header="Где звучит игра и собеседник" HorizontalAlignment="Stretch" SelectionChanged="OnEchoReferenceChanged"/>
+                                            <Button Grid.Column="1" Content="Обновить" VerticalAlignment="Bottom" Click="OnEchoRefreshDevices"/>
+                                        </Grid>
+                                        <TextBlock x:Name="EchoCleanupStatus" TextWrapping="Wrap" FontSize="12"/>
+                                        <TextBlock x:Name="NoiseSuppressionStatusText" Text="Шумоподавление выключено"
+                                                   FontSize="10" Opacity="0.67" TextWrapping="Wrap" />
+                                        <TextBlock Text="Обрабатывается только микрофон. Музыка и SoundBoard не изменяются. Комнатное эхо ослабляется; результат зависит от помещения." FontSize="9.5" Opacity="0.48" TextWrapping="Wrap" />
+                                    </StackPanel>
+                                </Border>
+                            </Expander>
                             <Expander Header="Подробная настройка · 10 / 31 частота" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch">
                                 <StackPanel Spacing="12">
                                     <ToggleSwitch x:Name="EqualizerAdvanced" Toggled="OnEqualizerModeChanged" />

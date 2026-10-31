@@ -6,6 +6,9 @@ public sealed class EffectSettings
     // gate, compressor and the preset-controlled voice effects.
     public NoiseSuppressionMode NoiseSuppressionMode { get; set; } = NoiseSuppressionMode.Off;
     public float NoiseSuppressionStrength { get; set; } = 0.70f;
+    public bool EchoCancellationEnabled { get; set; }
+    public bool RoomEchoReductionEnabled { get; set; }
+    public string? EchoReferenceDeviceId { get; set; }
 
     public float InputGainDb { get; set; } = 0.0f;
     public bool GateEnabled { get; set; } = true;

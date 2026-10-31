@@ -409,6 +409,88 @@ Test("width handles change bandwidth symmetrically without changing center or ga
     band.SetWidthFromEdge(1010); Check(band.Q > original && band.Q <= 12, "Narrowing is inverted or unbounded");
     Check(band.Frequency == 1000 && band.GainDb == -5.8, "Width edit changed pitch or gain");
 });
+Test("WebRTC cancels a delayed loudspeaker reference on CPU", () =>
+{
+    using var echo = new WebRtcEchoCanceller();
+    var random = new Random(187); var far = new float[48000 * 8];
+    for (var i = 0; i < far.Length; i++) far[i] = (float)(random.NextDouble() - .5) * .2f;
+    var render = new float[960]; var mic = new float[960]; double before = 0, after = 0;
+    for (var offset = 0; offset < far.Length; offset += 480)
+    {
+        for (var i = 0; i < 480; i++)
+        {
+            render[i * 2] = render[i * 2 + 1] = far[offset + i];
+            var value = offset + i >= 960 ? .6f * far[offset + i - 960] : 0;
+            mic[i * 2] = mic[i * 2 + 1] = value;
+            if (offset > 48000 * 4) before += value * value;
+        }
+        echo.AddReference(render); echo.Process(mic);
+        if (offset > 48000 * 4) for (var i = 0; i < 480; i++) after += mic[i * 2] * mic[i * 2];
+    }
+    var erle = 10 * Math.Log10(before / Math.Max(after, 1e-20)); Console.WriteLine($"AEC_SYNTHETIC_ERLE_DB={erle:F1}");
+    Check(erle > 12, "Delayed playback was not cancelled");
+    var allocated = GC.GetAllocatedBytesForCurrentThread();
+    for (var i = 0; i < 100; i++) { echo.AddReference(render); echo.Process(mic); }
+    Check(GC.GetAllocatedBytesForCurrentThread() == allocated, "AEC allocates per block");
+});
+Test("room echo reducer attenuates repeated room reflections without allocating", () =>
+{
+    var room = new RoomEchoReducer(); var random = new Random(189);
+    const int length = 48000 * 12, period = 24000, burst = 4800, delay = 1023;
+    var reverberant = new float[length]; var output = new float[length]; var block = new float[960];
+    for (var i = 0; i < length; i++)
+    {
+        var dry = i % period < burst ? (float)(random.NextDouble() - .5) * .2f : 0;
+        reverberant[i] = dry + (i >= 1920 ? .7f * reverberant[i - 1920] : 0);
+    }
+    var watch = Stopwatch.StartNew();
+    for (var offset = 0; offset < length; offset += 480)
+    {
+        for (var i = 0; i < 480; i++) block[i * 2] = block[i * 2 + 1] = reverberant[offset + i];
+        room.Process(block); for (var i = 0; i < 480; i++) output[offset + i] = block[i * 2];
+    }
+    watch.Stop(); double before = 0, after = 0, directBefore = 0, directAfter = 0;
+    for (var i = 48000 * 6; i < length - delay; i++)
+    {
+        var phase = i % period;
+        if (phase >= burst + 3000 && phase < 18000) { before += reverberant[i] * reverberant[i]; after += output[i + delay] * output[i + delay]; }
+        if (phase < 1200) { directBefore += reverberant[i] * reverberant[i]; directAfter += output[i + delay] * output[i + delay]; }
+    }
+    var attenuation = 10 * Math.Log10(before / Math.Max(after, 1e-20));
+    Console.WriteLine($"WPE_SYNTHETIC_TAIL_DB={attenuation:F1}; WPE_12S_AUDIO_MS={watch.Elapsed.TotalMilliseconds:F0}; DIRECT_RATIO={directAfter/directBefore:F2}");
+    Check(attenuation > 2, "Room tail not reduced");
+    Check(directAfter / directBefore > .6 && output.All(float.IsFinite), "Direct speech damaged or unstable output");
+    var allocated = GC.GetAllocatedBytesForCurrentThread();
+    for (var i = 0; i < 100; i++) room.Process(block);
+    Check(GC.GetAllocatedBytesForCurrentThread() == allocated, "WPE allocates per block");
+});
+Test("room processing preserves clean voiced speech and arbitrary packet boundaries", () =>
+{
+    var whole = new RoomEchoReducer(); var split = new RoomEchoReducer();
+    var signal = new float[48000 * 2 * 3];
+    for (var i = 0; i < signal.Length / 2; i++) signal[i * 2] = signal[i * 2 + 1] = .08f * (float)(Math.Sin(i * 2 * Math.PI * 137 / 48000) + .3 * Math.Sin(i * 2 * Math.PI * 274 / 48000));
+    var a = signal.ToArray(); var b = signal.ToArray(); whole.Process(a);
+    for (var offset = 0; offset < b.Length; ) { var count = Math.Min(274, b.Length - offset); split.Process(b.AsSpan(offset, count)); offset += count; }
+    Check(a.SequenceEqual(b), "WPE depends on WASAPI packet boundaries");
+    double before = 0, after = 0;
+    for (var i = 48000; i < signal.Length - 2046; i++) { before += signal[i] * signal[i]; after += a[i + 2046] * a[i + 2046]; }
+    Check(after / before > .7 && after / before < 1.3, "Clean voiced speech was strongly attenuated");
+});
+Test("AEC preserves near-end speech when the reference is silent", () =>
+{
+    using var echo = new WebRtcEchoCanceller(); var render = new float[960]; var mic = new float[960];
+    double before = 0, after = 0;
+    for (var block = 0; block < 300; block++)
+    {
+        for (var i = 0; i < 480; i++) mic[i * 2] = mic[i * 2 + 1] = .1f * (float)Math.Sin((block * 480 + i) * 2 * Math.PI * 193 / 48000);
+        if (block > 100) foreach(var sample in mic) before += sample * sample;
+        echo.AddReference(render); echo.Process(mic);
+        if (block > 100) foreach(var sample in mic) after += sample * sample;
+    }
+    Check(after / before > .8 && after / before < 1.2, "AEC damaged near-end speech without loudspeaker sound");
+    echo.Dispose(); var rejected = false; try { echo.Process(mic); } catch(ObjectDisposedException) { rejected = true; }
+    Check(rejected, "Disposed AEC accepted audio");
+});
 Console.WriteLine($"REGRESSION_TESTS=PASS ({results.Count})");
 // Every directory here was created by this process under a fixed temporary root.
 var expectedRoot = Path.GetFullPath("artifacts/regression-tests") + Path.DirectorySeparatorChar;

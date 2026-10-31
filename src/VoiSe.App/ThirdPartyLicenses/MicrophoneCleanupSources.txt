@@ -1,0 +1,16 @@
+WebRTC APM Windows x64 binary:
+SoundFlow.Extensions.WebRtc.Apm 1.4.0, NuGet
+https://www.nuget.org/packages/SoundFlow.Extensions.WebRtc.Apm/1.4.0
+Source repository revision c9bcf73512048181f25cb64cd824f4a406f0f96c:
+https://github.com/LSXPrime/SoundFlow
+SHA256 (webrtc-apm.dll): 89AB213150E0A3F7D0CA6424EF8F72E2402ADABCFAE8A369976B8B27DF207411
+Reproducible extraction and package hash: scripts/fetch-webrtc-apm.ps1
+SoundFlow wrapper: MIT; WebRTC: BSD-3-Clause and accompanying patent grant.
+See SoundFlow_MIT.txt, WebRTC_BSD.txt, WebRTC_PATENTS.txt.
+
+RoomEchoReducer online WPE algorithm reference:
+https://github.com/fgnt/nara_wpe/blob/master/nara_wpe/wpe.py
+online_wpe_step, Communications Engineering Group, Paderborn University.
+VoiSee adapts the single-channel recursive estimator for streaming STFT,
+bounded cancellation, speech protection and fixed memory.
+See NaraWPE_MIT.txt.
