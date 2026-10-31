@@ -64,7 +64,7 @@ public sealed class DeepFilterNetSuppressionProcessor : IDisposable
         ConfigureControls(Volatile.Read(ref _strength));
     }
 
-    public void ProcessInPlace(float[] stereoSamples)
+    public void ProcessInPlace(Span<float> stereoSamples)
     {
         if (_disposed || Volatile.Read(ref _enabled) == 0 || stereoSamples.Length < Channels)
         {

@@ -5,6 +5,8 @@ namespace VoiSe.Audio;
 internal sealed class MediaBridgeTransport
 {
     private readonly FloatSampleQueue _queue;
+    private readonly int _samplesPerSecond;
+    public double QueuedMs => _queue.Count * 1000.0 / _samplesPerSecond;
     private readonly object _sync = new();
     private float _volume = 1.0f;
     private bool _paused;
@@ -15,7 +17,8 @@ internal sealed class MediaBridgeTransport
 
     public MediaBridgeTransport(WaveFormat waveFormat)
     {
-        var maxSamples = waveFormat.SampleRate * waveFormat.Channels * 2;
+        _samplesPerSecond = waveFormat.SampleRate * waveFormat.Channels;
+        var maxSamples = AudioTiming.QueueSamples(waveFormat.SampleRate, waveFormat.Channels);
         _queue = new FloatSampleQueue(maxSamples);
     }
 

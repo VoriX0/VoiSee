@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using NAudio.CoreAudioApi;
 using NAudio.Wave;
 using NAudio.Wave.SampleProviders;
@@ -20,7 +21,9 @@ public sealed class Gate2UnifiedAudioEngine : IDisposable
     private WasapiCapture? _capture;
     private WasapiOut? _virtualOutput;
     private WasapiOut? _monitorOutput;
-    private SimpleVoiceProcessor? _processor;
+    private VoiceProcessingChain? _processor;
+    private CaptureSampleConverter? _captureConverter;
+    private double _lastProcessingMs;
     private RnNoiseSuppressionProcessor? _rnNoiseSuppressor;
     private DeepFilterNetSuppressionProcessor? _deepFilterNetSuppressor;
     private RouteMixSampleProvider? _virtualProvider;
@@ -61,9 +64,8 @@ public sealed class Gate2UnifiedAudioEngine : IDisposable
         _voiceMonitorRouteEnabled = settings.VoiceMonitorGain > 0.0001f;
         _mixFormat = WaveFormat.CreateIeeeFloatWaveFormat(48_000, 2);
 
-        // Keep up to ~2 seconds of microphone route audio. If an output route falls behind,
-        // old samples are dropped instead of increasing latency forever.
-        var maxSamples = _mixFormat.SampleRate * _mixFormat.Channels * 2;
+        // Discard old audio on a render stall instead of replaying a two-second backlog.
+        var maxSamples = AudioTiming.QueueSamples(_mixFormat.SampleRate, _mixFormat.Channels);
         _virtualMicQueue = new FloatSampleQueue(maxSamples);
         _monitorMicQueue = new FloatSampleQueue(maxSamples);
         _soundboard = new SoundboardTransport(_mixFormat, monitorDevice is not null);
@@ -72,6 +74,13 @@ public sealed class Gate2UnifiedAudioEngine : IDisposable
 
     public WaveFormat MixFormat => _mixFormat;
     public string? SoundPlaybackError => _soundboard.LastError;
+    public AudioTimingSnapshot GetTimingSnapshot()
+    {
+        lock (_processing)
+            return new AudioTimingSnapshot(_processor?.IsFastPath ?? true, _lastProcessingMs,
+                _virtualMicQueue.Count * 1000.0 / (_mixFormat.SampleRate * _mixFormat.Channels),
+                _mediaBridge.QueuedMs, _virtualMicQueue.DroppedSampleCount, AudioTiming.CaptureMs, AudioTiming.RenderMs);
+    }
 
     public bool NoiseSuppressionAvailable => _settings.NoiseSuppressionMode switch
     {
@@ -123,7 +132,7 @@ public sealed class Gate2UnifiedAudioEngine : IDisposable
     }
     private void StartCore()
     {
-        _capture = new WasapiCapture(_inputDevice, true, 20);
+        _capture = new WasapiCapture(_inputDevice, true, AudioTiming.CaptureMs);
         _capture.DataAvailable += OnDataAvailable;
         _capture.RecordingStopped += (_, args) =>
         {
@@ -145,7 +154,8 @@ public sealed class Gate2UnifiedAudioEngine : IDisposable
         _deepFilterNetSuppressor = new DeepFilterNetSuppressionProcessor(
             _settings.NoiseSuppressionMode == NoiseSuppressionMode.DeepFilterNet,
             _settings.NoiseSuppressionStrength);
-        _processor = new SimpleVoiceProcessor(_settings);
+        _processor = new VoiceProcessingChain(_settings);
+        _captureConverter = new CaptureSampleConverter(_capture.WaveFormat, _mixFormat);
 
         _virtualProvider = new RouteMixSampleProvider(
             _mixFormat,
@@ -156,7 +166,7 @@ public sealed class Gate2UnifiedAudioEngine : IDisposable
             _settings);
         _virtualProvider.SetVirtualMicMuted(_virtualMicMuted);
 
-        _virtualOutput = new WasapiOut(_virtualOutputDevice, AudioClientShareMode.Shared, true, 50);
+        _virtualOutput = new WasapiOut(_virtualOutputDevice, AudioClientShareMode.Shared, true, AudioTiming.RenderMs);
         _virtualOutput.PlaybackStopped += OnPlaybackStopped;
         _virtualOutput.Init(new SampleToWaveProvider(_virtualProvider));
         _virtualOutput.Play();
@@ -171,7 +181,7 @@ public sealed class Gate2UnifiedAudioEngine : IDisposable
                 _mediaBridge,
                 _settings);
 
-            _monitorOutput = new WasapiOut(_monitorDevice, AudioClientShareMode.Shared, true, 50);
+            _monitorOutput = new WasapiOut(_monitorDevice, AudioClientShareMode.Shared, true, AudioTiming.RenderMs);
             _monitorOutput.PlaybackStopped += OnPlaybackStopped;
             _monitorOutput.Init(new SampleToWaveProvider(_monitorProvider));
             _monitorOutput.Play();
@@ -281,17 +291,21 @@ public sealed class Gate2UnifiedAudioEngine : IDisposable
 
     public void UpdateEffectSettings(EffectSettings settings)
     {
-        _settings = settings;
-        SetVoiceMonitorEnabled(settings.VoiceMonitorGain > 0.0001f);
-        _rnNoiseSuppressor?.UpdateSettings(
-            settings.NoiseSuppressionMode == NoiseSuppressionMode.RnNoise,
-            settings.NoiseSuppressionStrength);
-        _deepFilterNetSuppressor?.UpdateSettings(
-            settings.NoiseSuppressionMode == NoiseSuppressionMode.DeepFilterNet,
-            settings.NoiseSuppressionStrength);
-        _processor?.UpdateSettings(settings);
-        _virtualProvider?.UpdateSettings(settings);
-        _monitorProvider?.UpdateSettings(settings);
+        lock (_processing)
+        {
+            if (_disposed) return;
+            _settings = settings;
+            SetVoiceMonitorEnabled(settings.VoiceMonitorGain > 0.0001f);
+            _rnNoiseSuppressor?.UpdateSettings(
+                settings.NoiseSuppressionMode == NoiseSuppressionMode.RnNoise,
+                settings.NoiseSuppressionStrength);
+            _deepFilterNetSuppressor?.UpdateSettings(
+                settings.NoiseSuppressionMode == NoiseSuppressionMode.DeepFilterNet,
+                settings.NoiseSuppressionStrength);
+            _processor?.Update(settings);
+            _virtualProvider?.UpdateSettings(settings);
+            _monitorProvider?.UpdateSettings(settings);
+        }
     }
 
     /// <summary>
@@ -352,18 +366,15 @@ public sealed class Gate2UnifiedAudioEngine : IDisposable
     {
         lock (_processing)
         {
-            if (_disposed || !_running || _processor is null || _capture is null)
+            if (_disposed || !_running || _processor is null || _capture is null || _captureConverter is null)
             {
                 return;
             }
 
             try
             {
-                var targetSamples = AudioFormatConverter.CaptureBufferToTargetStereoFloat(
-                    e.Buffer,
-                    e.BytesRecorded,
-                    _capture.WaveFormat,
-                    _mixFormat);
+                var started = Stopwatch.GetTimestamp();
+                var targetSamples = _captureConverter.Convert(e.Buffer, e.BytesRecorded);
 
                 // Noise suppression is intentionally microphone-only and remains
                 // outside voice presets. Exactly one cleanup engine runs before
@@ -377,7 +388,7 @@ public sealed class Gate2UnifiedAudioEngine : IDisposable
                         _deepFilterNetSuppressor?.ProcessInPlace(targetSamples);
                         break;
                 }
-                _processor.ProcessInPlace(targetSamples);
+                _processor.Process(targetSamples);
                 _virtualMicQueue.Add(targetSamples);
 
                 // Voice Monitor Off is a hard route disconnect, not only a zero gain.
@@ -391,6 +402,7 @@ public sealed class Gate2UnifiedAudioEngine : IDisposable
                         _monitorMicQueue.Add(targetSamples);
                     }
                 }
+                _lastProcessingMs = Stopwatch.GetElapsedTime(started).TotalMilliseconds;
             }
             catch (Exception ex) { ReportFault(ex); }
         }

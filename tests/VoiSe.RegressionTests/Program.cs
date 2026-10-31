@@ -157,6 +157,88 @@ Test("locked replacement preserves original library audio", () =>
     Check(failed && File.Exists(original) && sound.FilePath == original, "Replace removed old track on failure");
     store.ReplaceSoundFile(lib, sound, other); Check(File.Exists(sound.FilePath), "Successful replacement missing");
 });
+Test("capture converter is allocation-free after warmup", () =>
+{
+    var sourceFormat = WaveFormat.CreateIeeeFloatWaveFormat(48000, 2);
+    var converter = new CaptureSampleConverter(sourceFormat, format);
+    var source = Enumerable.Range(0, 960).Select(i => (float)Math.Sin(i * .01)).ToArray();
+    var bytes = new byte[source.Length * 4]; Buffer.BlockCopy(source, 0, bytes, 0, bytes.Length);
+    var expected = AudioFormatConverter.InterleavedToTargetDuplicatedMono(source, 48000, 2, 48000, 2);
+    Check(converter.Convert(bytes, bytes.Length).SequenceEqual(expected), "Capture downmix changed");
+    var allocated = GC.GetAllocatedBytesForCurrentThread();
+    for (var i = 0; i < 1000; i++) _ = converter.Convert(bytes, bytes.Length);
+    Check(GC.GetAllocatedBytesForCurrentThread() == allocated, "Capture conversion allocates every packet");
+});
+Test("resampler preserves phase across arbitrary packet boundaries", () =>
+{
+    foreach (var rate in new[] { 16000, 44100, 96000 })
+    {
+        var inputFormat = new WaveFormat(rate, 16, 1);
+        var bytes = new byte[2002];
+        for (var i = 0; i < bytes.Length / 2; i++) BitConverter.TryWriteBytes(bytes.AsSpan(i * 2, 2), (short)(Math.Sin(i * .05) * 8000));
+        var whole = new CaptureSampleConverter(inputFormat, format).Convert(bytes, bytes.Length).ToArray();
+        var streaming = new CaptureSampleConverter(inputFormat, format); var output = new List<float>();
+        for (var offset = 0; offset < bytes.Length;)
+        {
+            var size = Math.Min((offset % 7 + 1) * 2, bytes.Length - offset);
+            output.AddRange(streaming.Convert(bytes.AsSpan(offset, size).ToArray(), size).ToArray()); offset += size;
+        }
+        Check(output.Count == whole.Length && output.SequenceEqual(whole), "Packet-dependent resampling at " + rate);
+    }
+});
+Test("empty DSP fast path preserves pre-mix gain and limiter", () =>
+{
+    foreach (var limiter in new[] { false, true })
+    {
+        var settings = new EffectSettings { EffectOrder = Array.Empty<VoiceEffectKind>(), InputGainDb = 6, LimiterEnabled = limiter, LimiterCeilingDb = -1 };
+        var a = Enumerable.Range(0, 1000).Select(i => (i - 500) / 200f).ToArray(); var b = a.ToArray();
+        new SimpleVoiceProcessor(settings).ProcessInPlace(a);
+        var chain = new VoiceProcessingChain(settings); chain.Process(b);
+        Check(chain.IsFastPath && a.SequenceEqual(b), "Fast path changed gain/limiter semantics");
+    }
+});
+Test("returning from Fast to Full clears stateful effects", () =>
+{
+    var full = new EffectSettings { EffectOrder = new[] { VoiceEffectKind.Echo }, EchoAmount = 1 };
+    var chain = new VoiceProcessingChain(full); var impulse = new float[1920]; impulse[0] = .8f; chain.Process(impulse);
+    chain.Update(new EffectSettings { EffectOrder = Array.Empty<VoiceEffectKind>() }); Check(chain.IsFastPath, "No Fast path");
+    chain.Update(full); Check(!chain.IsFastPath, "Full path not restored");
+    var silence = new float[96000]; chain.Process(silence); Check(silence.All(x => x == 0), "Old echo leaked after bypass");
+});
+Test("capture rejects partial frames and sanitizes non-finite input", () =>
+{
+    var converter = new CaptureSampleConverter(WaveFormat.CreateIeeeFloatWaveFormat(48000, 1), format);
+    var bytes = BitConverter.GetBytes(float.NaN); Check(converter.Convert(bytes, 4).ToArray().All(x => x == 0), "NaN reached DSP");
+    var rejected = false; try { _ = converter.Convert(bytes, 3); } catch (ArgumentException) { rejected = true; }
+    Check(rejected, "Partial frame was accepted");
+});
+Test("stalled output retains only the latest 100ms", () =>
+{
+    Check(AudioTiming.QueueSamples(44100, 2) == 8820, "Queue capacity loses fractional kHz");
+    var queue = new FloatSampleQueue(AudioTiming.QueueSamples(48000, 2));
+    var input = Enumerable.Range(0, 96000).Select(i => (float)i).ToArray(); queue.Add(input);
+    var output = new float[queue.Count]; queue.Read(output, 0, output.Length);
+    Check(output.Length == 9600 && output.SequenceEqual(input.TakeLast(9600)), "Stall replayed old audio");
+    Check(queue.DroppedSampleCount == 86400, "Drop diagnostics incorrect");
+});
+Test("clean capture and render pipeline allocates zero per block", () =>
+{
+    var converter = new CaptureSampleConverter(format, format);
+    var chain = new VoiceProcessingChain(new EffectSettings { EffectOrder = Array.Empty<VoiceEffectKind>() });
+    var queue = new FloatSampleQueue(AudioTiming.QueueSamples(48000, 2));
+    using var board = new SoundboardTransport(format, false);
+    var media = new MediaBridgeTransport(format);
+    var mix = new RouteMixSampleProvider(format, AudioRoute.VirtualMicrophone, queue, board, media, new EffectSettings());
+    var bytes = new byte[3840]; var output = new float[960];
+    void Block()
+    {
+        var samples = converter.Convert(bytes, bytes.Length); chain.Process(samples);
+        queue.Add(samples); mix.Read(output, 0, output.Length);
+    }
+    Block(); var before = GC.GetAllocatedBytesForCurrentThread();
+    for (var i = 0; i < 1000; i++) Block();
+    Check(GC.GetAllocatedBytesForCurrentThread() == before, "Clean pipeline allocates on every block");
+});
 Console.WriteLine($"REGRESSION_TESTS=PASS ({results.Count})");
 // Every directory here was created by this process under a fixed temporary root.
 var expectedRoot = Path.GetFullPath("artifacts/regression-tests") + Path.DirectorySeparatorChar;

@@ -51,7 +51,7 @@ public sealed class RnNoiseSuppressionProcessor : IDisposable
         }
     }
 
-    public void ProcessInPlace(float[] stereoSamples)
+    public void ProcessInPlace(Span<float> stereoSamples)
     {
         if (_disposed || stereoSamples.Length < Channels)
         {

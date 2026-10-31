@@ -248,7 +248,7 @@ public sealed partial class MainWindow : Window
         };
         _discordCableSessionIsolationTimer.Tick += OnDiscordCableSessionIsolationTimerTick;
 
-        AppendLog("VoiSee Version 14.1.1 UI started.");
+        AppendLog("VoiSee Version 14.2.1 UI started.");
         AppendLog($"Settings path: {_settingsStore.SettingsPath}");
 
         var isolationResult = _discordCableSessionIsolationService.Enable();
@@ -1618,6 +1618,7 @@ public sealed partial class MainWindow : Window
             return;
         }
 
+        if (_advancedRouteStatusTextBlock is not null) RefreshAdvancedSettingsStatus();
         if (_windowHiddenToTray || !ReferenceEquals(MainTabView.SelectedItem, MediaBridgeTabViewItem)) return;
 
         var engine = _engine;
@@ -2492,12 +2493,19 @@ public sealed partial class MainWindow : Window
                     ? "Ready"
                     : "Incomplete";
 
+            var timing = _engine?.GetTimingSnapshot();
+            var timingText = timing.HasValue
+                ? $"\nProcessing: {(timing.Value.FastPath ? "Fast" : "Full")}, {timing.Value.ProcessingMs:F2} ms/block" +
+                  $"\nMic / media queue: {timing.Value.MicrophoneQueuedMs:F0} / {timing.Value.MediaQueuedMs:F0} ms" +
+                  $"\nWASAPI targets: {timing.Value.CaptureTargetMs}/{timing.Value.RenderTargetMs} ms; mic drops: {timing.Value.DroppedMicrophoneSamples}" +
+                  "\nInternal measurements; excludes driver, receiver and network latency."
+                : string.Empty;
             _advancedRouteStatusTextBlock.Text =
                 $"Input Device: {input}\n" +
                 $"VB-CABLE bridge: {bridge}\n" +
                 $"Monitor Device: {monitor}\n" +
                 $"Route state: {routeState}\n" +
-                $"Virtual Mic: {(_virtualMicMuted ? "Muted" : "Live")}";
+                $"Virtual Mic: {(_virtualMicMuted ? "Muted" : "Live")}" + timingText;
         }
     }
 
