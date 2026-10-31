@@ -249,7 +249,7 @@ public sealed partial class MainWindow : Window
         };
         _discordCableSessionIsolationTimer.Tick += OnDiscordCableSessionIsolationTimerTick;
 
-        AppendLog("VoiSee Version 14.3.2 UI started.");
+        AppendLog("VoiSee Version 14.3.3 UI started.");
         AppendLog($"Settings path: {_settingsStore.SettingsPath}");
 
         var isolationResult = _discordCableSessionIsolationService.Enable();
@@ -488,6 +488,11 @@ public sealed partial class MainWindow : Window
 
     private void RefreshDynamicThemeVisuals()
     {
+        if (!_equalizerLoading)
+        {
+            DrawEqualizerGrid();
+            RenderEqualizerCurve();
+        }
         // Programmatically created Voice Changer controls intentionally take explicit
         // Style/Brush objects from Application.Current.Resources. Unlike XAML
         // ThemeResource expressions, those are snapshots of the dictionary that was
@@ -4282,6 +4287,7 @@ public sealed partial class MainWindow : Window
 
     private void OnRootGridSizeChanged(object sender, SizeChangedEventArgs e)
     {
+        if (EqualizerPlot is not null) EqualizerPlot.Height = Math.Clamp(e.NewSize.Height - 380, 180, 360);
         UpdateSoundBoardDropOverlaySize();
     }
 

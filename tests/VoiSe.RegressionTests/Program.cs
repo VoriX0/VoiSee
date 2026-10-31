@@ -332,6 +332,61 @@ Test("voice starting presets are independent and survive save", () =>
     var legacy = JsonSerializer.Deserialize<EqualizerSettings>("{\"GainsDb\":[1],\"ToneGainsDb\":null}")!.NormalizedCopy();
     Check(legacy.GainsDb[0] == 1 && legacy.ToneGainsDb.All(x => x == 0), "Old user profile migration lost EQ");
 });
+Test("parametric EQ response matches processed audio for every filter type", () =>
+{
+    foreach (var type in Enum.GetValues<EqualizerFilter>())
+    {
+        var settings = new EqualizerSettings();
+        settings.ParametricBands[2] = new EqualizerBand { Frequency = 1000, GainDb = 6, Q = .707, Filter = type };
+        var eq = new MicrophoneEqualizer(48000, 2, settings); var samples = new float[96000];
+        for (var i = 0; i < 48000; i++) samples[2 * i] = .01f * (float)Math.Sin(2 * Math.PI * 1000 * i / 48000);
+        eq.Process(samples); double power = 0;
+        for (var i = 24000; i < 48000; i++) power += samples[2 * i] * samples[2 * i];
+        var db = 20 * Math.Log10(Math.Sqrt(power / 24000) / (.01 / Math.Sqrt(2)));
+        Check(Math.Abs(db - settings.GetResponseFilters().Sum(f => f.ResponseDb(1000))) < .05, "Graph disagrees with DSP: " + type);
+    }
+    var wide = EqualizerCoefficients.Create(1000, 6, .5, 48000);
+    var narrow = EqualizerCoefficients.Create(1000, 6, 10, 48000);
+    Check(wide.ResponseDb(2000) > narrow.ResponseDb(2000) + 1, "Q does not change bandwidth");
+    Check(Math.Abs(narrow.ResponseDb(1000) - 6) < 1e-6, "Q changed peak gain");
+});
+Test("parametric updates change audio and persist independently of graphic bands", () =>
+{
+    var settings = new EqualizerSettings(); settings.GainsDb[0] = 1;
+    var eq = new MicrophoneEqualizer(48000, 2, settings);
+    settings.ParametricBands[2].GainDb = -6; settings.ParametricBands[2].Frequency = 1080; settings.ParametricBands[2].Q = 1.182;
+    eq.Update(settings); var signal = new float[96000];
+    for (var i = 0; i < 48000; i++) signal[i * 2] = .1f * (float)Math.Sin(2 * Math.PI * 1080 * i / 48000);
+    eq.Process(signal);
+    Check(signal.TakeLast(48000).Max() < .055, "Parametric change was ignored");
+    var restored = JsonSerializer.Deserialize<EqualizerSettings>(JsonSerializer.Serialize(settings))!.NormalizedCopy();
+    Check(restored.ParametricBands.SequenceEqual(settings.ParametricBands) && restored.GainsDb[0] == 1, "Persistence lost either curve");
+    restored.ParametricBands[2].Enabled = false; eq.Update(restored);
+    Array.Fill(signal, .1f); eq.Process(signal); Check(Math.Abs(signal[^1] - .1f) < .0001, "Disabled band still affects audio");
+    Check(settings.ParametricBands[2].Enabled, "Settings copy shares band objects");
+});
+Test("parametric malformed profiles migrate safely and extreme filters remain stable", () =>
+{
+    var settings = new EqualizerSettings { ParametricBands = new[] { new EqualizerBand { Frequency = double.NaN, GainDb = double.PositiveInfinity, Q = 0, Filter = (EqualizerFilter)99 }, null! } }.NormalizedCopy();
+    Check(settings.ParametricBands.Length == 5 && settings.ParametricBands[0].Frequency == 1000 && settings.ParametricBands[0].Q == .2 && settings.ParametricBands[0].Filter == EqualizerFilter.Peak, "Invalid band not sanitized");
+    foreach (var type in Enum.GetValues<EqualizerFilter>())
+    foreach (var frequency in new[] { 20.0, 20000 })
+    {
+        settings = new EqualizerSettings(); settings.ParametricBands[0] = new EqualizerBand { Frequency = frequency, GainDb = 12, Q = 12, Filter = type };
+        var eq = new MicrophoneEqualizer(48000, 2, settings); var samples = new float[96000]; samples[0] = .01f; eq.Process(samples);
+        Check(samples.All(float.IsFinite) && samples.Max(Math.Abs) < 1, "Extreme filter became unstable: " + type);
+    }
+    settings.ParametricBands = null!; Check(settings.NormalizedCopy().ParametricBands.All(b => b.GainDb == 0), "Null parametric settings not migrated");
+});
+Test("combined graphic and parametric processing allocates zero per block", () =>
+{
+    var settings = new EqualizerSettings(); Array.Fill(settings.GainsDb, -1);
+    for (var i = 0; i < 5; i++) settings.ParametricBands[i].GainDb = 2;
+    var eq = new MicrophoneEqualizer(48000, 2, settings); var samples = new float[960]; eq.Process(samples);
+    var before = GC.GetAllocatedBytesForCurrentThread();
+    for (var i = 0; i < 1000; i++) eq.Process(samples);
+    Check(GC.GetAllocatedBytesForCurrentThread() == before, "Combined EQ allocates per block");
+});
 Console.WriteLine($"REGRESSION_TESTS=PASS ({results.Count})");
 // Every directory here was created by this process under a fixed temporary root.
 var expectedRoot = Path.GetFullPath("artifacts/regression-tests") + Path.DirectorySeparatorChar;

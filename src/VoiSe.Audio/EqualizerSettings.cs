@@ -1,6 +1,7 @@
 namespace VoiSe.Audio;
 
-// One canonical curve. Displaying ten sliders never discards 31-band detail.
+// Graphic correction plus independent parametric filters. Displaying ten
+// sliders never discards the stored 31-band detail.
 public sealed class EqualizerSettings
 {
     public static IReadOnlyList<double> Frequencies { get; } = Array.AsReadOnly(new double[]
@@ -10,6 +11,9 @@ public sealed class EqualizerSettings
     public double PreampDb { get; set; }
     public double[] GainsDb { get; set; } = new double[31];
     public double[] ToneGainsDb { get; set; } = new double[3];
+    public EqualizerBand[] ParametricBands { get; set; } = CreateParametricBands();
+    private static EqualizerBand[] CreateParametricBands() => new[] { 35.0, 120, 1000, 6000, 18000 }
+        .Select(f => new EqualizerBand { Frequency = f }).ToArray();
     public EqualizerSettings NormalizedCopy()
     {
         var copy = new EqualizerSettings { Enabled = Enabled, PreampDb = Limit(PreampDb, -24, 12) };
@@ -17,7 +21,19 @@ public sealed class EqualizerSettings
             copy.GainsDb[i] = Limit(GainsDb![i], -12, 12);
         for (var i = 0; i < Math.Min(ToneGainsDb?.Length ?? 0, 3); i++)
             copy.ToneGainsDb[i] = Limit(ToneGainsDb![i], -6, 6);
+        for (var i = 0; i < Math.Min(ParametricBands?.Length ?? 0, 5); i++)
+            copy.ParametricBands[i] = ParametricBands![i]?.NormalizedCopy() ?? copy.ParametricBands[i];
         return copy;
+    }
+    public EqualizerCoefficients[] GetResponseFilters()
+    {
+        var filters = new List<EqualizerCoefficients>();
+        for (var i = 0; i < 31; i++)
+            if (Math.Abs(GainsDb[i]) > .00001) filters.Add(EqualizerCoefficients.Create(Frequencies[i], GainsDb[i], 4.318473046963146, 48000));
+        foreach (var band in ParametricBands)
+            if (band.Enabled && (Math.Abs(band.GainDb) > .00001 || band.Filter is EqualizerFilter.HighPass or EqualizerFilter.LowPass))
+                filters.Add(EqualizerCoefficients.Create(band.Frequency, band.GainDb, band.Q, 48000, band.Filter));
+        return filters.ToArray();
     }
     // Broad, additive controls keep existing detailed adjustments intact.
     public void SetToneGain(int tone, double value)

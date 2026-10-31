@@ -18,7 +18,8 @@ internal sealed class MicrophoneEqualizer
     {
         var normalized = settings.NormalizedCopy();
         if (_current.Settings.Enabled == normalized.Enabled && _current.Settings.PreampDb == normalized.PreampDb
-            && _current.Settings.GainsDb.AsSpan().SequenceEqual(normalized.GainsDb)) return;
+            && _current.Settings.GainsDb.AsSpan().SequenceEqual(normalized.GainsDb)
+            && _current.Settings.ParametricBands.SequenceEqual(normalized.ParametricBands)) return;
         _previous = _current; _current = new Bank(normalized, _sampleRate, _channels);
         _remainingFade = _fadeFrames;
     }
@@ -52,7 +53,10 @@ internal sealed class MicrophoneEqualizer
             _preamp = Math.Pow(10, Settings.PreampDb / 20);
             for (var i = 0; i < 31; i++)
                 if (Math.Abs(Settings.GainsDb[i]) > .00001)
-                    _bands.Add(new Band(EqualizerSettings.Frequencies[i], Settings.GainsDb[i], rate, channels));
+                    _bands.Add(new Band(EqualizerCoefficients.Create(EqualizerSettings.Frequencies[i], Settings.GainsDb[i], 4.318473046963146, rate), channels));
+            foreach (var band in Settings.ParametricBands)
+                if (band.Enabled && (Math.Abs(band.GainDb) > .00001 || band.Filter is EqualizerFilter.HighPass or EqualizerFilter.LowPass))
+                    _bands.Add(new Band(EqualizerCoefficients.Create(band.Frequency, band.GainDb, band.Q, rate, band.Filter), channels));
             IsFlat = _bands.Count == 0 && Settings.PreampDb == 0;
         }
         public double Process(double sample, int channel)
@@ -68,16 +72,10 @@ internal sealed class MicrophoneEqualizer
     {
         private readonly double _b0, _b1, _b2, _a1, _a2;
         private readonly double[] _z1, _z2;
-        public Band(double frequency, double gain, int rate, int channels)
+        public Band(EqualizerCoefficients coefficients, int channels)
         {
-            // RBJ peaking biquad: https://www.w3.org/TR/audio-eq-cookbook/
-            const double q = 4.318473046963146; // one third octave
-            var a = Math.Pow(10, gain / 40);
-            var omega = 2 * Math.PI * frequency / rate;
-            var alpha = Math.Sin(omega) / (2 * q); var cosine = Math.Cos(omega);
-            var a0 = 1 + alpha / a;
-            _b0 = (1 + alpha * a) / a0; _b1 = -2 * cosine / a0; _b2 = (1 - alpha * a) / a0;
-            _a1 = -2 * cosine / a0; _a2 = (1 - alpha / a) / a0;
+            _b0 = coefficients.B0; _b1 = coefficients.B1; _b2 = coefficients.B2;
+            _a1 = coefficients.A1; _a2 = coefficients.A2;
             _z1 = new double[channels]; _z2 = new double[channels];
         }
         public double Process(double x, int channel)

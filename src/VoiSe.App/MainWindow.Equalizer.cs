@@ -34,7 +34,8 @@ public sealed partial class MainWindow
         EqualizerTab.Header = EqText("Title");
         EqualizerTitle.Text = EqText("Title");
         EqualizerDescription.Text = EqText("Description");
-        EqualizerEnabled.Header = EqText("Enabled");
+        EqualizerEnabled.Header = null;
+        EqualizerEnabled.OnContent = "EQ вкл."; EqualizerEnabled.OffContent = "EQ выкл.";
         EqualizerAdvanced.Header = EqText("Advanced");
         EqualizerReset.Content = EqText("Reset");
         EqualizerPreampTitle.Text = EqText("Preamp");
@@ -45,6 +46,7 @@ public sealed partial class MainWindow
         EqualizerPreamp.Value = _settings.Equalizer.PreampDb;
         EqualizerPreampValue.Text = Db(EqualizerPreamp.Value);
         BuildEqualizerQuickControls();
+        InitializeParametricEqualizer();
         _equalizerApplyTimer.Tick += (_, _) =>
         {
             _equalizerApplyTimer.Stop();
@@ -129,6 +131,7 @@ public sealed partial class MainWindow
         for (var i = 0; i < 3; i++) _equalizerTones[i].Value = _settings.Equalizer.ToneGainsDb[i];
         EqualizerPreamp.Value = _settings.Equalizer.PreampDb;
         EqualizerPreampValue.Text = Db(EqualizerPreamp.Value);
+        SelectEqualizerBand(_selectedEqBand);
         _equalizerLoading = false;
     }
     private void RefreshEqualizerBandValues()
@@ -156,18 +159,7 @@ public sealed partial class MainWindow
         _equalizerCompareOriginal = EqualizerCompare.IsChecked == true;
         QueueEqualizerChange();
     }
-    private void RenderEqualizerCurve()
-    {
-        // This graph shows the editable band curve; the cascaded filters' exact
-        // frequency response depends on overlapping bandwidths.
-        var points = new PointCollection();
-        for (var i = 0; i < 31; i++)
-        {
-            var x = Math.Log10(EqualizerSettings.Frequencies[i] / 20) / 3 * 800;
-            points.Add(new Point(x, 70 - _settings.Equalizer.GainsDb[i] * 5));
-        }
-        EqualizerCurve.Points = points;
-    }
+    private void RenderEqualizerCurve() => RenderParametricCurve();
     private void RebuildEqualizerBands()
     {
         EqualizerBands.Children.Clear();
