@@ -169,9 +169,11 @@ internal sealed class ProcessLoopbackCapture : IDisposable
         var thread = _captureThread;
         if (thread is not null && thread != Thread.CurrentThread)
         {
+            // On timeout the worker retains ownership and releases COM in its finally.
             thread.Join(TimeSpan.FromSeconds(2));
+            return;
         }
-
+        if (thread == Thread.CurrentThread) return;
         SafeStopClient();
         CleanupCaptureResources();
         IsCapturing = false;
@@ -201,6 +203,7 @@ internal sealed class ProcessLoopbackCapture : IDisposable
         {
             _captureRequested = false;
             SafeStopClient();
+            CleanupCaptureResources();
             IsCapturing = false;
             CaptureStopped?.Invoke(error);
         }

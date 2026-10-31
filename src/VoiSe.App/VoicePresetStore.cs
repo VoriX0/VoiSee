@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -40,8 +40,7 @@ public sealed class VoicePresetStore
         {
             try
             {
-                var json = File.ReadAllText(file);
-                var preset = JsonSerializer.Deserialize<VoicePreset>(json, JsonOptions);
+                var preset = AtomicFile.ReadJson<VoicePreset>(file, JsonOptions);
                 if (preset is null || string.IsNullOrWhiteSpace(preset.Name))
                 {
                     continue;
@@ -69,7 +68,7 @@ public sealed class VoicePresetStore
         Directory.CreateDirectory(PresetsDirectory);
         var path = GetAvailablePresetPath(preset.Name);
         preset.FilePath = path;
-        File.WriteAllText(path, JsonSerializer.Serialize(preset, JsonOptions));
+        AtomicFile.WriteAllText(path, JsonSerializer.Serialize(preset, JsonOptions));
         return path;
     }
 
@@ -94,7 +93,7 @@ public sealed class VoicePresetStore
         preset.Sliders ??= new Dictionary<string, double>();
         preset.EffectOrder ??= new List<string>();
         preset.FilePath = GetAvailablePresetPath(preset.Name);
-        File.WriteAllText(preset.FilePath, JsonSerializer.Serialize(preset, JsonOptions));
+        AtomicFile.WriteAllText(preset.FilePath, JsonSerializer.Serialize(preset, JsonOptions));
         return preset.FilePath;
     }
 
@@ -106,7 +105,7 @@ public sealed class VoicePresetStore
             : Path.Combine(PresetsDirectory, MakeSafeFileName(preset.Name) + ".json");
 
         preset.FilePath = path;
-        File.WriteAllText(path, JsonSerializer.Serialize(preset, JsonOptions));
+        AtomicFile.WriteAllText(path, JsonSerializer.Serialize(preset, JsonOptions));
         return path;
     }
 
@@ -123,7 +122,7 @@ public sealed class VoicePresetStore
         }
 
         preset.FilePath = newPath;
-        File.WriteAllText(newPath, JsonSerializer.Serialize(preset, JsonOptions));
+        AtomicFile.WriteAllText(newPath, JsonSerializer.Serialize(preset, JsonOptions));
         return newPath;
     }
 
@@ -143,7 +142,7 @@ public sealed class VoicePresetStore
             return;
         }
 
-        File.WriteAllText(Path.Combine(PresetsDirectory, "Default.json"), DefaultPresetJson);
+        AtomicFile.WriteAllText(Path.Combine(PresetsDirectory, "Default.json"), DefaultPresetJson);
     }
 
     private string GetAvailablePresetPath(string presetName, string? currentPath = null)

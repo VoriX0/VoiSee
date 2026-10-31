@@ -67,6 +67,7 @@ public partial class App : Microsoft.UI.Xaml.Application
 
 internal static class StartupLog
 {
+    private static readonly object Sync = new();
     private static readonly string LogPath = Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
         "VoiSe",
@@ -77,7 +78,12 @@ internal static class StartupLog
         try
         {
             Directory.CreateDirectory(Path.GetDirectoryName(LogPath)!);
+            lock (Sync)
+            {
+            if (File.Exists(LogPath) && new FileInfo(LogPath).Length > 4 * 1024 * 1024)
+                File.Move(LogPath, LogPath + ".1", overwrite: true);
             File.AppendAllText(LogPath, $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff}] {message}{Environment.NewLine}");
+            }
         }
         catch
         {

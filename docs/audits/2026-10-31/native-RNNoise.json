@@ -1,0 +1,12 @@
+{
+  "mode": "RNNoise",
+  "wallMs": 5010.0413,
+  "cpuMs": 203.125,
+  "oneCorePercent": 4.054357795413782,
+  "maxBlockMs": 1.3349,
+  "privateMiB": 8.07421875,
+  "workingSetMiB": 24.08203125,
+  "privateDeltaMiB": -0.1015625,
+  "workingSetDeltaMiB": -0.17578125,
+  "note": "Synthetic paced 48k stereo audio; dedicated console process, no UI or audio devices"
+}

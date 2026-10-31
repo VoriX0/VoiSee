@@ -43,8 +43,8 @@ public sealed class SoundBoardLibraryStore
                 return fresh;
             }
 
-            var json = File.ReadAllText(LibraryPath);
-            var library = JsonSerializer.Deserialize<SoundBoardLibrary>(json, JsonOptions) ?? CreateDefaultLibrary();
+            var library = AtomicFile.ReadJson<SoundBoardLibrary>(LibraryPath, JsonOptions) ?? CreateDefaultLibrary();
+            library.Categories ??= new(); library.Sounds ??= new();
             EnsureDefaultCategory(library);
             return library;
         }
@@ -64,11 +64,12 @@ public sealed class SoundBoardLibraryStore
             Directory.CreateDirectory(EditedSoundsDirectory);
             EnsureDefaultCategory(library);
             var json = JsonSerializer.Serialize(library, JsonOptions);
-            File.WriteAllText(LibraryPath, json);
+            AtomicFile.WriteAllText(LibraryPath, json);
         }
         catch (Exception ex)
         {
             StartupLog.Write("SoundBoard library save error: " + ex);
+            throw;
         }
     }
 
@@ -126,6 +127,7 @@ public sealed class SoundBoardLibraryStore
 
     public void DeleteSound(SoundBoardLibrary library, SoundBoardSound sound, bool deleteFile)
     {
+        VoiSe.Audio.SoundFileLoader.Invalidate(sound.FilePath);
         library.Sounds.RemoveAll(s => s.Id == sound.Id);
         Save(library);
 
@@ -268,24 +270,20 @@ public sealed class SoundBoardLibraryStore
         var targetFileName = $"{safeName}_{sound.Id[..8]}{extension}";
         var targetPath = Path.Combine(SoundsDirectory, targetFileName);
 
-        if (!string.Equals(sound.FilePath, targetPath, StringComparison.OrdinalIgnoreCase) && File.Exists(sound.FilePath))
-        {
-            try
-            {
-                File.Delete(sound.FilePath);
-            }
-            catch (Exception ex)
-            {
-                StartupLog.Write("Old sound file delete error: " + ex);
-            }
-        }
-
-        File.Copy(sourcePath, targetPath, overwrite: true);
+        var oldPath = sound.FilePath;
+        AtomicFile.Copy(sourcePath, targetPath);
         sound.FilePath = targetPath;
         sound.OriginalFileName = Path.GetFileName(sourcePath);
         sound.Extension = extension;
         sound.UpdatedAtUtc = DateTime.UtcNow;
         Save(library);
+        VoiSe.Audio.SoundFileLoader.Invalidate(oldPath);
+        VoiSe.Audio.SoundFileLoader.Invalidate(targetPath);
+        if (!string.Equals(oldPath, targetPath, StringComparison.OrdinalIgnoreCase) && File.Exists(oldPath))
+        {
+            try { File.Delete(oldPath); }
+            catch (Exception ex) { StartupLog.Write("Old sound cleanup error: " + ex); }
+        }
     }
 
 
@@ -308,43 +306,20 @@ public sealed class SoundBoardLibraryStore
             targetPath = oldPath;
         }
 
-        var tempTarget = targetPath + ".tmp";
-        File.Copy(editedWavPath, tempTarget, overwrite: true);
-
-        if (File.Exists(targetPath))
-        {
-            var backupPath = targetPath + ".bak";
-            try
-            {
-                File.Copy(targetPath, backupPath, overwrite: true);
-            }
-            catch (Exception ex)
-            {
-                StartupLog.Write("Sound backup error: " + ex);
-            }
-
-            File.Delete(targetPath);
-        }
-
-        File.Move(tempTarget, targetPath);
-
-        if (!string.Equals(oldPath, targetPath, StringComparison.OrdinalIgnoreCase) && File.Exists(oldPath))
-        {
-            try
-            {
-                File.Delete(oldPath);
-            }
-            catch (Exception ex)
-            {
-                StartupLog.Write("Old edited sound source delete error: " + ex);
-            }
-        }
+        AtomicFile.Copy(editedWavPath, targetPath);
 
         sound.FilePath = targetPath;
         sound.Extension = ".wav";
         sound.OriginalFileName = Path.GetFileName(targetPath);
         sound.UpdatedAtUtc = DateTime.UtcNow;
         Save(library);
+        VoiSe.Audio.SoundFileLoader.Invalidate(oldPath);
+        VoiSe.Audio.SoundFileLoader.Invalidate(targetPath);
+        if (!string.Equals(oldPath, targetPath, StringComparison.OrdinalIgnoreCase) && File.Exists(oldPath))
+        {
+            try { File.Delete(oldPath); }
+            catch (Exception ex) { StartupLog.Write("Old edited sound source delete error: " + ex); }
+        }
     }
 
     public SoundBoardSound AddEditedCopy(SoundBoardLibrary library, SoundBoardSound sourceSound, string editedWavPath)

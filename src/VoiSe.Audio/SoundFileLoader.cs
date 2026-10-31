@@ -1,7 +1,7 @@
 using NAudio.Vorbis;
 using NAudio.Wave;
 using NAudio.Wave.SampleProviders;
-using System.Collections.Concurrent;
+
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -9,53 +9,36 @@ namespace VoiSe.Audio;
 
 public static class SoundFileLoader
 {
-    private static readonly ConcurrentDictionary<SoundCacheKey, Lazy<float[]>> Cache = new();
+    public const long CacheBudgetBytes = 64L * 1024 * 1024;
+    public const long ShortClipBytes = 8L * 1024 * 1024;
+    private const int MaxDecodedSamples = 32 * 1024 * 1024;
+    private static readonly PcmCache Cache = new(CacheBudgetBytes);
+    private static readonly object DecodeSync = new();
+    public static long CachedBytes => Cache.RetainedBytes;
 
     public static float[] LoadToFormat(string filePath, WaveFormat targetFormat)
     {
-        if (!File.Exists(filePath))
-        {
-            throw new FileNotFoundException("Sound file was not found.", filePath);
-        }
-
         var fullPath = Path.GetFullPath(filePath);
-        var key = new SoundCacheKey(
-            fullPath,
-            File.GetLastWriteTimeUtc(fullPath).Ticks,
-            targetFormat.SampleRate,
-            targetFormat.Channels);
-
-        // Decoding/resampling can take hundreds of milliseconds for larger files.
-        // Cache immutable PCM float buffers so repeated SoundBoard/Scene starts do not
-        // hit the UI thread or disk again. Multiple simultaneous requests share the
-        // same Lazy value, so a double-click/hotkey burst does not decode twice.
-        var lazy = Cache.GetOrAdd(key, cacheKey => new Lazy<float[]>(
-            () => LoadToFormatUncached(cacheKey.FilePath, targetFormat),
-            LazyThreadSafetyMode.ExecutionAndPublication));
-        return lazy.Value;
+        // One uncached full decode at a time. Cache hits do not allocate PCM copies.
+        lock (DecodeSync)
+        {
+            var key = new SoundCacheKey(fullPath, File.GetLastWriteTimeUtc(fullPath).Ticks, targetFormat.SampleRate, targetFormat.Channels);
+            if (Cache.Get(key) is { } hit) return hit;
+            var result = LoadToFormatUncached(fullPath, targetFormat);
+            if (result.LongLength * sizeof(float) <= ShortClipBytes) Cache.Put(key, result);
+            return result;
+        }
     }
-
-
     public static void Invalidate(string filePath)
     {
-        if (string.IsNullOrWhiteSpace(filePath))
-        {
-            return;
-        }
-
-        var fullPath = Path.GetFullPath(filePath);
-        foreach (var key in Cache.Keys)
-        {
-            if (string.Equals(key.FilePath, fullPath, StringComparison.OrdinalIgnoreCase))
-            {
-                Cache.TryRemove(key, out _);
-            }
-        }
+        if (string.IsNullOrWhiteSpace(filePath)) return;
+        lock (DecodeSync) Cache.Invalidate(Path.GetFullPath(filePath));
     }
-
-    public static void ClearCache()
+    public static void ClearCache() { lock (DecodeSync) Cache.Clear(); }
+    internal static long GetSampleCount(string filePath, WaveFormat target)
     {
-        Cache.Clear();
+        using var reader = CreateReader(filePath);
+        return checked((long)Math.Ceiling(reader.TotalTime.TotalSeconds * target.SampleRate) * target.Channels);
     }
 
     public static Task PreloadToFormatAsync(string filePath, WaveFormat targetFormat)
@@ -69,7 +52,8 @@ public static class SoundFileLoader
         {
             try
             {
-                _ = LoadToFormat(filePath, targetFormat);
+                if (GetSampleCount(filePath, targetFormat) * sizeof(float) <= ShortClipBytes)
+                    _ = LoadToFormat(filePath, targetFormat);
             }
             catch
             {
@@ -81,6 +65,8 @@ public static class SoundFileLoader
     private static float[] LoadToFormatUncached(string filePath, WaveFormat targetFormat)
     {
         using var reader = CreateReader(filePath);
+        if (reader.TotalTime.TotalSeconds * targetFormat.SampleRate * targetFormat.Channels > MaxDecodedSamples)
+            throw new InvalidOperationException("This file is too large for full in-memory editing. Playback uses streaming; edit a shorter fragment.");
         ISampleProvider provider = reader.ToSampleProvider();
 
         if (provider.WaveFormat.SampleRate != targetFormat.SampleRate)
@@ -88,10 +74,11 @@ public static class SoundFileLoader
             provider = new WdlResamplingSampleProvider(provider, targetFormat.SampleRate);
         }
 
-        return ReadAllAndConvertChannels(provider, targetFormat.Channels);
+        var expectedSamples = checked((int)Math.Ceiling(reader.TotalTime.TotalSeconds * targetFormat.SampleRate) * targetFormat.Channels);
+        return ReadAllAndConvertChannels(provider, targetFormat.Channels, expectedSamples);
     }
 
-    private static WaveStream CreateReader(string filePath)
+    internal static WaveStream CreateReader(string filePath)
     {
         var extension = Path.GetExtension(filePath).ToLowerInvariant();
         return extension switch
@@ -101,65 +88,38 @@ public static class SoundFileLoader
         };
     }
 
-    private static float[] ReadAllAndConvertChannels(ISampleProvider provider, int targetChannels)
+    private static float[] ReadAllAndConvertChannels(ISampleProvider provider, int targetChannels, int expectedSamples)
     {
         var sourceChannels = provider.WaveFormat.Channels;
-        var readBuffer = new float[provider.WaveFormat.SampleRate * sourceChannels];
-        var output = new List<float>(readBuffer.Length);
-
-        while (true)
+        var readBuffer = new float[4096 * sourceChannels];
+        var output = new float[Math.Clamp(expectedSamples, 0, MaxDecodedSamples)];
+        var used = 0;
+        int read;
+        while ((read = provider.Read(readBuffer, 0, readBuffer.Length)) > 0)
         {
-            var read = provider.Read(readBuffer, 0, readBuffer.Length);
-            if (read == 0)
+            var frames = read / sourceChannels;
+            var needed = checked(used + frames * targetChannels);
+            if (needed > MaxDecodedSamples)
+                throw new InvalidOperationException("Decoded audio exceeds the safe editing memory limit.");
+            if (needed > output.Length)
+                Array.Resize(ref output, Math.Min(MaxDecodedSamples, Math.Max(needed, output.Length + 4096 * targetChannels)));
+            for (var frame = 0; frame < frames; frame++)
             {
-                break;
-            }
-
-            ConvertChunkChannels(readBuffer, read, sourceChannels, targetChannels, output);
-        }
-
-        return output.ToArray();
-    }
-
-    private static void ConvertChunkChannels(float[] source, int samplesRead, int sourceChannels, int targetChannels, List<float> output)
-    {
-        var frameCount = samplesRead / sourceChannels;
-        for (var frame = 0; frame < frameCount; frame++)
-        {
-            var sourceOffset = frame * sourceChannels;
-            if (targetChannels == sourceChannels)
-            {
-                for (var ch = 0; ch < targetChannels; ch++)
+                if (targetChannels == 1 && sourceChannels > 1)
                 {
-                    output.Add(source[sourceOffset + ch]);
+                    var sum = 0f;
+                    for (var ch = 0; ch < sourceChannels; ch++) sum += readBuffer[frame * sourceChannels + ch];
+                    output[used++] = sum / sourceChannels;
                 }
-            }
-            else if (targetChannels == 1)
-            {
-                var sum = 0.0f;
-                for (var ch = 0; ch < sourceChannels; ch++)
-                {
-                    sum += source[sourceOffset + ch];
-                }
-                output.Add(sum / sourceChannels);
-            }
-            else if (sourceChannels == 1)
-            {
-                var mono = source[sourceOffset];
-                for (var ch = 0; ch < targetChannels; ch++)
-                {
-                    output.Add(mono);
-                }
-            }
-            else
-            {
-                for (var ch = 0; ch < targetChannels; ch++)
-                {
-                    output.Add(source[sourceOffset + Math.Min(ch, sourceChannels - 1)]);
-                }
+                else
+                    for (var ch = 0; ch < targetChannels; ch++)
+                        output[used++] = readBuffer[frame * sourceChannels + Math.Min(ch, sourceChannels - 1)];
             }
         }
+        if (used != output.Length) Array.Resize(ref output, used);
+        return output;
     }
+
 }
 
 

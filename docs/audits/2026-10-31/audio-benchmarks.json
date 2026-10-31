@@ -1,0 +1,448 @@
+{
+  "baseline": "b1829bb",
+  "framework": ".NET 8.0.28",
+  "processorCount": 24,
+  "os": "Microsoft Windows NT 10.0.26200.0",
+  "results": [
+    {
+      "name": "DSP constructor",
+      "managedAllocatedBytes": 769616
+    },
+    {
+      "name": "DSP empty chain",
+      "iterations": 2000,
+      "wallMs": 15.8506,
+      "cpuMs": 15.625,
+      "msPerBlock": 0.0079253,
+      "oneCoreRealtimePercent": 0.0390625,
+      "bytesPerBlock": 4.928,
+      "allocationMiBPerAudioSecond": 0.0002349853515625
+    },
+    {
+      "name": "DSP VoiceGain",
+      "iterations": 400,
+      "wallMs": 22.0831,
+      "cpuMs": 31.25,
+      "msPerBlock": 0.05520775000000001,
+      "oneCoreRealtimePercent": 0.390625,
+      "bytesPerBlock": 2.46,
+      "allocationMiBPerAudioSecond": 0.00011730194091796875
+    },
+    {
+      "name": "DSP Gate",
+      "iterations": 400,
+      "wallMs": 21.2569,
+      "cpuMs": 15.625,
+      "msPerBlock": 0.05314225,
+      "oneCoreRealtimePercent": 0.1953125,
+      "bytesPerBlock": 2.46,
+      "allocationMiBPerAudioSecond": 0.00011730194091796875
+    },
+    {
+      "name": "DSP Compressor",
+      "iterations": 400,
+      "wallMs": 23.2817,
+      "cpuMs": 15.625,
+      "msPerBlock": 0.05820425,
+      "oneCoreRealtimePercent": 0.1953125,
+      "bytesPerBlock": 2.46,
+      "allocationMiBPerAudioSecond": 0.00011730194091796875
+    },
+    {
+      "name": "DSP Pitch",
+      "iterations": 400,
+      "wallMs": 38.012,
+      "cpuMs": 31.25,
+      "msPerBlock": 0.09503,
+      "oneCoreRealtimePercent": 0.390625,
+      "bytesPerBlock": 2.46,
+      "allocationMiBPerAudioSecond": 0.00011730194091796875
+    },
+    {
+      "name": "DSP Formant",
+      "iterations": 400,
+      "wallMs": 39.2704,
+      "cpuMs": 46.875,
+      "msPerBlock": 0.098176,
+      "oneCoreRealtimePercent": 0.5859375,
+      "bytesPerBlock": 2.46,
+      "allocationMiBPerAudioSecond": 0.00011730194091796875
+    },
+    {
+      "name": "DSP Bass",
+      "iterations": 400,
+      "wallMs": 23.18,
+      "cpuMs": 15.625,
+      "msPerBlock": 0.05795,
+      "oneCoreRealtimePercent": 0.1953125,
+      "bytesPerBlock": 2.46,
+      "allocationMiBPerAudioSecond": 0.00011730194091796875
+    },
+    {
+      "name": "DSP Treble",
+      "iterations": 400,
+      "wallMs": 23.3553,
+      "cpuMs": 15.625,
+      "msPerBlock": 0.05838825,
+      "oneCoreRealtimePercent": 0.1953125,
+      "bytesPerBlock": 2.46,
+      "allocationMiBPerAudioSecond": 0.00011730194091796875
+    },
+    {
+      "name": "DSP Distortion",
+      "iterations": 400,
+      "wallMs": 31.4617,
+      "cpuMs": 31.25,
+      "msPerBlock": 0.07865425,
+      "oneCoreRealtimePercent": 0.390625,
+      "bytesPerBlock": 2.46,
+      "allocationMiBPerAudioSecond": 0.00011730194091796875
+    },
+    {
+      "name": "DSP Robot",
+      "iterations": 400,
+      "wallMs": 22.5,
+      "cpuMs": 31.25,
+      "msPerBlock": 0.05625,
+      "oneCoreRealtimePercent": 0.390625,
+      "bytesPerBlock": 2.46,
+      "allocationMiBPerAudioSecond": 0.00011730194091796875
+    },
+    {
+      "name": "DSP Tremolo",
+      "iterations": 400,
+      "wallMs": 37.6435,
+      "cpuMs": 46.875,
+      "msPerBlock": 0.09410875,
+      "oneCoreRealtimePercent": 0.5859375,
+      "bytesPerBlock": 2.46,
+      "allocationMiBPerAudioSecond": 0.00011730194091796875
+    },
+    {
+      "name": "DSP Echo",
+      "iterations": 400,
+      "wallMs": 24.4271,
+      "cpuMs": 31.25,
+      "msPerBlock": 0.06106775,
+      "oneCoreRealtimePercent": 0.390625,
+      "bytesPerBlock": 2.46,
+      "allocationMiBPerAudioSecond": 0.00011730194091796875
+    },
+    {
+      "name": "DSP Reverb",
+      "iterations": 400,
+      "wallMs": 24.4581,
+      "cpuMs": 31.25,
+      "msPerBlock": 0.061145250000000005,
+      "oneCoreRealtimePercent": 0.390625,
+      "bytesPerBlock": 2.46,
+      "allocationMiBPerAudioSecond": 0.00011730194091796875
+    },
+    {
+      "name": "DSP Radio",
+      "iterations": 400,
+      "wallMs": 29.6666,
+      "cpuMs": 31.25,
+      "msPerBlock": 0.0741665,
+      "oneCoreRealtimePercent": 0.390625,
+      "bytesPerBlock": 2.46,
+      "allocationMiBPerAudioSecond": 0.00011730194091796875
+    },
+    {
+      "name": "DSP BitCrusher",
+      "iterations": 400,
+      "wallMs": 25.6911,
+      "cpuMs": 15.625,
+      "msPerBlock": 0.06422775,
+      "oneCoreRealtimePercent": 0.1953125,
+      "bytesPerBlock": 2.46,
+      "allocationMiBPerAudioSecond": 0.00011730194091796875
+    },
+    {
+      "name": "DSP Alien",
+      "iterations": 400,
+      "wallMs": 26.2504,
+      "cpuMs": 15.625,
+      "msPerBlock": 0.065626,
+      "oneCoreRealtimePercent": 0.1953125,
+      "bytesPerBlock": 2.46,
+      "allocationMiBPerAudioSecond": 0.00011730194091796875
+    },
+    {
+      "name": "DSP Chorus",
+      "iterations": 400,
+      "wallMs": 34.0476,
+      "cpuMs": 31.25,
+      "msPerBlock": 0.085119,
+      "oneCoreRealtimePercent": 0.390625,
+      "bytesPerBlock": 2.46,
+      "allocationMiBPerAudioSecond": 0.00011730194091796875
+    },
+    {
+      "name": "DSP Flanger",
+      "iterations": 400,
+      "wallMs": 32.8055,
+      "cpuMs": 31.25,
+      "msPerBlock": 0.08201375000000001,
+      "oneCoreRealtimePercent": 0.390625,
+      "bytesPerBlock": 2.46,
+      "allocationMiBPerAudioSecond": 0.00011730194091796875
+    },
+    {
+      "name": "DSP Phaser",
+      "iterations": 400,
+      "wallMs": 44.6615,
+      "cpuMs": 15.625,
+      "msPerBlock": 0.11165375,
+      "oneCoreRealtimePercent": 0.1953125,
+      "bytesPerBlock": 2.46,
+      "allocationMiBPerAudioSecond": 0.00011730194091796875
+    },
+    {
+      "name": "DSP Vibrato",
+      "iterations": 400,
+      "wallMs": 32.4806,
+      "cpuMs": 31.25,
+      "msPerBlock": 0.08120150000000001,
+      "oneCoreRealtimePercent": 0.390625,
+      "bytesPerBlock": 2.46,
+      "allocationMiBPerAudioSecond": 0.00011730194091796875
+    },
+    {
+      "name": "DSP Doubler",
+      "iterations": 400,
+      "wallMs": 27.1993,
+      "cpuMs": 15.625,
+      "msPerBlock": 0.06799825,
+      "oneCoreRealtimePercent": 0.1953125,
+      "bytesPerBlock": 2.46,
+      "allocationMiBPerAudioSecond": 0.00011730194091796875
+    },
+    {
+      "name": "DSP RingMod",
+      "iterations": 400,
+      "wallMs": 26.9272,
+      "cpuMs": 31.25,
+      "msPerBlock": 0.067318,
+      "oneCoreRealtimePercent": 0.390625,
+      "bytesPerBlock": 2.46,
+      "allocationMiBPerAudioSecond": 0.00011730194091796875
+    },
+    {
+      "name": "DSP Chipmunk",
+      "iterations": 400,
+      "wallMs": 41.5789,
+      "cpuMs": 46.875,
+      "msPerBlock": 0.10394724999999999,
+      "oneCoreRealtimePercent": 0.5859375,
+      "bytesPerBlock": 2.46,
+      "allocationMiBPerAudioSecond": 0.00011730194091796875
+    },
+    {
+      "name": "DSP Giant",
+      "iterations": 400,
+      "wallMs": 46.0491,
+      "cpuMs": 46.875,
+      "msPerBlock": 0.11512275000000001,
+      "oneCoreRealtimePercent": 0.5859375,
+      "bytesPerBlock": 2.46,
+      "allocationMiBPerAudioSecond": 0.00011730194091796875
+    },
+    {
+      "name": "DSP Ghost",
+      "iterations": 400,
+      "wallMs": 33.2294,
+      "cpuMs": 46.875,
+      "msPerBlock": 0.0830735,
+      "oneCoreRealtimePercent": 0.5859375,
+      "bytesPerBlock": 2.46,
+      "allocationMiBPerAudioSecond": 0.00011730194091796875
+    },
+    {
+      "name": "DSP Stutter",
+      "iterations": 400,
+      "wallMs": 24.3436,
+      "cpuMs": 15.625,
+      "msPerBlock": 0.060858999999999996,
+      "oneCoreRealtimePercent": 0.1953125,
+      "bytesPerBlock": 2.46,
+      "allocationMiBPerAudioSecond": 0.00011730194091796875
+    },
+    {
+      "name": "DSP Wobbly",
+      "iterations": 400,
+      "wallMs": 34.9623,
+      "cpuMs": 31.25,
+      "msPerBlock": 0.08740575,
+      "oneCoreRealtimePercent": 0.390625,
+      "bytesPerBlock": 2.46,
+      "allocationMiBPerAudioSecond": 0.00011730194091796875
+    },
+    {
+      "name": "DSP GenderMale",
+      "iterations": 400,
+      "wallMs": 53.8609,
+      "cpuMs": 62.5,
+      "msPerBlock": 0.13465225,
+      "oneCoreRealtimePercent": 0.78125,
+      "bytesPerBlock": 2.46,
+      "allocationMiBPerAudioSecond": 0.00011730194091796875
+    },
+    {
+      "name": "DSP GenderFemale",
+      "iterations": 400,
+      "wallMs": 53.6829,
+      "cpuMs": 46.875,
+      "msPerBlock": 0.13420725,
+      "oneCoreRealtimePercent": 0.5859375,
+      "bytesPerBlock": 2.46,
+      "allocationMiBPerAudioSecond": 0.00011730194091796875
+    },
+    {
+      "name": "DSP Possessed",
+      "iterations": 400,
+      "wallMs": 52.1701,
+      "cpuMs": 46.875,
+      "msPerBlock": 0.13042525,
+      "oneCoreRealtimePercent": 0.5859375,
+      "bytesPerBlock": 2.46,
+      "allocationMiBPerAudioSecond": 0.00011730194091796875
+    },
+    {
+      "name": "DSP Megaphone",
+      "iterations": 400,
+      "wallMs": 30.4268,
+      "cpuMs": 31.25,
+      "msPerBlock": 0.076067,
+      "oneCoreRealtimePercent": 0.390625,
+      "bytesPerBlock": 2.46,
+      "allocationMiBPerAudioSecond": 0.00011730194091796875
+    },
+    {
+      "name": "DSP Helicopter",
+      "iterations": 400,
+      "wallMs": 32.1132,
+      "cpuMs": 31.25,
+      "msPerBlock": 0.080283,
+      "oneCoreRealtimePercent": 0.390625,
+      "bytesPerBlock": 2.46,
+      "allocationMiBPerAudioSecond": 0.00011730194091796875
+    },
+    {
+      "name": "DSP Cyborg",
+      "iterations": 400,
+      "wallMs": 39.6689,
+      "cpuMs": 46.875,
+      "msPerBlock": 0.09917225,
+      "oneCoreRealtimePercent": 0.5859375,
+      "bytesPerBlock": 2.46,
+      "allocationMiBPerAudioSecond": 0.00011730194091796875
+    },
+    {
+      "name": "DSP BrokenRadio",
+      "iterations": 400,
+      "wallMs": 30.8579,
+      "cpuMs": 31.25,
+      "msPerBlock": 0.07714475,
+      "oneCoreRealtimePercent": 0.390625,
+      "bytesPerBlock": 2.46,
+      "allocationMiBPerAudioSecond": 0.00011730194091796875
+    },
+    {
+      "name": "DSP Vocoder",
+      "iterations": 400,
+      "wallMs": 86.6597,
+      "cpuMs": 78.125,
+      "msPerBlock": 0.21664925000000002,
+      "oneCoreRealtimePercent": 0.9765625,
+      "bytesPerBlock": 2.46,
+      "allocationMiBPerAudioSecond": 0.00011730194091796875
+    },
+    {
+      "name": "Capture conversion 48k stereo",
+      "iterations": 4000,
+      "wallMs": 22.1328,
+      "cpuMs": 31.25,
+      "msPerBlock": 0.0055332,
+      "oneCoreRealtimePercent": 0.0390625,
+      "bytesPerBlock": 7704.298,
+      "allocationMiBPerAudioSecond": 0.3673695564270019
+    },
+    {
+      "name": "Queue add/read two routes",
+      "iterations": 4000,
+      "wallMs": 39.7873,
+      "cpuMs": 31.25,
+      "msPerBlock": 0.009946825000000001,
+      "oneCoreRealtimePercent": 0.0390625,
+      "bytesPerBlock": 0.246,
+      "allocationMiBPerAudioSecond": 1.1730194091796876E-05
+    },
+    {
+      "name": "Soundboard two routes, voices=0",
+      "iterations": 2000,
+      "wallMs": 0.1584,
+      "cpuMs": 0,
+      "msPerBlock": 7.92E-05,
+      "oneCoreRealtimePercent": 0,
+      "bytesPerBlock": 0.492,
+      "allocationMiBPerAudioSecond": 2.346038818359375E-05
+    },
+    {
+      "name": "Soundboard two routes, voices=1",
+      "iterations": 2000,
+      "wallMs": 11.9141,
+      "cpuMs": 0,
+      "msPerBlock": 0.005957049999999999,
+      "oneCoreRealtimePercent": 0,
+      "bytesPerBlock": 15408.596,
+      "allocationMiBPerAudioSecond": 0.7347391128540038
+    },
+    {
+      "name": "Soundboard two routes, voices=8",
+      "iterations": 2000,
+      "wallMs": 62.9355,
+      "cpuMs": 62.5,
+      "msPerBlock": 0.031467749999999996,
+      "oneCoreRealtimePercent": 0.15625,
+      "bytesPerBlock": 123264.596,
+      "allocationMiBPerAudioSecond": 5.877713966369629
+    },
+    {
+      "name": "Soundboard two routes, voices=32",
+      "iterations": 2000,
+      "wallMs": 255.5534,
+      "cpuMs": 250,
+      "msPerBlock": 0.1277767,
+      "oneCoreRealtimePercent": 0.625,
+      "bytesPerBlock": 493056.596,
+      "allocationMiBPerAudioSecond": 23.51077060699463
+    },
+    {
+      "name": "One-route completion after 62s of 60s sound",
+      "stillActive": true,
+      "status": {
+        "IsActive": true,
+        "IsPaused": false,
+        "CurrentSeconds": 0,
+        "DurationSeconds": 60
+      }
+    },
+    {
+      "name": "Cache 3 x 60s mono PCM16 -\u003E 48k stereo float",
+      "retainedMiB": 65.91897583007812,
+      "totalAllocatedMiB": 207.68338775634766,
+      "decodeWallMs": 74.3313
+    },
+    {
+      "name": "Cache cleared",
+      "retainedMiB": 7.62939453125E-06
+    },
+    {
+      "name": "ReplaceSoundFile with locked source",
+      "error": "IOException",
+      "oldFileSurvived": false,
+      "libraryStillReferencesOldFile": true
+    }
+  ]
+}

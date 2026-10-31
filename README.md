@@ -1,4 +1,6 @@
-﻿# VoiSee 12.4.0
+# VoiSee 14.1.1
+
+Memory, storage and audio-session foundations based on 12.5.1. See [14.1.1 release notes](docs/RELEASE_NOTES_14_1_1.md) and the [series specification](docs/SPEC_14_DRAFT.md).
 
 > **12.4.0 buildfix 1:** keeps the validated Per-Monitor V2 DPI fix, fixes SoundBoard right-click without rebuilding/resetting the native ListView, and removes the Media Bridge scroll container entirely.
 
@@ -138,13 +140,13 @@ Set-ExecutionPolicy -Scope Process Bypass
 Expected installer:
 
 ```text
-artifacts\installer\VoiSee-Setup-12.4.0-x64.exe
+artifacts\installer\14.1.1\VoiSee-Setup-14.1.1-x64.exe
 ```
 
 Portable build:
 
 ```text
-artifacts\installer\VoiSee-Portable-12.4.0-x64.zip
+artifacts\installer\14.1.1\VoiSee-Portable-14.1.1-x64.zip
 ```
 
 ## Native XAML themes (VoiSee 10.1)

@@ -1,0 +1,12 @@
+{
+  "mode": "DeepFilterNet",
+  "wallMs": 5008.0548,
+  "cpuMs": 671.875,
+  "oneCorePercent": 13.415887541805652,
+  "maxBlockMs": 16.616,
+  "privateMiB": 49.4140625,
+  "workingSetMiB": 105.3984375,
+  "privateDeltaMiB": 41.19921875,
+  "workingSetDeltaMiB": 81.14453125,
+  "note": "Synthetic paced 48k stereo audio; dedicated console process, no UI or audio devices"
+}

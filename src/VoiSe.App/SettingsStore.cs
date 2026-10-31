@@ -32,8 +32,7 @@ public sealed class SettingsStore
                 return new VoiSeUserSettings();
             }
 
-            var json = File.ReadAllText(SettingsPath);
-            var settings = JsonSerializer.Deserialize<VoiSeUserSettings>(json, JsonOptions);
+            var settings = AtomicFile.ReadJson<VoiSeUserSettings>(SettingsPath, JsonOptions);
             return settings ?? new VoiSeUserSettings();
         }
         catch (Exception ex)
@@ -49,11 +48,12 @@ public sealed class SettingsStore
         {
             Directory.CreateDirectory(DataDirectory);
             var json = JsonSerializer.Serialize(settings, JsonOptions);
-            File.WriteAllText(SettingsPath, json);
+            AtomicFile.WriteAllText(SettingsPath, json);
         }
         catch (Exception ex)
         {
             StartupLog.Write("Settings save error: " + ex);
+            throw;
         }
     }
 }

@@ -30,14 +30,30 @@ public sealed class Gate2UnifiedAudioEngine : IDisposable
     private bool _virtualMicMuted;
     private readonly object _voiceMonitorRouteSync = new();
     private bool _voiceMonitorRouteEnabled;
-    private bool _disposed;
+    private volatile bool _disposed, _running;
+    private bool _started;
+    private readonly bool _ownsDevices;
+    private readonly object _lifecycle = new();
+    private readonly object _processing = new();
+    private long _mediaGeneration;
+    public event Action<string>? Faulted;
+    public string? LastError { get; private set; }
+    private int _faultReported;
+    private void ReportFault(Exception error)
+    {
+        if (Interlocked.Exchange(ref _faultReported, 1) != 0) return;
+        _running = false;
+        LastError = error.Message;
+        try { Faulted?.Invoke(error.Message); } catch { /* No exception escapes a native callback. */ }
+    }
 
     public Gate2UnifiedAudioEngine(
         MMDevice inputDevice,
         MMDevice virtualOutputDevice,
         MMDevice? monitorDevice,
-        EffectSettings settings)
+        EffectSettings settings, bool ownsDevices = false)
     {
+        _ownsDevices = ownsDevices;
         _inputDevice = inputDevice;
         _virtualOutputDevice = virtualOutputDevice;
         _monitorDevice = monitorDevice;
@@ -50,11 +66,12 @@ public sealed class Gate2UnifiedAudioEngine : IDisposable
         var maxSamples = _mixFormat.SampleRate * _mixFormat.Channels * 2;
         _virtualMicQueue = new FloatSampleQueue(maxSamples);
         _monitorMicQueue = new FloatSampleQueue(maxSamples);
-        _soundboard = new SoundboardTransport(_mixFormat);
+        _soundboard = new SoundboardTransport(_mixFormat, monitorDevice is not null);
         _mediaBridge = new MediaBridgeTransport(_mixFormat);
     }
 
     public WaveFormat MixFormat => _mixFormat;
+    public string? SoundPlaybackError => _soundboard.LastError;
 
     public bool NoiseSuppressionAvailable => _settings.NoiseSuppressionMode switch
     {
@@ -90,13 +107,29 @@ public sealed class Gate2UnifiedAudioEngine : IDisposable
 
     public void Start()
     {
+        lock (_lifecycle)
+        {
+            ObjectDisposedException.ThrowIf(_disposed, this);
+            if (_started) throw new InvalidOperationException("Create a new engine for a new audio session.");
+            _started = true;
+            try
+            {
+                StartCore();
+                if (_faultReported != 0) throw new InvalidOperationException(LastError ?? "Audio startup failed.");
+                _running = true;
+            }
+            catch (Exception ex) { ReportFault(ex); throw; }
+        }
+    }
+    private void StartCore()
+    {
         _capture = new WasapiCapture(_inputDevice, true, 20);
         _capture.DataAvailable += OnDataAvailable;
         _capture.RecordingStopped += (_, args) =>
         {
             if (args.Exception is not null)
             {
-                Console.Error.WriteLine($"Recording stopped with error: {args.Exception.Message}");
+                if (_running) ReportFault(args.Exception);
             }
         };
 
@@ -124,6 +157,7 @@ public sealed class Gate2UnifiedAudioEngine : IDisposable
         _virtualProvider.SetVirtualMicMuted(_virtualMicMuted);
 
         _virtualOutput = new WasapiOut(_virtualOutputDevice, AudioClientShareMode.Shared, true, 50);
+        _virtualOutput.PlaybackStopped += OnPlaybackStopped;
         _virtualOutput.Init(new SampleToWaveProvider(_virtualProvider));
         _virtualOutput.Play();
 
@@ -138,6 +172,7 @@ public sealed class Gate2UnifiedAudioEngine : IDisposable
                 _settings);
 
             _monitorOutput = new WasapiOut(_monitorDevice, AudioClientShareMode.Shared, true, 50);
+            _monitorOutput.PlaybackStopped += OnPlaybackStopped;
             _monitorOutput.Init(new SampleToWaveProvider(_monitorProvider));
             _monitorOutput.Play();
         }
@@ -153,46 +188,43 @@ public sealed class Gate2UnifiedAudioEngine : IDisposable
             throw new ArgumentOutOfRangeException(nameof(processId));
         }
 
+        long generation;
         StopMediaBridge();
-        _mediaBridgeError = null;
-        _mediaBridge.Clear();
-
-        var capture = new ProcessLoopbackCapture();
-        capture.SamplesAvailable += samples => _mediaBridge.AddSamples(samples);
-        capture.CaptureStopped += error =>
+        lock (_lifecycle)
         {
-            if (error is not null)
-            {
-                _mediaBridgeError = error.Message;
-            }
-        };
-
+            ObjectDisposedException.ThrowIf(_disposed || !_running, this);
+            generation = ++_mediaGeneration;
+        }
+        var capture = new ProcessLoopbackCapture();
+        capture.SamplesAvailable += samples => { if (ReferenceEquals(_mediaBridgeCapture, capture)) _mediaBridge.AddSamples(samples); };
+        capture.CaptureStopped += error => { if (ReferenceEquals(_mediaBridgeCapture, capture) && error is not null) _mediaBridgeError = error.Message; };
         try
         {
             await capture.StartAsync((uint)processId).ConfigureAwait(false);
-            _mediaBridgeCapture = capture;
+            lock (_lifecycle)
+            {
+                if (_disposed || !_running || generation != _mediaGeneration)
+                    throw new OperationCanceledException("Media capture was stopped before activation completed.");
+                _mediaBridgeCapture = capture;
+            }
         }
-        catch
-        {
-            capture.Dispose();
-            throw;
-        }
+        catch { capture.Dispose(); throw; }
     }
 
     public void StopMediaBridge()
     {
-        var capture = _mediaBridgeCapture;
-        _mediaBridgeCapture = null;
-        _mediaBridgeError = null;
-        try
+        ProcessLoopbackCapture? capture;
+        lock (_lifecycle)
         {
-            capture?.Dispose();
+            _mediaGeneration++;
+            capture = _mediaBridgeCapture; _mediaBridgeCapture = null; _mediaBridgeError = null;
         }
-        finally
-        {
-            _mediaBridge.Clear();
-        }
+        try { capture?.Dispose(); }
+        finally { _mediaBridge.Clear(); }
     }
+
+    private void OnPlaybackStopped(object? sender, StoppedEventArgs args)
+    { if (_running && args.Exception is not null) ReportFault(args.Exception); }
 
     public bool ToggleMediaBridgePause()
     {
@@ -224,7 +256,7 @@ public sealed class Gate2UnifiedAudioEngine : IDisposable
 
     public Task PreloadSoundAsync(string filePath)
     {
-        return SoundFileLoader.PreloadToFormatAsync(filePath, _mixFormat);
+        return _disposed ? Task.CompletedTask : SoundFileLoader.PreloadToFormatAsync(filePath, _mixFormat);
     }
 
     public void StopSound(string? playbackKey = null)
@@ -298,78 +330,93 @@ public sealed class Gate2UnifiedAudioEngine : IDisposable
         _soundboard.UpdateLoop(loop, playbackKey);
     }
 
+    private static void Cleanup(Action action)
+    {
+        try { action(); } catch (Exception ex) { Console.Error.WriteLine("Audio cleanup: " + ex.Message); }
+    }
     public void Stop()
     {
-        StopMediaBridge();
-        _soundboard.Stop();
-        _capture?.StopRecording();
-        _virtualOutput?.Stop();
-        _monitorOutput?.Stop();
-        _virtualMicQueue.Clear();
-        _monitorMicQueue.Clear();
+        lock (_lifecycle)
+        {
+            _running = false;
+            Cleanup(StopMediaBridge);
+            Cleanup(() => _soundboard.Stop());
+            Cleanup(() => _capture?.StopRecording());
+            Cleanup(() => _virtualOutput?.Stop());
+            Cleanup(() => _monitorOutput?.Stop());
+            lock (_processing) { _virtualMicQueue.Clear(); _monitorMicQueue.Clear(); }
+        }
     }
 
     private void OnDataAvailable(object? sender, WaveInEventArgs e)
     {
-        if (_processor is null || _capture is null)
+        lock (_processing)
         {
-            return;
-        }
-
-        try
-        {
-            var targetSamples = AudioFormatConverter.CaptureBufferToTargetStereoFloat(
-                e.Buffer,
-                e.BytesRecorded,
-                _capture.WaveFormat,
-                _mixFormat);
-
-            // Noise suppression is intentionally microphone-only and remains
-            // outside voice presets. Exactly one cleanup engine runs before
-            // gate/compressor and the preset-controlled effects.
-            switch (_settings.NoiseSuppressionMode)
+            if (_disposed || !_running || _processor is null || _capture is null)
             {
-                case NoiseSuppressionMode.RnNoise:
-                    _rnNoiseSuppressor?.ProcessInPlace(targetSamples);
-                    break;
-                case NoiseSuppressionMode.DeepFilterNet:
-                    _deepFilterNetSuppressor?.ProcessInPlace(targetSamples);
-                    break;
+                return;
             }
-            _processor.ProcessInPlace(targetSamples);
-            _virtualMicQueue.Add(targetSamples);
 
-            // Voice Monitor Off is a hard route disconnect, not only a zero gain.
-            // This prevents processed microphone audio and stale queued samples
-            // from reaching a physical render session that an application screen
-            // share may capture. SoundBoard monitoring uses its own route.
-            lock (_voiceMonitorRouteSync)
+            try
             {
-                if (_voiceMonitorRouteEnabled)
+                var targetSamples = AudioFormatConverter.CaptureBufferToTargetStereoFloat(
+                    e.Buffer,
+                    e.BytesRecorded,
+                    _capture.WaveFormat,
+                    _mixFormat);
+
+                // Noise suppression is intentionally microphone-only and remains
+                // outside voice presets. Exactly one cleanup engine runs before
+                // gate/compressor and the preset-controlled effects.
+                switch (_settings.NoiseSuppressionMode)
                 {
-                    _monitorMicQueue.Add(targetSamples);
+                    case NoiseSuppressionMode.RnNoise:
+                        _rnNoiseSuppressor?.ProcessInPlace(targetSamples);
+                        break;
+                    case NoiseSuppressionMode.DeepFilterNet:
+                        _deepFilterNetSuppressor?.ProcessInPlace(targetSamples);
+                        break;
+                }
+                _processor.ProcessInPlace(targetSamples);
+                _virtualMicQueue.Add(targetSamples);
+
+                // Voice Monitor Off is a hard route disconnect, not only a zero gain.
+                // This prevents processed microphone audio and stale queued samples
+                // from reaching a physical render session that an application screen
+                // share may capture. SoundBoard monitoring uses its own route.
+                lock (_voiceMonitorRouteSync)
+                {
+                    if (_voiceMonitorRouteEnabled)
+                    {
+                        _monitorMicQueue.Add(targetSamples);
+                    }
                 }
             }
-        }
-        catch (NotSupportedException ex)
-        {
-            Console.Error.WriteLine($"Capture format is not supported: {ex.Message}");
+            catch (Exception ex) { ReportFault(ex); }
         }
     }
 
     public void Dispose()
     {
-        if (_disposed)
+        lock (_lifecycle)
         {
-            return;
+            if (_disposed) return;
+            _disposed = true;
+            Stop();
+            lock (_processing)
+            {
+                Cleanup(() => _capture?.Dispose());
+                Cleanup(() => _virtualOutput?.Dispose());
+                Cleanup(() => _monitorOutput?.Dispose());
+                Cleanup(() => _rnNoiseSuppressor?.Dispose());
+                Cleanup(() => _deepFilterNetSuppressor?.Dispose());
+                Cleanup(_soundboard.Dispose);
+                if (_ownsDevices)
+                {
+                    Cleanup(_inputDevice.Dispose); Cleanup(_virtualOutputDevice.Dispose);
+                    Cleanup(() => _monitorDevice?.Dispose());
+                }
+            }
         }
-
-        Stop();
-        _capture?.Dispose();
-        _virtualOutput?.Dispose();
-        _monitorOutput?.Dispose();
-        _rnNoiseSuppressor?.Dispose();
-        _deepFilterNetSuppressor?.Dispose();
-        _disposed = true;
     }
 }

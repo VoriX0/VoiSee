@@ -34,7 +34,7 @@ public sealed class RnNoiseSuppressionProcessor : IDisposable
     {
         _strength = Math.Clamp(strength, 0.0f, 1.0f);
         _enabled = enabled ? 1 : 0;
-        TryCreateDenoiser();
+        if (enabled) TryCreateDenoiser();
     }
 
     public bool IsAvailable => _denoiser is not null;

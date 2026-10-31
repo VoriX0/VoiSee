@@ -1,4 +1,4 @@
-﻿using Microsoft.UI.Windowing;
+using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Controls.Primitives;
@@ -248,7 +248,7 @@ public sealed partial class MainWindow : Window
         };
         _discordCableSessionIsolationTimer.Tick += OnDiscordCableSessionIsolationTimerTick;
 
-        AppendLog("VoiSee Version 12.5.1 UI started.");
+        AppendLog("VoiSee Version 14.1.1 UI started.");
         AppendLog($"Settings path: {_settingsStore.SettingsPath}");
 
         var isolationResult = _discordCableSessionIsolationService.Enable();
@@ -337,7 +337,8 @@ public sealed partial class MainWindow : Window
             if (migration.ActiveThemeWasLegacyCss)
             {
                 _settings.ThemeFilePath = null;
-                _settingsStore.Save(_settings);
+                try { _settingsStore.Save(_settings); }
+        catch (Exception storageError) { AppendLog("Settings were not saved: " + storageError.Message); }
             }
 
             PopulateThemeComboBox();
@@ -442,7 +443,8 @@ public sealed partial class MainWindow : Window
             if (!string.IsNullOrWhiteSpace(_settings.ThemeFilePath) && !File.Exists(_settings.ThemeFilePath))
             {
                 _settings.ThemeFilePath = null;
-                _settingsStore.Save(_settings);
+                try { _settingsStore.Save(_settings); }
+        catch (Exception storageError) { AppendLog("Settings were not saved: " + storageError.Message); }
                 PopulateThemeComboBox();
                 WatchActiveThemeFile();
             }
@@ -470,7 +472,8 @@ public sealed partial class MainWindow : Window
             // active dictionary, so the previous working theme is still visible.
             _activeTheme = previousTheme;
             _settings.ThemeFilePath = previousTheme.SourcePath;
-            _settingsStore.Save(_settings);
+            try { _settingsStore.Save(_settings); }
+        catch (Exception storageError) { AppendLog("Settings were not saved: " + storageError.Message); }
             SelectThemeComboItem(previousTheme.SourcePath);
             WatchActiveThemeFile();
 
@@ -646,7 +649,8 @@ public sealed partial class MainWindow : Window
         UpdateThemeControls();
 
         _settings.ThemeFilePath = item.IsDefault ? null : item.FilePath;
-        _settingsStore.Save(_settings);
+        try { _settingsStore.Save(_settings); }
+        catch (Exception storageError) { AppendLog("Settings were not saved: " + storageError.Message); }
         ApplyThemeFromSettings();
         WatchActiveThemeFile();
     }
@@ -657,7 +661,8 @@ public sealed partial class MainWindow : Window
         {
             var path = _themeManager.CreateNewThemeFile();
             _settings.ThemeFilePath = path;
-            _settingsStore.Save(_settings);
+            try { _settingsStore.Save(_settings); }
+        catch (Exception storageError) { AppendLog("Settings were not saved: " + storageError.Message); }
             PopulateThemeComboBox();
             ApplyThemeFromSettings();
             WatchActiveThemeFile();
@@ -808,7 +813,8 @@ public sealed partial class MainWindow : Window
             if (wasActive)
             {
                 _settings.ThemeFilePath = newPath;
-                _settingsStore.Save(_settings);
+                try { _settingsStore.Save(_settings); }
+        catch (Exception storageError) { AppendLog("Settings were not saved: " + storageError.Message); }
             }
 
             PopulateThemeComboBox();
@@ -900,7 +906,8 @@ public sealed partial class MainWindow : Window
             if (wasActive)
             {
                 _settings.ThemeFilePath = null;
-                _settingsStore.Save(_settings);
+                try { _settingsStore.Save(_settings); }
+        catch (Exception storageError) { AppendLog("Settings were not saved: " + storageError.Message); }
                 _themeFileWatcher?.Dispose();
                 _themeFileWatcher = null;
                 _watchedThemePath = null;
@@ -934,7 +941,8 @@ public sealed partial class MainWindow : Window
 
             var path = _themeManager.ImportTheme(file.Path);
             _settings.ThemeFilePath = path;
-            _settingsStore.Save(_settings);
+            try { _settingsStore.Save(_settings); }
+        catch (Exception storageError) { AppendLog("Settings were not saved: " + storageError.Message); }
             PopulateThemeComboBox();
             ApplyThemeFromSettings();
             WatchActiveThemeFile();
@@ -979,7 +987,8 @@ public sealed partial class MainWindow : Window
     private void OnResetThemeClick(object sender, RoutedEventArgs e)
     {
         _settings.ThemeFilePath = null;
-        _settingsStore.Save(_settings);
+        try { _settingsStore.Save(_settings); }
+        catch (Exception storageError) { AppendLog("Settings were not saved: " + storageError.Message); }
         PopulateThemeComboBox();
         ApplyThemeFromSettings();
         WatchActiveThemeFile();
@@ -1265,12 +1274,9 @@ public sealed partial class MainWindow : Window
     private void WarmSoundCacheInBackground(IEnumerable<string>? paths = null)
     {
         var engine = _engine;
-        if (engine is null)
-        {
-            return;
-        }
+        if (engine is null || paths is null) return;
 
-        var soundPaths = (paths ?? _library.Sounds.Select(sound => sound.FilePath))
+        var soundPaths = paths
             .Where(path => !string.IsNullOrWhiteSpace(path) && File.Exists(path))
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToList();
@@ -1401,7 +1407,8 @@ public sealed partial class MainWindow : Window
         _settings.MediaBridgeLastWindowTitle = selected.WindowTitle;
         var profile = UpsertMediaBridgeProfile(selected);
         _settings.MediaBridgeLastProfileId = profile.Id;
-        _settingsStore.Save(_settings);
+        try { _settingsStore.Save(_settings); }
+        catch (Exception storageError) { AppendLog("Settings were not saved: " + storageError.Message); }
         UpdateMediaBridgeSavedProfileText();
         RefreshSceneMediaProfileComboBox();
         UpdateMediaBridgeUiState("Ready");
@@ -1596,7 +1603,8 @@ public sealed partial class MainWindow : Window
         if (!_loadingSettings)
         {
             _settings.MediaBridgeVirtualMicVolume = e.NewValue;
-            _settingsStore.Save(_settings);
+            try { _settingsStore.Save(_settings); }
+        catch (Exception storageError) { AppendLog("Settings were not saved: " + storageError.Message); }
         }
     }
 
@@ -1609,6 +1617,8 @@ public sealed partial class MainWindow : Window
             AppendLog($"Media Bridge source window was closed: {selected.DisplayName}.");
             return;
         }
+
+        if (_windowHiddenToTray || !ReferenceEquals(MainTabView.SelectedItem, MediaBridgeTabViewItem)) return;
 
         var engine = _engine;
         var broadcasting = engine?.IsMediaBridgeBroadcasting == true;
@@ -3116,7 +3126,8 @@ public sealed partial class MainWindow : Window
         _settings.DisableSceneHotkey = NormalizeOptionalHotkey(GetHotkeyButtonValue(disableSceneButton));
         _settings.VirtualMicMuteHotkey = NormalizeOptionalHotkey(GetHotkeyButtonValue(virtualMicMuteButton));
         _settings.MediaBridgePauseHotkey = NormalizeOptionalHotkey(GetHotkeyButtonValue(mediaBridgePauseButton));
-        _settingsStore.Save(_settings);
+        try { _settingsStore.Save(_settings); }
+        catch (Exception storageError) { AppendLog("Settings were not saved: " + storageError.Message); }
         UpdateTransportHotkeySummary();
         AppendLog("Hotkeys updated.");
     }
@@ -3818,6 +3829,8 @@ public sealed partial class MainWindow : Window
         _manualStopRequested = true;
         SaveCurrentSettings();
         StopEngine(log: false);
+        _routeRestartTimer.Stop();
+        _voiceSettingsApplyTimer.Stop();
         _timelineTimer.Stop();
         _mediaBridgeUiTimer.Stop();
         _discordCableSessionIsolationTimer.Stop();
@@ -3856,6 +3869,10 @@ public sealed partial class MainWindow : Window
 
     private void RefreshDevices(bool saveAfterRefresh = true)
     {
+        var wasRunning = _engine is not null;
+        var oldInput = (InputDeviceComboBox.SelectedItem as AudioDeviceInfo)?.Id;
+        var oldMonitor = (MonitorOutputComboBox.SelectedItem as AudioDeviceInfo)?.Id;
+        var oldVirtual = (VirtualOutputComboBox.SelectedItem as AudioDeviceInfo)?.Id;
         _refreshingDevices = true;
         try
         {
@@ -3863,6 +3880,21 @@ public sealed partial class MainWindow : Window
             var captureDevices = _catalog.ListCaptureDevices();
             var renderDevices = _catalog.ListRenderDevices();
             ApplyDeviceLists(captureDevices, renderDevices, saveAfterRefresh);
+            if (saveAfterRefresh)
+            {
+                if (oldInput is not null && !captureDevices.Any(d => d.Id == oldInput)) InputDeviceComboBox.SelectedItem = null;
+                if (oldMonitor is not null && !renderDevices.Any(d => d.Id == oldMonitor)) MonitorOutputComboBox.SelectedItem = null;
+                SaveCurrentSettings();
+            }
+            if (wasRunning && (oldInput != (InputDeviceComboBox.SelectedItem as AudioDeviceInfo)?.Id
+                || oldMonitor != (MonitorOutputComboBox.SelectedItem as AudioDeviceInfo)?.Id
+                || oldVirtual != (VirtualOutputComboBox.SelectedItem as AudioDeviceInfo)?.Id))
+            {
+                StopEngine(log: true);
+                if (InputDeviceComboBox.SelectedItem is not null && VirtualOutputComboBox.SelectedItem is not null)
+                    StartEngine(logAlreadyRunning: false);
+                else AppendLog("Selected audio device was disconnected. Select an available device to resume.");
+            }
         }
         finally
         {
@@ -3971,7 +4003,7 @@ public sealed partial class MainWindow : Window
             RebuildSceneSoundButtons();
             AppendLog($"SoundBoard library loaded: {_library.Categories.Count} categories, {_library.Sounds.Count} sounds.");
             AppendLog($"SoundBoard data: {_libraryStore.LibraryPath}");
-            WarmSoundCacheInBackground();
+            // On-demand playback: never decode the whole library on engine start.
         }
         catch (Exception ex)
         {
@@ -4422,7 +4454,7 @@ public sealed partial class MainWindow : Window
         var name = await ShowTextDialogAsync("Rename category", "Category name", category.Name);
         if (name is null) return;
 
-        _libraryStore.RenameCategory(_library, category, name);
+        if (!RunLibraryChange(() => _libraryStore.RenameCategory(_library, category, name))) return;
         RefreshCategoryControls();
         CategoryComboBox.SelectedItem = PickCategory(category.Id);
         SaveCurrentSettings();
@@ -4504,6 +4536,12 @@ public sealed partial class MainWindow : Window
             : $"Track search: {_trackSearchText}");
     }
 
+    private bool RunLibraryChange(Action change)
+    {
+        try { change(); return true; }
+        catch (Exception error) { AppendLog("Library change was not saved: " + error.Message); return false; }
+    }
+
     private void DeleteSelectedSound()
     {
         if (_selectedSound is null)
@@ -4513,7 +4551,7 @@ public sealed partial class MainWindow : Window
         }
 
         var deletedName = _selectedSound.DisplayName;
-        _libraryStore.DeleteSound(_library, _selectedSound, deleteFile: true);
+        if (!RunLibraryChange(() => _libraryStore.DeleteSound(_library, _selectedSound, deleteFile: true))) return;
         _selectedSound = null;
         _soundFilePath = null;
         _settings.LastSoundId = null;
@@ -4646,7 +4684,7 @@ public sealed partial class MainWindow : Window
             _selectedSound.Hotkey);
         if (hotkey is null) return;
         var normalized = NormalizeOptionalHotkey(hotkey);
-        _libraryStore.SetHotkey(_library, _selectedSound, normalized);
+        if (!RunLibraryChange(() => _libraryStore.SetHotkey(_library, _selectedSound, normalized))) return;
         RefreshSoundList();
         SaveCurrentSettings();
         AppendLog($"Hotkey assigned: {_selectedSound.DisplayName} -> {normalized ?? "none"}");
@@ -4657,7 +4695,7 @@ public sealed partial class MainWindow : Window
         if (_selectedSound is null) return;
         var name = await ShowTextDialogAsync("Rename track", "Display name", _selectedSound.DisplayName);
         if (name is null) return;
-        _libraryStore.RenameSound(_library, _selectedSound, name);
+        if (!RunLibraryChange(() => _libraryStore.RenameSound(_library, _selectedSound, name))) return;
         RefreshSoundList();
         RebuildSceneSoundButtons();
         SaveCurrentSettings();
@@ -6410,20 +6448,24 @@ public sealed partial class MainWindow : Window
             return false;
         }
 
-        var input = _catalog.FindCaptureDevice(inputInfo.Id);
-        var virtualOutput = _catalog.FindRenderDevice(virtualInfo.Id);
-        var monitor = monitorInfo is null ? null : _catalog.FindRenderDevice(monitorInfo.Id);
-
-        if (input is null || virtualOutput is null)
-        {
-            AppendLog("Selected devices are not available anymore. Refresh devices and try again.");
-            return false;
-        }
-
+        MMDevice? input = null, virtualOutput = null, monitor = null;
         try
         {
+            input = _catalog.FindCaptureDevice(inputInfo.Id);
+            virtualOutput = _catalog.FindRenderDevice(virtualInfo.Id);
+            monitor = monitorInfo is null ? null : _catalog.FindRenderDevice(monitorInfo.Id);
+            if (input is null || virtualOutput is null)
+                throw new InvalidOperationException("Selected devices are no longer available. Refresh devices and select an available microphone.");
             SaveCurrentSettings();
-            _engine = new Gate2UnifiedAudioEngine(input, virtualOutput, monitor, CreateEffectSettings());
+            _engine = new Gate2UnifiedAudioEngine(input, virtualOutput, monitor, CreateEffectSettings(), ownsDevices: true);
+            var startedEngine = _engine;
+            _engine.Faulted += error => DispatcherQueue.TryEnqueue(() =>
+            {
+                if (!ReferenceEquals(_engine, startedEngine) || _exitRequested) return;
+                AppendLog("Audio engine error: " + error);
+                StopEngine(log: false);
+                EngineStatusTextBlock.Text = "Error — refresh devices to resume";
+            });
             _engine.Start();
             _engine.SetVirtualMicMuted(_virtualMicMuted);
             _engine.UpdateMediaBridgeVolume((float)(MediaBridgeVolumeSlider?.Value ?? _settings.MediaBridgeVirtualMicVolume));
@@ -6439,13 +6481,14 @@ public sealed partial class MainWindow : Window
                     ? $"Noise suppression: {_engine.ActiveNoiseSuppressionName} active at {(int)Math.Round(NoiseSuppressionStrengthSlider?.Value ?? 70.0)}%."
                     : $"Noise suppression unavailable: {_engine.NoiseSuppressionError ?? $"{_engine.ActiveNoiseSuppressionName} could not be initialized"}.");
             }
-            WarmSoundCacheInBackground();
+            // On-demand playback: never decode the whole library on engine start.
             RefreshAdvancedSettingsStatus();
             return true;
         }
         catch (Exception ex)
         {
-            _engine?.Dispose();
+            try { _engine?.Dispose(); } catch (Exception cleanup) { StartupLog.Write("Engine rollback: " + cleanup); }
+            if (_engine is null) { input?.Dispose(); virtualOutput?.Dispose(); monitor?.Dispose(); }
             _engine = null;
             EngineStatusTextBlock.Text = "Error";
             AppendLog($"Engine start error: {ex.Message}");
@@ -6834,7 +6877,7 @@ public sealed partial class MainWindow : Window
 
                         if (librarySound is not null)
                         {
-                            _libraryStore.IncrementUsage(_library, librarySound);
+                            if (!RunLibraryChange(() => _libraryStore.IncrementUsage(_library, librarySound))) return;
                         }
 
                         UpdateBottomStats();
@@ -8694,8 +8737,14 @@ public sealed partial class MainWindow : Window
         CurrentTimeTextBlock.Text = FormatTime(seconds);
     }
 
+    private string? _lastSoundPlaybackError;
     private void OnTimelineTimerTick(object? sender, object e)
     {
+        var playbackError = _engine?.SoundPlaybackError;
+        if (playbackError is not null && playbackError != _lastSoundPlaybackError)
+        { _lastSoundPlaybackError = playbackError; AppendLog("Sound decoder error: " + playbackError); }
+        if (playbackError is null) _lastSoundPlaybackError = null;
+        if (_windowHiddenToTray) return;
         UpdateTimeline();
         UpdateSceneTimelines();
     }
@@ -10761,7 +10810,8 @@ public sealed partial class MainWindow : Window
         _settings.MediaBridgeLastProfileId = profile.Id;
         _settings.MediaBridgeLastProcessName = window.ProcessName;
         _settings.MediaBridgeLastWindowTitle = window.WindowTitle;
-        _settingsStore.Save(_settings);
+        try { _settingsStore.Save(_settings); }
+        catch (Exception storageError) { AppendLog("Settings were not saved: " + storageError.Message); }
         UpdateMediaBridgeUiState("Ready");
         await UpdateMediaBridgePreviewAsync();
         var started = await StartMediaBridgeBroadcastAsync(scene.Id);
@@ -12291,7 +12341,8 @@ public sealed partial class MainWindow : Window
         _settings.GateThresholdDb = MapCentered(_settings.VoiceGate, -45, -70, -20);
         _settings.CompressorThresholdDb = MapCentered(_settings.VoiceCompressor, -24, -60, -6);
 
-        _settingsStore.Save(_settings);
+        try { _settingsStore.Save(_settings); }
+        catch (Exception storageError) { AppendLog("Settings were not saved: " + storageError.Message); }
     }
 
 
@@ -12316,6 +12367,7 @@ public sealed partial class MainWindow : Window
             _logBuffer.AppendLine();
         }
 
+        if (_logBuffer.Length > 64 * 1024) _logBuffer.Remove(0, _logBuffer.Length - 48 * 1024);
         _logBuffer.Append(line);
         if (_advancedLogTextBlock is not null)
         {

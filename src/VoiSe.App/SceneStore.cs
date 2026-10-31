@@ -31,8 +31,7 @@ public sealed class SceneStore
         {
             try
             {
-                var json = File.ReadAllText(file);
-                var scene = JsonSerializer.Deserialize<VoiSeScene>(json, JsonOptions);
+                var scene = AtomicFile.ReadJson<VoiSeScene>(file, JsonOptions);
                 if (scene is null || string.IsNullOrWhiteSpace(scene.Name))
                 {
                     continue;
@@ -67,7 +66,7 @@ public sealed class SceneStore
         Directory.CreateDirectory(ScenesDirectory);
         PrepareSceneForSave(scene);
         scene.FilePath = GetAvailableScenePath(scene.Name);
-        File.WriteAllText(scene.FilePath, JsonSerializer.Serialize(scene, JsonOptions));
+        AtomicFile.WriteAllText(scene.FilePath, JsonSerializer.Serialize(scene, JsonOptions));
         return scene.FilePath;
     }
 
@@ -81,7 +80,7 @@ public sealed class SceneStore
             : Path.Combine(ScenesDirectory, MakeSafeFileName(scene.Name) + ".json");
 
         scene.FilePath = path;
-        File.WriteAllText(path, JsonSerializer.Serialize(scene, JsonOptions));
+        AtomicFile.WriteAllText(path, JsonSerializer.Serialize(scene, JsonOptions));
         return path;
     }
 
@@ -99,7 +98,7 @@ public sealed class SceneStore
         }
 
         scene.FilePath = newPath;
-        File.WriteAllText(newPath, JsonSerializer.Serialize(scene, JsonOptions));
+        AtomicFile.WriteAllText(newPath, JsonSerializer.Serialize(scene, JsonOptions));
         return newPath;
     }
 

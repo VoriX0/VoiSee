@@ -2,10 +2,14 @@
 ; Build with Inno Setup 6 using scripts\build-installer.ps1
 
 #define MyAppName "VoiSee"
-#define MyAppVersion "12.5.1"
+#define MyAppVersion "14.1.1"
 #define MyAppPublisher "VoriX"
 #define MyAppURL "https://github.com/VoriX0/VoiSe"
 #define MyAppExeName "VoiSe.App.exe"
+
+#ifndef PublishSource
+#define PublishSource "..\artifacts\publish\VoiSe"
+#endif
 
 [Setup]
 AppId={{A6F859F8-6D25-4A5F-A215-343D63B8B1C9}
@@ -20,7 +24,7 @@ DefaultDirName={localappdata}\Programs\VoiSee
 DefaultGroupName=VoiSee
 DisableProgramGroupPage=yes
 PrivilegesRequired=lowest
-OutputDir=..\artifacts\installer
+OutputDir=..\artifacts\installer\{#MyAppVersion}
 OutputBaseFilename=VoiSee-Setup-{#MyAppVersion}-x64
 SetupIconFile=..\src\VoiSe.App\Assets\AppIcon.ico
 UninstallDisplayIcon={app}\{#MyAppExeName}
@@ -46,7 +50,7 @@ Name: "installvbcable"; Description: "Install VB-CABLE virtual microphone bridge
 #endif
 
 [Files]
-Source: "..\artifacts\publish\VoiSe\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs; Excludes: "settings.json,soundboard.json,voice-presets.json,data\*,sounds\*,presets\*,scenes\*,*.user,*.suo"
+Source: "{#PublishSource}\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs; Excludes: "settings.json,soundboard.json,voice-presets.json,data\*,sounds\*,presets\*,scenes\*,*.user,*.suo"
 
 [Icons]
 Name: "{autoprograms}\VoiSee"; Filename: "{app}\{#MyAppExeName}"; WorkingDir: "{app}"; IconFilename: "{app}\Assets\AppIcon.ico"

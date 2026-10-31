@@ -1,0 +1,89 @@
+{
+  "portableBytes": 145956268,
+  "portableExpandedBytes": 319430060,
+  "installerBytes": 112528518,
+  "publishBytes": 319430138,
+  "publishFiles": 786,
+  "topFiles": [
+    {
+      "path": "deep_filter_ladspa.dll",
+      "bytes": 50671104
+    },
+    {
+      "path": "Microsoft.Windows.SDK.NET.dll",
+      "bytes": 24877600
+    },
+    {
+      "path": "PresentationFramework.dll",
+      "bytes": 16127824
+    },
+    {
+      "path": "Microsoft.ui.xaml.dll",
+      "bytes": 15090208
+    },
+    {
+      "path": "System.Windows.Forms.dll",
+      "bytes": 13563728
+    },
+    {
+      "path": "System.Private.CoreLib.dll",
+      "bytes": 13174608
+    },
+    {
+      "path": "PresentationCore.dll",
+      "bytes": 8546128
+    },
+    {
+      "path": "System.Private.Xml.dll",
+      "bytes": 7997224
+    },
+    {
+      "path": "Microsoft.WinUI.dll",
+      "bytes": 7270432
+    },
+    {
+      "path": "Microsoft.UI.Xaml.Controls.dll",
+      "bytes": 6590024
+    },
+    {
+      "path": "System.Windows.Forms.Design.dll",
+      "bytes": 5564240
+    },
+    {
+      "path": "coreclr.dll",
+      "bytes": 4995880
+    },
+    {
+      "path": "D3DCompiler_47_cor3.dll",
+      "bytes": 4741488
+    },
+    {
+      "path": "System.Linq.Expressions.dll",
+      "bytes": 3675984
+    },
+    {
+      "path": "WinUIEdit.dll",
+      "bytes": 3401272
+    },
+    {
+      "path": "DWriteCore.dll",
+      "bytes": 3030048
+    },
+    {
+      "path": "System.Windows.Forms.Primitives.dll",
+      "bytes": 3012432
+    },
+    {
+      "path": "System.Data.Common.dll",
+      "bytes": 2860840
+    },
+    {
+      "path": "dwmcorei.dll",
+      "bytes": 2791424
+    },
+    {
+      "path": "DwmSceneI.dll",
+      "bytes": 2365464
+    }
+  ]
+}

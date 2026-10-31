@@ -6,3 +6,4 @@ obj/
 *.log
 VoiSeData/
 publish/
+artifacts/

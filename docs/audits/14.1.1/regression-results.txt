@@ -1,0 +1,18 @@
+PASS ring wraps and drops oldest
+PASS bounded LRU eviction and invalidation
+CACHE_BYTES=66048000
+PASS loader budget under library pressure
+PASS one route completes without monitor
+PASS dual route gains and independent virtual delay
+MIXER_BYTES_PER_BLOCK=0
+PASS steady mixer allocates zero per block with eight voices
+PASS stop/dispose rejects late sound
+PASS long playback streams and seeks without full PCM cache
+PASS streamed 44.1k source resamples
+PASS streamed loop returns to beginning
+PASS cancelled stream releases decoder files
+Recovered JSON backup: C:\VSCode Projects\VoiSe Pre\artifacts\regression-tests\36d74b6ce08a4aba9838e14897dfcabd\settings.json
+PASS atomic JSON keeps previous version and recovers corruption
+PASS failed atomic commit leaves original intact
+PASS locked replacement preserves original library audio
+REGRESSION_TESTS=PASS (14)
