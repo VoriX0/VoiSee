@@ -22,6 +22,7 @@ public sealed class Gate2UnifiedAudioEngine : IDisposable
     private WasapiOut? _virtualOutput;
     private WasapiOut? _monitorOutput;
     private VoiceProcessingChain? _processor;
+    private readonly MicrophoneEqualizer _equalizer;
     private CaptureSampleConverter? _captureConverter;
     private double _lastProcessingMs;
     private RnNoiseSuppressionProcessor? _rnNoiseSuppressor;
@@ -54,7 +55,7 @@ public sealed class Gate2UnifiedAudioEngine : IDisposable
         MMDevice inputDevice,
         MMDevice virtualOutputDevice,
         MMDevice? monitorDevice,
-        EffectSettings settings, bool ownsDevices = false)
+        EffectSettings settings, bool ownsDevices = false, EqualizerSettings? equalizer = null)
     {
         _ownsDevices = ownsDevices;
         _inputDevice = inputDevice;
@@ -63,6 +64,7 @@ public sealed class Gate2UnifiedAudioEngine : IDisposable
         _settings = settings;
         _voiceMonitorRouteEnabled = settings.VoiceMonitorGain > 0.0001f;
         _mixFormat = WaveFormat.CreateIeeeFloatWaveFormat(48_000, 2);
+        _equalizer = new MicrophoneEqualizer(_mixFormat.SampleRate, _mixFormat.Channels, equalizer);
 
         // Discard old audio on a render stall instead of replaying a two-second backlog.
         var maxSamples = AudioTiming.QueueSamples(_mixFormat.SampleRate, _mixFormat.Channels);
@@ -289,6 +291,14 @@ public sealed class Gate2UnifiedAudioEngine : IDisposable
         return _soundboard.GetStatus(playbackKey);
     }
 
+    public void UpdateEqualizer(EqualizerSettings settings)
+    {
+        lock (_processing)
+        {
+            if (!_disposed) _equalizer.Update(settings);
+        }
+    }
+
     public void UpdateEffectSettings(EffectSettings settings)
     {
         lock (_processing)
@@ -388,6 +398,7 @@ public sealed class Gate2UnifiedAudioEngine : IDisposable
                         _deepFilterNetSuppressor?.ProcessInPlace(targetSamples);
                         break;
                 }
+                _equalizer.Process(targetSamples);
                 _processor.Process(targetSamples);
                 _virtualMicQueue.Add(targetSamples);
 

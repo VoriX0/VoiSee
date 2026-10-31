@@ -1,0 +1,37 @@
+namespace VoiSe.Audio;
+
+// One canonical curve. Displaying ten sliders never discards 31-band detail.
+public sealed class EqualizerSettings
+{
+    public static IReadOnlyList<double> Frequencies { get; } = Array.AsReadOnly(new double[]
+    { 20, 25, 31.5, 40, 50, 63, 80, 100, 125, 160, 200, 250, 315, 400, 500, 630, 800, 1000, 1250, 1600, 2000, 2500, 3150, 4000, 5000, 6300, 8000, 10000, 12500, 16000, 20000 });
+    public static IReadOnlyList<int> BasicBands { get; } = Array.AsReadOnly(new[] { 2, 5, 8, 11, 14, 17, 20, 23, 26, 29 });
+    public bool Enabled { get; set; } = true;
+    public double PreampDb { get; set; }
+    public double[] GainsDb { get; set; } = new double[31];
+    public EqualizerSettings NormalizedCopy()
+    {
+        var copy = new EqualizerSettings { Enabled = Enabled, PreampDb = Limit(PreampDb, -24, 12) };
+        for (var i = 0; i < Math.Min(GainsDb?.Length ?? 0, copy.GainsDb.Length); i++)
+            copy.GainsDb[i] = Limit(GainsDb![i], -12, 12);
+        return copy;
+    }
+    // Coarse edits apply a log-frequency tent to adjacent bands, preserving the
+    // existing fine-detail offsets. Switching views alone does no conversion.
+    public void SetBasicGain(int basicBand, double value)
+    {
+        if (basicBand < 0 || basicBand >= BasicBands.Count) throw new ArgumentOutOfRangeException(nameof(basicBand));
+        var center = BasicBands[basicBand];
+        var left = basicBand == 0 ? -1 : BasicBands[basicBand - 1];
+        var right = basicBand == BasicBands.Count - 1 ? 31 : BasicBands[basicBand + 1];
+        var delta = Limit(value, -12, 12) - GainsDb[center];
+        for (var i = left + 1; i < right; i++)
+        {
+            var weight = i == center || left < 0 && i < center || right == 31 && i > center ? 1.0
+                : i < center ? Math.Log(Frequencies[i] / Frequencies[left]) / Math.Log(Frequencies[center] / Frequencies[left])
+                : Math.Log(Frequencies[right] / Frequencies[i]) / Math.Log(Frequencies[right] / Frequencies[center]);
+            GainsDb[i] = Limit(GainsDb[i] + delta * weight, -12, 12);
+        }
+    }
+    private static double Limit(double value, double min, double max) => double.IsFinite(value) ? Math.Clamp(value, min, max) : 0;
+}

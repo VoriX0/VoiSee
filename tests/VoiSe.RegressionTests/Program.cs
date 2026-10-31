@@ -239,6 +239,76 @@ Test("clean capture and render pipeline allocates zero per block", () =>
     for (var i = 0; i < 1000; i++) Block();
     Check(GC.GetAllocatedBytesForCurrentThread() == before, "Clean pipeline allocates on every block");
 });
+Test("equalizer flat and bypass are sample transparent", () =>
+{
+    var original = Enumerable.Range(0, 1920).Select(i => (float)Math.Sin(i * .1) * .1f).ToArray();
+    var samples = original.ToArray(); new MicrophoneEqualizer(48000, 2).Process(samples);
+    Check(samples.SequenceEqual(original), "Flat EQ changed samples");
+    var settings = new EqualizerSettings { Enabled = false, PreampDb = 12 }; Array.Fill(settings.GainsDb, 12);
+    new MicrophoneEqualizer(48000, 2, settings).Process(samples);
+    Check(samples.SequenceEqual(original), "Disabled EQ changed samples");
+});
+Test("equalizer peaking response and channel isolation", () =>
+{
+    foreach (var gain in new[] { -6.0, 6.0 })
+    {
+        var settings = new EqualizerSettings(); settings.GainsDb[17] = gain;
+        var eq = new MicrophoneEqualizer(48000, 2, settings);
+        var samples = new float[96000];
+        for (var i = 0; i < 48000; i++) samples[2 * i] = .1f * (float)Math.Sin(2 * Math.PI * 1000 * i / 48000);
+        eq.Process(samples);
+        double power = 0;
+        for (var i = 24000; i < 48000; i++) { power += samples[2 * i] * samples[2 * i]; Check(samples[2 * i + 1] == 0, "Cross-channel leakage"); }
+        var measuredDb = 20 * Math.Log10(Math.Sqrt(power / 24000) / (.1 / Math.Sqrt(2)));
+        Check(Math.Abs(measuredDb - gain) < .05, "Wrong peak gain: " + measuredDb);
+    }
+});
+Test("equalizer global profile roundtrip and defensive normalization", () =>
+{
+    var settings = new EqualizerSettings { PreampDb = -3.5 }; settings.GainsDb[4] = 2.5;
+    var restored = JsonSerializer.Deserialize<EqualizerSettings>(JsonSerializer.Serialize(settings))!.NormalizedCopy();
+    Check(restored.PreampDb == -3.5 && restored.GainsDb.SequenceEqual(settings.GainsDb), "Curve lost on persistence");
+    settings.GainsDb = new[] { double.NaN, 200.0, -200.0 }; settings.PreampDb = double.PositiveInfinity;
+    var safe = settings.NormalizedCopy();
+    Check(safe.GainsDb.Length == 31 && safe.GainsDb[0] == 0 && safe.GainsDb[1] == 12 && safe.GainsDb[2] == -12 && safe.PreampDb == 0, "Malformed curve not sanitized");
+    settings.GainsDb = null!; Check(settings.NormalizedCopy().GainsDb.All(x => x == 0), "Null curve not migrated");
+});
+Test("coarse equalizer edits preserve fine curve and adjacent anchors", () =>
+{
+    var settings = new EqualizerSettings(); settings.GainsDb[16] = 1.25;
+    var original = settings.GainsDb.ToArray();
+    settings.SetBasicGain(5, 3);
+    Check(settings.GainsDb[17] == 3 && settings.GainsDb[14] == 0 && settings.GainsDb[20] == 0, "Basic band changed adjacent anchors");
+    Check(settings.GainsDb[16] > 1.25 && settings.GainsDb[15] > 0 && settings.GainsDb[18] > 0, "Coarse edit did not cover nearby frequencies");
+    settings.SetBasicGain(5, 0);
+    Check(settings.GainsDb.Zip(original).All(p => Math.Abs(p.First - p.Second) < 1e-12), "Fine detail was discarded");
+    settings.SetBasicGain(0, 4); settings.SetBasicGain(9, -4);
+    Check(settings.GainsDb[0] == 4 && settings.GainsDb[30] == -4, "Outer bands are unreachable in basic mode");
+});
+Test("equalizer transitions are bounded and reach new preamp", () =>
+{
+    var eq = new MicrophoneEqualizer(48000, 2);
+    eq.Update(new EqualizerSettings { PreampDb = -6 });
+    var samples = Enumerable.Repeat(.1f, 2880).ToArray(); eq.Process(samples);
+    Check(samples[0] == .1f && samples.All(float.IsFinite), "Transition is not continuous at start");
+    for (var i = 2; i < samples.Length; i += 2) Check(Math.Abs(samples[i] - samples[i - 2]) < .0001, "Preamp transition clicked");
+    Check(Math.Abs(samples[^1] - .1 * Math.Pow(10, -6.0 / 20)) < 1e-7, "Transition did not settle");
+});
+Test("31-band EQ is stable and allocation-free under updates", () =>
+{
+    var settings = new EqualizerSettings { PreampDb = -12 };
+    for (var i = 0; i < 31; i++) settings.GainsDb[i] = i % 2 == 0 ? 12 : -12;
+    var eq = new MicrophoneEqualizer(48000, 2, settings); var samples = new float[960];
+    for (var i = 0; i < samples.Length; i++) samples[i] = .01f * (float)Math.Sin(i * .3);
+    eq.Process(samples); var before = GC.GetAllocatedBytesForCurrentThread(); var watch = Stopwatch.GetTimestamp();
+    for (var i = 0; i < 1000; i++) eq.Process(samples);
+    var elapsed = Stopwatch.GetElapsedTime(watch);
+    Check(GC.GetAllocatedBytesForCurrentThread() == before, "EQ allocates per audio block");
+    Check(samples.All(float.IsFinite), "EQ became unstable");
+    Console.WriteLine($"EQ_31_BANDS_10S_AUDIO_MS={elapsed.TotalMilliseconds:F1}; EQ_BYTES_PER_BLOCK=0");
+    settings.Enabled = false; eq.Update(settings); Array.Fill(samples, .1f); eq.Process(samples); Array.Fill(samples, .1f); eq.Process(samples);
+    Array.Fill(samples, .1f); eq.Process(samples); Check(samples.All(x => x == .1f), "Bypass did not settle");
+});
 Console.WriteLine($"REGRESSION_TESTS=PASS ({results.Count})");
 // Every directory here was created by this process under a fixed temporary root.
 var expectedRoot = Path.GetFullPath("artifacts/regression-tests") + Path.DirectorySeparatorChar;

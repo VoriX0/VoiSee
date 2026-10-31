@@ -1,0 +1,30 @@
+<?xml version='1.0' encoding='utf-8'?>
+<root>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <data name="Title" xml:space="preserve">
+    <value>Equalizer</value>
+  </data>
+  <data name="Description" xml:space="preserve">
+    <value>Microphone correction shared across devices and voice presets. Does not affect SoundBoard or Media Bridge.</value>
+  </data>
+  <data name="Enabled" xml:space="preserve">
+    <value>Microphone EQ</value>
+  </data>
+  <data name="Advanced" xml:space="preserve">
+    <value>31 bands (advanced mode)</value>
+  </data>
+  <data name="Reset" xml:space="preserve">
+    <value>Reset curve</value>
+  </data>
+  <data name="Preamp" xml:space="preserve">
+    <value>Preamp</value>
+  </data>
+  <data name="Hint" xml:space="preserve">
+    <value>10 bands: each slider also adjusts nearby frequencies. Switching views preserves all 31 values and does not change the sound. Reduce preamp when boosting bands to avoid limiting.</value>
+  </data>
+</root>

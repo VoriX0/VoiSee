@@ -1,0 +1,30 @@
+<?xml version='1.0' encoding='utf-8'?>
+<root>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <data name="Title" xml:space="preserve">
+    <value>Эквалайзер</value>
+  </data>
+  <data name="Description" xml:space="preserve">
+    <value>Общая коррекция микрофона для всех устройств и голосовых пресетов. Не влияет на SoundBoard и Media Bridge.</value>
+  </data>
+  <data name="Enabled" xml:space="preserve">
+    <value>Обработка микрофона</value>
+  </data>
+  <data name="Advanced" xml:space="preserve">
+    <value>31 полоса (расширенный режим)</value>
+  </data>
+  <data name="Reset" xml:space="preserve">
+    <value>Сбросить коррекцию</value>
+  </data>
+  <data name="Preamp" xml:space="preserve">
+    <value>Предусиление</value>
+  </data>
+  <data name="Hint" xml:space="preserve">
+    <value>10 полос: каждый слайдер также изменяет соседние частоты. Переключение режима сохраняет все 31 значение и не меняет звук. При сильном усилении уменьшите предусиление, чтобы избежать ограничения громкости.</value>
+  </data>
+</root>

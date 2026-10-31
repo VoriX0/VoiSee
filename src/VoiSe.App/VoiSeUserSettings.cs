@@ -2,9 +2,14 @@
 
 namespace VoiSe.App;
 
+using VoiSe.Audio;
+
 public sealed class VoiSeUserSettings
 {
     public int SchemaVersion { get; set; } = 12;
+    // Global microphone correction, outside device and voice profiles.
+    public EqualizerSettings Equalizer { get; set; } = new();
+    public bool EqualizerAdvancedMode { get; set; }
 
     public string? InputDeviceId { get; set; }
     public string? InputDeviceName { get; set; }

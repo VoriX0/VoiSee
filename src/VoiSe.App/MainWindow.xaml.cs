@@ -191,6 +191,7 @@ public sealed partial class MainWindow : Window
         _themeManager = new ThemeManager(_settingsStore.DataDirectory);
         _library = _libraryStore.Load();
         InitializeComponent();
+        InitializeEqualizer();
         BuildEffectLibraryList();
 
         if (ThemeFolderPathTextBlock is not null)
@@ -248,7 +249,7 @@ public sealed partial class MainWindow : Window
         };
         _discordCableSessionIsolationTimer.Tick += OnDiscordCableSessionIsolationTimerTick;
 
-        AppendLog("VoiSee Version 14.2.1 UI started.");
+        AppendLog("VoiSee Version 14.3.1 UI started.");
         AppendLog($"Settings path: {_settingsStore.SettingsPath}");
 
         var isolationResult = _discordCableSessionIsolationService.Enable();
@@ -3834,6 +3835,8 @@ public sealed partial class MainWindow : Window
     private void OnClosed(object sender, WindowEventArgs args)
     {
         _exitRequested = true;
+        _equalizerApplyTimer.Stop();
+        _equalizerSaveTimer.Stop();
         _manualStopRequested = true;
         SaveCurrentSettings();
         StopEngine(log: false);
@@ -6465,7 +6468,7 @@ public sealed partial class MainWindow : Window
             if (input is null || virtualOutput is null)
                 throw new InvalidOperationException("Selected devices are no longer available. Refresh devices and select an available microphone.");
             SaveCurrentSettings();
-            _engine = new Gate2UnifiedAudioEngine(input, virtualOutput, monitor, CreateEffectSettings(), ownsDevices: true);
+            _engine = new Gate2UnifiedAudioEngine(input, virtualOutput, monitor, CreateEffectSettings(), ownsDevices: true, equalizer: _settings.Equalizer);
             var startedEngine = _engine;
             _engine.Faulted += error => DispatcherQueue.TryEnqueue(() =>
             {
