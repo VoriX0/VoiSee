@@ -368,7 +368,7 @@ Test("parametric updates change audio and persist independently of graphic bands
 Test("parametric malformed profiles migrate safely and extreme filters remain stable", () =>
 {
     var settings = new EqualizerSettings { ParametricBands = new[] { new EqualizerBand { Frequency = double.NaN, GainDb = double.PositiveInfinity, Q = 0, Filter = (EqualizerFilter)99 }, null! } }.NormalizedCopy();
-    Check(settings.ParametricBands.Length == 5 && settings.ParametricBands[0].Frequency == 1000 && settings.ParametricBands[0].Q == .2 && settings.ParametricBands[0].Filter == EqualizerFilter.Peak, "Invalid band not sanitized");
+    Check(settings.ParametricBands.Length == 2 && settings.ParametricBands[0].Frequency == 1000 && settings.ParametricBands[0].Q == .2 && settings.ParametricBands[0].Filter == EqualizerFilter.Peak, "Invalid band not sanitized");
     foreach (var type in Enum.GetValues<EqualizerFilter>())
     foreach (var frequency in new[] { 20.0, 20000 })
     {
@@ -386,6 +386,28 @@ Test("combined graphic and parametric processing allocates zero per block", () =
     var before = GC.GetAllocatedBytesForCurrentThread();
     for (var i = 0; i < 1000; i++) eq.Process(samples);
     Check(GC.GetAllocatedBytesForCurrentThread() == before, "Combined EQ allocates per block");
+});
+Test("custom EQ points preserve count, values and independent copies", () =>
+{
+    var settings = new EqualizerSettings(); settings.AddPoint(2400, -3.5);
+    var restored = JsonSerializer.Deserialize<EqualizerSettings>(JsonSerializer.Serialize(settings))!.NormalizedCopy();
+    Check(restored.ParametricBands.Length == 6 && restored.ParametricBands[^1].Frequency == 2400 && restored.ParametricBands[^1].GainDb == -3.5, "Custom point lost during load");
+    restored.ParametricBands[^1].GainDb = 4; Check(settings.ParametricBands[^1].GainDb == -3.5, "Points share mutable references");
+    while(settings.AddPoint()) { }
+    Check(settings.ParametricBands.Length == 16 && !settings.AddPoint(), "Point limit is unbounded");
+    while(settings.RemovePoint(0)) { }
+    Check(settings.ParametricBands.Length == 1 && !settings.RemovePoint(0), "Last point removed");
+    Check(settings.NormalizedCopy().ParametricBands.Length == 1, "Deleted points returned after load");
+});
+Test("width handles change bandwidth symmetrically without changing center or gain", () =>
+{
+    var band = new EqualizerBand { Frequency = 1000, GainDb = -5.8, Q = 1.182 };
+    var original = band.Q; var right = band.Frequency * band.WidthRatio;
+    band.SetWidthFromEdge(right); Check(Math.Abs(band.Q - original) < 1e-10, "Width handle does not roundtrip");
+    band.SetWidthFromEdge(2000); var wideQ = band.Q; band.SetWidthFromEdge(500);
+    Check(Math.Abs(band.Q - wideQ) < 1e-10 && wideQ < original, "Left and right handles disagree");
+    band.SetWidthFromEdge(1010); Check(band.Q > original && band.Q <= 12, "Narrowing is inverted or unbounded");
+    Check(band.Frequency == 1000 && band.GainDb == -5.8, "Width edit changed pitch or gain");
 });
 Console.WriteLine($"REGRESSION_TESTS=PASS ({results.Count})");
 // Every directory here was created by this process under a fixed temporary root.

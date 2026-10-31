@@ -16,16 +16,16 @@
     <value>Обработка микрофона</value>
   </data>
   <data name="Advanced" xml:space="preserve">
-    <value>31 полоса (расширенный режим)</value>
+    <value>31 частота (точная настройка)</value>
   </data>
   <data name="Reset" xml:space="preserve">
-    <value>Сбросить коррекцию</value>
+    <value>Сбросить настройки</value>
   </data>
   <data name="Preamp" xml:space="preserve">
-    <value>Предусиление</value>
+    <value>Общая громкость перед обработкой</value>
   </data>
   <data name="Hint" xml:space="preserve">
-    <value>10 полос: каждый слайдер также изменяет соседние частоты. Переключение режима сохраняет все 31 значение и не меняет звук. При сильном усилении уменьшите предусиление, чтобы избежать ограничения громкости.</value>
+    <value>10 регуляторов меняют соседние частоты вместе. Переключение на 31 регулятор сохраняет звук. Если голос искажается, уменьшите общую громкость.</value>
   </data>
   <data name="Body" xml:space="preserve">
     <value>Теплота</value>

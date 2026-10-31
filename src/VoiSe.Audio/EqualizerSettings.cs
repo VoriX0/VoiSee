@@ -4,6 +4,7 @@ namespace VoiSe.Audio;
 // sliders never discards the stored 31-band detail.
 public sealed class EqualizerSettings
 {
+    public const int MaxParametricBands = 16;
     public static IReadOnlyList<double> Frequencies { get; } = Array.AsReadOnly(new double[]
     { 20, 25, 31.5, 40, 50, 63, 80, 100, 125, 160, 200, 250, 315, 400, 500, 630, 800, 1000, 1250, 1600, 2000, 2500, 3150, 4000, 5000, 6300, 8000, 10000, 12500, 16000, 20000 });
     public static IReadOnlyList<int> BasicBands { get; } = Array.AsReadOnly(new[] { 2, 5, 8, 11, 14, 17, 20, 23, 26, 29 });
@@ -21,9 +22,23 @@ public sealed class EqualizerSettings
             copy.GainsDb[i] = Limit(GainsDb![i], -12, 12);
         for (var i = 0; i < Math.Min(ToneGainsDb?.Length ?? 0, 3); i++)
             copy.ToneGainsDb[i] = Limit(ToneGainsDb![i], -6, 6);
-        for (var i = 0; i < Math.Min(ParametricBands?.Length ?? 0, 5); i++)
-            copy.ParametricBands[i] = ParametricBands![i]?.NormalizedCopy() ?? copy.ParametricBands[i];
+        if (ParametricBands is { Length: > 0 })
+            copy.ParametricBands = new EqualizerBand[Math.Min(ParametricBands.Length, MaxParametricBands)];
+        for (var i = 0; i < Math.Min(ParametricBands?.Length ?? 0, MaxParametricBands); i++)
+            copy.ParametricBands[i] = ParametricBands![i]?.NormalizedCopy() ?? new EqualizerBand();
         return copy;
+    }
+    public bool AddPoint(double frequency = 1000, double gainDb = 0)
+    {
+        if (ParametricBands.Length >= MaxParametricBands) return false;
+        ParametricBands = ParametricBands.Append(new EqualizerBand { Frequency = frequency, GainDb = gainDb }.NormalizedCopy()).ToArray();
+        return true;
+    }
+    public bool RemovePoint(int index)
+    {
+        if (ParametricBands.Length <= 1 || index < 0 || index >= ParametricBands.Length) return false;
+        ParametricBands = ParametricBands.Where((_, i) => i != index).ToArray();
+        return true;
     }
     public EqualizerCoefficients[] GetResponseFilters()
     {

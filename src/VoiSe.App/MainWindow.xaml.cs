@@ -249,7 +249,7 @@ public sealed partial class MainWindow : Window
         };
         _discordCableSessionIsolationTimer.Tick += OnDiscordCableSessionIsolationTimerTick;
 
-        AppendLog("VoiSee Version 14.3.3 UI started.");
+        AppendLog("VoiSee Version 14.3.4 UI started.");
         AppendLog($"Settings path: {_settingsStore.SettingsPath}");
 
         var isolationResult = _discordCableSessionIsolationService.Enable();
@@ -12128,6 +12128,7 @@ public sealed partial class MainWindow : Window
 
     private void UpdateVoiceMonitorButton()
     {
+        if (EqualizerVoiceMonitorButton is not null) EqualizerVoiceMonitorButton.Content = _voiceMonitorEnabled ? "Слышать себя: вкл." : "Слышать себя: выкл.";
         var text = _voiceMonitorEnabled ? "Voice Monitor: On" : "Voice Monitor: Off";
         if (VoiceMonitorButton is not null)
         {

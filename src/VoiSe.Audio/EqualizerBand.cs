@@ -11,6 +11,12 @@ public sealed record EqualizerBand
     public double GainDb { get; set; }
     public double Q { get; set; } = 1;
     public EqualizerFilter Filter { get; set; }
+    public double WidthRatio => Math.Exp(Math.Asinh(1 / (2 * Q)));
+    public void SetWidthFromEdge(double edgeFrequency)
+    {
+        var distance = Math.Max(.001, Math.Abs(Math.Log(edgeFrequency / Frequency)));
+        Q = Math.Clamp(1 / (2 * Math.Sinh(distance)), .2, 12);
+    }
     public EqualizerBand NormalizedCopy() => new()
     {
         Enabled = Enabled, Frequency = Safe(Frequency, 20, 20000, 1000),
