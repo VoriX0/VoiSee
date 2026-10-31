@@ -23,10 +23,14 @@ public sealed partial class MainWindow
     private readonly List<Thumb> _eqNodes = new();
     private readonly Line _eqWidthLine = new() { StrokeThickness = 2, IsHitTestVisible = false };
     private Thumb _eqWidthLeft = null!, _eqWidthRight = null!;
-    private ControlTemplate _eqPointTemplate = null!;
+    private ControlTemplate _eqPointTemplate = null!, _eqWidthTemplate = null!;
     private Windows.UI.Color EqColor(int i) => _eqColors[i % _eqColors.Length];
     private readonly Windows.UI.Color[] _eqColors = { ColorHelper.FromArgb(255, 160, 102, 255), ColorHelper.FromArgb(255, 86, 127, 255),
-        ColorHelper.FromArgb(255, 255, 84, 170), ColorHelper.FromArgb(255, 255, 100, 104), ColorHelper.FromArgb(255, 255, 161, 85) };
+        ColorHelper.FromArgb(255, 255, 84, 170), ColorHelper.FromArgb(255, 255, 100, 104), ColorHelper.FromArgb(255, 255, 161, 85),
+        ColorHelper.FromArgb(255, 64, 210, 240), ColorHelper.FromArgb(255, 100, 225, 165), ColorHelper.FromArgb(255, 245, 220, 85),
+        ColorHelper.FromArgb(255, 165, 220, 90), ColorHelper.FromArgb(255, 65, 180, 170), ColorHelper.FromArgb(255, 205, 155, 255),
+        ColorHelper.FromArgb(255, 255, 160, 150), ColorHelper.FromArgb(255, 150, 175, 255), ColorHelper.FromArgb(255, 230, 130, 190),
+        ColorHelper.FromArgb(255, 205, 165, 65), ColorHelper.FromArgb(255, 130, 215, 210) };
     private double EqWidth => Math.Max(1, EqualizerPlot.ActualWidth - 76);
     private double EqHeight => Math.Max(1, EqualizerPlot.ActualHeight - 64);
     private double EqX(double f) => 52 + Math.Log10(f / 20) / 3 * EqWidth;
@@ -34,15 +38,22 @@ public sealed partial class MainWindow
 
     private void InitializeParametricEqualizer()
     {
-        _eqPointTemplate = (ControlTemplate)XamlReader.Load("<ControlTemplate xmlns='http://schemas.microsoft.com/winfx/2006/xaml/presentation' TargetType='Thumb'><Grid Background='Transparent'><Ellipse Width='16' Height='16' Fill='{TemplateBinding Background}' Stroke='{TemplateBinding BorderBrush}' StrokeThickness='2'/></Grid></ControlTemplate>");
+        // Keep the existing hit areas; only the visible circles become smaller.
+        _eqPointTemplate = CreateEqualizerPointTemplate(16 * .85);
+        _eqWidthTemplate = CreateEqualizerPointTemplate(10);
         EqualizerPlot.Children.Add(_eqWidthLine);
         _eqWidthLeft = CreateWidthHandle(); _eqWidthRight = CreateWidthHandle();
         EqualizerPlot.Children.Add(_eqWidthLeft); EqualizerPlot.Children.Add(_eqWidthRight);
         RebuildParametricPoints();
     }
+    private static ControlTemplate CreateEqualizerPointTemplate(double diameter)
+    {
+        var size = diameter.ToString(CultureInfo.InvariantCulture);
+        return (ControlTemplate)XamlReader.Load($"<ControlTemplate xmlns='http://schemas.microsoft.com/winfx/2006/xaml/presentation' TargetType='Thumb'><Grid Background='Transparent'><Ellipse Width='{size}' Height='{size}' Fill='{{TemplateBinding Background}}' Stroke='{{TemplateBinding BorderBrush}}' StrokeThickness='2'/></Grid></ControlTemplate>");
+    }
     private Thumb CreateWidthHandle()
     {
-        var handle = new Thumb { Width = 24, Height = 24, MinWidth = 0, MinHeight = 0, Template = _eqPointTemplate, ManipulationMode = ManipulationModes.None };
+        var handle = new Thumb { Width = 24, Height = 24, MinWidth = 0, MinHeight = 0, Template = _eqWidthTemplate, ManipulationMode = ManipulationModes.None };
         AutomationProperties.SetName(handle, "Ширина настройки: тяните в сторону от точки, чтобы охватить больше частот");
         handle.DragDelta += (_, e) =>
         {
@@ -166,7 +177,6 @@ public sealed partial class MainWindow
         EqualizerBandFrequency.Value = Math.Round(band.Frequency, 1);
         EqualizerBandGain.Value = Math.Round(band.GainDb, 1);
         EqualizerBandQ.Value = Math.Round(band.Q, 3);
-        EqualizerBandType.SelectedIndex = (int)band.Filter;
         EqualizerBandGain.IsEnabled = band.Filter is not (EqualizerFilter.HighPass or EqualizerFilter.LowPass);
         _equalizerLoading = loading;
         if (render) RenderEqualizerCurve();
@@ -195,12 +205,6 @@ public sealed partial class MainWindow
     {
         if (_equalizerLoading) return;
         _settings.Equalizer.ParametricBands[_selectedEqBand].Enabled = EqualizerBandEnabled.IsOn;
-        ParametricBandEdited();
-    }
-    private void OnEqualizerBandTypeChanged(object sender, SelectionChangedEventArgs e)
-    {
-        if (_equalizerLoading || EqualizerBandType.SelectedIndex < 0) return;
-        _settings.Equalizer.ParametricBands[_selectedEqBand].Filter = (EqualizerFilter)EqualizerBandType.SelectedIndex;
         ParametricBandEdited();
     }
     private void OnEqualizerPlotSizeChanged(object sender, SizeChangedEventArgs e)

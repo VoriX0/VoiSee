@@ -6,7 +6,7 @@
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     mc:Ignorable="d"
-    Title="VoiSee Version 14.3.4">
+    Title="VoiSee Version 14.3.5">
 
     <Grid x:Name="RootGrid" RequestedTheme="Dark" Background="{ThemeResource VoiSee.AppBackgroundBrush}" SizeChanged="OnRootGridSizeChanged">
         <Grid.RowDefinitions>
@@ -21,7 +21,7 @@
             </Grid.ColumnDefinitions>
             <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center" Margin="10,0,0,0">
                 <Image Source="ms-appx:///Assets/AppIcon_24.png" Width="16" Height="16" VerticalAlignment="Center" />
-                <TextBlock x:Name="TitleBarVersionTextBlock" Text="VoiSee Version 14.3.4" FontSize="12" Foreground="{ThemeResource VoiSee.PrimaryTextBrush}" VerticalAlignment="Center" />
+                <TextBlock x:Name="TitleBarVersionTextBlock" Text="VoiSee Version 14.3.5" FontSize="12" Foreground="{ThemeResource VoiSee.PrimaryTextBrush}" VerticalAlignment="Center" />
             </StackPanel>
         </Grid>
 
@@ -39,7 +39,7 @@
                 </Grid.ColumnDefinitions>
                 <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
                     <Image Source="ms-appx:///Assets/AppIcon_48.png" Width="34" Height="34" VerticalAlignment="Center" />
-                    <TextBlock x:Name="MainTitle" Text="VoiSee Version 14.3.4" FontSize="28" FontWeight="SemiBold" Foreground="{ThemeResource VoiSee.PrimaryTextBrush}" VerticalAlignment="Center" />
+                    <TextBlock x:Name="MainTitle" Text="VoiSee Version 14.3.5" FontSize="28" FontWeight="SemiBold" Foreground="{ThemeResource VoiSee.PrimaryTextBrush}" VerticalAlignment="Center" />
                 </StackPanel>
                 <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center" HorizontalAlignment="Right">
                     <TextBlock Text="Mic Output" Foreground="{ThemeResource VoiSee.PrimaryTextBrush}" Opacity="0.62" VerticalAlignment="Center" />
@@ -1244,20 +1244,12 @@
                             <TextBlock Visibility="Collapsed" x:Name="EqualizerTitle" FontSize="24" FontWeight="SemiBold" Foreground="{ThemeResource VoiSee.PrimaryTextBrush}" />
                             <TextBlock Visibility="Collapsed" x:Name="EqualizerDescription" TextWrapping="Wrap" Style="{StaticResource VoiSee.Style.Text.Secondary}" />
                             <Grid ColumnSpacing="12">
-                                <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                                <Grid.ColumnDefinitions><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                             <StackPanel Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
                                 <ToggleSwitch x:Name="EqualizerEnabled" Toggled="OnEqualizerEnabledChanged" />
-                                <ToggleButton x:Name="EqualizerCompare" Content="Слушать исходный звук" Checked="OnEqualizerCompareChanged" Unchecked="OnEqualizerCompareChanged" VerticalAlignment="Bottom" />
                                 <Button Style="{ThemeResource VoiSee.Style.Button}" x:Name="EqualizerVoiceMonitorButton" Content="Слышать себя: выкл." Click="OnToggleVoiceMonitorClick" VerticalAlignment="Bottom" />
                                 <Button x:Name="EqualizerReset" Click="OnEqualizerReset" VerticalAlignment="Bottom" />
                             </StackPanel>
-                            <ComboBox x:Name="EqualizerPreset" Grid.Column="1" VerticalAlignment="Center" ToolTipService.ToolTip="Готовое звучание заменит текущие настройки" SelectedIndex="0" SelectionChanged="OnEqualizerPresetChanged" MinWidth="240">
-                                <ComboBoxItem Content="Выбрать звучание…" />
-                                <ComboBoxItem Content="Нейтральный" />
-                                <ComboBoxItem Content="Тёплый голос" />
-                                <ComboBoxItem Content="Чёткая речь" />
-                                <ComboBoxItem Content="Мягкий голос" />
-                            </ComboBox>
                             </Grid>
                             <Border Background="{ThemeResource VoiSee.PanelBackgroundBrush}" BorderBrush="{ThemeResource VoiSee.PanelBorderBrush}" BorderThickness="1" CornerRadius="12" Padding="10">
                                 <StackPanel Spacing="6">
@@ -1291,23 +1283,18 @@
 
                                         </ComboBox>
                                         <ToggleSwitch Grid.Column="1" x:Name="EqualizerBandEnabled" Header="Точка" OnContent="Вкл." OffContent="Выкл." Toggled="OnEqualizerBandEnabled"/>
-                                        <ComboBox Grid.Column="2" x:Name="EqualizerBandType" Header="Что менять" HorizontalAlignment="Stretch" SelectionChanged="OnEqualizerBandTypeChanged">
-                                            <ComboBoxItem Content="Выбранные частоты"/><ComboBoxItem Content="Все низкие частоты"/><ComboBoxItem Content="Все высокие частоты"/><ComboBoxItem Content="Убрать низкие частоты"/><ComboBoxItem Content="Убрать высокие частоты"/>
-                                        </ComboBox>
+                                        <StackPanel Grid.Column="2" Spacing="2" VerticalAlignment="Bottom">
+                                            <Grid>
+                                                <TextBlock x:Name="EqualizerPreampTitle" FontSize="14" Foreground="{ThemeResource VoiSee.PrimaryTextBrush}"/>
+                                                <TextBlock x:Name="EqualizerPreampValue" FontSize="11" HorizontalAlignment="Right" VerticalAlignment="Center" Foreground="{ThemeResource VoiSee.PrimaryTextBrush}"/>
+                                            </Grid>
+                                            <Slider x:Name="EqualizerPreamp" Minimum="-24" Maximum="12" StepFrequency="0.5" Height="32" ValueChanged="OnEqualizerPreampChanged"/>
+                                        </StackPanel>
                                         <NumberBox Grid.Column="3" x:Name="EqualizerBandFrequency" Header="Частота, Hz" Minimum="20" Maximum="20000" SmallChange="10" ValueChanged="OnEqualizerBandValueChanged"/>
                                         <NumberBox Grid.Column="4" x:Name="EqualizerBandGain" Header="Усиление, dB" Minimum="-12" Maximum="12" SmallChange="0.5" ValueChanged="OnEqualizerBandValueChanged"/>
                                         <NumberBox Grid.Column="5" x:Name="EqualizerBandQ" Header="Охват частот, Q" Minimum="0.2" Maximum="12" SmallChange="0.1" ValueChanged="OnEqualizerBandValueChanged"/>
                                     </Grid>
                                     <TextBlock FontSize="11" x:Name="EqualizerHeadroom" TextWrapping="Wrap" Style="{StaticResource VoiSee.Style.Text.Secondary}"/>
-                                </StackPanel>
-                            </Border>
-                            <Border Background="{ThemeResource VoiSee.PanelBackgroundBrush}" CornerRadius="8" Padding="16">
-                                <StackPanel Spacing="8">
-                                    <TextBlock x:Name="EqualizerPreampTitle" Foreground="{ThemeResource VoiSee.PrimaryTextBrush}" />
-                                    <StackPanel Orientation="Horizontal" Spacing="16">
-                                        <Slider x:Name="EqualizerPreamp" Width="240" Minimum="-24" Maximum="12" StepFrequency="0.5" ValueChanged="OnEqualizerPreampChanged" />
-                                        <TextBlock x:Name="EqualizerPreampValue" MinWidth="70" VerticalAlignment="Center" Foreground="{ThemeResource VoiSee.PrimaryTextBrush}" />
-                                    </StackPanel>
                                 </StackPanel>
                             </Border>
                             <Expander Header="Подробная настройка · 10 / 31 частота" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch">

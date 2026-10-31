@@ -22,7 +22,7 @@
     <value>Reset curve</value>
   </data>
   <data name="Preamp" xml:space="preserve">
-    <value>Preamp</value>
+    <value>Overall volume</value>
   </data>
   <data name="Hint" xml:space="preserve">
     <value>10 bands: each slider also adjusts nearby frequencies. Switching views preserves all 31 values and does not change the sound. Reduce preamp when boosting bands to avoid limiting.</value>

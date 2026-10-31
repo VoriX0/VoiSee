@@ -17,13 +17,7 @@ public sealed partial class MainWindow
     private readonly DispatcherTimer _equalizerSaveTimer = new() { Interval = TimeSpan.FromMilliseconds(500) };
     private bool _equalizerLoading = true;
     private int _equalizerColumns;
-    private bool _equalizerCompareOriginal;
-    private EqualizerSettings CurrentEqualizerForEngine()
-    {
-        var settings = _settings.Equalizer.NormalizedCopy();
-        if (_equalizerCompareOriginal) settings.Enabled = false;
-        return settings;
-    }
+    private EqualizerSettings CurrentEqualizerForEngine() => _settings.Equalizer.NormalizedCopy();
     private static readonly ResourceManager EqualizerResources = new("VoiSe.App.Resources.Equalizer", typeof(MainWindow).Assembly);
     private static string EqText(string key) => EqualizerResources.GetString(key, CultureInfo.CurrentUICulture) ?? key;
 
@@ -93,42 +87,17 @@ public sealed partial class MainWindow
     {
         _settings.Equalizer = new EqualizerSettings { Enabled = EqualizerEnabled.IsOn };
         EqualizerPreamp.Value = 0;
-        SyncEqualizerQuickControls();
+        SyncEqualizerEditors();
         RebuildEqualizerBands();
         QueueEqualizerChange();
     }
-    private void SyncEqualizerQuickControls()
+    private void SyncEqualizerEditors()
     {
         _equalizerLoading = true;
         EqualizerPreamp.Value = _settings.Equalizer.PreampDb;
         EqualizerPreampValue.Text = Db(EqualizerPreamp.Value);
         RebuildParametricPoints();
         _equalizerLoading = false;
-    }
-    private void RefreshEqualizerBandValues()
-    {
-        _equalizerLoading = true;
-        for (var i = 0; i < EqualizerBands.Children.Count; i++)
-        {
-            var index = _settings.EqualizerAdvancedMode ? i : EqualizerSettings.BasicBands[i];
-            ((Slider)((StackPanel)EqualizerBands.Children[i]).Children[1]).Value = _settings.Equalizer.GainsDb[index];
-        }
-        _equalizerLoading = false;
-    }
-    private void OnEqualizerPresetChanged(object sender, SelectionChangedEventArgs e)
-    {
-        if (_equalizerLoading || EqualizerPreset.SelectedIndex <= 0) return;
-        var enabled = _settings.Equalizer.Enabled;
-        _settings.Equalizer = EqualizerSettings.FromPreset(EqualizerPreset.SelectedIndex - 1);
-        _settings.Equalizer.Enabled = enabled;
-        SyncEqualizerQuickControls(); RebuildEqualizerBands(); QueueEqualizerChange();
-        EqualizerPreset.SelectedIndex = 0;
-    }
-    private void OnEqualizerCompareChanged(object sender, RoutedEventArgs e)
-    {
-        if (_equalizerLoading) return;
-        _equalizerCompareOriginal = EqualizerCompare.IsChecked == true;
-        QueueEqualizerChange();
     }
     private void RenderEqualizerCurve() => RenderParametricCurve();
     private void RebuildEqualizerBands()
