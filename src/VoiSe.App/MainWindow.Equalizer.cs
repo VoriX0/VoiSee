@@ -5,6 +5,8 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Automation;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Controls.Primitives;
+using Microsoft.UI.Xaml.Media;
+using Windows.Foundation;
 using VoiSe.Audio;
 
 namespace VoiSe.App;
@@ -15,6 +17,14 @@ public sealed partial class MainWindow
     private readonly DispatcherTimer _equalizerSaveTimer = new() { Interval = TimeSpan.FromMilliseconds(500) };
     private bool _equalizerLoading = true;
     private int _equalizerColumns;
+    private bool _equalizerCompareOriginal;
+    private readonly Slider[] _equalizerTones = new Slider[3];
+    private EqualizerSettings CurrentEqualizerForEngine()
+    {
+        var settings = _settings.Equalizer.NormalizedCopy();
+        if (_equalizerCompareOriginal) settings.Enabled = false;
+        return settings;
+    }
     private static readonly ResourceManager EqualizerResources = new("VoiSe.App.Resources.Equalizer", typeof(MainWindow).Assembly);
     private static string EqText(string key) => EqualizerResources.GetString(key, CultureInfo.CurrentUICulture) ?? key;
 
@@ -34,10 +44,12 @@ public sealed partial class MainWindow
         EqualizerAdvanced.IsOn = _settings.EqualizerAdvancedMode;
         EqualizerPreamp.Value = _settings.Equalizer.PreampDb;
         EqualizerPreampValue.Text = Db(EqualizerPreamp.Value);
+        BuildEqualizerQuickControls();
         _equalizerApplyTimer.Tick += (_, _) =>
         {
             _equalizerApplyTimer.Stop();
-            _engine?.UpdateEqualizer(_settings.Equalizer);
+            _engine?.UpdateEqualizer(CurrentEqualizerForEngine());
+            RenderEqualizerCurve();
         };
         _equalizerSaveTimer.Tick += (_, _) =>
         {
@@ -47,6 +59,7 @@ public sealed partial class MainWindow
         };
         _equalizerLoading = false;
         RebuildEqualizerBands();
+        RenderEqualizerCurve();
     }
 
     private static string Db(double value) => value.ToString("+0.0;-0.0;0.0", CultureInfo.CurrentCulture) + " dB";
@@ -80,8 +93,80 @@ public sealed partial class MainWindow
     {
         _settings.Equalizer = new EqualizerSettings { Enabled = EqualizerEnabled.IsOn };
         EqualizerPreamp.Value = 0;
+        SyncEqualizerQuickControls();
         RebuildEqualizerBands();
         QueueEqualizerChange();
+    }
+    private void BuildEqualizerQuickControls()
+    {
+        var labels = new[] { EqText("Body"), EqText("Clarity"), EqText("Air") };
+        var hints = new[] { EqText("BodyHint"), EqText("ClarityHint"), EqText("AirHint") };
+        for (var i = 0; i < 3; i++)
+        {
+            var tone = i;
+            var panel = new StackPanel { Spacing = 6, Margin = new Thickness(12) };
+            var value = new TextBlock { Text = Db(_settings.Equalizer.ToneGainsDb[i]) };
+            var slider = new Slider { Minimum = -6, Maximum = 6, StepFrequency = .5, Value = _settings.Equalizer.ToneGainsDb[i] };
+            _equalizerTones[i] = slider;
+            AutomationProperties.SetName(slider, labels[i]);
+            slider.ValueChanged += (_, e) =>
+            {
+                value.Text = Db(e.NewValue);
+                if (_equalizerLoading) return;
+                _settings.Equalizer.SetToneGain(tone, e.NewValue);
+                RefreshEqualizerBandValues();
+                QueueEqualizerChange();
+            };
+            panel.Children.Add(new TextBlock { Text = labels[i], FontWeight = Microsoft.UI.Text.FontWeights.SemiBold });
+            panel.Children.Add(new TextBlock { Text = hints[i], TextWrapping = TextWrapping.Wrap, Opacity = .65, MinHeight = 38 });
+            panel.Children.Add(slider); panel.Children.Add(value);
+            Grid.SetColumn(panel, i); EqualizerQuickControls.Children.Add(panel);
+        }
+    }
+    private void SyncEqualizerQuickControls()
+    {
+        _equalizerLoading = true;
+        for (var i = 0; i < 3; i++) _equalizerTones[i].Value = _settings.Equalizer.ToneGainsDb[i];
+        EqualizerPreamp.Value = _settings.Equalizer.PreampDb;
+        EqualizerPreampValue.Text = Db(EqualizerPreamp.Value);
+        _equalizerLoading = false;
+    }
+    private void RefreshEqualizerBandValues()
+    {
+        _equalizerLoading = true;
+        for (var i = 0; i < EqualizerBands.Children.Count; i++)
+        {
+            var index = _settings.EqualizerAdvancedMode ? i : EqualizerSettings.BasicBands[i];
+            ((Slider)((StackPanel)EqualizerBands.Children[i]).Children[1]).Value = _settings.Equalizer.GainsDb[index];
+        }
+        _equalizerLoading = false;
+    }
+    private void OnEqualizerPresetChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (_equalizerLoading || EqualizerPreset.SelectedIndex <= 0) return;
+        var enabled = _settings.Equalizer.Enabled;
+        _settings.Equalizer = EqualizerSettings.FromPreset(EqualizerPreset.SelectedIndex - 1);
+        _settings.Equalizer.Enabled = enabled;
+        SyncEqualizerQuickControls(); RebuildEqualizerBands(); QueueEqualizerChange();
+        EqualizerPreset.SelectedIndex = 0;
+    }
+    private void OnEqualizerCompareChanged(object sender, RoutedEventArgs e)
+    {
+        if (_equalizerLoading) return;
+        _equalizerCompareOriginal = EqualizerCompare.IsChecked == true;
+        QueueEqualizerChange();
+    }
+    private void RenderEqualizerCurve()
+    {
+        // This graph shows the editable band curve; the cascaded filters' exact
+        // frequency response depends on overlapping bandwidths.
+        var points = new PointCollection();
+        for (var i = 0; i < 31; i++)
+        {
+            var x = Math.Log10(EqualizerSettings.Frequencies[i] / 20) / 3 * 800;
+            points.Add(new Point(x, 70 - _settings.Equalizer.GainsDb[i] * 5));
+        }
+        EqualizerCurve.Points = points;
     }
     private void RebuildEqualizerBands()
     {
@@ -95,16 +180,25 @@ public sealed partial class MainWindow
             var frequency = EqualizerSettings.Frequencies[index];
             var label = frequency >= 1000 ? (frequency / 1000).ToString("0.##", CultureInfo.CurrentCulture) + " kHz"
                 : frequency.ToString("0.#", CultureInfo.CurrentCulture) + " Hz";
-            var value = new TextBlock { Text = Db(_settings.Equalizer.GainsDb[index]), HorizontalAlignment = HorizontalAlignment.Center, FontSize = 12 };
+            var value = new NumberBox { Value = _settings.Equalizer.GainsDb[index], Minimum = -12, Maximum = 12,
+                SmallChange = .5, LargeChange = 3, SpinButtonPlacementMode = NumberBoxSpinButtonPlacementMode.Hidden,
+                HorizontalAlignment = HorizontalAlignment.Stretch };
             var slider = new Slider { Orientation = Orientation.Vertical, Minimum = -12, Maximum = 12,
                 StepFrequency = .5, Value = _settings.Equalizer.GainsDb[index], Height = 180, HorizontalAlignment = HorizontalAlignment.Center };
             AutomationProperties.SetName(slider, label);
+            AutomationProperties.SetName(value, label + " dB");
+            slider.DoubleTapped += (_, _) => slider.Value = 0;
+            value.ValueChanged += (_, e) =>
+            {
+                if (double.IsFinite(e.NewValue)) slider.Value = e.NewValue;
+            };
             ToolTipService.SetToolTip(slider, label + " · −12 … +12 dB");
             slider.ValueChanged += (_, e) =>
             {
+                value.Value = e.NewValue;
+                if (_equalizerLoading) return;
                 if (advanced) _settings.Equalizer.GainsDb[index] = e.NewValue;
                 else _settings.Equalizer.SetBasicGain(basicIndex, e.NewValue);
-                value.Text = Db(e.NewValue);
                 QueueEqualizerChange();
             };
             var panel = new StackPanel { Spacing = 8, Padding = new Thickness(2, 8, 2, 8) };

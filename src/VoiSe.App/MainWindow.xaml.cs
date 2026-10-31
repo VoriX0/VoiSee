@@ -1,4 +1,4 @@
-using Microsoft.UI.Windowing;
+﻿using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Controls.Primitives;
@@ -249,7 +249,7 @@ public sealed partial class MainWindow : Window
         };
         _discordCableSessionIsolationTimer.Tick += OnDiscordCableSessionIsolationTimerTick;
 
-        AppendLog("VoiSee Version 14.3.1 UI started.");
+        AppendLog("VoiSee Version 14.3.2 UI started.");
         AppendLog($"Settings path: {_settingsStore.SettingsPath}");
 
         var isolationResult = _discordCableSessionIsolationService.Enable();
@@ -6468,7 +6468,7 @@ public sealed partial class MainWindow : Window
             if (input is null || virtualOutput is null)
                 throw new InvalidOperationException("Selected devices are no longer available. Refresh devices and select an available microphone.");
             SaveCurrentSettings();
-            _engine = new Gate2UnifiedAudioEngine(input, virtualOutput, monitor, CreateEffectSettings(), ownsDevices: true, equalizer: _settings.Equalizer);
+            _engine = new Gate2UnifiedAudioEngine(input, virtualOutput, monitor, CreateEffectSettings(), ownsDevices: true, equalizer: CurrentEqualizerForEngine());
             var startedEngine = _engine;
             _engine.Faulted += error => DispatcherQueue.TryEnqueue(() =>
             {

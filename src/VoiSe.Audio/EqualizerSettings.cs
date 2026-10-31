@@ -9,12 +9,44 @@ public sealed class EqualizerSettings
     public bool Enabled { get; set; } = true;
     public double PreampDb { get; set; }
     public double[] GainsDb { get; set; } = new double[31];
+    public double[] ToneGainsDb { get; set; } = new double[3];
     public EqualizerSettings NormalizedCopy()
     {
         var copy = new EqualizerSettings { Enabled = Enabled, PreampDb = Limit(PreampDb, -24, 12) };
         for (var i = 0; i < Math.Min(GainsDb?.Length ?? 0, copy.GainsDb.Length); i++)
             copy.GainsDb[i] = Limit(GainsDb![i], -12, 12);
+        for (var i = 0; i < Math.Min(ToneGainsDb?.Length ?? 0, 3); i++)
+            copy.ToneGainsDb[i] = Limit(ToneGainsDb![i], -6, 6);
         return copy;
+    }
+    // Broad, additive controls keep existing detailed adjustments intact.
+    public void SetToneGain(int tone, double value)
+    {
+        if (tone < 0 || tone > 2) throw new ArgumentOutOfRangeException(nameof(tone));
+        var centers = new[] { 125.0, 2000.0, 8000.0 };
+        value = Limit(value, -6, 6);
+        var delta = value - ToneGainsDb[tone];
+        for (var i = 0; i < 31; i++)
+        {
+            var distance = Math.Log2(Frequencies[i] / centers[tone]);
+            var weight = Math.Max(0, 1 - Math.Abs(distance) / 2);
+            GainsDb[i] = Limit(GainsDb[i] + delta * weight, -12, 12);
+        }
+        ToneGainsDb[tone] = value;
+    }
+
+    public static EqualizerSettings FromPreset(int preset)
+    {
+        var settings = new EqualizerSettings();
+        switch (preset)
+        {
+            case 0: break;
+            case 1: settings.SetToneGain(0, 2); settings.SetToneGain(2, -1); settings.PreampDb = -3; break;
+            case 2: settings.SetToneGain(0, -2); settings.SetToneGain(1, 2); settings.PreampDb = -3; break;
+            case 3: settings.SetToneGain(1, -1); settings.SetToneGain(2, -3); break;
+            default: throw new ArgumentOutOfRangeException(nameof(preset));
+        }
+        return settings;
     }
     // Coarse edits apply a log-frequency tent to adjacent bands, preserving the
     // existing fine-detail offsets. Switching views alone does no conversion.

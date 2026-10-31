@@ -6,7 +6,7 @@
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     mc:Ignorable="d"
-    Title="VoiSee Version 14.3.1">
+    Title="VoiSee Version 14.3.2">
 
     <Grid x:Name="RootGrid" RequestedTheme="Dark" Background="{ThemeResource VoiSee.AppBackgroundBrush}" SizeChanged="OnRootGridSizeChanged">
         <Grid.RowDefinitions>
@@ -21,7 +21,7 @@
             </Grid.ColumnDefinitions>
             <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center" Margin="10,0,0,0">
                 <Image Source="ms-appx:///Assets/AppIcon_24.png" Width="16" Height="16" VerticalAlignment="Center" />
-                <TextBlock x:Name="TitleBarVersionTextBlock" Text="VoiSee Version 14.3.1" FontSize="12" Foreground="{ThemeResource VoiSee.PrimaryTextBrush}" VerticalAlignment="Center" />
+                <TextBlock x:Name="TitleBarVersionTextBlock" Text="VoiSee Version 14.3.2" FontSize="12" Foreground="{ThemeResource VoiSee.PrimaryTextBrush}" VerticalAlignment="Center" />
             </StackPanel>
         </Grid>
 
@@ -39,7 +39,7 @@
                 </Grid.ColumnDefinitions>
                 <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
                     <Image Source="ms-appx:///Assets/AppIcon_48.png" Width="34" Height="34" VerticalAlignment="Center" />
-                    <TextBlock x:Name="MainTitle" Text="VoiSee Version 14.3.1" FontSize="28" FontWeight="SemiBold" Foreground="{ThemeResource VoiSee.PrimaryTextBrush}" VerticalAlignment="Center" />
+                    <TextBlock x:Name="MainTitle" Text="VoiSee Version 14.3.2" FontSize="28" FontWeight="SemiBold" Foreground="{ThemeResource VoiSee.PrimaryTextBrush}" VerticalAlignment="Center" />
                 </StackPanel>
                 <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center" HorizontalAlignment="Right">
                     <TextBlock Text="Mic Output" Foreground="{ThemeResource VoiSee.PrimaryTextBrush}" Opacity="0.62" VerticalAlignment="Center" />
@@ -1245,8 +1245,30 @@
                             <TextBlock x:Name="EqualizerDescription" TextWrapping="Wrap" Style="{StaticResource VoiSee.Style.Text.Secondary}" />
                             <StackPanel Orientation="Horizontal" Spacing="24">
                                 <ToggleSwitch x:Name="EqualizerEnabled" Toggled="OnEqualizerEnabledChanged" />
-                                <ToggleSwitch x:Name="EqualizerAdvanced" Toggled="OnEqualizerModeChanged" />
+                                <ToggleButton x:Name="EqualizerCompare" Content="Слушать исходный звук" Checked="OnEqualizerCompareChanged" Unchecked="OnEqualizerCompareChanged" VerticalAlignment="Bottom" />
                                 <Button x:Name="EqualizerReset" Click="OnEqualizerReset" VerticalAlignment="Bottom" />
+                            </StackPanel>
+                            <ComboBox x:Name="EqualizerPreset" Header="Готовый звук · заменяет текущую коррекцию" SelectedIndex="0" SelectionChanged="OnEqualizerPresetChanged" MinWidth="320">
+                                <ComboBoxItem Content="Выберите отправную точку…" />
+                                <ComboBoxItem Content="Нейтральный" />
+                                <ComboBoxItem Content="Тёплый голос" />
+                                <ComboBoxItem Content="Чёткая речь" />
+                                <ComboBoxItem Content="Мягкий голос" />
+                            </ComboBox>
+                            <Border Background="{ThemeResource VoiSee.PanelBackgroundBrush}" CornerRadius="8">
+                                <Grid x:Name="EqualizerQuickControls">
+                                    <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                                </Grid>
+                            </Border>
+                            <StackPanel Spacing="4">
+                                <TextBlock Text="Коррекция полос · ±12 dB" Style="{StaticResource VoiSee.Style.Text.Secondary}" />
+                                <Viewbox Stretch="Fill" Height="140">
+                                    <Canvas Width="800" Height="140" Background="{ThemeResource VoiSee.PanelBackgroundBrush}">
+                                        <Line X1="0" Y1="70" X2="800" Y2="70" Stroke="{ThemeResource VoiSee.SecondaryTextBrush}" Opacity="0.35" />
+                                        <Polyline x:Name="EqualizerCurve" Stroke="{ThemeResource VoiSee.PrimaryTextBrush}" StrokeThickness="2" />
+                                    </Canvas>
+                                </Viewbox>
+                                <Grid><TextBlock Text="20 Hz"/><TextBlock Text="630 Hz" HorizontalAlignment="Center"/><TextBlock Text="20 kHz" HorizontalAlignment="Right"/></Grid>
                             </StackPanel>
                             <Border Background="{ThemeResource VoiSee.PanelBackgroundBrush}" CornerRadius="8" Padding="16">
                                 <StackPanel Spacing="8">
@@ -1257,8 +1279,13 @@
                                     </StackPanel>
                                 </StackPanel>
                             </Border>
-                            <Grid x:Name="EqualizerBands" ColumnSpacing="4" RowSpacing="12" SizeChanged="OnEqualizerBandsSizeChanged" />
-                            <TextBlock x:Name="EqualizerHint" TextWrapping="Wrap" Style="{StaticResource VoiSee.Style.Text.Secondary}" />
+                            <Expander Header="Подробная коррекция · 10 / 31 полоса" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch">
+                                <StackPanel Spacing="12">
+                                    <ToggleSwitch x:Name="EqualizerAdvanced" Toggled="OnEqualizerModeChanged" />
+                                    <Grid x:Name="EqualizerBands" ColumnSpacing="4" RowSpacing="12" SizeChanged="OnEqualizerBandsSizeChanged" />
+                                    <TextBlock x:Name="EqualizerHint" TextWrapping="Wrap" Style="{StaticResource VoiSee.Style.Text.Secondary}" />
+                                </StackPanel>
+                            </Expander>
                         </StackPanel>
                     </ScrollView>
                 </TabViewItem>

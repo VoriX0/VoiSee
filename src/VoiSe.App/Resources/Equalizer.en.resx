@@ -27,4 +27,22 @@
   <data name="Hint" xml:space="preserve">
     <value>10 bands: each slider also adjusts nearby frequencies. Switching views preserves all 31 values and does not change the sound. Reduce preamp when boosting bands to avoid limiting.</value>
   </data>
+  <data name="Body" xml:space="preserve">
+    <value>Body</value>
+  </data>
+  <data name="Clarity" xml:space="preserve">
+    <value>Clarity</value>
+  </data>
+  <data name="Air" xml:space="preserve">
+    <value>Air</value>
+  </data>
+  <data name="BodyHint" xml:space="preserve">
+    <value>Less rumble ← → fuller voice</value>
+  </data>
+  <data name="ClarityHint" xml:space="preserve">
+    <value>Softer speech ← → clearer words</value>
+  </data>
+  <data name="AirHint" xml:space="preserve">
+    <value>Less sharpness ← → more detail</value>
+  </data>
 </root>

@@ -27,4 +27,22 @@
   <data name="Hint" xml:space="preserve">
     <value>10 полос: каждый слайдер также изменяет соседние частоты. Переключение режима сохраняет все 31 значение и не меняет звук. При сильном усилении уменьшите предусиление, чтобы избежать ограничения громкости.</value>
   </data>
+  <data name="Body" xml:space="preserve">
+    <value>Теплота</value>
+  </data>
+  <data name="Clarity" xml:space="preserve">
+    <value>Разборчивость</value>
+  </data>
+  <data name="Air" xml:space="preserve">
+    <value>Яркость</value>
+  </data>
+  <data name="BodyHint" xml:space="preserve">
+    <value>Меньше гула ← → больше объёма</value>
+  </data>
+  <data name="ClarityHint" xml:space="preserve">
+    <value>Мягче речь ← → чётче слова</value>
+  </data>
+  <data name="AirHint" xml:space="preserve">
+    <value>Меньше резкости ← → больше деталей</value>
+  </data>
 </root>

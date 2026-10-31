@@ -309,6 +309,29 @@ Test("31-band EQ is stable and allocation-free under updates", () =>
     settings.Enabled = false; eq.Update(settings); Array.Fill(samples, .1f); eq.Process(samples); Array.Fill(samples, .1f); eq.Process(samples);
     Array.Fill(samples, .1f); eq.Process(samples); Check(samples.All(x => x == .1f), "Bypass did not settle");
 });
+Test("quick tone controls preserve detailed offsets away from clipping", () =>
+{
+    var settings = new EqualizerSettings(); settings.GainsDb[12] = .75;
+    var original = settings.GainsDb.ToArray();
+    for (var i = 0; i < 3; i++) settings.SetToneGain(i, 2);
+    Check(settings.GainsDb[8] > 0 && settings.GainsDb[20] > 0 && settings.GainsDb[26] > 0, "Tone controls do not affect their frequency ranges");
+    for (var i = 0; i < 3; i++) settings.SetToneGain(i, 0);
+    Check(settings.GainsDb.Zip(original).All(x => Math.Abs(x.First - x.Second) < 1e-12), "Tone adjustments discarded fine offsets");
+});
+Test("voice starting presets are independent and survive save", () =>
+{
+    for (var i = 0; i < 4; i++)
+    {
+        var settings = EqualizerSettings.FromPreset(i);
+        var restored = JsonSerializer.Deserialize<EqualizerSettings>(JsonSerializer.Serialize(settings))!.NormalizedCopy();
+        Check(settings.GainsDb.SequenceEqual(restored.GainsDb) && settings.ToneGainsDb.SequenceEqual(restored.ToneGainsDb), "Preset lost control positions");
+        Check(settings.GainsDb.All(x => x >= -12 && x <= 12) && settings.PreampDb <= 0, "Unsafe preset gain");
+        settings.GainsDb[0] = 12;
+        Check(EqualizerSettings.FromPreset(i).GainsDb[0] != 12, "Presets share mutable arrays");
+    }
+    var legacy = JsonSerializer.Deserialize<EqualizerSettings>("{\"GainsDb\":[1],\"ToneGainsDb\":null}")!.NormalizedCopy();
+    Check(legacy.GainsDb[0] == 1 && legacy.ToneGainsDb.All(x => x == 0), "Old user profile migration lost EQ");
+});
 Console.WriteLine($"REGRESSION_TESTS=PASS ({results.Count})");
 // Every directory here was created by this process under a fixed temporary root.
 var expectedRoot = Path.GetFullPath("artifacts/regression-tests") + Path.DirectorySeparatorChar;
