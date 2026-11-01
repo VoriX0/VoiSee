@@ -20,6 +20,63 @@ string Wave(string name, int seconds, int rate = 48000)
     return path;
 }
 var shortWave = Wave("short", 4);
+Test("shared audio readers preserve WAV bit depths, channels, seeking and file ownership", () =>
+{
+    foreach (var bits in new[] { 8, 16, 24, 32, -32 })
+    {
+        var path = Path.Combine(root, "reader-" + bits + ".wav");
+        var waveFormat = bits < 0 ? WaveFormat.CreateIeeeFloatWaveFormat(48000, 2) : new WaveFormat(48000, bits, 2);
+        using (var writer = new WaveFileWriter(path, waveFormat))
+        {
+            var data = new byte[2400 * waveFormat.BlockAlign];
+            for (var frame = 0; frame < 2400; frame++) for (var channel = 0; channel < 2; channel++)
+            {
+                var value = (frame < 1200 ? 1 : -1) * (channel == 0 ? 1 : -1);
+                var offset = frame * waveFormat.BlockAlign + channel * Math.Abs(bits) / 8;
+                if (bits == 8) data[offset] = (byte)(128 + value * 32);
+                else if (bits == -32) Buffer.BlockCopy(BitConverter.GetBytes(value * .25f), 0, data, offset, 4);
+                else {
+                    var sample = value * (1 << (bits - 3));
+                    for (var b = 0; b < bits / 8; b++) data[offset + b] = (byte)(sample >> (8 * b));
+                }
+            }
+            writer.Write(data, 0, data.Length);
+        }
+        using (var reader = AudioSourceReader.Open(path))
+        {
+            Check(Math.Abs(reader.TotalTime.TotalSeconds - .05) < .000001, "Reader duration changed: " + bits);
+            var samples = new float[64]; reader.ToSampleProvider().Read(samples, 0, samples.Length);
+            Check(Math.Abs(samples[0] - .25f) < .00001 && Math.Abs(samples[1] + .25f) < .00001, "PCM conversion/channel mapping changed: " + bits);
+            reader.CurrentTime = TimeSpan.FromSeconds(.03);
+            reader.ToSampleProvider().Read(samples, 0, samples.Length);
+            Check(Math.Abs(samples[0] + .25f) < .00001 && Math.Abs(samples[1] - .25f) < .00001, "Seek changed: " + bits);
+        }
+        using var exclusive = new FileStream(path, FileMode.Open, FileAccess.ReadWrite, FileShare.None);
+    }
+});
+Test("shared MP3 decoder reads and seeks without the NAudio umbrella package", () =>
+{
+    var path = Path.Combine(root, "reader.mp3");
+    var input = Path.Combine(root, "mp3-input.wav");
+    using (var writer = new WaveFileWriter(input, new WaveFormat(48000, 16, 1)))
+        for (var i = 0; i < 4 * 48000; i++) writer.WriteSample((float)(.25 * Math.Sin(2 * Math.PI * (i < 96000 ? 440 : 880) * i / 48000)));
+    using (var source = new WaveFileReader(input)) MediaFoundationEncoder.EncodeToMp3(source, path, 128000);
+    using var reader = AudioSourceReader.Open(path);
+    var samples = new float[2048];
+    int Crossings(float[] data) => Enumerable.Range(1, data.Length - 1).Count(i => data[i - 1] <= 0 && data[i] > 0);
+    int ReadSettled()
+    {
+        // MP3 codecs have a short preroll after opening/seeking; measure a settled block.
+        for (var block = 0; block < 4; block++) Check(reader.ToSampleProvider().Read(samples, 0, samples.Length) > 0, "MP3 decoder ended early");
+        Check(Math.Sqrt(samples.Average(x => (double)x * x)) > .05, "Decoded MP3 segment is silent");
+        return Crossings(samples);
+    }
+    var firstCrossings = ReadSettled();
+    reader.CurrentTime = TimeSpan.FromSeconds(2.5);
+    var secondCrossings = ReadSettled();
+    Check(secondCrossings > firstCrossings * 1.6 && secondCrossings < firstCrossings * 2.4, "MP3 seek did not reach the 880 Hz segment");
+
+});
 Test("localization uses Russian by default and keeps effect IDs and user data stable", () =>
 {
     Check(new VoiSeUserSettings().InterfaceLanguage == "ru", "New profile language is not Russian");

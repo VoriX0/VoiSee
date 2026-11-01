@@ -1,4 +1,4 @@
-using NAudio.Wave;
+﻿using NAudio.Wave;
 
 namespace VoiSe.Audio;
 
@@ -313,13 +313,5 @@ public static class SoundEditProcessor
         return (float)Math.Pow(10.0, clamped / 20.0);
     }
 
-    private static WaveStream CreateReader(string filePath)
-    {
-        var extension = Path.GetExtension(filePath).ToLowerInvariant();
-        return extension switch
-        {
-            ".ogg" => new NAudio.Vorbis.VorbisWaveReader(filePath),
-            _ => new AudioFileReader(filePath)
-        };
-    }
+    private static WaveStream CreateReader(string filePath) => AudioSourceReader.Open(filePath);
 }

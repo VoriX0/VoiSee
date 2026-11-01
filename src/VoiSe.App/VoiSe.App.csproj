@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
     <TargetFramework>net8.0-windows10.0.19041.0</TargetFramework>
@@ -11,12 +11,14 @@
     <WindowsPackageType>None</WindowsPackageType>
     <WindowsAppSDKSelfContained>true</WindowsAppSDKSelfContained>
     <EnableMsixTooling>true</EnableMsixTooling>
+    <SatelliteResourceLanguages>ru;en</SatelliteResourceLanguages>
+    <CopyOutputSymbolsToPublishDirectory>false</CopyOutputSymbolsToPublishDirectory>
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>
     <ApplicationIcon>Assets\AppIcon.ico</ApplicationIcon>
-    <Version>14.6.1</Version>
-    <AssemblyVersion>14.6.1.0</AssemblyVersion>
-    <FileVersion>14.6.1.0</FileVersion>
-    <InformationalVersion>14.6.1</InformationalVersion>
+    <Version>14.7.1</Version>
+    <AssemblyVersion>14.7.1.0</AssemblyVersion>
+    <FileVersion>14.7.1.0</FileVersion>
+    <InformationalVersion>14.7.1</InformationalVersion>
     <DeepFilterNetNativePath>$(MSBuildProjectDirectory)\..\VoiSe.Audio\runtimes\win-x64\native\deep_filter_ladspa.dll</DeepFilterNetNativePath>
     <DeepFilterNetFetchScript>$(MSBuildProjectDirectory)\..\..\scripts\fetch-deepfilternet.ps1</DeepFilterNetFetchScript>
     <StopRunningVoiSeeBeforeDebugBuild Condition="'$(StopRunningVoiSeeBeforeDebugBuild)' == ''">true</StopRunningVoiSeeBeforeDebugBuild>
@@ -29,16 +31,17 @@
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="Microsoft.WindowsAppSDK" Version="1.6.250602001" />
-    <FrameworkReference Include="Microsoft.WindowsDesktop.App.WindowsForms" />
   </ItemGroup>
   <ItemGroup>
     <Content Include="Assets\**\*">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
     </Content>
+    <!-- The release script stages one complete extracted vendor package.
+         dotnet run retains the original archive for offline driver repair. -->
     <Content Include="ThirdParty\VB-CABLE\**\*">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+      <CopyToPublishDirectory>Never</CopyToPublishDirectory>
     </Content>
     <Content Include="Themes\UserThemeTemplate.voiseetheme.template">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>

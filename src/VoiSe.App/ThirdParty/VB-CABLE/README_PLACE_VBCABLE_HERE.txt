@@ -1,12 +1,13 @@
-Place the official VB-CABLE package here before building the VoiSee installer.
+Place the official complete VB-CABLE package here before building a release.
+Alternatively, put a single vendor ZIP or a complete extracted package in
+third_party/VB-CABLE at the repository root; the release script prefers it.
 
-Supported:
-- original official VB-CABLE ZIP archive
-- extracted package with VBCABLE_Setup_x64.exe
+scripts/build-installer.ps1 publishes a version-specific, self-contained app.
+It stages the full vendor package, verifies setup + INF/CAT/SYS, then removes
+only the redundant ZIP from the published payload. Vendor notices remain.
+The installer and VoiSee's driver repair button use that extracted package.
+A copied setup EXE alone is not a valid driver package.
 
-Build script behavior:
-- copies files from third_party\VB-CABLE into src\VoiSe.App\ThirdParty\VB-CABLE before publish
-- if ZIP is present, extracts it inside publish output to make the installer checkbox work
-- if VBCABLE_Setup_x64.exe is detected, Inno Setup receives /DVBCABLE_BUNDLED and shows the optional checkbox
-
-Do not place user-generated VoiSee sounds, categories, presets, scenes, or settings here.
+dotnet run keeps the source ZIP in its build output for offline driver repair.
+Use the release script for a complete distributable, including driver files.
+Do not put user settings, categories, presets, scenes or sounds here.

@@ -1,4 +1,4 @@
-using NAudio.CoreAudioApi;
+﻿using NAudio.CoreAudioApi;
 using NAudio.Vorbis;
 using NAudio.Wave;
 using NAudio.Wave.SampleProviders;
@@ -90,15 +90,7 @@ public sealed class OneShotSoundPlayer : IDisposable
         return new ActivePlayback(output, reader);
     }
 
-    private static WaveStream CreateReader(string filePath)
-    {
-        var extension = Path.GetExtension(filePath).ToLowerInvariant();
-        return extension switch
-        {
-            ".ogg" => new VorbisWaveReader(filePath),
-            _ => new AudioFileReader(filePath)
-        };
-    }
+    private static WaveStream CreateReader(string filePath) => AudioSourceReader.Open(filePath);
 
     private void StopLocked()
     {

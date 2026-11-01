@@ -1,4 +1,4 @@
-using NAudio.Vorbis;
+﻿using NAudio.Vorbis;
 using NAudio.Wave;
 using NAudio.Wave.SampleProviders;
 
@@ -78,15 +78,7 @@ public static class SoundFileLoader
         return ReadAllAndConvertChannels(provider, targetFormat.Channels, expectedSamples);
     }
 
-    internal static WaveStream CreateReader(string filePath)
-    {
-        var extension = Path.GetExtension(filePath).ToLowerInvariant();
-        return extension switch
-        {
-            ".ogg" => new VorbisWaveReader(filePath),
-            _ => new AudioFileReader(filePath)
-        };
-    }
+    internal static WaveStream CreateReader(string filePath) => AudioSourceReader.Open(filePath);
 
     private static float[] ReadAllAndConvertChannels(ISampleProvider provider, int targetChannels, int expectedSamples)
     {

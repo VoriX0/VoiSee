@@ -1,9 +1,8 @@
-using System.Diagnostics;
-using System.Drawing;
-using System.Drawing.Drawing2D;
-using System.Drawing.Imaging;
+﻿using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Text;
+using Windows.Graphics.Imaging;
+using Windows.Storage.Streams;
 
 namespace VoiSe.App;
 
@@ -71,87 +70,93 @@ internal sealed class WindowCaptureService
         return window is not null && IsWindow(window.Handle);
     }
 
-    public byte[]? CapturePreviewPng(CapturableWindowInfo window, int maxWidth = 1280, int maxHeight = 720)
+    public async Task<byte[]?> CapturePreviewPngAsync(CapturableWindowInfo window, int maxWidth = 1280, int maxHeight = 720)
     {
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(maxWidth);
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(maxHeight);
+        CapturedPreview? preview;
         var previousDpiContext = SetThreadDpiAwarenessContext(DpiAwarenessContextPerMonitorAwareV2);
-        try
-        {
-            return CapturePreviewPngCore(window, maxWidth, maxHeight);
-        }
+        try { preview = CapturePreviewPixels(window, maxWidth, maxHeight); }
         finally
         {
-            if (previousDpiContext != IntPtr.Zero)
-            {
-                SetThreadDpiAwarenessContext(previousDpiContext);
-            }
+            // Restore on this same thread, before the first await.
+            if (previousDpiContext != IntPtr.Zero) SetThreadDpiAwarenessContext(previousDpiContext);
         }
+        if (preview is null) return null;
+        using var stream = new InMemoryRandomAccessStream();
+        var encoder = await BitmapEncoder.CreateAsync(BitmapEncoder.PngEncoderId, stream);
+        encoder.SetPixelData(BitmapPixelFormat.Bgra8, BitmapAlphaMode.Ignore,
+            (uint)preview.Width, (uint)preview.Height, 96, 96, preview.Pixels);
+        await encoder.FlushAsync();
+        using var reader = new DataReader(stream.GetInputStreamAt(0));
+        await reader.LoadAsync((uint)stream.Size);
+        var png = new byte[checked((int)stream.Size)];
+        reader.ReadBytes(png);
+        return png;
     }
 
-    private byte[]? CapturePreviewPngCore(CapturableWindowInfo window, int maxWidth, int maxHeight)
+    private sealed record CapturedPreview(byte[] Pixels, int Width, int Height);
+    private static CapturedPreview? CapturePreviewPixels(CapturableWindowInfo window, int maxWidth, int maxHeight)
     {
-        if (!IsWindow(window.Handle) || !GetWindowRect(window.Handle, out var rect))
-        {
-            return null;
-        }
-
+        if (!IsWindow(window.Handle) || !GetWindowRect(window.Handle, out var rect)) return null;
         var sourceWidth = Math.Max(1, rect.Right - rect.Left);
         var sourceHeight = Math.Max(1, rect.Bottom - rect.Top);
+        // Accept up to 8K, but never allocate an unbounded GDI surface for a malformed window rectangle.
+        if ((long)sourceWidth * sourceHeight > 32 * 1024 * 1024) return null;
+        var scale = Math.Min(1.0, Math.Min(maxWidth / (double)sourceWidth, maxHeight / (double)sourceHeight));
+        var width = Math.Max(1, (int)Math.Round(sourceWidth * scale));
+        var height = Math.Max(1, (int)Math.Round(sourceHeight * scale));
         var windowDc = GetWindowDC(window.Handle);
-        if (windowDc == IntPtr.Zero)
-        {
-            return null;
-        }
-
-        var memoryDc = CreateCompatibleDC(windowDc);
-        var bitmapHandle = CreateCompatibleBitmap(windowDc, sourceWidth, sourceHeight);
-        if (memoryDc == IntPtr.Zero || bitmapHandle == IntPtr.Zero)
-        {
-            if (bitmapHandle != IntPtr.Zero) DeleteObject(bitmapHandle);
-            if (memoryDc != IntPtr.Zero) DeleteDC(memoryDc);
-            ReleaseDC(window.Handle, windowDc);
-            return null;
-        }
-
-        var previousObject = SelectObject(memoryDc, bitmapHandle);
+        if (windowDc == IntPtr.Zero) return null;
+        IntPtr sourceDc = IntPtr.Zero, targetDc = IntPtr.Zero, sourceBitmap = IntPtr.Zero, targetBitmap = IntPtr.Zero;
+        IntPtr previousSource = IntPtr.Zero, previousTarget = IntPtr.Zero;
         try
         {
-            var captured = PrintWindow(window.Handle, memoryDc, PwRenderFullContent);
-            if (!captured)
-            {
-                captured = BitBlt(memoryDc, 0, 0, sourceWidth, sourceHeight, windowDc, 0, 0, Srccopy);
-            }
-
-            if (!captured)
-            {
-                return null;
-            }
-
-            using var sourceBitmap = Image.FromHbitmap(bitmapHandle);
-            var scale = Math.Min(1.0, Math.Min(maxWidth / (double)sourceWidth, maxHeight / (double)sourceHeight));
-            var width = Math.Max(1, (int)Math.Round(sourceWidth * scale));
-            var height = Math.Max(1, (int)Math.Round(sourceHeight * scale));
-            using var previewBitmap = new Bitmap(width, height, PixelFormat.Format32bppArgb);
-            using (var graphics = Graphics.FromImage(previewBitmap))
-            {
-                graphics.CompositingQuality = CompositingQuality.HighQuality;
-                graphics.InterpolationMode = InterpolationMode.HighQualityBicubic;
-                graphics.PixelOffsetMode = PixelOffsetMode.HighQuality;
-                graphics.DrawImage(sourceBitmap, 0, 0, width, height);
-            }
-
-            using var stream = new MemoryStream();
-            previewBitmap.Save(stream, ImageFormat.Png);
-            return stream.ToArray();
+            sourceDc = CreateCompatibleDC(windowDc); targetDc = CreateCompatibleDC(windowDc);
+            sourceBitmap = CreateCompatibleBitmap(windowDc, sourceWidth, sourceHeight);
+            targetBitmap = CreateCompatibleBitmap(windowDc, width, height);
+            if (sourceDc == IntPtr.Zero || targetDc == IntPtr.Zero || sourceBitmap == IntPtr.Zero || targetBitmap == IntPtr.Zero) return null;
+            previousSource = SelectObject(sourceDc, sourceBitmap);
+            previousTarget = SelectObject(targetDc, targetBitmap);
+            if (previousSource == IntPtr.Zero || previousSource == new IntPtr(-1) || previousTarget == IntPtr.Zero || previousTarget == new IntPtr(-1)) return null;
+            if (!PrintWindow(window.Handle, sourceDc, PwRenderFullContent) &&
+                !BitBlt(sourceDc, 0, 0, sourceWidth, sourceHeight, windowDc, 0, 0, Srccopy)) return null;
+            SetStretchBltMode(targetDc, 4); // HALFTONE; resize before copying into managed memory.
+            SetBrushOrgEx(targetDc, 0, 0, IntPtr.Zero);
+            if (!StretchBlt(targetDc, 0, 0, width, height, sourceDc, 0, 0, sourceWidth, sourceHeight, Srccopy)) return null;
+            SelectObject(targetDc, previousTarget); previousTarget = IntPtr.Zero;
+            var pixels = new byte[checked(width * height * 4)];
+            var info = new BitmapInfo { Size = 40, Width = width, Height = -height, Planes = 1, BitsPerPixel = 32 };
+            if (GetDIBits(targetDc, targetBitmap, 0, (uint)height, pixels, ref info, 0) != height) return null;
+            return new CapturedPreview(pixels, width, height);
         }
         finally
         {
-            SelectObject(memoryDc, previousObject);
-            DeleteObject(bitmapHandle);
-            DeleteDC(memoryDc);
+            if (previousSource != IntPtr.Zero && previousSource != new IntPtr(-1)) SelectObject(sourceDc, previousSource);
+            if (previousTarget != IntPtr.Zero && previousTarget != new IntPtr(-1)) SelectObject(targetDc, previousTarget);
+            if (sourceBitmap != IntPtr.Zero) DeleteObject(sourceBitmap);
+            if (targetBitmap != IntPtr.Zero) DeleteObject(targetBitmap);
+            if (sourceDc != IntPtr.Zero) DeleteDC(sourceDc);
+            if (targetDc != IntPtr.Zero) DeleteDC(targetDc);
             ReleaseDC(window.Handle, windowDc);
         }
     }
 
+    [StructLayout(LayoutKind.Sequential)]
+    private struct BitmapInfo
+    {
+        public uint Size; public int Width, Height; public ushort Planes, BitsPerPixel;
+        public uint Compression, ImageSize; public int XPelsPerMeter, YPelsPerMeter; public uint ColorsUsed, ColorsImportant;
+    }
+    [DllImport("gdi32.dll")]
+    private static extern int GetDIBits(IntPtr dc, IntPtr bitmap, uint start, uint lines, [Out] byte[] pixels, ref BitmapInfo info, uint usage);
+    [DllImport("gdi32.dll")]
+    private static extern int SetStretchBltMode(IntPtr dc, int mode);
+    [DllImport("gdi32.dll")]
+    private static extern bool SetBrushOrgEx(IntPtr dc, int x, int y, IntPtr previous);
+    [DllImport("gdi32.dll")]
+    private static extern bool StretchBlt(IntPtr destination, int x, int y, int width, int height,
+        IntPtr source, int sourceX, int sourceY, int sourceWidth, int sourceHeight, int operation);
 
     private static string? TryGetExecutablePath(Process process)
     {

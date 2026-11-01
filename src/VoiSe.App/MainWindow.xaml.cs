@@ -246,7 +246,7 @@ public sealed partial class MainWindow : Window
         };
         _discordCableSessionIsolationTimer.Tick += OnDiscordCableSessionIsolationTimerTick;
 
-        AppendLog("VoiSee Version 14.6.1 UI started.");
+        AppendLog("VoiSee Version 14.7.1 UI started.");
         AppendLog($"Settings path: {_settingsStore.SettingsPath}");
 
         var isolationResult = _discordCableSessionIsolationService.Enable();
@@ -1683,7 +1683,7 @@ public sealed partial class MainWindow : Window
         _mediaBridgePreviewUpdating = true;
         try
         {
-            var png = await Task.Run(() => _windowCaptureService.CapturePreviewPng(selected));
+            var png = await Task.Run(() => _windowCaptureService.CapturePreviewPngAsync(selected));
             if (png is null || _mediaBridgeWindow?.Handle != selected.Handle)
             {
                 return;
@@ -3722,7 +3722,7 @@ public sealed partial class MainWindow : Window
             }
 
             _trayIconService = new TrayIconService(
-                iconPath,
+                _windowHandle, iconPath,
                 () => DispatcherQueue.TryEnqueue(RestoreAndActivate),
                 () => DispatcherQueue.TryEnqueue(RequestExit));
         }
@@ -3740,7 +3740,7 @@ public sealed partial class MainWindow : Window
             return;
         }
 
-        if (_trayIconService is null)
+        if (_trayIconService?.IsAvailable != true)
         {
             _exitRequested = true;
             return;
@@ -3756,7 +3756,7 @@ public sealed partial class MainWindow : Window
 
     private bool HideToTray(bool log = true)
     {
-        if (_exitRequested)
+        if (_exitRequested || _trayIconService?.IsAvailable != true)
         {
             return false;
         }
@@ -3788,7 +3788,7 @@ public sealed partial class MainWindow : Window
 
     public bool StartHiddenInTray()
     {
-        if (_trayIconService is null)
+        if (_trayIconService?.IsAvailable != true)
         {
             return false;
         }
@@ -6298,9 +6298,7 @@ public sealed partial class MainWindow : Window
 
         try
         {
-            using WaveStream reader = Path.GetExtension(filePath).Equals(".ogg", StringComparison.OrdinalIgnoreCase)
-                ? new NAudio.Vorbis.VorbisWaveReader(filePath)
-                : new NAudio.Wave.AudioFileReader(filePath);
+            using var reader = AudioSourceReader.Open(filePath);
 
             var sampleProvider = reader.ToSampleProvider();
             var channels = Math.Max(1, sampleProvider.WaveFormat.Channels);
@@ -9311,7 +9309,7 @@ public sealed partial class MainWindow : Window
 
         try
         {
-            using var reader = new NAudio.Wave.AudioFileReader(sound.FilePath);
+            using var reader = AudioSourceReader.Open(sound.FilePath);
             var seconds = Math.Max(0, reader.TotalTime.TotalSeconds);
             _soundDurationSecondsCache[sound.FilePath] = seconds;
             return seconds;

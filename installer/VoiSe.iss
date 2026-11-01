@@ -2,7 +2,9 @@
 ; Build with Inno Setup 6 using scripts\build-installer.ps1
 
 #define MyAppName "VoiSee"
-#define MyAppVersion "14.6.1"
+#ifndef MyAppVersion
+#define MyAppVersion "14.7.1"
+#endif
 #define MyAppPublisher "VoriX"
 #define MyAppURL "https://github.com/VoriX0/VoiSe"
 #define MyAppExeName "VoiSe.App.exe"
@@ -28,7 +30,7 @@ OutputDir=..\artifacts\installer\{#MyAppVersion}
 OutputBaseFilename=VoiSee-Setup-{#MyAppVersion}-x64
 SetupIconFile=..\src\VoiSe.App\Assets\AppIcon.ico
 UninstallDisplayIcon={app}\{#MyAppExeName}
-Compression=lzma2
+Compression=lzma2/ultra64
 SolidCompression=yes
 ArchitecturesAllowed=x64
 ArchitecturesInstallIn64BitMode=x64
@@ -66,6 +68,8 @@ Name: "desktopicon"; Description: "{cm:DesktopShortcut}"; GroupDescription: "{cm
 Name: "installvbcable"; Description: "{cm:InstallBridge}"; GroupDescription: "{cm:BridgeGroup}"
 #endif
 
+#include "obsolete-desktop-files.iss"
+
 [Files]
 Source: "{#PublishSource}\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs; Excludes: "settings.json,soundboard.json,voice-presets.json,data\*,sounds\*,presets\*,scenes\*,*.user,*.suo"
 
@@ -88,6 +92,21 @@ Filename: "{cmd}"; Parameters: "/C reg.exe delete HKCU\Software\Microsoft\Window
 
 
 [Code]
+function IsPreviousVoiSeeInstall(): Boolean;
+var
+  Dependencies: AnsiString;
+begin
+  { Only clean a recognized VoiSee folder. The exact file list never includes
+    settings, user sounds, presets or scenes. [InstallDelete] runs before copy. }
+  Result := FileExists(ExpandConstant('{app}\VoiSe.App.exe')) and
+            FileExists(ExpandConstant('{app}\VoiSe.App.dll')) and
+            FileExists(ExpandConstant('{app}\VoiSe.Audio.dll'));
+  if Result then
+    Result := LoadStringFromFile(ExpandConstant('{app}\VoiSe.App.deps.json'), Dependencies);
+  if Result then
+    Result := Pos('"VoiSe.App/', String(Dependencies)) > 0;
+end;
+
 function GetVBCableInstaller(Param: String): String;
 var
   Candidate: String;
