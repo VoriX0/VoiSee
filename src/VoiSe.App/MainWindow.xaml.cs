@@ -250,7 +250,7 @@ public sealed partial class MainWindow : Window
         };
         _discordCableSessionIsolationTimer.Tick += OnDiscordCableSessionIsolationTimerTick;
 
-        AppendLog("VoiSee Version 14.4.1 UI started.");
+        AppendLog("VoiSee Version 14.4.2 UI started.");
         AppendLog($"Settings path: {_settingsStore.SettingsPath}");
 
         var isolationResult = _discordCableSessionIsolationService.Enable();
@@ -3959,7 +3959,6 @@ public sealed partial class MainWindow : Window
         InputDeviceComboBox.SelectedItem = selectedInput;
         VirtualOutputComboBox.SelectedItem = selectedVirtual;
         MonitorOutputComboBox.SelectedItem = selectedMonitor;
-        FillEchoReferenceDevices(renderDevices);
 
         AppendLog($"Devices refreshed: {captureDevices.Count} capture, {renderDevices.Count} render.");
         AppendLog($"Selected input: {selectedInput?.FriendlyName ?? "none"}");
@@ -6656,9 +6655,9 @@ public sealed partial class MainWindow : Window
 
         return new EffectSettings
         {
-            EchoCancellationEnabled = EchoCancellationSwitch.IsOn,
-            RoomEchoReductionEnabled = RoomEchoReductionSwitch.IsOn,
-            EchoReferenceDeviceId = SelectedEchoReferenceId,
+            EchoCancellationEnabled = EchoCancellationSwitch.IsChecked == true,
+            RoomEchoReductionEnabled = EchoCancellationSwitch.IsChecked == true,
+            EchoReferenceDeviceId = null, // Follow the Windows playback device automatically.
             NoiseSuppressionMode = GetSelectedNoiseSuppressionMode(),
             NoiseSuppressionStrength = (float)Clamp((NoiseSuppressionStrengthSlider?.Value ?? 70.0) / 100.0, 0.0, 1.0),
             InputGainDb = 0.0f,
@@ -7019,24 +7018,6 @@ public sealed partial class MainWindow : Window
         if (!_loadingSettings) ApplyLiveSettings("master output volume changed");
     }
 
-    private void OnNoiseSuppressionModeButtonClick(object sender, RoutedEventArgs e)
-    {
-        if (sender is not FrameworkElement { Tag: string tag } || NoiseSuppressionModeComboBox is null)
-        {
-            return;
-        }
-
-        for (var index = 0; index < NoiseSuppressionModeComboBox.Items.Count; index++)
-        {
-            if (NoiseSuppressionModeComboBox.Items[index] is ComboBoxItem item &&
-                string.Equals(item.Tag as string, tag, StringComparison.OrdinalIgnoreCase))
-            {
-                NoiseSuppressionModeComboBox.SelectedIndex = index;
-                return;
-            }
-        }
-    }
-
     private void OnNoiseSuppressionModeChanged(object sender, SelectionChangedEventArgs e)
     {
         UpdateNoiseSuppressionUi();
@@ -7076,9 +7057,6 @@ public sealed partial class MainWindow : Window
 
         var mode = GetSelectedNoiseSuppressionMode();
         var enabled = mode != NoiseSuppressionMode.Off;
-        if (NoiseSuppressionOffButton is not null) NoiseSuppressionOffButton.IsChecked = mode == NoiseSuppressionMode.Off;
-        if (NoiseSuppressionRnNoiseButton is not null) NoiseSuppressionRnNoiseButton.IsChecked = mode == NoiseSuppressionMode.RnNoise;
-        if (NoiseSuppressionDeepFilterNetButton is not null) NoiseSuppressionDeepFilterNetButton.IsChecked = mode == NoiseSuppressionMode.DeepFilterNet;
         NoiseSuppressionStrengthSlider.IsEnabled = enabled;
         NoiseSuppressionStrengthValueText.Text = $"{(int)Math.Round(NoiseSuppressionStrengthSlider.Value)}%";
         NoiseSuppressionStrengthValueText.Opacity = enabled ? 0.78 : 0.45;
@@ -12342,9 +12320,9 @@ public sealed partial class MainWindow : Window
         _settings.SoundBoardVirtualMicDelayMs = SoundVirtualDelaySlider?.Value ?? 85.0;
         _settings.MediaBridgeVirtualMicVolume = MediaBridgeVolumeSlider?.Value ?? 1.0;
         var noiseMode = GetSelectedNoiseSuppressionMode();
-        _settings.EchoCancellationEnabled = EchoCancellationSwitch.IsOn;
-        _settings.RoomEchoReductionEnabled = RoomEchoReductionSwitch.IsOn;
-        _settings.EchoReferenceDeviceId = SelectedEchoReferenceId;
+        _settings.EchoCancellationEnabled = EchoCancellationSwitch.IsChecked == true;
+        _settings.RoomEchoReductionEnabled = EchoCancellationSwitch.IsChecked == true;
+        _settings.EchoReferenceDeviceId = null;
         _settings.NoiseSuppressionMode = noiseMode.ToString();
         _settings.NoiseSuppressionEnabled = noiseMode != NoiseSuppressionMode.Off;
         _settings.NoiseSuppressionStrength = NoiseSuppressionStrengthSlider?.Value ?? 70.0;

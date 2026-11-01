@@ -212,9 +212,9 @@ public sealed class Gate2UnifiedAudioEngine : IDisposable
         {
             using var catalog = new AudioDeviceCatalog();
             _echoReferenceDevice = catalog.FindRenderDevice(_settings.EchoReferenceDeviceId)
-                ?? throw new InvalidOperationException("Устройство воспроизведения отключено. Выберите колонки или наушники.");
+                ?? throw new InvalidOperationException("Устройство воспроизведения недоступно. Проверьте настройки звука Windows.");
             if (_echoReferenceDevice.ID == _virtualOutputDevice.ID)
-                throw new InvalidOperationException("Для удаления эха выберите физические колонки или наушники, а не виртуальный микрофон.");
+                throw new InvalidOperationException("В настройках звука Windows выберите колонки или наушники устройством воспроизведения по умолчанию.");
             _echoReferenceName = _echoReferenceDevice.FriendlyName;
             _echoCanceller = new WebRtcEchoCanceller();
             _echoReferenceCapture = new EchoReferenceCapture(_echoReferenceDevice);
