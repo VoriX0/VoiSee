@@ -1,4 +1,4 @@
-using Microsoft.Win32;
+﻿using Microsoft.Win32;
 using System;
 using System.Diagnostics;
 using System.IO;
@@ -43,7 +43,7 @@ internal sealed class AutostartService
         if (enabled)
         {
             using var key = Registry.CurrentUser.CreateSubKey(RunKeyPath, writable: true)
-                ?? throw new InvalidOperationException("Windows autostart registry key could not be opened.");
+                ?? throw new InvalidOperationException(UiText.L("Windows_autostart_registry_key_could_not_be_op_59d81aec"));
             key.SetValue(ValueName, ExpectedCommand, RegistryValueKind.String);
             return;
         }
@@ -62,7 +62,7 @@ internal sealed class AutostartService
 
         if (string.IsNullOrWhiteSpace(path))
         {
-            throw new InvalidOperationException("VoiSee executable path could not be determined.");
+            throw new InvalidOperationException(UiText.L("VoiSee_executable_path_could_not_be_determined_7d2cb72e"));
         }
 
         return Path.GetFullPath(path);

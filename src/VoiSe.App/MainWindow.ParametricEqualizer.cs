@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using Microsoft.UI.Xaml.Controls.Primitives;
 using Microsoft.UI.Xaml.Markup;
@@ -54,7 +54,7 @@ public sealed partial class MainWindow
     private Thumb CreateWidthHandle()
     {
         var handle = new Thumb { Width = 24, Height = 24, MinWidth = 0, MinHeight = 0, Template = _eqWidthTemplate, ManipulationMode = ManipulationModes.None };
-        AutomationProperties.SetName(handle, "Ширина настройки: тяните в сторону от точки, чтобы охватить больше частот");
+        AutomationProperties.SetName(handle, UiText.L("Text_c1caf8d7"));
         handle.DragStarted += (_, _) => _equalizerHistory?.BeginGesture();
         handle.DragCompleted += (_, _) => EndEqualizerGesture();
         handle.DragDelta += (_, e) =>
@@ -73,7 +73,7 @@ public sealed partial class MainWindow
             var index = i;
             var node = new Thumb { Width = 28, Height = 28, MinWidth = 0, MinHeight = 0, Template = _eqPointTemplate,
                 Background = new SolidColorBrush(EqColor(i)), ManipulationMode = ManipulationModes.None, IsTabStop = true };
-            AutomationProperties.SetName(node, $"Точка {i + 1}. Стрелки: частота и усиление. Колесо: ширина");
+            AutomationProperties.SetName(node, UiText.L("0_5e4642af", i + 1));
             node.DragStarted += (_, _) => { SelectEqualizerBand(index); _equalizerHistory?.BeginGesture(); };
             node.DragCompleted += (_, _) => EndEqualizerGesture();
             node.DragDelta += (_, e) =>
@@ -216,7 +216,7 @@ public sealed partial class MainWindow
         foreach (var db in new[] { -12, -6, 0, 6, 12 })
         {
             EqualizerPlotGrid.Children.Add(new Line { X1 = 52, X2 = 52 + EqWidth, Y1 = EqY(db), Y2 = EqY(db), Stroke = brush, Opacity = db == 0 ? .6 : .15 });
-            var text = new TextBlock { Text = db + " dB", FontSize = 11, Foreground = brush };
+            var text = new TextBlock { Text = db + UiText.L("dB_27addfe9"), FontSize = 11, Foreground = brush };
             Canvas.SetLeft(text, 2); Canvas.SetTop(text, EqY(db) - 8); EqualizerPlotGrid.Children.Add(text);
         }
         foreach (var frequency in new[] { 20, 50, 100, 200, 500, 1000, 2000, 5000, 10000, 20000 })
@@ -250,7 +250,7 @@ public sealed partial class MainWindow
         EqualizerCurve.Points = points; EqualizerCurveFill.Points = fill; EqualizerSelectedCurve.Points = selectedPoints;
         var color = new SolidColorBrush(EqColor(_selectedEqBand));
         EqualizerSelectedCurve.Stroke = color; EqualizerCurveFill.Fill = color;
-        EqualizerHeadroom.Text = maxDb > 0.5 ? $"Усиление до +{maxDb:F1} dB. Если голос искажается, уменьшите общую громкость." : "Есть запас громкости без усиления.";
+        EqualizerHeadroom.Text = maxDb > 0.5 ? UiText.L("0_F1_dB_86fdb31d", maxDb) : UiText.L("Text_bc6345f7");
         for (var i = 0; i < _eqNodes.Count; i++)
         {
             if (_eqNodes[i] == null) continue;
@@ -258,7 +258,7 @@ public sealed partial class MainWindow
             PositionEqualizerPoint(i);
             node.Opacity = band.Enabled ? 1 : .35;
             node.BorderBrush = i == _selectedEqBand ? Application.Current.Resources["VoiSee.PrimaryTextBrush"] as Brush : new SolidColorBrush(EqColor(i));
-            ToolTipService.SetToolTip(node, $"{i + 1}: {band.Frequency:F0} Hz · {band.GainDb:+0.0;-0.0;0} dB · ширина Q {band.Q:F2}");
+            ToolTipService.SetToolTip(node, UiText.L("0_1_F0_Hz_2_0_0_0_0_0_dB_Q_3_F2_16087866", i + 1, band.Frequency, band.GainDb, band.Q));
         }
         PositionEqualizerWidth();
     }

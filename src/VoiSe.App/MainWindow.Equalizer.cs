@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Globalization;
 using System.Resources;
 using Microsoft.UI.Xaml;
@@ -28,7 +28,7 @@ public sealed partial class MainWindow
         EqualizerTitle.Text = EqText("Title");
         EqualizerDescription.Text = EqText("Description");
         EqualizerEnabled.Header = null;
-        EqualizerEnabled.OnContent = "EQ вкл."; EqualizerEnabled.OffContent = "EQ выкл.";
+        EqualizerEnabled.OnContent = UiText.L("EQ_d1db7f1e"); EqualizerEnabled.OffContent = UiText.L("EQ_093bc04e");
         EqualizerAdvanced.Header = EqText("Advanced");
         EqualizerReset.Content = EqText("Reset");
         EqualizerPreampTitle.Text = EqText("Preamp");
@@ -57,7 +57,7 @@ public sealed partial class MainWindow
         InitializeEqualizerUndo();
     }
 
-    private static string Db(double value) => value.ToString("+0.0;-0.0;0.0", CultureInfo.CurrentCulture) + " dB";
+    private static string Db(double value) => value.ToString("+0.0;-0.0;0.0", CultureInfo.CurrentCulture) + UiText.L("dB_27addfe9");
     private void QueueEqualizerChange(bool audio = true, string? historyKey = null, bool recordHistory = true)
     {
         if (audio && recordHistory && !_equalizerLoading)
@@ -117,8 +117,8 @@ public sealed partial class MainWindow
             var basicIndex = i;
             var index = advanced ? i : EqualizerSettings.BasicBands[i];
             var frequency = EqualizerSettings.Frequencies[index];
-            var label = frequency >= 1000 ? (frequency / 1000).ToString("0.##", CultureInfo.CurrentCulture) + " kHz"
-                : frequency.ToString("0.#", CultureInfo.CurrentCulture) + " Hz";
+            var label = frequency >= 1000 ? (frequency / 1000).ToString("0.##", CultureInfo.CurrentCulture) + UiText.L("kHz_acaf5a32")
+                : frequency.ToString("0.#", CultureInfo.CurrentCulture) + UiText.L("Hz_f8fb0838");
             var value = new NumberBox { Value = _settings.Equalizer.GainsDb[index], Minimum = -12, Maximum = 12,
                 SmallChange = .5, LargeChange = 3, SpinButtonPlacementMode = NumberBoxSpinButtonPlacementMode.Hidden,
                 HorizontalAlignment = HorizontalAlignment.Stretch };
@@ -126,13 +126,13 @@ public sealed partial class MainWindow
                 StepFrequency = .5, Value = _settings.Equalizer.GainsDb[index], Height = 180, HorizontalAlignment = HorizontalAlignment.Center };
             TrackEqualizerSliderGesture(slider);
             AutomationProperties.SetName(slider, label);
-            AutomationProperties.SetName(value, label + " dB");
+            AutomationProperties.SetName(value, label + UiText.L("dB_27addfe9"));
             slider.DoubleTapped += (_, _) => slider.Value = 0;
             value.ValueChanged += (_, e) =>
             {
                 if (double.IsFinite(e.NewValue)) slider.Value = e.NewValue;
             };
-            ToolTipService.SetToolTip(slider, label + " · −12 … +12 dB");
+            ToolTipService.SetToolTip(slider, label + UiText.L("12_12_dB_0a8d278a"));
             slider.ValueChanged += (_, e) =>
             {
                 value.Value = e.NewValue;

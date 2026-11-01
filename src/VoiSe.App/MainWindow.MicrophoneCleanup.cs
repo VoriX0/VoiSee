@@ -21,11 +21,11 @@ public sealed partial class MainWindow
     private void UpdateMicrophoneCleanupStatus()
     {
         if (!EchoCancellationSwitch.IsOn)
-        { EchoCleanupStatus.Text = "Эхоподавление выключено."; return; }
+        { EchoCleanupStatus.Text = UiText.L("Text_a07466f3"); return; }
         if (_engine is null)
-        { EchoCleanupStatus.Text = "Включится после запуска микрофона."; return; }
+        { EchoCleanupStatus.Text = UiText.L("Text_916d117d"); return; }
         EchoCleanupStatus.Text = _engine.EchoCancellationAvailable
-            ? "Эхоподавление включено."
-            : "Эхо комнаты ослабляется. Звук колонок: " + (_engine.EchoCancellationError ?? "ожидание запуска.");
+            ? UiText.L("Text_d451055b")
+            : UiText.L("Text_c5e6370e") + UiText.ErrorMessage(_engine.EchoCancellationError ?? UiText.L("Text_047f7735"));
     }
 }

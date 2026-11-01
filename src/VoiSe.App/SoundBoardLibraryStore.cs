@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.IO;
 using System.Linq;
 using System.Text.Json;
@@ -77,13 +77,13 @@ public sealed class SoundBoardLibraryStore
     {
         if (!File.Exists(sourcePath))
         {
-            throw new FileNotFoundException("Sound file not found.", sourcePath);
+            throw new FileNotFoundException(UiText.L("Sound_file_not_found_f5b99525"), sourcePath);
         }
 
         var extension = Path.GetExtension(sourcePath).ToLowerInvariant();
         if (!SupportedExtensions.Contains(extension))
         {
-            throw new InvalidOperationException("Unsupported sound format. Use WAV, MP3, or OGG.");
+            throw new InvalidOperationException(UiText.L("Unsupported_sound_format_Use_WAV_MP3_or_OGG_e897a775"));
         }
 
         Directory.CreateDirectory(SoundsDirectory);
@@ -155,7 +155,7 @@ public sealed class SoundBoardLibraryStore
     {
         if (category.Id == "default" && library.Categories.Count == 1)
         {
-            throw new InvalidOperationException("The last category cannot be deleted.");
+            throw new InvalidOperationException(UiText.L("The_last_category_cannot_be_deleted_62252cfa"));
         }
 
         var sounds = library.Sounds.Where(s => s.CategoryId == category.Id).ToList();
@@ -183,12 +183,12 @@ public sealed class SoundBoardLibraryStore
     {
         if (!library.Sounds.Any(candidate => candidate.Id == sound.Id))
         {
-            throw new InvalidOperationException("The sound is no longer present in the library.");
+            throw new InvalidOperationException(UiText.L("The_sound_is_no_longer_present_in_the_library_8eec54e6"));
         }
 
         if (!library.Categories.Any(category => category.Id == targetCategory.Id))
         {
-            throw new InvalidOperationException("The target category is no longer present in the library.");
+            throw new InvalidOperationException(UiText.L("The_target_category_is_no_longer_present_in_th_3a7e5714"));
         }
 
         sound.CategoryId = targetCategory.Id;
@@ -202,18 +202,18 @@ public sealed class SoundBoardLibraryStore
     {
         if (!File.Exists(sourceSound.FilePath))
         {
-            throw new FileNotFoundException("The source sound file could not be found.", sourceSound.FilePath);
+            throw new FileNotFoundException(UiText.L("The_source_sound_file_could_not_be_found_65d78fb2"), sourceSound.FilePath);
         }
 
         if (!library.Categories.Any(category => category.Id == targetCategory.Id))
         {
-            throw new InvalidOperationException("The target category is no longer present in the library.");
+            throw new InvalidOperationException(UiText.L("The_target_category_is_no_longer_present_in_th_3a7e5714"));
         }
 
         var extension = Path.GetExtension(sourceSound.FilePath).ToLowerInvariant();
         if (!SupportedExtensions.Contains(extension))
         {
-            throw new InvalidOperationException("Unsupported sound format. Use WAV, MP3, or OGG.");
+            throw new InvalidOperationException(UiText.L("Unsupported_sound_format_Use_WAV_MP3_or_OGG_e897a775"));
         }
 
         Directory.CreateDirectory(SoundsDirectory);
@@ -255,13 +255,13 @@ public sealed class SoundBoardLibraryStore
     {
         if (!File.Exists(sourcePath))
         {
-            throw new FileNotFoundException("Sound file not found.", sourcePath);
+            throw new FileNotFoundException(UiText.L("Sound_file_not_found_f5b99525"), sourcePath);
         }
 
         var extension = Path.GetExtension(sourcePath).ToLowerInvariant();
         if (!SupportedExtensions.Contains(extension))
         {
-            throw new InvalidOperationException("Unsupported sound format. Use WAV, MP3, or OGG.");
+            throw new InvalidOperationException(UiText.L("Unsupported_sound_format_Use_WAV_MP3_or_OGG_e897a775"));
         }
 
         Directory.CreateDirectory(SoundsDirectory);
@@ -291,7 +291,7 @@ public sealed class SoundBoardLibraryStore
     {
         if (!File.Exists(editedWavPath))
         {
-            throw new FileNotFoundException("Edited sound file not found.", editedWavPath);
+            throw new FileNotFoundException(UiText.L("Edited_sound_file_not_found_51b2e64d"), editedWavPath);
         }
 
         Directory.CreateDirectory(SoundsDirectory);
@@ -326,7 +326,7 @@ public sealed class SoundBoardLibraryStore
     {
         if (!File.Exists(editedWavPath))
         {
-            throw new FileNotFoundException("Edited sound file not found.", editedWavPath);
+            throw new FileNotFoundException(UiText.L("Edited_sound_file_not_found_51b2e64d"), editedWavPath);
         }
 
         Directory.CreateDirectory(SoundsDirectory);

@@ -1,0 +1,2160 @@
+<?xml version='1.0' encoding='utf-8'?>
+<root>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <data xml:space="preserve" name="0_0_0_0_0_0_0_dB_4e3f8330">
+    <value>{0:+0.0;-0.0;0.0} дБ</value>
+  </data>
+  <data xml:space="preserve" name="0_1_F0_Hz_2_0_0_0_0_0_dB_Q_3_F2_16087866">
+    <value>{0}: {1:F0} Гц · {2:+0.0;-0.0;0} дБ · ширина Q {3:F2}</value>
+  </data>
+  <data xml:space="preserve" name="0_5e4642af">
+    <value>Точка {0}. Стрелки: частота и усиление. Колесо: ширина</value>
+  </data>
+  <data xml:space="preserve" name="0_63926916">
+    <value>Шумоподавление включено: {0}.</value>
+  </data>
+  <data xml:space="preserve" name="0_F1_dB_86fdb31d">
+    <value>Усиление до +{0:F1} dB. Если голос искажается, уменьшите общую громкость.</value>
+  </data>
+  <data xml:space="preserve" name="0_PID_1_audio_is_sent_only_to_the_virtual_micr_f336a7d4">
+    <value>{0} · PID {1} · звук передаётся только в виртуальный микрофон</value>
+  </data>
+  <data xml:space="preserve" name="0_active_effect_1_66ec0dc4">
+    <value>Эффектов: {0}</value>
+  </data>
+  <data xml:space="preserve" name="0_active_effects_e27fcf33">
+    <value>Эффектов: 0</value>
+  </data>
+  <data xml:space="preserve" name="0_ce66540d">
+    <value>Сила шумоподавления — 0%.</value>
+  </data>
+  <data xml:space="preserve" name="0_effect_1_db8c979f">
+    <value>Эффектов: {0}</value>
+  </data>
+  <data xml:space="preserve" name="0_effects_1_20828fa9">
+    <value>Эффектов: {0} · {1}</value>
+  </data>
+  <data xml:space="preserve" name="0_is_silence_100_equals_0_dBFS_the_maximum_dig_c502b875">
+    <value>0% — тишина. 100% соответствует 0 dBFS — максимальному цифровому уровню без перегрузки.</value>
+  </data>
+  <data xml:space="preserve" name="0_track_4cc75906">
+    <value>{0} звук</value>
+  </data>
+  <data xml:space="preserve" name="0_track_to_category_a4f0c71e">
+    <value>{0} звук в категорию</value>
+  </data>
+  <data xml:space="preserve" name="100_MAX_a7130dd0">
+    <value>100% МАКС.</value>
+  </data>
+  <data xml:space="preserve" name="100_MAX_d51e8f38">
+    <value>100 МАКС.</value>
+  </data>
+  <data xml:space="preserve" name="10_31_cd21f5a7">
+    <value>Подробная настройка · 10 / 31 частота</value>
+  </data>
+  <data xml:space="preserve" name="12_12_dB_0a8d278a">
+    <value> · −12 … +12 дБ</value>
+  </data>
+  <data xml:space="preserve" name="16_049e4cce">
+    <value>Добавить точку (до 16)</value>
+  </data>
+  <data xml:space="preserve" name="A_new_theme_is_an_exact_editable_copy_of_Defau_6cf87ebe">
+    <value>Новая тема — редактируемая копия стандартной тёмной темы. Сохраняйте имена x:Key. Цвета, кисти, состояния элементов, размеры панелей и градиенты можно менять прямо в XAML.</value>
+  </data>
+  <data xml:space="preserve" name="A_theme_named_0_already_exists_bd926081">
+    <value>Тема «{0}» уже существует.</value>
+  </data>
+  <data xml:space="preserve" name="About_me_1359ec88">
+    <value>Об авторе</value>
+  </data>
+  <data xml:space="preserve" name="Active_92340695">
+    <value>Активен</value>
+  </data>
+  <data xml:space="preserve" name="Add_9fd728c6">
+    <value>Добавить</value>
+  </data>
+  <data xml:space="preserve" name="Add_Track_c7c2e6a1">
+    <value>Добавить звук</value>
+  </data>
+  <data xml:space="preserve" name="Add_a_short_second_voice_layer_2f163be8">
+    <value>Добавляет второй голос с короткой задержкой</value>
+  </data>
+  <data xml:space="preserve" name="Add_grit_and_harmonic_edge_493e953e">
+    <value>Добавляет хрип и гармонические искажения</value>
+  </data>
+  <data xml:space="preserve" name="Add_repeating_echo_6f61e1c1">
+    <value>Добавляет повторяющееся эхо</value>
+  </data>
+  <data xml:space="preserve" name="Add_space_and_ambience_80917e39">
+    <value>Добавляет пространственное звучание</value>
+  </data>
+  <data xml:space="preserve" name="Add_to_processing_chain_c0256d5a">
+    <value>Добавить в цепочку обработки</value>
+  </data>
+  <data xml:space="preserve" name="Advanced_Settings_22d4f608">
+    <value>Дополнительные настройки</value>
+  </data>
+  <data xml:space="preserve" name="Aggressive_narrow_band_amplified_speaker_c77b86c9">
+    <value>Резкий звук громкоговорителя с узким частотным диапазоном</value>
+  </data>
+  <data xml:space="preserve" name="Alien_72e4646b">
+    <value>Пришелец</value>
+  </data>
+  <data xml:space="preserve" name="All_Categories_fe3b58f1">
+    <value>Все категории</value>
+  </data>
+  <data xml:space="preserve" name="All_effects_are_non_destructive_until_Save_The_d6e89c34">
+    <value>Изменения не затрагивают исходный файл до сохранения. Форма волны обновляется сразу.</value>
+  </data>
+  <data xml:space="preserve" name="All_unsaved_editor_changes_were_reset_70d57cfa">
+    <value>Несохранённые изменения редактора сброшены.</value>
+  </data>
+  <data xml:space="preserve" name="Amount_49e96d7c">
+    <value>Сила</value>
+  </data>
+  <data xml:space="preserve" name="Application_audio_capture_requires_Windows_10__de217654">
+    <value>Захват звука приложений требует Windows 10 сборки 20348 или новее.</value>
+  </data>
+  <data xml:space="preserve" name="Application_log_61d83bc0">
+    <value>Журнал приложения</value>
+  </data>
+  <data xml:space="preserve" name="Apply_31e392d1">
+    <value>Применить</value>
+  </data>
+  <data xml:space="preserve" name="Assign_Hotkey_ab1f1cbb">
+    <value>Назначить клавиши</value>
+  </data>
+  <data xml:space="preserve" name="Assign_sound_hotkey_03ae2bb6">
+    <value>Клавиши для звука</value>
+  </data>
+  <data xml:space="preserve" name="Audio_Devices_90c9d8de">
+    <value>Аудиоустройства</value>
+  </data>
+  <data xml:space="preserve" name="Audio_Host_command_failed_6ce574f9">
+    <value>Не удалось выполнить команду аудиопроцесса.</value>
+  </data>
+  <data xml:space="preserve" name="Audio_Host_pipe_is_not_connected_a0659d8a">
+    <value>Нет подключения к аудиопроцессу.</value>
+  </data>
+  <data xml:space="preserve" name="Audio_Host_response_ID_did_not_match_the_reque_cd2e8b46">
+    <value>Ответ аудиопроцесса не соответствует запросу.</value>
+  </data>
+  <data xml:space="preserve" name="Audio_Host_returned_an_empty_response_2c80bef2">
+    <value>Аудиопроцесс вернул пустой ответ.</value>
+  </data>
+  <data xml:space="preserve" name="Audio_engine_is_not_running_a5f4dd81">
+    <value>Обработка звука не запущена</value>
+  </data>
+  <data xml:space="preserve" name="Audio_engine_stopped_c5ac8401">
+    <value>Обработка звука остановлена</value>
+  </data>
+  <data xml:space="preserve" name="Autostart_error_0bfacf75">
+    <value>Ошибка автозапуска</value>
+  </data>
+  <data xml:space="preserve" name="Autostart_loop_0_70bdeca6">
+    <value>Автозапуск фонового звука: {0}</value>
+  </data>
+  <data xml:space="preserve" name="Background_source_0_d426a1bd">
+    <value>Фоновый источник: {0}</value>
+  </data>
+  <data xml:space="preserve" name="Background_source_c51cfd76">
+    <value>Фоновый источник</value>
+  </data>
+  <data xml:space="preserve" name="Bass_ca445e86">
+    <value>Бас</value>
+  </data>
+  <data xml:space="preserve" name="Bit_Crusher_6b8f0f97">
+    <value>Цифровое искажение</value>
+  </data>
+  <data xml:space="preserve" name="Boost_or_cut_high_frequencies_c307dce1">
+    <value>Усиливает или ослабляет высокие частоты</value>
+  </data>
+  <data xml:space="preserve" name="Boost_or_cut_low_frequencies_cd6b5b2c">
+    <value>Усиливает или ослабляет низкие частоты</value>
+  </data>
+  <data xml:space="preserve" name="Broadcast_and_radio_character_5f9f873a">
+    <value>Звучание радиоэфира</value>
+  </data>
+  <data xml:space="preserve" name="Broadcast_settings_00f620ba">
+    <value>Настройки передачи</value>
+  </data>
+  <data xml:space="preserve" name="Broadcasting_b475c952">
+    <value>Звук передаётся</value>
+  </data>
+  <data xml:space="preserve" name="Broken_Radio_ef820c0f">
+    <value>Сломанное радио</value>
+  </data>
+  <data xml:space="preserve" name="Button_name_97fa823d">
+    <value>Название кнопки</value>
+  </data>
+  <data xml:space="preserve" name="Bypass_All_17060eb6">
+    <value>Обойти все</value>
+  </data>
+  <data xml:space="preserve" name="Cancel_19766ed6">
+    <value>Отмена</value>
+  </data>
+  <data xml:space="preserve" name="Capture_audio_from_one_application_and_mix_it__f438c031">
+    <value>Передавайте звук одного приложения в виртуальный микрофон без повторного воспроизведения в наушниках.</value>
+  </data>
+  <data xml:space="preserve" name="Capture_could_not_be_started_e5dc306e">
+    <value>Не удалось запустить захват</value>
+  </data>
+  <data xml:space="preserve" name="Capture_media_on_scene_start_0_effc67bc">
+    <value>Захват звука при включении сцены: {0}</value>
+  </data>
+  <data xml:space="preserve" name="Capture_source_when_scene_starts_b8d6c439">
+    <value>Захватывать звук при включении сцены</value>
+  </data>
+  <data xml:space="preserve" name="Capture_stopped_with_an_error_bc86e0e9">
+    <value>Захват остановлен из-за ошибки</value>
+  </data>
+  <data xml:space="preserve" name="Categories_0_7a66421f">
+    <value>Категорий: {0}
+</value>
+  </data>
+  <data xml:space="preserve" name="Categories_0_Tracks_in_category_0_Category_use_b07d57db">
+    <value>Категорий: 0
+Звуков в категории: 0
+Использований категории: 0</value>
+  </data>
+  <data xml:space="preserve" name="Category_292c06f0">
+    <value>Категория</value>
+  </data>
+  <data xml:space="preserve" name="Category_Dynamics">
+    <value>Динамика</value>
+  </data>
+  <data xml:space="preserve" name="Category_Space">
+    <value>Пространство</value>
+  </data>
+  <data xml:space="preserve" name="Category_Special">
+    <value>Особые эффекты</value>
+  </data>
+  <data xml:space="preserve" name="Category_Tone">
+    <value>Тембр</value>
+  </data>
+  <data xml:space="preserve" name="Category_Utility">
+    <value>Служебные</value>
+  </data>
+  <data xml:space="preserve" name="Category_name_73ddd937">
+    <value>Название категории</value>
+  </data>
+  <data xml:space="preserve" name="Category_uses_0_da0cc866">
+    <value>Использований категории: {0}
+</value>
+  </data>
+  <data xml:space="preserve" name="Change_vocal_tone_character_7aceea51">
+    <value>Меняет тембр голоса</value>
+  </data>
+  <data xml:space="preserve" name="Character_1405a63e">
+    <value>Характер голоса</value>
+  </data>
+  <data xml:space="preserve" name="Chipmunk_04ca704f">
+    <value>Бурундук</value>
+  </data>
+  <data xml:space="preserve" name="Choose_Another_File_28da390c">
+    <value>Выбрать другой файл</value>
+  </data>
+  <data xml:space="preserve" name="Choose_a_window_38598f5f">
+    <value>Выберите окно</value>
+  </data>
+  <data xml:space="preserve" name="Choose_another_sound_76dabdd8">
+    <value>Выбрать другой звук</value>
+  </data>
+  <data xml:space="preserve" name="Choose_c7f93783">
+    <value>Выбрать</value>
+  </data>
+  <data xml:space="preserve" name="Choose_category_1eb0412b">
+    <value>Выбрать категорию</value>
+  </data>
+  <data xml:space="preserve" name="Choose_headphones_67c6c650">
+    <value>Выберите наушники</value>
+  </data>
+  <data xml:space="preserve" name="Choose_hotkey_c208d938">
+    <value>Назначить клавиши</value>
+  </data>
+  <data xml:space="preserve" name="Choose_looped_sound_e7a16c27">
+    <value>Выбрать зацикленный звук</value>
+  </data>
+  <data xml:space="preserve" name="Choose_microphone_88bd74fb">
+    <value>Выберите микрофон</value>
+  </data>
+  <data xml:space="preserve" name="Chorus_89ae15b9">
+    <value>Хорус</value>
+  </data>
+  <data xml:space="preserve" name="Clear_83b12c22">
+    <value>Очистить</value>
+  </data>
+  <data xml:space="preserve" name="Clear_Chain_a740527f">
+    <value>Очистить цепочку</value>
+  </data>
+  <data xml:space="preserve" name="Click_a_hotkey_button_then_press_a_key_or_Ctrl_326f8cfb">
+    <value>Нажмите кнопку назначения, затем клавишу или сочетание с Ctrl, Alt, Shift. Esc отменяет ввод. Обычные A–Z и &lt; &gt; { } работают только в VoiSee; NumPad и сочетания с модификаторами — также в других приложениях.</value>
+  </data>
+  <data xml:space="preserve" name="Click_the_hotkey_button_then_press_a_key_or_Ct_92d682b9">
+    <value>Нажмите кнопку назначения, затем клавишу или сочетание с Ctrl, Alt, Shift. Esc отменяет ввод. Обычные A–Z и &lt; &gt; { } работают только в VoiSee; NumPad и сочетания с модификаторами — также в других приложениях.</value>
+  </data>
+  <data xml:space="preserve" name="Click_the_preview_panel_to_choose_an_applicati_fe63a28d">
+    <value>Нажмите область предпросмотра, чтобы выбрать окно приложения. После перезапуска окно нужно выбрать снова.</value>
+  </data>
+  <data xml:space="preserve" name="Close_7d9eb7ac">
+    <value>Закрыть</value>
+  </data>
+  <data xml:space="preserve" name="Compressor_75e948e4">
+    <value>Компрессор</value>
+  </data>
+  <data xml:space="preserve" name="Configure_Hotkeys_02159754">
+    <value>Настроить клавиши</value>
+  </data>
+  <data xml:space="preserve" name="Control_peaks_and_dynamics_ea523678">
+    <value>Сглаживает пики громкости</value>
+  </data>
+  <data xml:space="preserve" name="Copy_JSON_file_f97fdd48">
+    <value>Скопировать файл JSON</value>
+  </data>
+  <data xml:space="preserve" name="Copy_creates_an_independent_physical_audio_fil_7582ae30">
+    <value>Копия создаёт отдельный аудиофайл с новым ID и сброшенной статистикой. Клавиши и связи со сценами не копируются.</value>
+  </data>
+  <data xml:space="preserve" name="Copy_dbb2be21">
+    <value>Копировать…</value>
+  </data>
+  <data xml:space="preserve" name="Copy_e21f935f">
+    <value>Копировать</value>
+  </data>
+  <data xml:space="preserve" name="Could_not_assign_Windows_Explorer_as_the_Audio_22ff8587">
+    <value>Не удалось назначить Проводник родительским процессом для аудиопроцесса.</value>
+  </data>
+  <data xml:space="preserve" name="Could_not_initialize_the_Audio_Host_process_at_434acbfe">
+    <value>Не удалось подготовить запуск аудиопроцесса.</value>
+  </data>
+  <data xml:space="preserve" name="Could_not_open_Windows_Explorer_as_the_Audio_H_ec904e4a">
+    <value>Не удалось открыть Проводник для запуска аудиопроцесса.</value>
+  </data>
+  <data xml:space="preserve" name="Could_not_start_VoiSe_AudioHost_exe_6df17e9e">
+    <value>Не удалось запустить VoiSe.AudioHost.exe.</value>
+  </data>
+  <data xml:space="preserve" name="Create_4759498a">
+    <value>Создать</value>
+  </data>
+  <data xml:space="preserve" name="Create_New_Theme_b31d3c97">
+    <value>Создать тему</value>
+  </data>
+  <data xml:space="preserve" name="Create_New_e7b9e9c2">
+    <value>Создать</value>
+  </data>
+  <data xml:space="preserve" name="Create_another_category_before_trying_to_0_thi_ef0651a0">
+    <value>Перед переносом или копированием звука создайте ещё одну категорию.</value>
+  </data>
+  <data xml:space="preserve" name="Create_category_12748aa5">
+    <value>Создать категорию</value>
+  </data>
+  <data xml:space="preserve" name="Create_new_9f3df753">
+    <value>Создать</value>
+  </data>
+  <data xml:space="preserve" name="Create_new_scene_3549632c">
+    <value>Создать сцену</value>
+  </data>
+  <data xml:space="preserve" name="Ctrl_Z_13d8b113">
+    <value>Отменить действие (Ctrl+Z)</value>
+  </data>
+  <data xml:space="preserve" name="Current_category_0_9872de77">
+    <value>Текущая категория: {0}
+
+</value>
+  </data>
+  <data xml:space="preserve" name="Current_routes_c059374d">
+    <value>Текущие аудиомаршруты</value>
+  </data>
+  <data xml:space="preserve" name="Current_theme_4089af3e">
+    <value>Текущая тема</value>
+  </data>
+  <data xml:space="preserve" name="Cut_blocked_at_least_0_2_seconds_must_remain_i_9297de9e">
+    <value>После вырезания должно остаться хотя бы 0,2 секунды звука.</value>
+  </data>
+  <data xml:space="preserve" name="Cut_error_0_6aecb0a4">
+    <value>Ошибка вырезания: {0}</value>
+  </data>
+  <data xml:space="preserve" name="Cut_selection_remove_the_selected_fragment_and_56d8b8a2">
+    <value>Вырезать выделенный фрагмент и соединить оставшиеся части</value>
+  </data>
+  <data xml:space="preserve" name="Cutting_the_selected_fragment_9501d206">
+    <value>Вырезание выделенного фрагмента…</value>
+  </data>
+  <data xml:space="preserve" name="Cyborg_b98c9f3a">
+    <value>Киборг</value>
+  </data>
+  <data xml:space="preserve" name="Damage_0c874f58">
+    <value>Искажение</value>
+  </data>
+  <data xml:space="preserve" name="Damaged_radio_band_dropouts_and_crackle_e8abd8e5">
+    <value>Радиопомехи, прерывания и треск</value>
+  </data>
+  <data xml:space="preserve" name="Default_Dark_bcc7eea0">
+    <value>Стандартная тёмная</value>
+  </data>
+  <data xml:space="preserve" name="Delete_0_This_will_remove_the_voiseetheme_xaml_fbb257af">
+    <value>Удалить «{0}»?
+
+Файл .voiseetheme.xaml будет удалён из папки тем VoiSee.</value>
+  </data>
+  <data xml:space="preserve" name="Delete_From_Category_18f63ca5">
+    <value>Убрать из категории</value>
+  </data>
+  <data xml:space="preserve" name="Delete_Theme_c354887b">
+    <value>Удалить тему</value>
+  </data>
+  <data xml:space="preserve" name="Delete_Track_3bf93739">
+    <value>Удалить звук</value>
+  </data>
+  <data xml:space="preserve" name="Delete_category_0_and_1_track_s_Sound_files_st_17c53ff6">
+    <value>Удалить категорию «{0}» и звуки в ней ({1})? Аудиофайлы в библиотеке VoiSee будут удалены без возможности восстановления.</value>
+  </data>
+  <data xml:space="preserve" name="Delete_category_a91d0087">
+    <value>Удалить категорию</value>
+  </data>
+  <data xml:space="preserve" name="Delete_e2d0a549">
+    <value>Удалить</value>
+  </data>
+  <data xml:space="preserve" name="Delete_preset_0_The_JSON_file_will_be_removed__0d5b6007">
+    <value>Удалить пресет «{0}»? Его файл JSON будет удалён из папки пресетов.</value>
+  </data>
+  <data xml:space="preserve" name="Delete_scene_0_The_JSON_file_will_be_removed_f_47efa3d1">
+    <value>Удалить сцену «{0}»? Её файл JSON будет удалён из папки сцен.</value>
+  </data>
+  <data xml:space="preserve" name="Delete_scene_21cace70">
+    <value>Удалить сцену</value>
+  </data>
+  <data xml:space="preserve" name="Delete_theme_25231c61">
+    <value>Удалить тему?</value>
+  </data>
+  <data xml:space="preserve" name="Delete_theme_e29a2b87">
+    <value>Удалить тему</value>
+  </data>
+  <data xml:space="preserve" name="Delete_voice_preset_fece6074">
+    <value>Удалить голосовой пресет</value>
+  </data>
+  <data xml:space="preserve" name="Depth_f1dbc339">
+    <value>Глубина</value>
+  </data>
+  <data xml:space="preserve" name="Disable_b7e3e4aa">
+    <value>Выключить</value>
+  </data>
+  <data xml:space="preserve" name="Disable_scene_521eed8b">
+    <value>Выключить сцену</value>
+  </data>
+  <data xml:space="preserve" name="Disabled_75081b59">
+    <value>Выключено</value>
+  </data>
+  <data xml:space="preserve" name="Display_name_2b7f6a84">
+    <value>Отображаемое название</value>
+  </data>
+  <data xml:space="preserve" name="Distortion_ab6e8c54">
+    <value>Перегруз</value>
+  </data>
+  <data xml:space="preserve" name="Doubler_031420b5">
+    <value>Двойной голос</value>
+  </data>
+  <data xml:space="preserve" name="Drag_across_the_waveform_to_select_a_fragment__975ab960">
+    <value>Проведите по волне для выделения фрагмента. Одиночный щелчок ставит жёлтый курсор. Минимальное выделение — 0,2 секунды.</value>
+  </data>
+  <data xml:space="preserve" name="Drive_6312b4b9">
+    <value>Насыщенность</value>
+  </data>
+  <data xml:space="preserve" name="Drop_sound_files_to_import_a87ab176">
+    <value>Перетащите аудиофайлы для добавления</value>
+  </data>
+  <data xml:space="preserve" name="Dynamics_47937d13">
+    <value>Динамика</value>
+  </data>
+  <data xml:space="preserve" name="EQ_093bc04e">
+    <value>EQ выкл.</value>
+  </data>
+  <data xml:space="preserve" name="EQ_d1db7f1e">
+    <value>EQ вкл.</value>
+  </data>
+  <data xml:space="preserve" name="Echo_8335e4c9">
+    <value>Эхо</value>
+  </data>
+  <data xml:space="preserve" name="Edit_Sound_a2ada35c">
+    <value>Редактор звука</value>
+  </data>
+  <data xml:space="preserve" name="Edited_sound_file_not_found_51b2e64d">
+    <value>Отредактированный аудиофайл не найден.</value>
+  </data>
+  <data xml:space="preserve" name="Effect_Alien">
+    <value>Пришелец</value>
+  </data>
+  <data xml:space="preserve" name="Effect_Bass">
+    <value>Бас</value>
+  </data>
+  <data xml:space="preserve" name="Effect_BitCrusher">
+    <value>Цифровое искажение</value>
+  </data>
+  <data xml:space="preserve" name="Effect_BrokenRadio">
+    <value>Сломанное радио</value>
+  </data>
+  <data xml:space="preserve" name="Effect_Chipmunk">
+    <value>Бурундук</value>
+  </data>
+  <data xml:space="preserve" name="Effect_Chorus">
+    <value>Хорус</value>
+  </data>
+  <data xml:space="preserve" name="Effect_Compressor">
+    <value>Компрессор</value>
+  </data>
+  <data xml:space="preserve" name="Effect_Cyborg">
+    <value>Киборг</value>
+  </data>
+  <data xml:space="preserve" name="Effect_Distortion">
+    <value>Перегруз</value>
+  </data>
+  <data xml:space="preserve" name="Effect_Doubler">
+    <value>Двойной голос</value>
+  </data>
+  <data xml:space="preserve" name="Effect_Echo">
+    <value>Эхо</value>
+  </data>
+  <data xml:space="preserve" name="Effect_Flanger">
+    <value>Флэнжер</value>
+  </data>
+  <data xml:space="preserve" name="Effect_Formant">
+    <value>Форманта</value>
+  </data>
+  <data xml:space="preserve" name="Effect_Gate">
+    <value>Шумовой порог</value>
+  </data>
+  <data xml:space="preserve" name="Effect_GenderFemale">
+    <value>Женский голос</value>
+  </data>
+  <data xml:space="preserve" name="Effect_GenderMale">
+    <value>Мужской голос</value>
+  </data>
+  <data xml:space="preserve" name="Effect_Ghost">
+    <value>Призрак</value>
+  </data>
+  <data xml:space="preserve" name="Effect_Giant">
+    <value>Великан</value>
+  </data>
+  <data xml:space="preserve" name="Effect_Helicopter">
+    <value>Вертолёт</value>
+  </data>
+  <data xml:space="preserve" name="Effect_Library_7161d85c">
+    <value>Библиотека эффектов</value>
+  </data>
+  <data xml:space="preserve" name="Effect_Megaphone">
+    <value>Мегафон</value>
+  </data>
+  <data xml:space="preserve" name="Effect_Phaser">
+    <value>Фэйзер</value>
+  </data>
+  <data xml:space="preserve" name="Effect_Pitch">
+    <value>Высота голоса</value>
+  </data>
+  <data xml:space="preserve" name="Effect_Possessed">
+    <value>Одержимый</value>
+  </data>
+  <data xml:space="preserve" name="Effect_Radio">
+    <value>Радио</value>
+  </data>
+  <data xml:space="preserve" name="Effect_Reverb">
+    <value>Реверберация</value>
+  </data>
+  <data xml:space="preserve" name="Effect_RingMod">
+    <value>Кольцевая модуляция</value>
+  </data>
+  <data xml:space="preserve" name="Effect_Robot">
+    <value>Робот</value>
+  </data>
+  <data xml:space="preserve" name="Effect_Stutter">
+    <value>Заикание</value>
+  </data>
+  <data xml:space="preserve" name="Effect_Treble">
+    <value>Высокие частоты</value>
+  </data>
+  <data xml:space="preserve" name="Effect_Tremolo">
+    <value>Тремоло</value>
+  </data>
+  <data xml:space="preserve" name="Effect_Vibrato">
+    <value>Вибрато</value>
+  </data>
+  <data xml:space="preserve" name="Effect_Vocoder">
+    <value>Вокодер</value>
+  </data>
+  <data xml:space="preserve" name="Effect_VoiceGain">
+    <value>Громкость голоса</value>
+  </data>
+  <data xml:space="preserve" name="Effect_Wobbly">
+    <value>Колебание голоса</value>
+  </data>
+  <data xml:space="preserve" name="Effects_358511c8">
+    <value>Эффекты</value>
+  </data>
+  <data xml:space="preserve" name="Empty_JSON_backup_89258282">
+    <value>Резервная копия JSON пуста.</value>
+  </data>
+  <data xml:space="preserve" name="Empty_JSON_document_92a65111">
+    <value>Документ JSON пуст.</value>
+  </data>
+  <data xml:space="preserve" name="Enable_Chain_8c3ba89a">
+    <value>Включить цепочку</value>
+  </data>
+  <data xml:space="preserve" name="Enable_bypass_this_effect_e6acc1c4">
+    <value>Включить или обойти этот эффект</value>
+  </data>
+  <data xml:space="preserve" name="Engine_Manual_Control_a3515f37">
+    <value>Управление обработкой звука</value>
+  </data>
+  <data xml:space="preserve" name="Engine_status_Running_8fe0ad3a">
+    <value>Обработка звука: работает</value>
+  </data>
+  <data xml:space="preserve" name="Engine_status_Stopped_d929c05a">
+    <value>Обработка звука: остановлена</value>
+  </data>
+  <data xml:space="preserve" name="Engine_status_VB_CABLE_required_90a75098">
+    <value>Обработка звука: требуется VB-CABLE</value>
+  </data>
+  <data xml:space="preserve" name="Enter_a_theme_name_2636e3cf">
+    <value>Введите название темы.</value>
+  </data>
+  <data xml:space="preserve" name="Error_54a0e8c1">
+    <value>Ошибка</value>
+  </data>
+  <data xml:space="preserve" name="Error_refresh_devices_to_resume_513bcc20">
+    <value>Ошибка — обновите устройства для продолжения</value>
+  </data>
+  <data xml:space="preserve" name="Exit_VoiSee_523d0efa">
+    <value>Выйти из VoiSee</value>
+  </data>
+  <data xml:space="preserve" name="Export_36648955">
+    <value>Экспорт</value>
+  </data>
+  <data xml:space="preserve" name="Export_log_6331ae83">
+    <value>Сохранить журнал</value>
+  </data>
+  <data xml:space="preserve" name="Fade_in_2fd5d206">
+    <value>Плавное начало</value>
+  </data>
+  <data xml:space="preserve" name="Fade_out_2193021e">
+    <value>Плавное затухание</value>
+  </data>
+  <data xml:space="preserve" name="Fast_6c582b62">
+    <value>Облегчённая</value>
+  </data>
+  <data xml:space="preserve" name="Find_822b2ae4">
+    <value>Найти</value>
+  </data>
+  <data xml:space="preserve" name="Flanger_1c35e606">
+    <value>Флэнжер</value>
+  </data>
+  <data xml:space="preserve" name="Folder_74ccd433">
+    <value>Папка</value>
+  </data>
+  <data xml:space="preserve" name="Formant_5f2de693">
+    <value>Форманта</value>
+  </data>
+  <data xml:space="preserve" name="Full_008dacb6">
+    <value>Полная</value>
+  </data>
+  <data xml:space="preserve" name="Gain_4e125a3e">
+    <value>Усиление</value>
+  </data>
+  <data xml:space="preserve" name="Gate_fa77a525">
+    <value>Шумовой порог</value>
+  </data>
+  <data xml:space="preserve" name="Gender_Female_919650a6">
+    <value>Женский голос</value>
+  </data>
+  <data xml:space="preserve" name="Gender_Male_66b5b012">
+    <value>Мужской голос</value>
+  </data>
+  <data xml:space="preserve" name="Ghost_df1bc498">
+    <value>Призрак</value>
+  </data>
+  <data xml:space="preserve" name="Giant_db5bea37">
+    <value>Великан</value>
+  </data>
+  <data xml:space="preserve" name="HP_9449a7aa">
+    <value>Наушники</value>
+  </data>
+  <data xml:space="preserve" name="Hard_rhythmic_voice_chopping_6eb6d91d">
+    <value>Резко прерывает голос в заданном ритме</value>
+  </data>
+  <data xml:space="preserve" name="Hard_rotor_like_rhythmic_voice_chopping_4503985e">
+    <value>Ритмично прерывает голос, как лопасти вертолёта</value>
+  </data>
+  <data xml:space="preserve" name="Headphones_86df32cf">
+    <value>Наушники</value>
+  </data>
+  <data xml:space="preserve" name="Helicopter_0fa9e71f">
+    <value>Вертолёт</value>
+  </data>
+  <data xml:space="preserve" name="High_tone_152749c6">
+    <value>Высокие частоты</value>
+  </data>
+  <data xml:space="preserve" name="Hotkey_6a6485af">
+    <value>Горячие клавиши</value>
+  </data>
+  <data xml:space="preserve" name="Hotkeys_0_a6461917">
+    <value>Клавиши: {0}</value>
+  </data>
+  <data xml:space="preserve" name="Hotkeys_4c307138">
+    <value>Клавиши: </value>
+  </data>
+  <data xml:space="preserve" name="Hotkeys_c15f1530">
+    <value>Горячие клавиши</value>
+  </data>
+  <data xml:space="preserve" name="Huge_low_cartoon_voice_2beedba9">
+    <value>Очень низкий мультяшный голос</value>
+  </data>
+  <data xml:space="preserve" name="Hz_0bcbfb03">
+    <value>Частота, Гц</value>
+  </data>
+  <data xml:space="preserve" name="Hz_f8fb0838">
+    <value> Гц</value>
+  </data>
+  <data xml:space="preserve" name="Icon_a35abcd6">
+    <value>Значок</value>
+  </data>
+  <data xml:space="preserve" name="Import_2cff9baa">
+    <value>Импорт</value>
+  </data>
+  <data xml:space="preserve" name="Incomplete_75f33cdf">
+    <value>Не настроен</value>
+  </data>
+  <data xml:space="preserve" name="Input_Device_0_c552e186">
+    <value>Микрофон: {0}
+</value>
+  </data>
+  <data xml:space="preserve" name="Input_Device_967438ab">
+    <value>Микрофон</value>
+  </data>
+  <data xml:space="preserve" name="Input_level_before_effects_93eb7327">
+    <value>Уровень голоса до эффектов</value>
+  </data>
+  <data xml:space="preserve" name="Install_VB_CABLE_d1b4a704">
+    <value>Установить VB-CABLE</value>
+  </data>
+  <data xml:space="preserve" name="Install_VB_CABLE_to_create_the_virtual_microph_4e5a3d23">
+    <value>Установите VB-CABLE для виртуального микрофона. Обработка звука станет доступна после обнаружения CABLE Input.</value>
+  </data>
+  <data xml:space="preserve" name="Install_VB_CABLE_to_create_the_virtual_microph_537b5cd9">
+    <value>Установите VB-CABLE для виртуального микрофона. Если CABLE Input не появился, перезапустите Windows, затем нажмите «Обновить устройства».</value>
+  </data>
+  <data xml:space="preserve" name="Intensity_a6d01dcf">
+    <value>Интенсивность</value>
+  </data>
+  <data xml:space="preserve" name="Internal_measurements_excludes_driver_receiver_a42a8a6f">
+    <value>
+Внутренние измерения: задержка драйвера, принимающего приложения и сети не учитывается.</value>
+  </data>
+  <data xml:space="preserve" name="Launch_ccf56ef5">
+    <value>Открыть</value>
+  </data>
+  <data xml:space="preserve" name="Launch_the_selected_application_or_open_its_br_5e4b0a21">
+    <value>Запустить выбранное приложение или открыть его веб-версию</value>
+  </data>
+  <data xml:space="preserve" name="Links_9024c197">
+    <value>Ссылки</value>
+  </data>
+  <data xml:space="preserve" name="Live_b64ac05f">
+    <value>Включён</value>
+  </data>
+  <data xml:space="preserve" name="Lo_fi_digital_degradation_8d5300b0">
+    <value>Грубое цифровое звучание с низкой разрядностью</value>
+  </data>
+  <data xml:space="preserve" name="Logs_ea2100dc">
+    <value>Журнал</value>
+  </data>
+  <data xml:space="preserve" name="Loop_current_SoundBoard_track_8f2c778f">
+    <value>Зациклить текущий звук</value>
+  </data>
+  <data xml:space="preserve" name="Looped_Headphones_0_P0_05d37f4e">
+    <value>Фоновый звук → наушники: {0:P0}</value>
+  </data>
+  <data xml:space="preserve" name="Looped_Sound_1f4a1636">
+    <value>Зацикленный звук</value>
+  </data>
+  <data xml:space="preserve" name="Looped_Virtual_Mic_0_P0_ccedf7aa">
+    <value>Фоновый звук → виртуальный микрофон: {0:P0}</value>
+  </data>
+  <data xml:space="preserve" name="Looped_sound_0_5f3cf5c6">
+    <value>Зацикленный звук: {0}</value>
+  </data>
+  <data xml:space="preserve" name="Low_delayed_voice_layer_with_dark_modulation_6ba78838">
+    <value>Низкий голос с задержкой и мрачным звучанием</value>
+  </data>
+  <data xml:space="preserve" name="Low_tone_de35be70">
+    <value>Низкие частоты</value>
+  </data>
+  <data xml:space="preserve" name="Lower_pitch_plus_shifted_vocal_resonances_d7e7fadc">
+    <value>Понижает тон и меняет резонансы голоса</value>
+  </data>
+  <data xml:space="preserve" name="Media_Bridge_07c2b2d2">
+    <value>Звук приложений</value>
+  </data>
+  <data xml:space="preserve" name="Media_Bridge_error_9295fca5">
+    <value>Ошибка захвата звука</value>
+  </data>
+  <data xml:space="preserve" name="Media_Bridge_is_unavailable_dec8d65b">
+    <value>Захват звука приложений недоступен</value>
+  </data>
+  <data xml:space="preserve" name="Media_Source_fdaeb638">
+    <value>Звук приложения</value>
+  </data>
+  <data xml:space="preserve" name="Media_profile_0_af7cbd7b">
+    <value>Источник звука приложения: {0}</value>
+  </data>
+  <data xml:space="preserve" name="Megaphone_b9b9cdc7">
+    <value>Мегафон</value>
+  </data>
+  <data xml:space="preserve" name="Metallic_carrier_modulation_f0fee01a">
+    <value>Металлическая кольцевая модуляция</value>
+  </data>
+  <data xml:space="preserve" name="Metallic_carrier_with_digital_articulation_343a5427">
+    <value>Металлический голос с цифровой артикуляцией</value>
+  </data>
+  <data xml:space="preserve" name="Mic_1f0ebc69">
+    <value>Микрофон</value>
+  </data>
+  <data xml:space="preserve" name="Mic_Output_6515fd5f">
+    <value>Выход микрофона</value>
+  </data>
+  <data xml:space="preserve" name="Mic_media_queue_0_F0_1_F0_ms_a96c6cfa">
+    <value>
+Очереди микрофона / приложений: {0:F0} / {1:F0} мс</value>
+  </data>
+  <data xml:space="preserve" name="Microphone_In_f7bbb9fb">
+    <value>Вход микрофона</value>
+  </data>
+  <data xml:space="preserve" name="Missing_SoundBoard_sound_91258fc6">
+    <value>Звук отсутствует в библиотеке</value>
+  </data>
+  <data xml:space="preserve" name="Mix_dce6eb44">
+    <value>Смешивание</value>
+  </data>
+  <data xml:space="preserve" name="Monitor_Device_0_00f9e239">
+    <value>Наушники: {0}
+</value>
+  </data>
+  <data xml:space="preserve" name="Monitor_Headphones_277169e2">
+    <value>Наушники / прослушивание</value>
+  </data>
+  <data xml:space="preserve" name="Move_751aff26">
+    <value>Переместить…</value>
+  </data>
+  <data xml:space="preserve" name="Move_keeps_the_same_physical_file_track_ID_hot_6226e1a3">
+    <value>Перемещение сохраняет аудиофайл, ID звука, клавиши, статистику, даты и связи со сценами.</value>
+  </data>
+  <data xml:space="preserve" name="Multiband_speech_envelopes_driving_a_synth_car_e3ccfadd">
+    <value>Превращает речь в многополосный синтезированный голос</value>
+  </data>
+  <data xml:space="preserve" name="Mute_8dd6857b">
+    <value>Выключить звук</value>
+  </data>
+  <data xml:space="preserve" name="Muted_2346f214">
+    <value>Звук выключен</value>
+  </data>
+  <data xml:space="preserve" name="New_Category_3a0878e4">
+    <value>Новая категория</value>
+  </data>
+  <data xml:space="preserve" name="New_Preset_18ba9c86">
+    <value>Новый пресет</value>
+  </data>
+  <data xml:space="preserve" name="New_Scene_7919af28">
+    <value>Новая сцена</value>
+  </data>
+  <data xml:space="preserve" name="New_af6aa8e6">
+    <value>+ Создать</value>
+  </data>
+  <data xml:space="preserve" name="New_preset_75be83ad">
+    <value>Новый пресет</value>
+  </data>
+  <data xml:space="preserve" name="New_voice_preset_fddae719">
+    <value>Новый голосовой пресет</value>
+  </data>
+  <data xml:space="preserve" name="Next_1ff57a29">
+    <value>Следующий</value>
+  </data>
+  <data xml:space="preserve" name="Next_track_f930a5df">
+    <value>Следующий звук</value>
+  </data>
+  <data xml:space="preserve" name="No_capturable_application_windows_were_found_O_56d53d76">
+    <value>Окна для захвата не найдены. Откройте нужное приложение и повторите попытку.</value>
+  </data>
+  <data xml:space="preserve" name="No_log_entries_yet_985ed983">
+    <value>Журнал пока пуст.</value>
+  </data>
+  <data xml:space="preserve" name="No_media_source_selected_331a32f0">
+    <value>Источник звука не выбран</value>
+  </data>
+  <data xml:space="preserve" name="No_saved_media_profile_2b9931b5">
+    <value>Нет сохранённого источника</value>
+  </data>
+  <data xml:space="preserve" name="No_scene_selected_d93b56b1">
+    <value>Сцена не выбрана</value>
+  </data>
+  <data xml:space="preserve" name="No_sound_0c08def0">
+    <value>Нет звука</value>
+  </data>
+  <data xml:space="preserve" name="No_window_selected_be668d38">
+    <value>Окно не выбрано</value>
+  </data>
+  <data xml:space="preserve" name="Normalize_427ed16b">
+    <value>Нормализация</value>
+  </data>
+  <data xml:space="preserve" name="Not_detected_9f4a1062">
+    <value>Не обнаружен</value>
+  </data>
+  <data xml:space="preserve" name="Not_selected_df12aeba">
+    <value>Не выбрано</value>
+  </data>
+  <data xml:space="preserve" name="NumPad_is_supported_Conflicts_follow_this_prio_5445351a">
+    <value>Поддерживается NumPad. При совпадении клавиш приоритет: управление воспроизведением → сцена → звуковая панель → голосовой пресет. В редакторе звука действуют его кнопки воспроизведения и остановки.</value>
+  </data>
+  <data xml:space="preserve" name="OK_565339bc">
+    <value>ОК</value>
+  </data>
+  <data xml:space="preserve" name="Off_ca7981b4">
+    <value>Выкл.</value>
+  </data>
+  <data xml:space="preserve" name="On_13001175">
+    <value>Вкл.</value>
+  </data>
+  <data xml:space="preserve" name="Only_themes_from_the_VoiSee_themes_folder_can__85cf8a2a">
+    <value>Здесь можно переименовать только темы из папки тем VoiSee.</value>
+  </data>
+  <data xml:space="preserve" name="Only_themes_from_the_VoiSee_themes_folder_can__de54e829">
+    <value>Здесь можно удалить только темы из папки тем VoiSee.</value>
+  </data>
+  <data xml:space="preserve" name="Open_Advanced_Settings_b02140ad">
+    <value>Открыть дополнительные настройки</value>
+  </data>
+  <data xml:space="preserve" name="Open_File_Explorer_d43973e5">
+    <value>Открыть Проводник</value>
+  </data>
+  <data xml:space="preserve" name="Open_Theme_File_a674e277">
+    <value>Открыть файл темы</value>
+  </data>
+  <data xml:space="preserve" name="Open_Theme_Folder_e698a2a5">
+    <value>Открыть папку тем</value>
+  </data>
+  <data xml:space="preserve" name="Open_VoiSee_a0579752">
+    <value>Открыть VoiSee</value>
+  </data>
+  <data xml:space="preserve" name="Open_manual_engine_controls_and_the_full_appli_dc0d4663">
+    <value>Ручное управление обработкой звука и полный журнал приложения в одном окне диагностики.</value>
+  </data>
+  <data xml:space="preserve" name="Open_theme_file_3478f38b">
+    <value>Открыть файл темы</value>
+  </data>
+  <data xml:space="preserve" name="Original_duration_0_68cdad51">
+    <value>Исходная длительность: {0}</value>
+  </data>
+  <data xml:space="preserve" name="Otherworldly_vocal_effect_231eeca1">
+    <value>Необычный инопланетный голос</value>
+  </data>
+  <data xml:space="preserve" name="Output_Monitor_fc303ff5">
+    <value>Выход / прослушивание</value>
+  </data>
+  <data xml:space="preserve" name="Pause_858e4ba7">
+    <value>Пауза</value>
+  </data>
+  <data xml:space="preserve" name="Pause_Resume_Media_Bridge_fa8acf59">
+    <value>Приостановить / продолжить звук приложения</value>
+  </data>
+  <data xml:space="preserve" name="Paused_e159b061">
+    <value>На паузе</value>
+  </data>
+  <data xml:space="preserve" name="Periodic_pitch_wobble_498bd78a">
+    <value>Периодически меняет высоту голоса</value>
+  </data>
+  <data xml:space="preserve" name="Phaser_1083767b">
+    <value>Фэйзер</value>
+  </data>
+  <data xml:space="preserve" name="Physical_microphone_preprocessed_9a5e09e1">
+    <value>Сигнал физического микрофона после очистки</value>
+  </data>
+  <data xml:space="preserve" name="Pitch_6af11cc5">
+    <value>Высота голоса</value>
+  </data>
+  <data xml:space="preserve" name="Play_436e6101">
+    <value>Воспроизвести</value>
+  </data>
+  <data xml:space="preserve" name="Play_Pause_6f97fb8c">
+    <value>Воспроизведение / пауза</value>
+  </data>
+  <data xml:space="preserve" name="Play_from_the_beginning_with_the_current_Sound_f0125ca3">
+    <value>Воспроизвести с начала с текущей громкостью звуковой панели в наушниках</value>
+  </data>
+  <data xml:space="preserve" name="Play_only_the_selected_fragment_from_its_begin_c79dda9a">
+    <value>Прослушать выделенный фрагмент с текущей громкостью звуковой панели в наушниках</value>
+  </data>
+  <data xml:space="preserve" name="Play_pause_looped_sound_f1afd37c">
+    <value>Воспроизведение / пауза зацикленного звука</value>
+  </data>
+  <data xml:space="preserve" name="Play_pause_this_scene_sound_623f0192">
+    <value>Воспроизведение / пауза звука сцены</value>
+  </data>
+  <data xml:space="preserve" name="Possessed_ef0b496b">
+    <value>Одержимый</value>
+  </data>
+  <data xml:space="preserve" name="Preset_JSON_file_not_found_490b00cf">
+    <value>Файл голосового пресета JSON не найден.</value>
+  </data>
+  <data xml:space="preserve" name="Preset_name_e534a666">
+    <value>Название пресета</value>
+  </data>
+  <data xml:space="preserve" name="Preset_select_c33b05c0">
+    <value>Включить пресет</value>
+  </data>
+  <data xml:space="preserve" name="Preset_tools_8f97e034">
+    <value>Управление пресетом</value>
+  </data>
+  <data xml:space="preserve" name="Presets_954f93fe">
+    <value>Пресеты</value>
+  </data>
+  <data xml:space="preserve" name="Press_key_Esc_cancels_f3ed7483">
+    <value>Нажмите клавишу… Esc — отмена</value>
+  </data>
+  <data xml:space="preserve" name="Preview_0_935e5ac2">
+    <value>Прослушивание · {0}</value>
+  </data>
+  <data xml:space="preserve" name="Preview_error_0_90bb3993">
+    <value>Ошибка прослушивания: {0}</value>
+  </data>
+  <data xml:space="preserve" name="Preview_finished_697546b8">
+    <value>Прослушивание завершено.</value>
+  </data>
+  <data xml:space="preserve" name="Preview_paused_at_0_80c937c4">
+    <value>Прослушивание на паузе: {0}.</value>
+  </data>
+  <data xml:space="preserve" name="Preview_position_0_9cd41355">
+    <value>Позиция прослушивания: {0}.</value>
+  </data>
+  <data xml:space="preserve" name="Preview_resumed_at_0_e163d417">
+    <value>Прослушивание продолжено с {0}.</value>
+  </data>
+  <data xml:space="preserve" name="Previous_a57b08a4">
+    <value>Предыдущий</value>
+  </data>
+  <data xml:space="preserve" name="Previous_scene_media_stopped_36ba930a">
+    <value>Звук предыдущей сцены остановлен</value>
+  </data>
+  <data xml:space="preserve" name="Previous_track_c50a886d">
+    <value>Предыдущий звук</value>
+  </data>
+  <data xml:space="preserve" name="Processed_voice_to_Virtual_Mic_bfc48361">
+    <value>Обработанный голос в виртуальный микрофон</value>
+  </data>
+  <data xml:space="preserve" name="Processing_0_1_F2_ms_block_7840512a">
+    <value>
+Обработка: {0}, {1:F2} мс на блок</value>
+  </data>
+  <data xml:space="preserve" name="Push_to_talk_03fc694c">
+    <value>Пресет при удержании</value>
+  </data>
+  <data xml:space="preserve" name="Q_4dac6b88">
+    <value>Охват частот, Q</value>
+  </data>
+  <data xml:space="preserve" name="Radio_2a7dfeb2">
+    <value>Радио</value>
+  </data>
+  <data xml:space="preserve" name="Raised_pitch_plus_shifted_vocal_resonances_6812020c">
+    <value>Повышает тон и меняет резонансы голоса</value>
+  </data>
+  <data xml:space="preserve" name="Ready_5fa7aac5">
+    <value>Готово</value>
+  </data>
+  <data xml:space="preserve" name="Ready_automatic_2fdabf90">
+    <value>Готово (автоматически)</value>
+  </data>
+  <data xml:space="preserve" name="Recreate_15efb691">
+    <value>Перезаписать</value>
+  </data>
+  <data xml:space="preserve" name="Refresh_Devices_f127b1c8">
+    <value>Обновить устройства</value>
+  </data>
+  <data xml:space="preserve" name="Release_WAV_MP3_or_OGG_files_to_add_them_to_0_c5c3f407">
+    <value>Отпустите WAV, MP3 или OGG, чтобы добавить их в {0}</value>
+  </data>
+  <data xml:space="preserve" name="Release_WAV_MP3_or_OGG_files_to_add_them_to_th_034816a5">
+    <value>Отпустите WAV, MP3 или OGG, чтобы добавить их в текущую категорию</value>
+  </data>
+  <data xml:space="preserve" name="Remove_effect_4e7556b8">
+    <value>Убрать эффект</value>
+  </data>
+  <data xml:space="preserve" name="Remove_signal_below_threshold_b167171f">
+    <value>Приглушает сигнал ниже заданного уровня</value>
+  </data>
+  <data xml:space="preserve" name="Remove_sound_55fd43d2">
+    <value>Убрать звук</value>
+  </data>
+  <data xml:space="preserve" name="Rename_3064d79a">
+    <value>Переименовать</value>
+  </data>
+  <data xml:space="preserve" name="Rename_Theme_2859113c">
+    <value>Переименовать тему</value>
+  </data>
+  <data xml:space="preserve" name="Rename_category_89799313">
+    <value>Переименовать категорию</value>
+  </data>
+  <data xml:space="preserve" name="Rename_scene_482a488a">
+    <value>Переименовать сцену</value>
+  </data>
+  <data xml:space="preserve" name="Rename_scene_button_3805f071">
+    <value>Переименовать кнопку сцены</value>
+  </data>
+  <data xml:space="preserve" name="Rename_theme_f0b0dbfe">
+    <value>Переименовать тему</value>
+  </data>
+  <data xml:space="preserve" name="Rename_track_45815523">
+    <value>Переименовать звук</value>
+  </data>
+  <data xml:space="preserve" name="Rename_voice_preset_b3215d19">
+    <value>Переименовать голосовой пресет</value>
+  </data>
+  <data xml:space="preserve" name="Rendering_preview_dfe992db">
+    <value>Подготовка прослушивания…</value>
+  </data>
+  <data xml:space="preserve" name="Reset_all_editor_changes_volume_gain_selection_9a0487cb">
+    <value>Сбросить изменения, усиление, выделение и курсор</value>
+  </data>
+  <data xml:space="preserve" name="Reset_error_0_0f47b76f">
+    <value>Ошибка сброса: {0}</value>
+  </data>
+  <data xml:space="preserve" name="Restart_Engine_43a01097">
+    <value>Перезапустить обработку</value>
+  </data>
+  <data xml:space="preserve" name="Restart_pending_762d0599">
+    <value>Ожидание перезапуска</value>
+  </data>
+  <data xml:space="preserve" name="Reverb_bf7d7f51">
+    <value>Реверберация</value>
+  </data>
+  <data xml:space="preserve" name="Rhythmic_volume_modulation_02ec20f8">
+    <value>Ритмично меняет громкость</value>
+  </data>
+  <data xml:space="preserve" name="Ring_Mod_71c5faf9">
+    <value>Кольцевая модуляция</value>
+  </data>
+  <data xml:space="preserve" name="Robot_3bf6b51b">
+    <value>Робот</value>
+  </data>
+  <data xml:space="preserve" name="Robotic_metallic_character_8bf93e26">
+    <value>Металлический голос робота</value>
+  </data>
+  <data xml:space="preserve" name="Rotor_f214fc83">
+    <value>Вращение</value>
+  </data>
+  <data xml:space="preserve" name="Route_state_0_02c93134">
+    <value>Состояние маршрута: {0}
+</value>
+  </data>
+  <data xml:space="preserve" name="Running_f4ccae29">
+    <value>Работает</value>
+  </data>
+  <data xml:space="preserve" name="Save_1509f561">
+    <value>Сохранить</value>
+  </data>
+  <data xml:space="preserve" name="Save_File_5be8dc97">
+    <value>Сохранить файл</value>
+  </data>
+  <data xml:space="preserve" name="Save_as_60af8a30">
+    <value>Сохранить как</value>
+  </data>
+  <data xml:space="preserve" name="Save_as_error_0_d8fdc1d6">
+    <value>Ошибка сохранения копии: {0}</value>
+  </data>
+  <data xml:space="preserve" name="Save_error_0_7919e949">
+    <value>Ошибка сохранения: {0}</value>
+  </data>
+  <data xml:space="preserve" name="Saved_profile_0_1_Select_the_window_again_to_r_e9bf80c2">
+    <value>Сохранённый источник: {0} — {1}. Чтобы подключить его, выберите окно снова.</value>
+  </data>
+  <data xml:space="preserve" name="Saved_scenes_93f62b4d">
+    <value>Сохранённые сцены</value>
+  </data>
+  <data xml:space="preserve" name="Saving_edited_file_54de30a4">
+    <value>Сохранение отредактированного файла…</value>
+  </data>
+  <data xml:space="preserve" name="Saving_edited_file_as_a_new_edit_copy_c134d3bf">
+    <value>Сохранение нового файла с пометкой [edit]…</value>
+  </data>
+  <data xml:space="preserve" name="Scene_Settings_54ecd3b7">
+    <value>Настройки сцены</value>
+  </data>
+  <data xml:space="preserve" name="Scene_active_SoundBoard_locked_583189ba">
+    <value>Сцена включена — звуковая панель недоступна</value>
+  </data>
+  <data xml:space="preserve" name="Scene_buttons_0_d868cf05">
+    <value>Звуковых кнопок сцены: {0}</value>
+  </data>
+  <data xml:space="preserve" name="Scene_details_56b2fb91">
+    <value>Сведения о сцене</value>
+  </data>
+  <data xml:space="preserve" name="Scene_editor_activate_scenes_choose_a_voice_pr_6820a7b9">
+    <value>Включайте сцены, выбирайте голосовой пресет, фоновый звук и клавиши для звуков сцены.</value>
+  </data>
+  <data xml:space="preserve" name="Scene_hotkey_0_a2d9b166">
+    <value>Клавиши сцены: {0}</value>
+  </data>
+  <data xml:space="preserve" name="Scene_hotkey_none_584c65e6">
+    <value>Клавиши сцены: не назначены</value>
+  </data>
+  <data xml:space="preserve" name="Scene_media_stopped_8bae58fb">
+    <value>Звук приложения сцены остановлен</value>
+  </data>
+  <data xml:space="preserve" name="Scene_name_e3fe736a">
+    <value>Название сцены</value>
+  </data>
+  <data xml:space="preserve" name="Scene_sound_buttons_a3c5f30e">
+    <value>Звуковые кнопки сцены</value>
+  </data>
+  <data xml:space="preserve" name="Scene_sound_hotkey_84910556">
+    <value>Клавиши звука сцены</value>
+  </data>
+  <data xml:space="preserve" name="Scenes_160c0535">
+    <value>Сцены</value>
+  </data>
+  <data xml:space="preserve" name="Search_49c266ba">
+    <value>Поиск</value>
+  </data>
+  <data xml:space="preserve" name="Search_effects_e9aa1f77">
+    <value>Поиск эффектов…</value>
+  </data>
+  <data xml:space="preserve" name="Search_presets_7c2d7bbd">
+    <value>Поиск пресетов…</value>
+  </data>
+  <data xml:space="preserve" name="Search_sound_6b0e13c5">
+    <value>Поиск звука</value>
+  </data>
+  <data xml:space="preserve" name="Search_track_07345689">
+    <value>Поиск звука</value>
+  </data>
+  <data xml:space="preserve" name="Select_2a78025d">
+    <value>Выбрать</value>
+  </data>
+  <data xml:space="preserve" name="Select_Media_Bridge_window_43160d0d">
+    <value>Выбрать окно для захвата звука</value>
+  </data>
+  <data xml:space="preserve" name="Select_a_fragment_first_a98aae57">
+    <value>Сначала выделите фрагмент.</value>
+  </data>
+  <data xml:space="preserve" name="Select_a_fragment_or_adjust_effects_Preview_an_e26b668a">
+    <value>Выделите фрагмент или настройте эффекты. Прослушивание и сохранение используют волну, показанную выше.</value>
+  </data>
+  <data xml:space="preserve" name="Select_a_profile_created_in_Media_Bridge_d03ef508">
+    <value>Выберите источник, созданный на вкладке «Звук приложений»</value>
+  </data>
+  <data xml:space="preserve" name="Select_a_user_theme_first_Default_Dark_is_buil_312726f9">
+    <value>Сначала выберите пользовательскую тему. Стандартная тёмная тема встроена в VoiSee и не открывается для редактирования напрямую.</value>
+  </data>
+  <data xml:space="preserve" name="Select_a_user_theme_first_The_built_in_Default_c6ebff63">
+    <value>Сначала выберите пользовательскую тему. Встроенную стандартную тему удалить нельзя.</value>
+  </data>
+  <data xml:space="preserve" name="Select_a_user_theme_first_The_built_in_Default_dcb7a023">
+    <value>Сначала выберите пользовательскую тему. Встроенную стандартную тему переименовать нельзя.</value>
+  </data>
+  <data xml:space="preserve" name="Select_a_window_51730f04">
+    <value>Выбрать окно</value>
+  </data>
+  <data xml:space="preserve" name="Select_or_change_the_capture_window_452e36a0">
+    <value>Выбрать или изменить окно захвата</value>
+  </data>
+  <data xml:space="preserve" name="Selected_0_The_playhead_position_was_preserved_d16e946a">
+    <value>Выбрано: {0}. Позиция курсора сохранена.</value>
+  </data>
+  <data xml:space="preserve" name="Selected_0_Use_Trim_Outside_to_keep_it_or_Cut__3ff1819e">
+    <value>Выделено: {0}. «Оставить выделенное» сохранит фрагмент, а «Вырезать выделенное» удалит его.</value>
+  </data>
+  <data xml:space="preserve" name="Selected_JSON_is_not_a_VoiSe_voice_preset_6358c054">
+    <value>Выбранный JSON не является голосовым пресетом VoiSee.</value>
+  </data>
+  <data xml:space="preserve" name="Selected_devices_are_no_longer_available_Refre_beb32965">
+    <value>Выбранные устройства отключены. Обновите список и выберите доступный микрофон.</value>
+  </data>
+  <data xml:space="preserve" name="Selected_duration_0_70e51beb">
+    <value>Длительность выделения: {0}</value>
+  </data>
+  <data xml:space="preserve" name="Selected_duration_6f962e85">
+    <value>Длительность выделения: —</value>
+  </data>
+  <data xml:space="preserve" name="Selection_end_0_5ad26e3b">
+    <value>Конец выделения: {0}</value>
+  </data>
+  <data xml:space="preserve" name="Selection_end_6298bf34">
+    <value>Конец выделения: —</value>
+  </data>
+  <data xml:space="preserve" name="Selection_start_0_f6e54f61">
+    <value>Начало выделения: {0}</value>
+  </data>
+  <data xml:space="preserve" name="Selection_start_36396064">
+    <value>Начало выделения: —</value>
+  </data>
+  <data xml:space="preserve" name="Set_scene_hotkey_8aa37a7e">
+    <value>Назначить клавиши сцены</value>
+  </data>
+  <data xml:space="preserve" name="Settings_74a883a0">
+    <value>Настройки</value>
+  </data>
+  <data xml:space="preserve" name="Shift_the_pitch_of_your_voice_e895a11b">
+    <value>Меняет высоту голоса</value>
+  </data>
+  <data xml:space="preserve" name="Show_in_File_Explorer_b390c3cc">
+    <value>Показать в Проводнике</value>
+  </data>
+  <data xml:space="preserve" name="Smooth_moving_phase_notches_19f35ed0">
+    <value>Плавно меняет фазовые провалы</value>
+  </data>
+  <data xml:space="preserve" name="SoundBoard_0_89a89693">
+    <value>Звуковая панель: {0}</value>
+  </data>
+  <data xml:space="preserve" name="SoundBoard_Delay_0_0_ms_327a39a2">
+    <value>Задержка звуковой панели: {0:0} мс</value>
+  </data>
+  <data xml:space="preserve" name="SoundBoard_Delay_0_ms_19a3a664">
+    <value>Задержка звуковой панели: {0} мс</value>
+  </data>
+  <data xml:space="preserve" name="SoundBoard_Delay_85_ms_790ad43e">
+    <value>Задержка звуковой панели: 85 мс</value>
+  </data>
+  <data xml:space="preserve" name="SoundBoard_Headphones_0_P0_31d4d895">
+    <value>Звуковая панель → наушники: {0:P0}</value>
+  </data>
+  <data xml:space="preserve" name="SoundBoard_Headphones_0_ba1b0dd3">
+    <value>Звуковая панель → наушники: {0}%</value>
+  </data>
+  <data xml:space="preserve" name="SoundBoard_Headphones_100_a6674dd3">
+    <value>Звуковая панель → наушники: 100%</value>
+  </data>
+  <data xml:space="preserve" name="SoundBoard_Virtual_Mic_0_91433000">
+    <value>Звуковая панель → виртуальный микрофон: {0}%</value>
+  </data>
+  <data xml:space="preserve" name="SoundBoard_Virtual_Mic_0_P0_ef866ff5">
+    <value>Звуковая панель → виртуальный микрофон: {0:P0}</value>
+  </data>
+  <data xml:space="preserve" name="SoundBoard_Virtual_Mic_100_40e073b4">
+    <value>Звуковая панель → виртуальный микрофон: 100%</value>
+  </data>
+  <data xml:space="preserve" name="SoundBoard_b5e1e6b0">
+    <value>Звуковая панель</value>
+  </data>
+  <data xml:space="preserve" name="SoundBoard_playback_is_unavailable_while_a_sce_dabc7d53">
+    <value>Звуковая панель недоступна, пока включена сцена</value>
+  </data>
+  <data xml:space="preserve" name="SoundBoard_reaches_headphones_immediately_and__7ad48d8a">
+    <value>В наушниках звук слышен сразу, а в виртуальный микрофон попадает с этой задержкой. Изменение применяется при следующем воспроизведении.</value>
+  </data>
+  <data xml:space="preserve" name="Sound_Editor_8e97e2d3">
+    <value>Редактор звука</value>
+  </data>
+  <data xml:space="preserve" name="Sound_file_not_found_d31e3e3d">
+    <value>Аудиофайл не найден</value>
+  </data>
+  <data xml:space="preserve" name="Sound_file_not_found_f5b99525">
+    <value>Аудиофайл не найден.</value>
+  </data>
+  <data xml:space="preserve" name="Sounds_6f305c4b">
+    <value>Звуки</value>
+  </data>
+  <data xml:space="preserve" name="Source_0e570ca6">
+    <value>Источник</value>
+  </data>
+  <data xml:space="preserve" name="Source_changed_1ff76c54">
+    <value>Источник изменён</value>
+  </data>
+  <data xml:space="preserve" name="Source_window_is_unavailable_81ef5eb6">
+    <value>Окно источника недоступно</value>
+  </data>
+  <data xml:space="preserve" name="Source_window_was_closed_a640ba5e">
+    <value>Окно источника закрыто</value>
+  </data>
+  <data xml:space="preserve" name="Space_20eac5aa">
+    <value>Пространство</value>
+  </data>
+  <data xml:space="preserve" name="Squeaky_high_cartoon_voice_fceff067">
+    <value>Писклявый мультяшный голос</value>
+  </data>
+  <data xml:space="preserve" name="Start_Engine_c442acbc">
+    <value>Запустить обработку</value>
+  </data>
+  <data xml:space="preserve" name="Start_VoiSee_with_Windows_148cbe02">
+    <value>Запускать VoiSee вместе с Windows</value>
+  </data>
+  <data xml:space="preserve" name="Start_loop_ddeb75f3">
+    <value>Зациклить</value>
+  </data>
+  <data xml:space="preserve" name="Start_looped_sound_when_scene_is_enabled_79755373">
+    <value>Запускать зацикленный звук при включении сцены</value>
+  </data>
+  <data xml:space="preserve" name="Start_the_VoiSee_audio_engine_and_make_sure_VB_f07a1a7e">
+    <value>Перед захватом звука приложений запустите обработку звука VoiSee и убедитесь, что VB-CABLE доступен.</value>
+  </data>
+  <data xml:space="preserve" name="Start_the_audio_engine_to_preview_in_headphone_ae63f60a">
+    <value>Для прослушивания в наушниках запустите обработку звука.</value>
+  </data>
+  <data xml:space="preserve" name="Starting_82b93630">
+    <value>Запуск…</value>
+  </data>
+  <data xml:space="preserve" name="Startup_65d48235">
+    <value>Автозапуск</value>
+  </data>
+  <data xml:space="preserve" name="Stop_Broadcast_4ade9ee9">
+    <value>Остановить передачу</value>
+  </data>
+  <data xml:space="preserve" name="Stop_Engine_bab15227">
+    <value>Остановить обработку</value>
+  </data>
+  <data xml:space="preserve" name="Stop_cae7d57b">
+    <value>Остановить</value>
+  </data>
+  <data xml:space="preserve" name="Stop_preview_and_return_the_playhead_to_the_pr_7ef46e59">
+    <value>Остановить прослушивание и вернуть курсор к его началу</value>
+  </data>
+  <data xml:space="preserve" name="Stop_sound_c1374efe">
+    <value>Остановить звук</value>
+  </data>
+  <data xml:space="preserve" name="Stopped_1a4f630a">
+    <value>Остановлено</value>
+  </data>
+  <data xml:space="preserve" name="Stutter_3dd08259">
+    <value>Заикание</value>
+  </data>
+  <data xml:space="preserve" name="Sweeping_jet_like_resonance_6f8edc16">
+    <value>Плавное реактивное звучание</value>
+  </data>
+  <data xml:space="preserve" name="System_Audio_10a7b02a">
+    <value>Система и звук</value>
+  </data>
+  <data xml:space="preserve" name="Target_category_7c1d708e">
+    <value>Категория назначения</value>
+  </data>
+  <data xml:space="preserve" name="Temporary_value_0_applied_after_the_current_ch_b0f18f94">
+    <value>Временное значение: {0} · применяется после текущей цепочки</value>
+  </data>
+  <data xml:space="preserve" name="Text_047f7735">
+    <value>ожидание запуска.</value>
+  </data>
+  <data xml:space="preserve" name="Text_1015b6a9">
+    <value>ВЫСОКИЕ</value>
+  </data>
+  <data xml:space="preserve" name="Text_10fb83a9">
+    <value>Обычное</value>
+  </data>
+  <data xml:space="preserve" name="Text_184dd8c0">
+    <value>Слышать себя: вкл.</value>
+  </data>
+  <data xml:space="preserve" name="Text_1e063585">
+    <value>+ Точка</value>
+  </data>
+  <data xml:space="preserve" name="Text_352978e0">
+    <value>Эквалайзер</value>
+  </data>
+  <data xml:space="preserve" name="Text_3713e17c">
+    <value>Удалить выбранную точку</value>
+  </data>
+  <data xml:space="preserve" name="Text_3c151fb2">
+    <value>Выкл.</value>
+  </data>
+  <data xml:space="preserve" name="Text_4d1d4304">
+    <value>Включено</value>
+  </data>
+  <data xml:space="preserve" name="Text_50b3befe">
+    <value>Убирает звук колонок и смягчает эхо голоса в комнате.</value>
+  </data>
+  <data xml:space="preserve" name="Text_5d5a6cce">
+    <value>Слышать себя: выкл.</value>
+  </data>
+  <data xml:space="preserve" name="Text_669172d3">
+    <value>Шумоподавление недоступно: </value>
+  </data>
+  <data xml:space="preserve" name="Text_6aa0abda">
+    <value>ВЕРХНЯЯ СЕРЕДИНА</value>
+  </data>
+  <data xml:space="preserve" name="Text_6b7059d0">
+    <value>НИЗКАЯ СЕРЕДИНА</value>
+  </data>
+  <data xml:space="preserve" name="Text_72bbc88e">
+    <value>Шумоподавление</value>
+  </data>
+  <data xml:space="preserve" name="Text_9089a731">
+    <value>Язык интерфейса</value>
+  </data>
+  <data xml:space="preserve" name="Text_916d117d">
+    <value>Включится после запуска микрофона.</value>
+  </data>
+  <data xml:space="preserve" name="Text_98196391">
+    <value>Усиленное</value>
+  </data>
+  <data xml:space="preserve" name="Text_9cf249e2">
+    <value>Выбрано</value>
+  </data>
+  <data xml:space="preserve" name="Text_a07466f3">
+    <value>Эхоподавление выключено.</value>
+  </data>
+  <data xml:space="preserve" name="Text_a2cf8182">
+    <value>Тяните точку, чтобы изменить звук. Тяните края отрезка в стороны, чтобы охватить больше частот.</value>
+  </data>
+  <data xml:space="preserve" name="Text_a4584b5d">
+    <value>Эхоподавление</value>
+  </data>
+  <data xml:space="preserve" name="Text_b22088b7">
+    <value>САМЫЕ НИЗКИЕ</value>
+  </data>
+  <data xml:space="preserve" name="Text_b9b86803">
+    <value>Отменить действие</value>
+  </data>
+  <data xml:space="preserve" name="Text_bb353389">
+    <value>Точка</value>
+  </data>
+  <data xml:space="preserve" name="Text_bc6345f7">
+    <value>Есть запас громкости без усиления.</value>
+  </data>
+  <data xml:space="preserve" name="Text_be99b136">
+    <value>Удалить</value>
+  </data>
+  <data xml:space="preserve" name="Text_c1caf8d7">
+    <value>Ширина настройки: тяните в сторону от точки, чтобы охватить больше частот</value>
+  </data>
+  <data xml:space="preserve" name="Text_c5e6370e">
+    <value>Эхо комнаты ослабляется. Звук колонок: </value>
+  </data>
+  <data xml:space="preserve" name="Text_d451055b">
+    <value>Эхоподавление включено.</value>
+  </data>
+  <data xml:space="preserve" name="Text_d7cf33be">
+    <value>Шум и эхо</value>
+  </data>
+  <data xml:space="preserve" name="Text_dd372ca3">
+    <value>Выше — меньше фонового шума. Ниже — естественнее голос.</value>
+  </data>
+  <data xml:space="preserve" name="Text_e27b7a6d">
+    <value>Вкл.</value>
+  </data>
+  <data xml:space="preserve" name="Text_e9e9e735">
+    <value>БАС</value>
+  </data>
+  <data xml:space="preserve" name="Text_eca1a784">
+    <value>ГОЛОС</value>
+  </data>
+  <data xml:space="preserve" name="Text_f2083f59">
+    <value>Сила шумоподавления</value>
+  </data>
+  <data xml:space="preserve" name="Text_f884719a">
+    <value>Выбранный режим включится после запуска микрофона.</value>
+  </data>
+  <data xml:space="preserve" name="Text_fcad8a79">
+    <value>не удалось загрузить обработчик</value>
+  </data>
+  <data xml:space="preserve" name="Text_ff337177">
+    <value>Шумоподавление выключено.</value>
+  </data>
+  <data xml:space="preserve" name="Text_file_0eaa5cb3">
+    <value>Текстовый файл</value>
+  </data>
+  <data xml:space="preserve" name="The_XAML_theme_is_missing_required_resources_826b4dcb">
+    <value>В теме XAML отсутствуют обязательные ресурсы: </value>
+  </data>
+  <data xml:space="preserve" name="The_built_in_editable_copy_of_Default_Dark_was_5b1673e7">
+    <value>Редактируемая копия стандартной тёмной темы не найдена.</value>
+  </data>
+  <data xml:space="preserve" name="The_isolated_Audio_Host_is_already_running_9f21f4b2">
+    <value>Аудиопроцесс уже запущен.</value>
+  </data>
+  <data xml:space="preserve" name="The_last_category_cannot_be_deleted_62252cfa">
+    <value>Последнюю категорию удалить нельзя.</value>
+  </data>
+  <data xml:space="preserve" name="The_preview_range_is_empty_349666e8">
+    <value>Диапазон прослушивания пуст.</value>
+  </data>
+  <data xml:space="preserve" name="The_root_object_of_a_VoiSee_theme_must_be_Reso_e0bd892b">
+    <value>Корневой объект темы VoiSee должен быть ResourceDictionary.</value>
+  </data>
+  <data xml:space="preserve" name="The_selected_XAML_theme_file_was_not_found_9258e3c7">
+    <value>Выбранный файл темы XAML не найден.</value>
+  </data>
+  <data xml:space="preserve" name="The_selected_theme_file_does_not_exist_anymore_c5d5fe32">
+    <value>Выбранный файл темы больше не существует. Список тем будет обновлён.</value>
+  </data>
+  <data xml:space="preserve" name="The_selected_theme_file_no_longer_exists_The_t_8896da85">
+    <value>Выбранный файл темы больше не существует. Список тем будет обновлён.</value>
+  </data>
+  <data xml:space="preserve" name="The_sound_is_no_longer_present_in_the_library_8eec54e6">
+    <value>Звука больше нет в библиотеке.</value>
+  </data>
+  <data xml:space="preserve" name="The_source_sound_file_could_not_be_found_65d78fb2">
+    <value>Исходный аудиофайл не найден.</value>
+  </data>
+  <data xml:space="preserve" name="The_target_category_is_no_longer_present_in_th_3a7e5714">
+    <value>Категории назначения больше нет в библиотеке.</value>
+  </data>
+  <data xml:space="preserve" name="The_theme_file_is_temporarily_locked_and_could_faf335d1">
+    <value>Файл темы временно занят другим приложением.</value>
+  </data>
+  <data xml:space="preserve" name="The_theme_is_not_valid_WinUI_XAML_0_e5691ea4">
+    <value>Некорректный XAML темы WinUI: {0}</value>
+  </data>
+  <data xml:space="preserve" name="Theme_0_1_ff2f20fc">
+    <value>Тема: {0} ({1})</value>
+  </data>
+  <data xml:space="preserve" name="Theme_Default_Dark_b5d50e27">
+    <value>Тема: стандартная тёмная</value>
+  </data>
+  <data xml:space="preserve" name="Theme_error_58da37ef">
+    <value>Ошибка темы</value>
+  </data>
+  <data xml:space="preserve" name="Theme_error_kept_0_1_b8cab5b9">
+    <value>Ошибка темы — сохранена тема {0}: {1}</value>
+  </data>
+  <data xml:space="preserve" name="Theme_file_was_not_found_64023f6d">
+    <value>Файл темы не найден.</value>
+  </data>
+  <data xml:space="preserve" name="Theme_name_e41991da">
+    <value>Название темы</value>
+  </data>
+  <data xml:space="preserve" name="Theme_resource_0_must_be_a_Brush_793a9ac8">
+    <value>Ресурс темы «{0}» должен быть кистью Brush.</value>
+  </data>
+  <data xml:space="preserve" name="Themes_43ae3265">
+    <value>Оформление</value>
+  </data>
+  <data xml:space="preserve" name="Themes_folder_fbbbad6c">
+    <value>Папка тем</value>
+  </data>
+  <data xml:space="preserve" name="Themes_migrated_4d99c269">
+    <value>Темы перенесены</value>
+  </data>
+  <data xml:space="preserve" name="This_hotkey_belongs_only_to_the_selected_scene_0d3502ee">
+    <value>Клавиши действуют только для выбранной кнопки сцены. Клавиши звуковой панели не меняются. Приоритет: управление воспроизведением, сцена, звуковая панель.</value>
+  </data>
+  <data xml:space="preserve" name="Threshold_0da627ad">
+    <value>Порог</value>
+  </data>
+  <data xml:space="preserve" name="To_Mic_cdc9d1f6">
+    <value>В микрофон</value>
+  </data>
+  <data xml:space="preserve" name="Tone_c2c8b72e">
+    <value>Тембр</value>
+  </data>
+  <data xml:space="preserve" name="Track_0_3cdf4882">
+    <value>Звук: {0}
+</value>
+  </data>
+  <data xml:space="preserve" name="Track_uses_0_eb05e0ea">
+    <value>Использований звука: {0}</value>
+  </data>
+  <data xml:space="preserve" name="Tracks_in_category_0_851c29bf">
+    <value>Звуков в категории: {0}
+</value>
+  </data>
+  <data xml:space="preserve" name="Transfer_to_Category_8c0b102a">
+    <value>Перенести в категорию</value>
+  </data>
+  <data xml:space="preserve" name="Transformation_cf2a6337">
+    <value>Преобразование</value>
+  </data>
+  <data xml:space="preserve" name="Transport_hotkeys_not_configured_a1c12cc7">
+    <value>Клавиши воспроизведения: не назначены</value>
+  </data>
+  <data xml:space="preserve" name="Treble_7891c4a9">
+    <value>Высокие частоты</value>
+  </data>
+  <data xml:space="preserve" name="Tremolo_fd73295b">
+    <value>Тремоло</value>
+  </data>
+  <data xml:space="preserve" name="Trim_error_0_10967978">
+    <value>Ошибка обрезки: {0}</value>
+  </data>
+  <data xml:space="preserve" name="Trim_outside_keep_the_selected_fragment_and_re_7c90efac">
+    <value>Оставить выделенный фрагмент и убрать всё остальное</value>
+  </data>
+  <data xml:space="preserve" name="Trimming_outside_the_selection_aeb98708">
+    <value>Удаление звука за пределами выделения…</value>
+  </data>
+  <data xml:space="preserve" name="Unmute_ce4ee4ef">
+    <value>Включить звук</value>
+  </data>
+  <data xml:space="preserve" name="Unsupported_sound_format_Use_WAV_MP3_or_OGG_e897a775">
+    <value>Формат звука не поддерживается. Выберите WAV, MP3 или OGG.</value>
+  </data>
+  <data xml:space="preserve" name="Updated_UTC_0_yyyy_MM_dd_HH_mm_ss_99673ddf">
+    <value>Обновлено (UTC): {0:yyyy-MM-dd HH:mm:ss}</value>
+  </data>
+  <data xml:space="preserve" name="Use_the_VB_CABLE_virtual_microphone_in_Discord_eba54e53">
+    <value>Выберите виртуальный микрофон VB-CABLE в Discord, OBS, Telegram, игре или другом приложении. Обычно он называется CABLE Output / VB-Audio Virtual Cable. VoiSee передаёт звук в CABLE Input автоматически.</value>
+  </data>
+  <data xml:space="preserve" name="Use_these_controls_only_for_diagnostics_Normal_b6682918">
+    <value>Эти элементы нужны только для диагностики. При обычной работе VoiSee запускает и перезапускает обработку автоматически.</value>
+  </data>
+  <data xml:space="preserve" name="Utility_9450d833">
+    <value>Служебные</value>
+  </data>
+  <data xml:space="preserve" name="VB_CABLE_bridge_0_da27b0ca">
+    <value>Виртуальный мост VB-CABLE: {0}
+</value>
+  </data>
+  <data xml:space="preserve" name="VB_CABLE_is_not_installed_63685107">
+    <value>VB-CABLE не установлен.</value>
+  </data>
+  <data xml:space="preserve" name="VB_CABLE_is_working_normally_b6e629ab">
+    <value>VB-CABLE работает нормально</value>
+  </data>
+  <data xml:space="preserve" name="VB_CABLE_required_1eb7443b">
+    <value>Требуется VB-CABLE</value>
+  </data>
+  <data xml:space="preserve" name="VB_CABLE_status_c8156333">
+    <value>Состояние VB-CABLE</value>
+  </data>
+  <data xml:space="preserve" name="Vibrato_d2af1e9d">
+    <value>Вибрато</value>
+  </data>
+  <data xml:space="preserve" name="Virtual_Mic_0_c52527e2">
+    <value>Виртуальный микрофон: {0}</value>
+  </data>
+  <data xml:space="preserve" name="Virtual_Mic_5eab0e3c">
+    <value>Виртуальный микрофон</value>
+  </data>
+  <data xml:space="preserve" name="Virtual_Mic_Master_0_69721452">
+    <value>Общая громкость микрофона: {0}%</value>
+  </data>
+  <data xml:space="preserve" name="Virtual_Mic_Master_0_P0_0d2dbec5">
+    <value>Общая громкость микрофона: {0:P0}</value>
+  </data>
+  <data xml:space="preserve" name="Virtual_Mic_Master_100_dc46fd5f">
+    <value>Общая громкость микрофона: 100%</value>
+  </data>
+  <data xml:space="preserve" name="Virtual_Mic_Mute_9085b2a9">
+    <value>Выключить микрофон</value>
+  </data>
+  <data xml:space="preserve" name="Virtual_mic_output_is_muted_You_can_still_hear_14d300fa">
+    <value>Выход виртуального микрофона выключен. В наушниках VoiSee слышно, но Discord, OBS и игры получают тишину.</value>
+  </data>
+  <data xml:space="preserve" name="Visible_tracks_0_fb7ccdea">
+    <value>Найдено звуков: {0}
+</value>
+  </data>
+  <data xml:space="preserve" name="Vocoder_927878ea">
+    <value>Вокодер</value>
+  </data>
+  <data xml:space="preserve" name="VoiSe_AudioHost_exe_closed_the_control_pipe_b95065ab">
+    <value>Соединение с VoiSe.AudioHost.exe закрыто.</value>
+  </data>
+  <data xml:space="preserve" name="VoiSe_AudioHost_exe_was_not_found_Rebuild_the__e89cc491">
+    <value>VoiSe.AudioHost.exe не найден. Переустановите VoiSee или соберите проект целиком: папка AudioHost должна находиться рядом с VoiSe.App.exe.</value>
+  </data>
+  <data xml:space="preserve" name="VoiSee_10_now_uses_native_WinUI_XAML_themes_0__48cb7a0f">
+    <value>VoiSee использует темы WinUI XAML. Старые темы CSS ({0}) перенесены в:
+{1}
+
+Включена стандартная тёмная тема. Темы CSS больше не загружаются.</value>
+  </data>
+  <data xml:space="preserve" name="VoiSee_11337bbe">
+    <value>Язык изменится после полного выхода из VoiSee и повторного запуска.</value>
+  </data>
+  <data xml:space="preserve" name="VoiSee_XAML_theme_696c0ccd">
+    <value>Тема VoiSee XAML</value>
+  </data>
+  <data xml:space="preserve" name="VoiSee_captures_the_selected_window_s_process__abf27c03">
+    <value>VoiSee захватывает звук процесса выбранного окна и его дочерних процессов. После перезапуска окно нужно выбрать снова.</value>
+  </data>
+  <data xml:space="preserve" name="VoiSee_could_not_enumerate_application_windows_8344dc21">
+    <value>Не удалось получить список окон приложений.</value>
+  </data>
+  <data xml:space="preserve" name="VoiSee_could_not_find_the_file_for_0_1_fdc9280e">
+    <value>VoiSee не удалось найти файл «{0}».
+
+{1}</value>
+  </data>
+  <data xml:space="preserve" name="VoiSee_executable_path_could_not_be_determined_7d2cb72e">
+    <value>Не удалось определить путь к VoiSee.</value>
+  </data>
+  <data xml:space="preserve" name="VoiSee_starts_in_the_notification_area_and_kee_0e382ff2">
+    <value>VoiSee запускается в трее, сохраняя доступность звука и горячих клавиш.</value>
+  </data>
+  <data xml:space="preserve" name="VoiSee_themes_are_native_WinUI_ResourceDiction_eb1529cc">
+    <value>Темы VoiSee — файлы WinUI ResourceDictionary с расширением .voiseetheme.xaml. Корректные изменения применяются автоматически. При ошибке сохраняется последняя рабочая тема.</value>
+  </data>
+  <data xml:space="preserve" name="VoiSee_themes_must_use_the_0_extension_95d956c5">
+    <value>Темы VoiSee должны иметь расширение {0}.</value>
+  </data>
+  <data xml:space="preserve" name="Voice_Changer_0fab9f61">
+    <value>Изменение голоса</value>
+  </data>
+  <data xml:space="preserve" name="Voice_Gain_85e54875">
+    <value>Громкость голоса</value>
+  </data>
+  <data xml:space="preserve" name="Voice_Monitor_Off_f0b11e44">
+    <value>Слышать себя: выкл.</value>
+  </data>
+  <data xml:space="preserve" name="Voice_Monitor_On_d727af9c">
+    <value>Слышать себя: вкл.</value>
+  </data>
+  <data xml:space="preserve" name="Voice_preset_0_2c961781">
+    <value>Голосовой пресет: {0}</value>
+  </data>
+  <data xml:space="preserve" name="Voice_preset_d619c2ce">
+    <value>Голосовой пресет</value>
+  </data>
+  <data xml:space="preserve" name="Voice_settings_f2647154">
+    <value>Настройки голоса</value>
+  </data>
+  <data xml:space="preserve" name="Volume_gain_0b32bee7">
+    <value>Усиление громкости</value>
+  </data>
+  <data xml:space="preserve" name="Volume_in_Microphone_eea9a087">
+    <value>Громкость в микрофоне</value>
+  </data>
+  <data xml:space="preserve" name="WASAPI_targets_0_1_ms_mic_drops_2_b08869b9">
+    <value>
+Буферы WASAPI: {0}/{1} мс; отброшено сэмплов: {2}</value>
+  </data>
+  <data xml:space="preserve" name="Wavering_spectral_echo_94122a61">
+    <value>Колеблющийся голос с призрачным эхом</value>
+  </data>
+  <data xml:space="preserve" name="Wide_layered_modulation_c3d1b638">
+    <value>Объёмное многослойное звучание</value>
+  </data>
+  <data xml:space="preserve" name="Windows_Explorer_is_not_running_in_the_current_b0a2523f">
+    <value>Проводник Windows не запущен в текущем сеансе.</value>
+  </data>
+  <data xml:space="preserve" name="Windows_autostart_registry_key_could_not_be_op_59d81aec">
+    <value>Не удалось открыть настройку автозапуска Windows.</value>
+  </data>
+  <data xml:space="preserve" name="Wobbly_9f8aa090">
+    <value>Колебание голоса</value>
+  </data>
+  <data xml:space="preserve" name="Woozy_unstable_pitch_wobble_ce9cf8de">
+    <value>Неустойчивая, «плывущая» высота голоса</value>
+  </data>
+  <data xml:space="preserve" name="dB_27addfe9">
+    <value> дБ</value>
+  </data>
+  <data xml:space="preserve" name="dB_55474d16">
+    <value>Усиление, дБ</value>
+  </data>
+  <data xml:space="preserve" name="kHz_acaf5a32">
+    <value> кГц</value>
+  </data>
+  <data xml:space="preserve" name="none_140bedbf">
+    <value>нет</value>
+  </data>
+  <data xml:space="preserve" name="off_b4dc66dd">
+    <value>выкл.</value>
+  </data>
+  <data xml:space="preserve" name="on_b8d31e85">
+    <value>вкл.</value>
+  </data>
+  <data xml:space="preserve" name="paused_0_22bf79f6">
+    <value>На паузе: {0}</value>
+  </data>
+  <data xml:space="preserve" name="playing_0_4f38e793">
+    <value>Воспроизводится: {0}</value>
+  </data>
+  <data xml:space="preserve" name="set_6ee0eb49">
+    <value>задан</value>
+  </data>
+  <data xml:space="preserve" name="sound_dd29442d">
+    <value>звук</value>
+  </data>
+  <data xml:space="preserve" name="the_current_category_77ff1f3b">
+    <value>текущую категорию</value>
+  </data>
+  <data xml:space="preserve" name="Move_6ecc3df6">
+    <value>Переместить</value>
+  </data>
+  <data xml:space="preserve" name="Unknown_b764cdc0">
+    <value>Неизвестно</value>
+  </data>
+  <data xml:space="preserve" name="Loop_none_64af57be">
+    <value>Фоновый звук: нет</value>
+  </data>
+  <data xml:space="preserve" name="Loop_set_c53039a0">
+    <value>Фоновый звук: задан</value>
+  </data>
+  <data xml:space="preserve" name="ACTIVE_630c2f1c">
+    <value>АКТИВНА</value>
+  </data>
+  <data xml:space="preserve" name="Voice_0_92ac47f7">
+    <value>Голос: {0}</value>
+  </data>
+  <data xml:space="preserve" name="Sounds_0_70b10c7a">
+    <value>Звуков: {0}</value>
+  </data>
+  <data xml:space="preserve" name="Media_0_d1e35800">
+    <value>Приложение: {0}</value>
+  </data>
+  <data xml:space="preserve" name="Icon_Microphone">
+    <value>Микрофон</value>
+  </data>
+  <data xml:space="preserve" name="Icon_Speaker">
+    <value>Динамик</value>
+  </data>
+  <data xml:space="preserve" name="Icon_Headphones">
+    <value>Наушники</value>
+  </data>
+  <data xml:space="preserve" name="Icon_Music">
+    <value>Музыка</value>
+  </data>
+  <data xml:space="preserve" name="Icon_Radio">
+    <value>Радио</value>
+  </data>
+  <data xml:space="preserve" name="Icon_Robot">
+    <value>Робот</value>
+  </data>
+  <data xml:space="preserve" name="Icon_Alien">
+    <value>Пришелец</value>
+  </data>
+  <data xml:space="preserve" name="Icon_Monster">
+    <value>Монстр</value>
+  </data>
+  <data xml:space="preserve" name="Icon_Ghost">
+    <value>Призрак</value>
+  </data>
+  <data xml:space="preserve" name="Icon_Skull">
+    <value>Череп</value>
+  </data>
+  <data xml:space="preserve" name="Icon_Fire">
+    <value>Огонь</value>
+  </data>
+  <data xml:space="preserve" name="Icon_Snow">
+    <value>Снег</value>
+  </data>
+  <data xml:space="preserve" name="Icon_Storm">
+    <value>Гроза</value>
+  </data>
+  <data xml:space="preserve" name="Icon_Star">
+    <value>Звезда</value>
+  </data>
+  <data xml:space="preserve" name="Icon_Moon">
+    <value>Луна</value>
+  </data>
+  <data xml:space="preserve" name="Icon_Sun">
+    <value>Солнце</value>
+  </data>
+  <data xml:space="preserve" name="Icon_Cloud">
+    <value>Облако</value>
+  </data>
+  <data xml:space="preserve" name="Icon_Rain">
+    <value>Дождь</value>
+  </data>
+  <data xml:space="preserve" name="Icon_Rainbow">
+    <value>Радуга</value>
+  </data>
+  <data xml:space="preserve" name="Icon_Wind">
+    <value>Ветер</value>
+  </data>
+  <data xml:space="preserve" name="Icon_Water">
+    <value>Вода</value>
+  </data>
+  <data xml:space="preserve" name="Icon_Wave">
+    <value>Волна</value>
+  </data>
+  <data xml:space="preserve" name="Icon_Leaf">
+    <value>Лист</value>
+  </data>
+  <data xml:space="preserve" name="Icon_Tree">
+    <value>Дерево</value>
+  </data>
+  <data xml:space="preserve" name="Icon_Mushroom">
+    <value>Гриб</value>
+  </data>
+  <data xml:space="preserve" name="Icon_Cat">
+    <value>Кот</value>
+  </data>
+  <data xml:space="preserve" name="Icon_Dog">
+    <value>Собака</value>
+  </data>
+  <data xml:space="preserve" name="Icon_Wolf">
+    <value>Волк</value>
+  </data>
+  <data xml:space="preserve" name="Icon_Dragon">
+    <value>Дракон</value>
+  </data>
+  <data xml:space="preserve" name="Icon_Owl">
+    <value>Сова</value>
+  </data>
+  <data xml:space="preserve" name="Icon_Frog">
+    <value>Лягушка</value>
+  </data>
+  <data xml:space="preserve" name="Icon_Bat">
+    <value>Летучая мышь</value>
+  </data>
+  <data xml:space="preserve" name="Icon_Snake">
+    <value>Змея</value>
+  </data>
+  <data xml:space="preserve" name="Icon_Fox">
+    <value>Лиса</value>
+  </data>
+  <data xml:space="preserve" name="Icon_Bear">
+    <value>Медведь</value>
+  </data>
+  <data xml:space="preserve" name="Icon_Laugh">
+    <value>Смех</value>
+  </data>
+  <data xml:space="preserve" name="Icon_Cool">
+    <value>Крутой</value>
+  </data>
+  <data xml:space="preserve" name="Icon_Sad">
+    <value>Грусть</value>
+  </data>
+  <data xml:space="preserve" name="Icon_Angry">
+    <value>Злость</value>
+  </data>
+  <data xml:space="preserve" name="Icon_Demon">
+    <value>Демон</value>
+  </data>
+  <data xml:space="preserve" name="Icon_Clown">
+    <value>Клоун</value>
+  </data>
+  <data xml:space="preserve" name="Icon_Wizard">
+    <value>Волшебник</value>
+  </data>
+  <data xml:space="preserve" name="Icon_Ninja">
+    <value>Ниндзя</value>
+  </data>
+  <data xml:space="preserve" name="Icon_Crown">
+    <value>Корона</value>
+  </data>
+  <data xml:space="preserve" name="Icon_Gem">
+    <value>Драгоценный камень</value>
+  </data>
+  <data xml:space="preserve" name="Icon_Crystal Ball">
+    <value>Хрустальный шар</value>
+  </data>
+  <data xml:space="preserve" name="Icon_Dice">
+    <value>Кубик</value>
+  </data>
+  <data xml:space="preserve" name="Icon_Game">
+    <value>Игра</value>
+  </data>
+  <data xml:space="preserve" name="Icon_Drama">
+    <value>Театр</value>
+  </data>
+  <data xml:space="preserve" name="Icon_Piano">
+    <value>Пианино</value>
+  </data>
+  <data xml:space="preserve" name="Icon_Guitar">
+    <value>Гитара</value>
+  </data>
+  <data xml:space="preserve" name="Icon_Drum">
+    <value>Барабан</value>
+  </data>
+  <data xml:space="preserve" name="Icon_Saxophone">
+    <value>Саксофон</value>
+  </data>
+  <data xml:space="preserve" name="Icon_Trumpet">
+    <value>Труба</value>
+  </data>
+  <data xml:space="preserve" name="Icon_Bell">
+    <value>Колокольчик</value>
+  </data>
+  <data xml:space="preserve" name="Icon_Alarm">
+    <value>Будильник</value>
+  </data>
+  <data xml:space="preserve" name="Icon_Hourglass">
+    <value>Песочные часы</value>
+  </data>
+  <data xml:space="preserve" name="Icon_Rocket">
+    <value>Ракета</value>
+  </data>
+  <data xml:space="preserve" name="Icon_UFO">
+    <value>НЛО</value>
+  </data>
+  <data xml:space="preserve" name="Icon_Car">
+    <value>Автомобиль</value>
+  </data>
+  <data xml:space="preserve" name="Icon_Train">
+    <value>Поезд</value>
+  </data>
+  <data xml:space="preserve" name="Icon_Ship">
+    <value>Корабль</value>
+  </data>
+  <data xml:space="preserve" name="Icon_Plane">
+    <value>Самолёт</value>
+  </data>
+  <data xml:space="preserve" name="Icon_Sword">
+    <value>Мечи</value>
+  </data>
+  <data xml:space="preserve" name="Icon_Shield">
+    <value>Щит</value>
+  </data>
+  <data xml:space="preserve" name="Icon_Bomb">
+    <value>Бомба</value>
+  </data>
+  <data xml:space="preserve" name="Icon_Magic">
+    <value>Магия</value>
+  </data>
+  <data xml:space="preserve" name="Icon_Sparkles">
+    <value>Искры</value>
+  </data>
+  <data xml:space="preserve" name="Icon_Heart">
+    <value>Сердце</value>
+  </data>
+  <data xml:space="preserve" name="Icon_Broken Heart">
+    <value>Разбитое сердце</value>
+  </data>
+  <data xml:space="preserve" name="Icon_Mask">
+    <value>Маска</value>
+  </data>
+  <data xml:space="preserve" name="Icon_Microphone Emoji">
+    <value>Микрофон (эмодзи)</value>
+  </data>
+  <data xml:space="preserve" name="Icon_Headphones Emoji">
+    <value>Наушники (эмодзи)</value>
+  </data>
+  <data xml:space="preserve" name="Icon_Speaker Emoji">
+    <value>Динамик (эмодзи)</value>
+  </data>
+  <data xml:space="preserve" name="Icon_Muted">
+    <value>Без звука</value>
+  </data>
+  <data xml:space="preserve" name="Play_Pause_0_aefe460d">
+    <value>Воспроизведение / пауза: {0}</value>
+  </data>
+  <data xml:space="preserve" name="Stop_0_5218d5d7">
+    <value>Остановка: {0}</value>
+  </data>
+  <data xml:space="preserve" name="Next_0_88faee86">
+    <value>Следующий: {0}</value>
+  </data>
+  <data xml:space="preserve" name="Prev_0_2cc83f7d">
+    <value>Предыдущий: {0}</value>
+  </data>
+  <data xml:space="preserve" name="Disable_scene_0_06ba53a8">
+    <value>Выключить сцену: {0}</value>
+  </data>
+  <data xml:space="preserve" name="Virtual_Mic_Mute_0_cf8d24da">
+    <value>Выключить микрофон: {0}</value>
+  </data>
+  <data xml:space="preserve" name="Media_Bridge_Pause_Resume_0_88eab41f">
+    <value>Пауза звука приложения: {0}</value>
+  </data>
+  <data xml:space="preserve" name="Scene_0_be799803">
+    <value>Сцена: {0}</value>
+  </data>
+  <data xml:space="preserve" name="SB_0_02e00ec1">
+    <value>Звуковая панель: {0}</value>
+  </data>
+  <data xml:space="preserve" name="Everything_outside_the_selection_was_removed_90fbb913">
+    <value>Звук за пределами выделения удалён.</value>
+  </data>
+  <data xml:space="preserve" name="The_selected_fragment_was_removed_and_the_rema_5e775dcb">
+    <value>Выделенный фрагмент вырезан, оставшиеся части соединены.</value>
+  </data>
+  <data xml:space="preserve" name="Preview_stopped_b8e649eb">
+    <value>Прослушивание остановлено.</value>
+  </data>
+  <data xml:space="preserve" name="Preview_started_from_0_at_SoundBoard_headphone_7133a2c8">
+    <value>Прослушивание с {0}. Громкость в наушниках: {1:P0}.</value>
+  </data>
+  <data xml:space="preserve" name="Preview_started_from_the_beginning_at_SoundBoa_d590ee46">
+    <value>Прослушивание с начала. Громкость в наушниках: {0:P0}.</value>
+  </data>
+  <data xml:space="preserve" name="Preview_started_from_the_selection_start_at_So_f1f933b0">
+    <value>Прослушивание выделенного фрагмента. Громкость в наушниках: {0:P0}.</value>
+  </data>
+</root>

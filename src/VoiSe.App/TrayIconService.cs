@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Drawing;
 using WinForms = System.Windows.Forms;
 
@@ -19,12 +19,12 @@ internal sealed class TrayIconService : IDisposable
         _icon = new Icon(iconPath);
         _menu = new WinForms.ContextMenuStrip();
 
-        var openItem = new WinForms.ToolStripMenuItem("Open VoiSee");
+        var openItem = new WinForms.ToolStripMenuItem(UiText.L("Open_VoiSee_a0579752"));
         openItem.Click += (_, _) => openWindow();
         _menu.Items.Add(openItem);
         _menu.Items.Add(new WinForms.ToolStripSeparator());
 
-        var exitItem = new WinForms.ToolStripMenuItem("Exit VoiSee");
+        var exitItem = new WinForms.ToolStripMenuItem(UiText.L("Exit_VoiSee_523d0efa"));
         exitItem.Click += (_, _) => exitApplication();
         _menu.Items.Add(exitItem);
 

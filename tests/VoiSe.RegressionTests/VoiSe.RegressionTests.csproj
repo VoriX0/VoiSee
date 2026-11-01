@@ -9,6 +9,14 @@
     <ProjectReference Include="../../src/VoiSe.Audio/VoiSe.Audio.csproj" />
     <Compile Include="../../src/VoiSe.App/AtomicFile.cs" Link="AtomicFile.cs" />
     <Compile Include="../../src/VoiSe.App/EqualizerEditHistory.cs" Link="EqualizerEditHistory.cs" />
+    <Compile Include="../../src/VoiSe.App/UiText.cs" Link="UiText.cs" />
+    <Compile Include="../../src/VoiSe.App/VoiSeUserSettings.cs" Link="VoiSeUserSettings.cs" />
+    <Compile Include="../../src/VoiSe.App/MediaBridgeProfile.cs" Link="MediaBridgeProfile.cs" />
+    <Compile Include="../../src/VoiSe.App/SceneModels.cs" Link="SceneModels.cs" />
+    <EmbeddedResource Include="../../src/VoiSe.App/Resources/Interface.resx" LogicalName="VoiSe.App.Resources.Interface.resources" />
+    <EmbeddedResource Include="../../src/VoiSe.App/Resources/Interface.en.resx" LogicalName="VoiSe.App.Resources.Interface.en.resources" />
+    <EmbeddedResource Include="../../src/VoiSe.App/Resources/Errors.resx" LogicalName="VoiSe.App.Resources.Errors.resources" />
+    <EmbeddedResource Include="../../src/VoiSe.App/Resources/Errors.en.resx" LogicalName="VoiSe.App.Resources.Errors.en.resources" />
     <Compile Include="../../src/VoiSe.App/SoundBoardLibraryStore.cs" Link="SoundBoardLibraryStore.cs" />
     <Compile Include="../../src/VoiSe.App/SoundBoardModels.cs" Link="SoundBoardModels.cs" />
   </ItemGroup>

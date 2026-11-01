@@ -176,6 +176,7 @@ public sealed partial class MainWindow : Window
     {
         StartupLog.Write("MainWindow constructor started.");
         _settings = _settingsStore.Load();
+        UiText.Initialize(_settings.InterfaceLanguage);
         _settings.MediaBridgeProfiles ??= new List<MediaBridgeProfile>();
         MigrateLegacyMediaBridgeProfile();
         _libraryStore = new SoundBoardLibraryStore(_settingsStore.DataDirectory);
@@ -184,6 +185,7 @@ public sealed partial class MainWindow : Window
         _themeManager = new ThemeManager(_settingsStore.DataDirectory);
         _library = _libraryStore.Load();
         InitializeComponent();
+        InitializeLanguageSelection();
         InitializeEqualizer();
         InitializeMicrophoneCleanup();
         InitializeEffectDrag();
@@ -244,7 +246,7 @@ public sealed partial class MainWindow : Window
         };
         _discordCableSessionIsolationTimer.Tick += OnDiscordCableSessionIsolationTimerTick;
 
-        AppendLog("VoiSee Version 14.5.1 UI started.");
+        AppendLog("VoiSee Version 14.6.1 UI started.");
         AppendLog($"Settings path: {_settingsStore.SettingsPath}");
 
         var isolationResult = _discordCableSessionIsolationService.Enable();
@@ -347,8 +349,8 @@ public sealed partial class MainWindow : Window
                 RootGrid.Loaded += async (_, _) =>
                 {
                     await ShowMessageDialogAsync(
-                        "Themes migrated",
-                        $"VoiSee 10 now uses native WinUI XAML themes. {migration.MovedFileCount} old CSS theme file(s) were moved to:\n{migration.LegacyDirectory}\n\nThe active theme was reset to Default Dark. CSS themes are no longer loaded at runtime.");
+                        UiText.L("Themes_migrated_4d99c269"),
+                        UiText.L("VoiSee_10_now_uses_native_WinUI_XAML_themes_0__48cb7a0f", migration.MovedFileCount, migration.LegacyDirectory));
                 };
             }
         }
@@ -370,7 +372,7 @@ public sealed partial class MainWindow : Window
         {
             ThemeComboBox.DisplayMemberPath = nameof(ThemeComboItem.DisplayName);
             ThemeComboBox.Items.Clear();
-            ThemeComboBox.Items.Add(new ThemeComboItem("Default Dark", null, true));
+            ThemeComboBox.Items.Add(new ThemeComboItem(UiText.L("Default_Dark_bcc7eea0"), null, true));
 
             foreach (var path in _themeManager.GetThemeFiles())
             {
@@ -453,8 +455,8 @@ public sealed partial class MainWindow : Window
             if (ThemeStatusTextBlock is not null)
             {
                 ThemeStatusTextBlock.Text = string.IsNullOrWhiteSpace(theme.SourcePath)
-                    ? "Theme: Default Dark"
-                    : $"Theme: {theme.Name} ({theme.SourcePath})";
+                    ? UiText.L("Theme_Default_Dark_b5d50e27")
+                    : UiText.L("Theme_0_1_ff2f20fc", theme.Name, theme.SourcePath);
             }
 
             if (log)
@@ -475,7 +477,7 @@ public sealed partial class MainWindow : Window
 
             if (ThemeStatusTextBlock is not null)
             {
-                ThemeStatusTextBlock.Text = $"Theme error — kept {previousTheme.Name}: {ex.Message}";
+                ThemeStatusTextBlock.Text = UiText.L("Theme_error_kept_0_1_b8cab5b9", previousTheme.Name, ex.Message);
             }
             AppendLog($"XAML theme apply error; previous theme kept: {ex.Message}");
         }
@@ -674,7 +676,7 @@ public sealed partial class MainWindow : Window
         catch (Exception ex)
         {
             AppendLog($"Create theme error: {ex.Message}");
-            await ShowMessageDialogAsync("Theme error", ex.Message);
+            await ShowMessageDialogAsync(UiText.L("Theme_error_58da37ef"), ex.Message);
         }
     }
 
@@ -687,8 +689,8 @@ public sealed partial class MainWindow : Window
                 string.IsNullOrWhiteSpace(item.FilePath))
             {
                 await ShowMessageDialogAsync(
-                    "Open theme file",
-                    "Select a user theme first. Default Dark is built into VoiSee and cannot be opened or edited directly.");
+                    UiText.L("Open_theme_file_3478f38b"),
+                    UiText.L("Select_a_user_theme_first_Default_Dark_is_buil_312726f9"));
                 UpdateThemeControls();
                 return;
             }
@@ -697,8 +699,8 @@ public sealed partial class MainWindow : Window
             if (!File.Exists(path))
             {
                 await ShowMessageDialogAsync(
-                    "Open theme file",
-                    "The selected theme file no longer exists. The theme list will be refreshed.");
+                    UiText.L("Open_theme_file_3478f38b"),
+                    UiText.L("The_selected_theme_file_no_longer_exists_The_t_8896da85"));
                 PopulateThemeComboBox();
                 return;
             }
@@ -709,7 +711,7 @@ public sealed partial class MainWindow : Window
         catch (Exception ex)
         {
             AppendLog($"Open theme file error: {ex.Message}");
-            await ShowMessageDialogAsync("Theme error", ex.Message);
+            await ShowMessageDialogAsync(UiText.L("Theme_error_58da37ef"), ex.Message);
         }
     }
 
@@ -724,7 +726,7 @@ public sealed partial class MainWindow : Window
         catch (Exception ex)
         {
             AppendLog($"Open theme folder error: {ex.Message}");
-            await ShowMessageDialogAsync("Theme error", ex.Message);
+            await ShowMessageDialogAsync(UiText.L("Theme_error_58da37ef"), ex.Message);
         }
     }
 
@@ -734,14 +736,14 @@ public sealed partial class MainWindow : Window
         {
             if (ThemeComboBox?.SelectedItem is not ThemeComboItem item || item.IsDefault || string.IsNullOrWhiteSpace(item.FilePath))
             {
-                await ShowMessageDialogAsync("Rename theme", "Select a user theme first. The built-in Default Dark theme cannot be renamed.");
+                await ShowMessageDialogAsync(UiText.L("Rename_theme_f0b0dbfe"), UiText.L("Select_a_user_theme_first_The_built_in_Default_dcb7a023"));
                 return;
             }
 
             var oldPath = item.FilePath;
             if (!File.Exists(oldPath))
             {
-                await ShowMessageDialogAsync("Rename theme", "The selected theme file does not exist anymore. The theme list will be refreshed.");
+                await ShowMessageDialogAsync(UiText.L("Rename_theme_f0b0dbfe"), UiText.L("The_selected_theme_file_does_not_exist_anymore_c5d5fe32"));
                 PopulateThemeComboBox();
                 return;
             }
@@ -750,7 +752,7 @@ public sealed partial class MainWindow : Window
             var themesDirectory = Path.GetFullPath(_themeManager.ThemesDirectory).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar) + Path.DirectorySeparatorChar;
             if (!fullOldPath.StartsWith(themesDirectory, StringComparison.OrdinalIgnoreCase))
             {
-                await ShowMessageDialogAsync("Rename theme", "Only themes from the VoiSee themes folder can be renamed here.");
+                await ShowMessageDialogAsync(UiText.L("Rename_theme_f0b0dbfe"), UiText.L("Only_themes_from_the_VoiSee_themes_folder_can__85cf8a2a"));
                 return;
             }
 
@@ -758,7 +760,7 @@ public sealed partial class MainWindow : Window
             var nameBox = new TextBox
             {
                 Text = currentName,
-                PlaceholderText = "Theme name",
+                PlaceholderText = UiText.L("Theme_name_e41991da"),
                 MinWidth = 320,
                 SelectionStart = 0,
                 SelectionLength = currentName.Length
@@ -766,10 +768,10 @@ public sealed partial class MainWindow : Window
 
             var dialog = new ContentDialog
             {
-                Title = "Rename theme",
+                Title = UiText.L("Rename_theme_f0b0dbfe"),
                 Content = nameBox,
-                PrimaryButtonText = "Rename",
-                CloseButtonText = "Cancel",
+                PrimaryButtonText = UiText.L("Rename_3064d79a"),
+                CloseButtonText = UiText.L("Cancel_19766ed6"),
                 DefaultButton = ContentDialogButton.Primary,
                 XamlRoot = ((FrameworkElement)Content).XamlRoot
             };
@@ -783,7 +785,7 @@ public sealed partial class MainWindow : Window
             var requestedName = SanitizeThemeFileName(nameBox.Text);
             if (string.IsNullOrWhiteSpace(requestedName))
             {
-                await ShowMessageDialogAsync("Rename theme", "Enter a theme name.");
+                await ShowMessageDialogAsync(UiText.L("Rename_theme_f0b0dbfe"), UiText.L("Enter_a_theme_name_2636e3cf"));
                 return;
             }
 
@@ -795,7 +797,7 @@ public sealed partial class MainWindow : Window
 
             if (File.Exists(newPath))
             {
-                await ShowMessageDialogAsync("Rename theme", $"A theme named '{requestedName}' already exists.");
+                await ShowMessageDialogAsync(UiText.L("Rename_theme_f0b0dbfe"), UiText.L("A_theme_named_0_already_exists_bd926081", requestedName));
                 return;
             }
 
@@ -828,7 +830,7 @@ public sealed partial class MainWindow : Window
         catch (Exception ex)
         {
             AppendLog($"Rename theme error: {ex.Message}");
-            await ShowMessageDialogAsync("Theme error", ex.Message);
+            await ShowMessageDialogAsync(UiText.L("Theme_error_58da37ef"), ex.Message);
         }
     }
 
@@ -864,14 +866,14 @@ public sealed partial class MainWindow : Window
         {
             if (ThemeComboBox?.SelectedItem is not ThemeComboItem item || item.IsDefault || string.IsNullOrWhiteSpace(item.FilePath))
             {
-                await ShowMessageDialogAsync("Delete theme", "Select a user theme first. The built-in Default Dark theme cannot be deleted.");
+                await ShowMessageDialogAsync(UiText.L("Delete_theme_e29a2b87"), UiText.L("Select_a_user_theme_first_The_built_in_Default_c6ebff63"));
                 return;
             }
 
             var path = item.FilePath;
             if (!File.Exists(path))
             {
-                await ShowMessageDialogAsync("Delete theme", "The selected theme file does not exist anymore. The theme list will be refreshed.");
+                await ShowMessageDialogAsync(UiText.L("Delete_theme_e29a2b87"), UiText.L("The_selected_theme_file_does_not_exist_anymore_c5d5fe32"));
                 PopulateThemeComboBox();
                 return;
             }
@@ -880,17 +882,17 @@ public sealed partial class MainWindow : Window
             var themesDirectory = Path.GetFullPath(_themeManager.ThemesDirectory).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar) + Path.DirectorySeparatorChar;
             if (!fullPath.StartsWith(themesDirectory, StringComparison.OrdinalIgnoreCase))
             {
-                await ShowMessageDialogAsync("Delete theme", "Only themes from the VoiSee themes folder can be deleted here.");
+                await ShowMessageDialogAsync(UiText.L("Delete_theme_e29a2b87"), UiText.L("Only_themes_from_the_VoiSee_themes_folder_can__de54e829"));
                 return;
             }
 
             var fileName = Path.GetFileName(path);
             var dialog = new ContentDialog
             {
-                Title = "Delete theme?",
-                Content = $"Delete '{fileName}'?\n\nThis will remove the .voiseetheme.xaml file from the VoiSee themes folder.",
-                PrimaryButtonText = "Delete",
-                CloseButtonText = "Cancel",
+                Title = UiText.L("Delete_theme_25231c61"),
+                Content = UiText.L("Delete_0_This_will_remove_the_voiseetheme_xaml_fbb257af", fileName),
+                PrimaryButtonText = UiText.L("Delete_e2d0a549"),
+                CloseButtonText = UiText.L("Cancel_19766ed6"),
                 DefaultButton = ContentDialogButton.Close,
                 XamlRoot = ((FrameworkElement)Content).XamlRoot
             };
@@ -924,7 +926,7 @@ public sealed partial class MainWindow : Window
         catch (Exception ex)
         {
             AppendLog($"Delete theme error: {ex.Message}");
-            await ShowMessageDialogAsync("Theme error", ex.Message);
+            await ShowMessageDialogAsync(UiText.L("Theme_error_58da37ef"), ex.Message);
         }
     }
 
@@ -953,7 +955,7 @@ public sealed partial class MainWindow : Window
         catch (Exception ex)
         {
             AppendLog($"Import theme error: {ex.Message}");
-            await ShowMessageDialogAsync("Theme error", ex.Message);
+            await ShowMessageDialogAsync(UiText.L("Theme_error_58da37ef"), ex.Message);
         }
     }
 
@@ -968,7 +970,7 @@ public sealed partial class MainWindow : Window
                     ? "DefaultDark.voiseetheme.xaml"
                     : Path.GetFileName(_settings.ThemeFilePath)
             };
-            picker.FileTypeChoices.Add("VoiSee XAML theme", new List<string> { ".xaml" });
+            picker.FileTypeChoices.Add(UiText.L("VoiSee_XAML_theme_696c0ccd"), new List<string> { ".xaml" });
             InitializeWithWindow.Initialize(picker, WindowNative.GetWindowHandle(this));
             var file = await picker.PickSaveFileAsync();
             if (file is null)
@@ -982,7 +984,7 @@ public sealed partial class MainWindow : Window
         catch (Exception ex)
         {
             AppendLog($"Export theme error: {ex.Message}");
-            await ShowMessageDialogAsync("Theme error", ex.Message);
+            await ShowMessageDialogAsync(UiText.L("Theme_error_58da37ef"), ex.Message);
         }
     }
 
@@ -1123,15 +1125,15 @@ public sealed partial class MainWindow : Window
         if (VBCableStatusTextBlock is not null)
         {
             VBCableStatusTextBlock.Text = hasCable
-                ? "VB-CABLE is working normally"
-                : "VB-CABLE is not installed.";
+                ? UiText.L("VB_CABLE_is_working_normally_b6e629ab")
+                : UiText.L("VB_CABLE_is_not_installed_63685107");
         }
 
         if (VBCableBridgeInfoTextBlock is not null)
         {
             VBCableBridgeInfoTextBlock.Text = hasCable
-                ? "Use the VB-CABLE virtual microphone in Discord, OBS, Telegram, games, and other apps. In many apps it is shown as CABLE Output / VB-Audio Virtual Cable. VoiSee sends audio to CABLE Input automatically."
-                : "Install VB-CABLE to create the virtual microphone bridge. After installation, restart Windows if VoiSee still does not detect CABLE Input, then click Refresh Devices.";
+                ? UiText.L("Use_the_VB_CABLE_virtual_microphone_in_Discord_eba54e53")
+                : UiText.L("Install_VB_CABLE_to_create_the_virtual_microph_537b5cd9");
         }
 
         if (InstallVBCableButton is not null)
@@ -1147,11 +1149,11 @@ public sealed partial class MainWindow : Window
 
         if (!hasCable && _engine is null && EngineStatusTextBlock is not null)
         {
-            EngineStatusTextBlock.Text = "VB-CABLE required";
+            EngineStatusTextBlock.Text = UiText.L("VB_CABLE_required_1eb7443b");
         }
         else if (hasCable && _engine is null && EngineStatusTextBlock is not null)
         {
-            EngineStatusTextBlock.Text = "Stopped";
+            EngineStatusTextBlock.Text = UiText.L("Stopped_1a4f630a");
         }
 
         RefreshAdvancedSettingsStatus();
@@ -1359,13 +1361,13 @@ public sealed partial class MainWindow : Window
         catch (Exception ex)
         {
             AppendLog($"Media Bridge window enumeration error: {ex.Message}");
-            await ShowMessageDialogAsync("Media Bridge", "VoiSee could not enumerate application windows.");
+            await ShowMessageDialogAsync(UiText.L("Media_Bridge_07c2b2d2"), UiText.L("VoiSee_could_not_enumerate_application_windows_8344dc21"));
             return;
         }
 
         if (windows.Count == 0)
         {
-            await ShowMessageDialogAsync("Media Bridge", "No capturable application windows were found. Open the source application and try again.");
+            await ShowMessageDialogAsync(UiText.L("Media_Bridge_07c2b2d2"), UiText.L("No_capturable_application_windows_were_found_O_56d53d76"));
             return;
         }
 
@@ -1375,14 +1377,14 @@ public sealed partial class MainWindow : Window
             DisplayMemberPath = nameof(CapturableWindowInfo.DisplayName),
             HorizontalAlignment = HorizontalAlignment.Stretch,
             MinWidth = 560,
-            PlaceholderText = "Choose a window"
+            PlaceholderText = UiText.L("Choose_a_window_38598f5f")
         };
         selector.SelectedIndex = 0;
 
         var panel = new StackPanel { Spacing = 10 };
         panel.Children.Add(new TextBlock
         {
-            Text = "VoiSee captures the selected window's process and its child processes. The selection is not automatically reconnected after restart.",
+            Text = UiText.L("VoiSee_captures_the_selected_window_s_process__abf27c03"),
             TextWrapping = TextWrapping.Wrap,
             Opacity = 0.74
         });
@@ -1390,10 +1392,10 @@ public sealed partial class MainWindow : Window
 
         var dialog = new ContentDialog
         {
-            Title = "Select Media Bridge window",
+            Title = UiText.L("Select_Media_Bridge_window_43160d0d"),
             Content = panel,
-            PrimaryButtonText = "Select",
-            CloseButtonText = "Cancel",
+            PrimaryButtonText = UiText.L("Select_2a78025d"),
+            CloseButtonText = UiText.L("Cancel_19766ed6"),
             DefaultButton = ContentDialogButton.Primary,
             XamlRoot = ((FrameworkElement)Content).XamlRoot
         };
@@ -1404,7 +1406,7 @@ public sealed partial class MainWindow : Window
             return;
         }
 
-        StopMediaBridgeBroadcast(clearSelectedWindow: true, status: "Source changed", writeLog: false);
+        StopMediaBridgeBroadcast(clearSelectedWindow: true, status: UiText.L("Source_changed_1ff76c54"), writeLog: false);
         _mediaBridgeWindow = selected;
         _settings.MediaBridgeLastProcessName = selected.ProcessName;
         _settings.MediaBridgeLastWindowTitle = selected.WindowTitle;
@@ -1414,7 +1416,7 @@ public sealed partial class MainWindow : Window
         catch (Exception storageError) { AppendLog("Settings were not saved: " + storageError.Message); }
         UpdateMediaBridgeSavedProfileText();
         RefreshSceneMediaProfileComboBox();
-        UpdateMediaBridgeUiState("Ready");
+        UpdateMediaBridgeUiState(UiText.L("Ready_5fa7aac5"));
         AppendLog($"Media Bridge source selected: {selected.DisplayName} (PID {selected.ProcessId}).");
         await UpdateMediaBridgePreviewAsync();
     }
@@ -1424,23 +1426,23 @@ public sealed partial class MainWindow : Window
         var selected = _mediaBridgeWindow;
         if (selected is null || !_windowCaptureService.IsAvailable(selected))
         {
-            UpdateMediaBridgeUiState("Source window is unavailable");
+            UpdateMediaBridgeUiState(UiText.L("Source_window_is_unavailable_81ef5eb6"));
             return false;
         }
 
         if (!OperatingSystem.IsWindowsVersionAtLeast(10, 0, 20348))
         {
             await ShowMessageDialogAsync(
-                "Media Bridge is unavailable",
-                "Application audio capture requires Windows 10 build 20348 or newer.");
+                UiText.L("Media_Bridge_is_unavailable_dec8d65b"),
+                UiText.L("Application_audio_capture_requires_Windows_10__de217654"));
             return false;
         }
 
         if (_engine is null && !StartEngine(logAlreadyRunning: false))
         {
             await ShowMessageDialogAsync(
-                "Audio engine is not running",
-                "Start the VoiSee audio engine and make sure VB-CABLE is available before starting Media Bridge.");
+                UiText.L("Audio_engine_is_not_running_a5f4dd81"),
+                UiText.L("Start_the_VoiSee_audio_engine_and_make_sure_VB_f07a1a7e"));
             return false;
         }
 
@@ -1451,7 +1453,7 @@ public sealed partial class MainWindow : Window
         }
 
         _mediaBridgeStarting = true;
-        UpdateMediaBridgeUiState("Starting...");
+        UpdateMediaBridgeUiState(UiText.L("Starting_82b93630"));
         try
         {
             var effectiveVolume = Clamp(volumeOverride ?? MediaBridgeVolumeSlider.Value, 0, 1.5);
@@ -1459,7 +1461,7 @@ public sealed partial class MainWindow : Window
             await engine.StartMediaBridgeAsync(selected.ProcessId);
             _mediaBridgeStartedAt = DateTimeOffset.Now;
             _sceneOwnedMediaBridgeSceneId = ownerSceneId;
-            UpdateMediaBridgeUiState("Broadcasting");
+            UpdateMediaBridgeUiState(UiText.L("Broadcasting_b475c952"));
             AppendLog($"Media Bridge broadcast started: {selected.DisplayName}.");
             return true;
         }
@@ -1467,9 +1469,9 @@ public sealed partial class MainWindow : Window
         {
             engine.StopMediaBridge();
             _mediaBridgeStartedAt = null;
-            UpdateMediaBridgeUiState("Capture could not be started");
+            UpdateMediaBridgeUiState(UiText.L("Capture_could_not_be_started_e5dc306e"));
             AppendLog($"Media Bridge start error: {ex.Message}");
-            await ShowMessageDialogAsync("Media Bridge error", ex.Message);
+            await ShowMessageDialogAsync(UiText.L("Media_Bridge_error_9295fca5"), ex.Message);
             return false;
         }
         finally
@@ -1499,7 +1501,7 @@ public sealed partial class MainWindow : Window
         }
 
         var paused = engine.ToggleMediaBridgePause();
-        UpdateMediaBridgeUiState(paused ? "Paused" : "Broadcasting");
+        UpdateMediaBridgeUiState(paused ? UiText.L("Paused_e159b061") : UiText.L("Broadcasting_b475c952"));
         AppendLog($"Media Bridge {(paused ? "paused" : "resumed")} ({source}).");
     }
 
@@ -1590,7 +1592,7 @@ public sealed partial class MainWindow : Window
     {
         var percent = Math.Clamp(peak, 0.0, 1.0) * 100.0;
         return percent >= 99.5
-            ? "100% MAX"
+            ? UiText.L("100_MAX_a7130dd0")
             : $"{percent:0}%";
     }
 
@@ -1616,7 +1618,7 @@ public sealed partial class MainWindow : Window
         var selected = _mediaBridgeWindow;
         if (selected is not null && !_windowCaptureService.IsAvailable(selected))
         {
-            StopMediaBridgeBroadcast(clearSelectedWindow: true, status: "Source window was closed", writeLog: false);
+            StopMediaBridgeBroadcast(clearSelectedWindow: true, status: UiText.L("Source_window_was_closed_a640ba5e"), writeLog: false);
             AppendLog($"Media Bridge source window was closed: {selected.DisplayName}.");
             return;
         }
@@ -1647,7 +1649,7 @@ public sealed partial class MainWindow : Window
 
         if (engine is not null && !string.IsNullOrWhiteSpace(engine.MediaBridgeError))
         {
-            UpdateMediaBridgeUiState("Capture stopped with an error");
+            UpdateMediaBridgeUiState(UiText.L("Capture_stopped_with_an_error_bc86e0e9"));
         }
         else
         {
@@ -1724,7 +1726,7 @@ public sealed partial class MainWindow : Window
         if (string.IsNullOrWhiteSpace(_settings.MediaBridgeLastProcessName) &&
             string.IsNullOrWhiteSpace(_settings.MediaBridgeLastWindowTitle))
         {
-            MediaBridgeSavedProfileTextBlock.Text = "No saved media profile";
+            MediaBridgeSavedProfileTextBlock.Text = UiText.L("No_saved_media_profile_2b9931b5");
             return;
         }
 
@@ -1732,7 +1734,7 @@ public sealed partial class MainWindow : Window
             ? _settings.MediaBridgeLastProcessName
             : _settings.MediaBridgeLastWindowTitle;
         MediaBridgeSavedProfileTextBlock.Text =
-            $"Saved profile: {title} — {_settings.MediaBridgeLastProcessName}. Select the window again to reconnect.";
+            UiText.L("Saved_profile_0_1_Select_the_window_again_to_r_e9bf80c2", title, _settings.MediaBridgeLastProcessName);
     }
 
     private void UpdateMediaBridgeUiState(string? explicitStatus = null)
@@ -1752,13 +1754,13 @@ public sealed partial class MainWindow : Window
         MediaBridgePauseButton.Visibility = transportVisibility;
         MediaBridgePreviewButton.IsEnabled = !_mediaBridgeStarting;
         MediaBridgePauseButton.IsEnabled = hasSource && !_mediaBridgeStarting;
-        MediaBridgePauseButton.Content = broadcasting && !paused ? "Pause" : "Play";
+        MediaBridgePauseButton.Content = broadcasting && !paused ? UiText.L("Pause_858e4ba7") : UiText.L("Play_436e6101");
 
         if (selected is null)
         {
-            MediaBridgeSourceTitleTextBlock.Text = "No window selected";
+            MediaBridgeSourceTitleTextBlock.Text = UiText.L("No_window_selected_be668d38");
             MediaBridgeSourceDetailsTextBlock.Text =
-                "Click the preview panel to choose an application window. VoiSee will not reconnect to it automatically after restart.";
+                UiText.L("Click_the_preview_panel_to_choose_an_applicati_fe63a28d");
             MediaBridgePreviewImage.Source = null;
             MediaBridgePreviewPlaceholder.Visibility = Visibility.Visible;
         }
@@ -1766,15 +1768,15 @@ public sealed partial class MainWindow : Window
         {
             MediaBridgeSourceTitleTextBlock.Text = selected.WindowTitle;
             MediaBridgeSourceDetailsTextBlock.Text =
-                $"{selected.ProcessName} · PID {selected.ProcessId} · audio is sent only to the virtual microphone";
+                UiText.L("0_PID_1_audio_is_sent_only_to_the_virtual_micr_f336a7d4", selected.ProcessName, selected.ProcessId);
             MediaBridgePreviewPlaceholder.Visibility = Visibility.Collapsed;
         }
 
         RefreshSceneMediaActionButtons();
         MediaBridgeStatusTextBlock.Text = explicitStatus ??
-            (_mediaBridgeStarting ? "Starting..." :
-             broadcasting ? (paused ? "Paused" : "Broadcasting") :
-             hasSource ? "Ready" : "Not selected");
+            (_mediaBridgeStarting ? UiText.L("Starting_82b93630") :
+             broadcasting ? (paused ? UiText.L("Paused_e159b061") : UiText.L("Broadcasting_b475c952")) :
+             hasSource ? UiText.L("Ready_5fa7aac5") : UiText.L("Not_selected_df12aeba"));
     }
 
     private void OnSettingsTabRootSizeChanged(object sender, SizeChangedEventArgs e)
@@ -2177,7 +2179,7 @@ public sealed partial class MainWindow : Window
         {
             var engineHeading = new TextBlock
             {
-                Text = "Engine Manual Control",
+                Text = UiText.L("Engine_Manual_Control_a3515f37"),
                 FontSize = 20,
                 FontWeight = Microsoft.UI.Text.FontWeights.SemiBold
             };
@@ -2199,7 +2201,7 @@ public sealed partial class MainWindow : Window
 
             var startButton = new Button
             {
-                Content = "Start Engine",
+                Content = UiText.L("Start_Engine_c442acbc"),
                 MinWidth = 132,
                 Padding = new Thickness(14, 7, 14, 7)
             };
@@ -2212,7 +2214,7 @@ public sealed partial class MainWindow : Window
 
             var stopButton = new Button
             {
-                Content = "Stop Engine",
+                Content = UiText.L("Stop_Engine_bab15227"),
                 MinWidth = 132,
                 Padding = new Thickness(14, 7, 14, 7)
             };
@@ -2225,7 +2227,7 @@ public sealed partial class MainWindow : Window
 
             var restartButton = new Button
             {
-                Content = "Restart Engine",
+                Content = UiText.L("Restart_Engine_43a01097"),
                 MinWidth = 132,
                 Padding = new Thickness(14, 7, 14, 7)
             };
@@ -2249,7 +2251,7 @@ public sealed partial class MainWindow : Window
 
             var refreshDevicesButton = new Button
             {
-                Content = "Refresh Devices",
+                Content = UiText.L("Refresh_Devices_f127b1c8"),
                 HorizontalAlignment = HorizontalAlignment.Left,
                 Padding = new Thickness(14, 7, 14, 7)
             };
@@ -2274,7 +2276,7 @@ public sealed partial class MainWindow : Window
             enginePanel.Children.Add(engineHeading);
             enginePanel.Children.Add(new TextBlock
             {
-                Text = "Use these controls only for diagnostics. Normal VoiSee operation starts and restarts the engine automatically.",
+                Text = UiText.L("Use_these_controls_only_for_diagnostics_Normal_b6682918"),
                 Opacity = 0.7,
                 TextWrapping = TextWrapping.WrapWholeWords
             });
@@ -2283,7 +2285,7 @@ public sealed partial class MainWindow : Window
             enginePanel.Children.Add(refreshDevicesButton);
             enginePanel.Children.Add(new TextBlock
             {
-                Text = "Current routes",
+                Text = UiText.L("Current_routes_c059374d"),
                 FontSize = 16,
                 FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
                 Margin = new Thickness(0, 8, 0, 0)
@@ -2302,7 +2304,7 @@ public sealed partial class MainWindow : Window
 
             var logHeading = new TextBlock
             {
-                Text = "Logs",
+                Text = UiText.L("Logs_ea2100dc"),
                 FontSize = 20,
                 FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
                 VerticalAlignment = VerticalAlignment.Center
@@ -2310,7 +2312,7 @@ public sealed partial class MainWindow : Window
 
             var clearButton = new Button
             {
-                Content = "Clear",
+                Content = UiText.L("Clear_83b12c22"),
                 Padding = new Thickness(12, 6, 12, 6)
             };
             clearButton.Click += (_, _) =>
@@ -2321,7 +2323,7 @@ public sealed partial class MainWindow : Window
 
             var copyButton = new Button
             {
-                Content = "Copy",
+                Content = UiText.L("Copy_e21f935f"),
                 Padding = new Thickness(12, 6, 12, 6)
             };
             copyButton.Click += (_, _) =>
@@ -2344,7 +2346,7 @@ public sealed partial class MainWindow : Window
 
             var exportButton = new Button
             {
-                Content = "Export",
+                Content = UiText.L("Export_36648955"),
                 Padding = new Thickness(12, 6, 12, 6)
             };
             exportButton.Click += async (_, _) => await ExportApplicationLogAsync();
@@ -2433,9 +2435,9 @@ public sealed partial class MainWindow : Window
 
             var dialog = new ContentDialog
             {
-                Title = "Advanced Settings",
+                Title = UiText.L("Advanced_Settings_22d4f608"),
                 Content = root,
-                CloseButtonText = "Close",
+                CloseButtonText = UiText.L("Close_7d9eb7ac"),
                 DefaultButton = ContentDialogButton.Close,
                 XamlRoot = ((FrameworkElement)Content).XamlRoot
             };
@@ -2472,7 +2474,7 @@ public sealed partial class MainWindow : Window
         catch (Exception ex)
         {
             AppendLog($"Open advanced settings error: {ex.Message}");
-            await ShowMessageDialogAsync("Advanced Settings", ex.Message);
+            await ShowMessageDialogAsync(UiText.L("Advanced_Settings_22d4f608"), ex.Message);
         }
     }
 
@@ -2481,42 +2483,42 @@ public sealed partial class MainWindow : Window
         if (_advancedEngineStatusTextBlock is not null)
         {
             _advancedEngineStatusTextBlock.Text = _engine is not null
-                ? "Engine status: Running"
+                ? UiText.L("Engine_status_Running_8fe0ad3a")
                 : IsVBCableReady()
-                    ? "Engine status: Stopped"
-                    : "Engine status: VB-CABLE required";
+                    ? UiText.L("Engine_status_Stopped_d929c05a")
+                    : UiText.L("Engine_status_VB_CABLE_required_90a75098");
         }
 
         if (_advancedRouteStatusTextBlock is not null)
         {
             var input = (InputDeviceComboBox?.SelectedItem as AudioDeviceInfo)?.FriendlyName ?? "Not selected";
-            var bridge = IsVBCableReady() ? "Ready (automatic)" : "Not detected";
-            var monitor = (MonitorOutputComboBox?.SelectedItem as AudioDeviceInfo)?.FriendlyName ?? "Disabled";
+            var bridge = IsVBCableReady() ? UiText.L("Ready_automatic_2fdabf90") : UiText.L("Not_detected_9f4a1062");
+            var monitor = (MonitorOutputComboBox?.SelectedItem as AudioDeviceInfo)?.FriendlyName ?? UiText.L("Disabled_75081b59");
             var routeState = _engine is not null
-                ? "Active"
+                ? UiText.L("Active_92340695")
                 : IsVBCableReady() && InputDeviceComboBox?.SelectedItem is AudioDeviceInfo
                     ? "Ready"
-                    : "Incomplete";
+                    : UiText.L("Incomplete_75f33cdf");
 
             var timing = _engine?.GetTimingSnapshot();
             var timingText = timing.HasValue
-                ? $"\nProcessing: {(timing.Value.FastPath ? "Fast" : "Full")}, {timing.Value.ProcessingMs:F2} ms/block" +
-                  $"\nMic / media queue: {timing.Value.MicrophoneQueuedMs:F0} / {timing.Value.MediaQueuedMs:F0} ms" +
-                  $"\nWASAPI targets: {timing.Value.CaptureTargetMs}/{timing.Value.RenderTargetMs} ms; mic drops: {timing.Value.DroppedMicrophoneSamples}" +
-                  "\nInternal measurements; excludes driver, receiver and network latency."
+                ? UiText.L("Processing_0_1_F2_ms_block_7840512a", (timing.Value.FastPath ? UiText.L("Fast_6c582b62") : UiText.L("Full_008dacb6")), timing.Value.ProcessingMs) +
+                  UiText.L("Mic_media_queue_0_F0_1_F0_ms_a96c6cfa", timing.Value.MicrophoneQueuedMs, timing.Value.MediaQueuedMs) +
+                  UiText.L("WASAPI_targets_0_1_ms_mic_drops_2_b08869b9", timing.Value.CaptureTargetMs, timing.Value.RenderTargetMs, timing.Value.DroppedMicrophoneSamples) +
+                  UiText.L("Internal_measurements_excludes_driver_receiver_a42a8a6f")
                 : string.Empty;
             _advancedRouteStatusTextBlock.Text =
-                $"Input Device: {input}\n" +
-                $"VB-CABLE bridge: {bridge}\n" +
-                $"Monitor Device: {monitor}\n" +
-                $"Route state: {routeState}\n" +
-                $"Virtual Mic: {(_virtualMicMuted ? "Muted" : "Live")}" + timingText;
+                UiText.L("Input_Device_0_c552e186", input) +
+                UiText.L("VB_CABLE_bridge_0_da27b0ca", bridge) +
+                UiText.L("Monitor_Device_0_00f9e239", monitor) +
+                UiText.L("Route_state_0_02c93134", routeState) +
+                UiText.L("Virtual_Mic_0_c52527e2", (_virtualMicMuted ? UiText.L("Muted_2346f214") : UiText.L("Live_b64ac05f"))) + timingText;
         }
     }
 
     private string GetApplicationLogText()
     {
-        return _logBuffer.Length == 0 ? "No log entries yet." : _logBuffer.ToString();
+        return _logBuffer.Length == 0 ? UiText.L("No_log_entries_yet_985ed983") : _logBuffer.ToString();
     }
 
     private void RefreshAdvancedLogViewer(bool scrollToEnd)
@@ -2543,7 +2545,7 @@ public sealed partial class MainWindow : Window
                 SuggestedStartLocation = PickerLocationId.DocumentsLibrary,
                 SuggestedFileName = $"VoiSee-log-{DateTime.Now:yyyyMMdd-HHmmss}"
             };
-            picker.FileTypeChoices.Add("Text file", new List<string> { ".txt" });
+            picker.FileTypeChoices.Add(UiText.L("Text_file_0eaa5cb3"), new List<string> { ".txt" });
             InitializeWithWindow.Initialize(picker, WindowNative.GetWindowHandle(this));
             var file = await picker.PickSaveFileAsync();
             if (file is null)
@@ -2557,7 +2559,7 @@ public sealed partial class MainWindow : Window
         catch (Exception ex)
         {
             AppendLog($"Export log error: {ex.Message}");
-            await ShowMessageDialogAsync("Export log", ex.Message);
+            await ShowMessageDialogAsync(UiText.L("Export_log_6331ae83"), ex.Message);
         }
     }
 
@@ -2568,7 +2570,7 @@ public sealed partial class MainWindow : Window
             var logText = _logBuffer.ToString();
             if (string.IsNullOrWhiteSpace(logText))
             {
-                logText = "No log entries yet.";
+                logText = UiText.L("No_log_entries_yet_985ed983");
             }
 
             var textBlock = new TextBlock
@@ -2595,9 +2597,9 @@ public sealed partial class MainWindow : Window
 
             var dialog = new ContentDialog
             {
-                Title = "Application log",
+                Title = UiText.L("Application_log_61d83bc0"),
                 Content = scrollViewer,
-                CloseButtonText = "Close",
+                CloseButtonText = UiText.L("Close_7d9eb7ac"),
                 DefaultButton = ContentDialogButton.Close,
                 XamlRoot = ((FrameworkElement)Content).XamlRoot
             };
@@ -3094,25 +3096,25 @@ public sealed partial class MainWindow : Window
         var panel = new StackPanel { Spacing = 10 };
         panel.Children.Add(new TextBlock
         {
-            Text = "Click a hotkey button, then press a key or Ctrl/Alt/Shift combination. Esc cancels capture. Plain A-Z and < > { } are local-only; NumPad keys and Ctrl/Alt/Shift combinations remain global.",
+            Text = UiText.L("Click_a_hotkey_button_then_press_a_key_or_Ctrl_326f8cfb"),
             TextWrapping = TextWrapping.Wrap,
             Opacity = 0.78
         });
 
-        panel.Children.Add(CreateHotkeyCaptureRow("Play / Pause", _settings.SoundBoardPlayHotkey, out var playPauseButton));
-        panel.Children.Add(CreateHotkeyCaptureRow("Stop", _settings.SoundBoardStopHotkey, out var stopButton));
-        panel.Children.Add(CreateHotkeyCaptureRow("Next", _settings.SoundBoardNextHotkey, out var nextButton));
-        panel.Children.Add(CreateHotkeyCaptureRow("Previous", _settings.SoundBoardPreviousHotkey, out var previousButton));
-        panel.Children.Add(CreateHotkeyCaptureRow("Disable scene", _settings.DisableSceneHotkey, out var disableSceneButton));
-        panel.Children.Add(CreateHotkeyCaptureRow("Virtual Mic Mute", _settings.VirtualMicMuteHotkey, out var virtualMicMuteButton));
-        panel.Children.Add(CreateHotkeyCaptureRow("Pause / Resume Media Bridge", _settings.MediaBridgePauseHotkey, out var mediaBridgePauseButton));
+        panel.Children.Add(CreateHotkeyCaptureRow(UiText.L("Play_Pause_6f97fb8c"), _settings.SoundBoardPlayHotkey, out var playPauseButton));
+        panel.Children.Add(CreateHotkeyCaptureRow(UiText.L("Stop_cae7d57b"), _settings.SoundBoardStopHotkey, out var stopButton));
+        panel.Children.Add(CreateHotkeyCaptureRow(UiText.L("Next_1ff57a29"), _settings.SoundBoardNextHotkey, out var nextButton));
+        panel.Children.Add(CreateHotkeyCaptureRow(UiText.L("Previous_a57b08a4"), _settings.SoundBoardPreviousHotkey, out var previousButton));
+        panel.Children.Add(CreateHotkeyCaptureRow(UiText.L("Disable_scene_521eed8b"), _settings.DisableSceneHotkey, out var disableSceneButton));
+        panel.Children.Add(CreateHotkeyCaptureRow(UiText.L("Virtual_Mic_Mute_9085b2a9"), _settings.VirtualMicMuteHotkey, out var virtualMicMuteButton));
+        panel.Children.Add(CreateHotkeyCaptureRow(UiText.L("Pause_Resume_Media_Bridge_fa8acf59"), _settings.MediaBridgePauseHotkey, out var mediaBridgePauseButton));
 
         var dialog = new ContentDialog
         {
-            Title = "Hotkeys",
+            Title = UiText.L("Hotkeys_c15f1530"),
             Content = panel,
-            PrimaryButtonText = "Save",
-            CloseButtonText = "Cancel",
+            PrimaryButtonText = UiText.L("Save_1509f561"),
+            CloseButtonText = UiText.L("Cancel_19766ed6"),
             DefaultButton = ContentDialogButton.Primary,
             XamlRoot = ((FrameworkElement)Content).XamlRoot
         };
@@ -3226,8 +3228,9 @@ public sealed partial class MainWindow : Window
 
     private static string? GetHotkeyButtonValue(Button button)
     {
+        if (button.Tag is HotkeyCaptureState capture) return capture.PreviousText;
         var text = button.Content?.ToString()?.Trim();
-        if (string.IsNullOrWhiteSpace(text) || text == "—" || text.StartsWith("Press", StringComparison.OrdinalIgnoreCase))
+        if (string.IsNullOrWhiteSpace(text) || text == "—")
         {
             return null;
         }
@@ -3244,7 +3247,7 @@ public sealed partial class MainWindow : Window
 
         var previous = GetHotkeyButtonValue(button);
         button.Tag = new HotkeyCaptureState(previous);
-        button.Content = "Press key…  Esc cancels";
+        button.Content = UiText.L("Press_key_Esc_cancels_f3ed7483");
         button.Focus(FocusState.Programmatic);
     }
 
@@ -3298,14 +3301,14 @@ public sealed partial class MainWindow : Window
             Opacity = 0.78
         });
 
-        panel.Children.Add(CreateHotkeyCaptureRow("Hotkey", initialValue, out var hotkeyButton));
+        panel.Children.Add(CreateHotkeyCaptureRow(UiText.L("Hotkey_6a6485af"), initialValue, out var hotkeyButton));
 
         var dialog = new ContentDialog
         {
             Title = title,
             Content = panel,
-            PrimaryButtonText = "Save",
-            CloseButtonText = "Cancel",
+            PrimaryButtonText = UiText.L("Save_1509f561"),
+            CloseButtonText = UiText.L("Cancel_19766ed6"),
             DefaultButton = ContentDialogButton.Primary,
             XamlRoot = ((FrameworkElement)Content).XamlRoot
         };
@@ -3341,15 +3344,15 @@ public sealed partial class MainWindow : Window
 
         var parts = new[]
         {
-            $"Play/Pause: {(_settings.SoundBoardPlayHotkey ?? "—")}",
-            $"Stop: {(_settings.SoundBoardStopHotkey ?? "—")}",
-            $"Next: {(_settings.SoundBoardNextHotkey ?? "—")}",
-            $"Prev: {(_settings.SoundBoardPreviousHotkey ?? "—")}",
-            $"Disable scene: {(_settings.DisableSceneHotkey ?? "—")}",
-            $"Virtual Mic Mute: {(_settings.VirtualMicMuteHotkey ?? "—")}",
-            $"Media Bridge Pause/Resume: {(_settings.MediaBridgePauseHotkey ?? "—")}"
+            UiText.L("Play_Pause_0_aefe460d", (_settings.SoundBoardPlayHotkey ?? "—")),
+            UiText.L("Stop_0_5218d5d7", (_settings.SoundBoardStopHotkey ?? "—")),
+            UiText.L("Next_0_88faee86", (_settings.SoundBoardNextHotkey ?? "—")),
+            UiText.L("Prev_0_2cc83f7d", (_settings.SoundBoardPreviousHotkey ?? "—")),
+            UiText.L("Disable_scene_0_06ba53a8", (_settings.DisableSceneHotkey ?? "—")),
+            UiText.L("Virtual_Mic_Mute_0_cf8d24da", (_settings.VirtualMicMuteHotkey ?? "—")),
+            UiText.L("Media_Bridge_Pause_Resume_0_88eab41f", (_settings.MediaBridgePauseHotkey ?? "—"))
         };
-        TransportHotkeysSummaryTextBlock.Text = "Hotkeys: " + string.Join("    ", parts);
+        TransportHotkeysSummaryTextBlock.Text = UiText.L("Hotkeys_4c307138") + string.Join("    ", parts);
     }
 
     private readonly record struct HotkeyGesture(bool Ctrl, bool Alt, bool Shift, int KeyCode)
@@ -4104,30 +4107,30 @@ public sealed partial class MainWindow : Window
     private MenuFlyout CreateSoundContextFlyout()
     {
         var flyout = new MenuFlyout();
-        var play = new MenuFlyoutItem { Text = "Play" };
+        var play = new MenuFlyoutItem { Text = UiText.L("Play_436e6101") };
         play.Click += OnSoundContextPlayClick;
-        var hotkey = new MenuFlyoutItem { Text = "Assign Hotkey" };
+        var hotkey = new MenuFlyoutItem { Text = UiText.L("Assign_Hotkey_ab1f1cbb") };
         hotkey.Click += OnSoundContextAssignHotkeyClick;
-        var rename = new MenuFlyoutItem { Text = "Rename" };
+        var rename = new MenuFlyoutItem { Text = UiText.L("Rename_3064d79a") };
         rename.Click += OnSoundContextRenameClick;
-        var edit = new MenuFlyoutItem { Text = "Edit Sound" };
+        var edit = new MenuFlyoutItem { Text = UiText.L("Edit_Sound_a2ada35c") };
         edit.Click += OnSoundContextEditClick;
-        var replace = new MenuFlyoutItem { Text = "Choose Another File" };
+        var replace = new MenuFlyoutItem { Text = UiText.L("Choose_Another_File_28da390c") };
         replace.Click += OnSoundContextReplaceFileClick;
-        var showInExplorer = new MenuFlyoutItem { Text = "Show in File Explorer" };
+        var showInExplorer = new MenuFlyoutItem { Text = UiText.L("Show_in_File_Explorer_b390c3cc") };
         showInExplorer.Click += OnSoundContextShowInExplorerClick;
         var transferCategory = new MenuFlyoutSubItem
         {
-            Text = "Transfer to Category",
+            Text = UiText.L("Transfer_to_Category_8c0b102a"),
             IsEnabled = _library.Categories.Count > 1
         };
-        var moveToCategory = new MenuFlyoutItem { Text = "Move..." };
+        var moveToCategory = new MenuFlyoutItem { Text = UiText.L("Move_751aff26") };
         moveToCategory.Click += OnSoundContextMoveToCategoryClick;
-        var copyToCategory = new MenuFlyoutItem { Text = "Copy..." };
+        var copyToCategory = new MenuFlyoutItem { Text = UiText.L("Copy_dbb2be21") };
         copyToCategory.Click += OnSoundContextCopyToCategoryClick;
         transferCategory.Items.Add(moveToCategory);
         transferCategory.Items.Add(copyToCategory);
-        var delete = new MenuFlyoutItem { Text = "Delete From Category" };
+        var delete = new MenuFlyoutItem { Text = UiText.L("Delete_From_Category_18f63ca5") };
         delete.Click += OnSoundContextDeleteClick;
 
         flyout.Items.Add(play);
@@ -4313,11 +4316,11 @@ public sealed partial class MainWindow : Window
         }
 
         UpdateSoundBoardDropOverlaySize();
-        var categoryName = CurrentCategory?.Name ?? "the current category";
+        var categoryName = CurrentCategory?.Name ?? UiText.L("the_current_category_77ff1f3b");
         if (SoundBoardDropOverlayDescriptionTextBlock is not null)
         {
             SoundBoardDropOverlayDescriptionTextBlock.Text =
-                $"Release WAV, MP3 or OGG files to add them to {categoryName}";
+                UiText.L("Release_WAV_MP3_or_OGG_files_to_add_them_to_0_c5c3f407", categoryName);
         }
 
         SoundBoardDropOverlay.Visibility = Visibility.Visible;
@@ -4442,7 +4445,7 @@ public sealed partial class MainWindow : Window
 
     private async void OnAddCategoryClick(object sender, RoutedEventArgs e)
     {
-        var name = await ShowTextDialogAsync("Create category", "Category name", "New Category");
+        var name = await ShowTextDialogAsync(UiText.L("Create_category_12748aa5"), UiText.L("Category_name_73ddd937"), UiText.L("New_Category_3a0878e4"));
         if (name is null) return;
 
         try
@@ -4468,7 +4471,7 @@ public sealed partial class MainWindow : Window
             return;
         }
 
-        var name = await ShowTextDialogAsync("Rename category", "Category name", category.Name);
+        var name = await ShowTextDialogAsync(UiText.L("Rename_category_89799313"), UiText.L("Category_name_73ddd937"), category.Name);
         if (name is null) return;
 
         if (!RunLibraryChange(() => _libraryStore.RenameCategory(_library, category, name))) return;
@@ -4490,10 +4493,10 @@ public sealed partial class MainWindow : Window
         var soundCount = _library.Sounds.Count(sound => sound.CategoryId == category.Id);
         var dialog = new ContentDialog
         {
-            Title = "Delete category",
-            Content = $"Delete category '{category.Name}' and {soundCount} track(s)? Sound files stored in the VoiSe library folder will be removed. This cannot be undone.",
-            PrimaryButtonText = "Delete",
-            CloseButtonText = "Cancel",
+            Title = UiText.L("Delete_category_a91d0087"),
+            Content = UiText.L("Delete_category_0_and_1_track_s_Sound_files_st_17c53ff6", category.Name, soundCount),
+            PrimaryButtonText = UiText.L("Delete_e2d0a549"),
+            CloseButtonText = UiText.L("Cancel_19766ed6"),
             DefaultButton = ContentDialogButton.Close,
             XamlRoot = ((FrameworkElement)Content).XamlRoot
         };
@@ -4591,8 +4594,8 @@ public sealed partial class MainWindow : Window
         {
             Title = title,
             Content = textBox,
-            PrimaryButtonText = "OK",
-            CloseButtonText = "Cancel",
+            PrimaryButtonText = UiText.L("OK_565339bc"),
+            CloseButtonText = UiText.L("Cancel_19766ed6"),
             DefaultButton = ContentDialogButton.Primary,
             XamlRoot = ((FrameworkElement)Content).XamlRoot
         };
@@ -4696,8 +4699,8 @@ public sealed partial class MainWindow : Window
     {
         if (_selectedSound is null) return;
         var hotkey = await CaptureHotkeyDialogAsync(
-            "Assign sound hotkey",
-            "Click the hotkey button, then press a key or Ctrl/Alt/Shift combination. Esc cancels capture. Plain A-Z and < > { } are local-only; NumPad keys and Ctrl/Alt/Shift combinations remain global.",
+            UiText.L("Assign_sound_hotkey_03ae2bb6"),
+            UiText.L("Click_the_hotkey_button_then_press_a_key_or_Ct_92d682b9"),
             _selectedSound.Hotkey);
         if (hotkey is null) return;
         var normalized = NormalizeOptionalHotkey(hotkey);
@@ -4710,7 +4713,7 @@ public sealed partial class MainWindow : Window
     private async void OnSoundContextRenameClick(object sender, RoutedEventArgs e)
     {
         if (_selectedSound is null) return;
-        var name = await ShowTextDialogAsync("Rename track", "Display name", _selectedSound.DisplayName);
+        var name = await ShowTextDialogAsync(UiText.L("Rename_track_45815523"), UiText.L("Display_name_2b7f6a84"), _selectedSound.DisplayName);
         if (name is null) return;
         if (!RunLibraryChange(() => _libraryStore.RenameSound(_library, _selectedSound, name))) return;
         RefreshSoundList();
@@ -4732,8 +4735,8 @@ public sealed partial class MainWindow : Window
             if (!File.Exists(sound.FilePath))
             {
                 await ShowMessageDialogAsync(
-                    "Sound file not found",
-                    $"VoiSee could not find the file for '{sound.DisplayName}'.\n\n{sound.FilePath}");
+                    UiText.L("Sound_file_not_found_d31e3e3d"),
+                    UiText.L("VoiSee_could_not_find_the_file_for_0_1_fdc9280e", sound.DisplayName, sound.FilePath));
                 AppendLog($"Show in File Explorer failed; file missing: {sound.FilePath}");
                 return;
             }
@@ -4748,7 +4751,7 @@ public sealed partial class MainWindow : Window
         }
         catch (Exception ex)
         {
-            await ShowMessageDialogAsync("Open File Explorer", ex.Message);
+            await ShowMessageDialogAsync(UiText.L("Open_File_Explorer_d43973e5"), ex.Message);
             AppendLog($"Show in File Explorer error: {ex.Message}");
         }
     }
@@ -4778,18 +4781,18 @@ public sealed partial class MainWindow : Window
             .ThenBy(category => category.Name, StringComparer.CurrentCultureIgnoreCase)
             .ToList();
 
-        var operationName = copy ? "Copy" : "Move";
+        var operationName = copy ? UiText.L("Copy_e21f935f") : UiText.L("Move_6ecc3df6");
         if (targetCategories.Count == 0)
         {
             await ShowMessageDialogAsync(
-                $"{operationName} track",
-                $"Create another category before trying to {operationName.ToLowerInvariant()} this track.");
+                UiText.L("0_track_4cc75906", operationName),
+                UiText.L("Create_another_category_before_trying_to_0_thi_ef0651a0", operationName.ToLowerInvariant()));
             return;
         }
 
         var categoryComboBox = new ComboBox
         {
-            Header = "Target category",
+            Header = UiText.L("Target_category_7c1d708e"),
             ItemsSource = targetCategories,
             DisplayMemberPath = nameof(SoundBoardCategory.Name),
             SelectedIndex = 0,
@@ -4798,13 +4801,13 @@ public sealed partial class MainWindow : Window
         };
 
         var operationDescription = copy
-            ? "Copy creates an independent physical audio file with a new ID, resets usage statistics, and does not copy the hotkey or scene references."
-            : "Move keeps the same physical file, track ID, hotkey, usage statistics, timestamps and scene references.";
+            ? UiText.L("Copy_creates_an_independent_physical_audio_fil_7582ae30")
+            : UiText.L("Move_keeps_the_same_physical_file_track_ID_hot_6226e1a3");
         var description = new TextBlock
         {
             Text =
-                $"Track: {sourceSound.DisplayName}\n" +
-                $"Current category: {sourceCategory?.Name ?? "Unknown"}\n\n" +
+                UiText.L("Track_0_3cdf4882", sourceSound.DisplayName) +
+                UiText.L("Current_category_0_9872de77", sourceCategory?.Name ?? UiText.L("Unknown_b764cdc0")) +
                 operationDescription,
             TextWrapping = TextWrapping.Wrap,
             MaxWidth = 460
@@ -4816,10 +4819,10 @@ public sealed partial class MainWindow : Window
 
         var dialog = new ContentDialog
         {
-            Title = $"{operationName} track to category",
+            Title = UiText.L("0_track_to_category_a4f0c71e", operationName),
             Content = panel,
             PrimaryButtonText = operationName,
-            CloseButtonText = "Cancel",
+            CloseButtonText = UiText.L("Cancel_19766ed6"),
             DefaultButton = ContentDialogButton.Primary,
             XamlRoot = ((FrameworkElement)Content).XamlRoot
         };
@@ -4840,7 +4843,7 @@ public sealed partial class MainWindow : Window
         bool copy,
         string origin)
     {
-        var operationName = copy ? "Copy" : "Move";
+        var operationName = copy ? UiText.L("Copy_e21f935f") : UiText.L("Move_6ecc3df6");
         if (string.Equals(sourceSound.CategoryId, targetCategory.Id, StringComparison.Ordinal))
         {
             AppendLog($"{origin}: {operationName.ToLowerInvariant()} ignored because the target category is unchanged.");
@@ -4869,7 +4872,7 @@ public sealed partial class MainWindow : Window
         }
         catch (Exception ex)
         {
-            await ShowMessageDialogAsync($"{operationName} track", ex.Message);
+            await ShowMessageDialogAsync(UiText.L("0_track_4cc75906", operationName), ex.Message);
             AppendLog($"{origin}: {operationName} track error: {ex.Message}");
             return null;
         }
@@ -4977,14 +4980,14 @@ public sealed partial class MainWindow : Window
 
         var originalDurationText = new TextBlock
         {
-            Text = $"Original duration: {FormatEditorTime(originalDuration)}",
+            Text = UiText.L("Original_duration_0_68cdad51", FormatEditorTime(originalDuration)),
             Opacity = 0.72,
             VerticalAlignment = VerticalAlignment.Center
         };
 
         var currentDurationText = new TextBlock
         {
-            Text = "Selected duration: —",
+            Text = UiText.L("Selected_duration_6f962e85"),
             HorizontalAlignment = HorizontalAlignment.Right,
             TextAlignment = TextAlignment.Right,
             Opacity = 0.85,
@@ -5057,22 +5060,22 @@ public sealed partial class MainWindow : Window
 
         var playFromStartButton = CreateToolbarButton(
             new SymbolIcon(Symbol.Play),
-            "Play from the beginning with the current SoundBoard headphones volume");
+            UiText.L("Play_from_the_beginning_with_the_current_Sound_f0125ca3"));
         var playSelectionButton = CreateToolbarButton(
             CreateSelectionPlayIcon(),
-            "Play only the selected fragment from its beginning with the current SoundBoard headphones volume");
+            UiText.L("Play_only_the_selected_fragment_from_its_begin_c79dda9a"));
         var stopButton = CreateToolbarButton(
             new SymbolIcon(Symbol.Stop),
-            "Stop preview and return the playhead to the preview start");
+            UiText.L("Stop_preview_and_return_the_playhead_to_the_pr_7ef46e59"));
         var trimOutsideButton = CreateToolbarButton(
             new SymbolIcon(Symbol.Crop),
-            "Trim outside: keep the selected fragment and remove everything outside it");
+            UiText.L("Trim_outside_keep_the_selected_fragment_and_re_7c90efac"));
         var cutSelectionButton = CreateToolbarButton(
             CreateGlyph("✀", 22),
-            "Cut selection: remove the selected fragment and join the remaining parts");
+            UiText.L("Cut_selection_remove_the_selected_fragment_and_56d8b8a2"));
         var resetButton = CreateToolbarButton(
             new SymbolIcon(Symbol.Refresh),
-            "Reset all editor changes, volume gain, selection, and playhead");
+            UiText.L("Reset_all_editor_changes_volume_gain_selection_9a0487cb"));
 
         var toolbar = new StackPanel
         {
@@ -5127,14 +5130,14 @@ public sealed partial class MainWindow : Window
 
         var selectionStartText = new TextBlock
         {
-            Text = "Selection start: —",
+            Text = UiText.L("Selection_start_36396064"),
             FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
             HorizontalAlignment = HorizontalAlignment.Left
         };
 
         var selectionEndText = new TextBlock
         {
-            Text = "Selection end: —",
+            Text = UiText.L("Selection_end_6298bf34"),
             FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
             HorizontalAlignment = HorizontalAlignment.Right,
             TextAlignment = TextAlignment.Right
@@ -5150,7 +5153,7 @@ public sealed partial class MainWindow : Window
 
         var selectionHintText = new TextBlock
         {
-            Text = "Drag across the waveform to select a fragment. A single click positions the yellow playhead. Minimum selection: 0.2 s.",
+            Text = UiText.L("Drag_across_the_waveform_to_select_a_fragment__975ab960"),
             TextWrapping = TextWrapping.WrapWholeWords,
             Opacity = 0.76,
             MaxWidth = 860
@@ -5158,7 +5161,7 @@ public sealed partial class MainWindow : Window
 
         var gainLabel = new TextBlock
         {
-            Text = "Volume gain",
+            Text = UiText.L("Volume_gain_0b32bee7"),
             FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
             VerticalAlignment = VerticalAlignment.Center
         };
@@ -5203,9 +5206,9 @@ public sealed partial class MainWindow : Window
 
         var normalizeToggle = new ToggleSwitch
         {
-            Header = "Normalize",
-            OffContent = "Off",
-            OnContent = "On",
+            Header = UiText.L("Normalize_427ed16b"),
+            OffContent = UiText.L("Off_ca7981b4"),
+            OnContent = UiText.L("On_13001175"),
             IsOn = false,
             HorizontalAlignment = HorizontalAlignment.Stretch
         };
@@ -5294,8 +5297,8 @@ public sealed partial class MainWindow : Window
             Children =
             {
                 gainGrid,
-                CreateEffectSliderRow("Fade in", fadeInSlider, fadeInValueText),
-                CreateEffectSliderRow("Fade out", fadeOutSlider, fadeOutValueText)
+                CreateEffectSliderRow(UiText.L("Fade_in_2fd5d206"), fadeInSlider, fadeInValueText),
+                CreateEffectSliderRow(UiText.L("Fade_out_2193021e"), fadeOutSlider, fadeOutValueText)
             }
         };
 
@@ -5305,10 +5308,10 @@ public sealed partial class MainWindow : Window
             Children =
             {
                 normalizeToggle,
-                CreateEffectSliderRow("Distortion", distortionSlider, distortionValueText),
+                CreateEffectSliderRow(UiText.L("Distortion_ab6e8c54"), distortionSlider, distortionValueText),
                 new TextBlock
                 {
-                    Text = "All effects are non-destructive until Save. The waveform updates immediately.",
+                    Text = UiText.L("All_effects_are_non_destructive_until_Save_The_d6e89c34"),
                     TextWrapping = TextWrapping.WrapWholeWords,
                     Opacity = 0.68
                 }
@@ -5337,7 +5340,7 @@ public sealed partial class MainWindow : Window
                 {
                     new TextBlock
                     {
-                        Text = "Effects",
+                        Text = UiText.L("Effects_358511c8"),
                         FontSize = 18,
                         FontWeight = Microsoft.UI.Text.FontWeights.SemiBold
                     },
@@ -5348,7 +5351,7 @@ public sealed partial class MainWindow : Window
 
         var editorStatusText = new TextBlock
         {
-            Text = "Select a fragment or adjust effects. Preview and Save use the waveform shown above.",
+            Text = UiText.L("Select_a_fragment_or_adjust_effects_Preview_an_e26b668a"),
             TextWrapping = TextWrapping.WrapWholeWords,
             Opacity = 0.75,
             MaxWidth = 860
@@ -5603,7 +5606,7 @@ public sealed partial class MainWindow : Window
             fadeOutSlider.Maximum = maximumFade;
             if (fadeInSlider.Value > maximumFade) fadeInSlider.Value = maximumFade;
             if (fadeOutSlider.Value > maximumFade) fadeOutSlider.Value = maximumFade;
-            gainValueText.Text = $"{gainSlider.Value:+0.0;-0.0;0.0} dB";
+            gainValueText.Text = UiText.L("0_0_0_0_0_0_0_dB_4e3f8330", gainSlider.Value);
             fadeInValueText.Text = FormatEditorTime(fadeInSlider.Value);
             fadeOutValueText.Text = FormatEditorTime(fadeOutSlider.Value);
             distortionValueText.Text = $"{distortionSlider.Value:0}%";
@@ -5611,17 +5614,17 @@ public sealed partial class MainWindow : Window
             if (HasSelection())
             {
                 var selectedDuration = SelectionLength();
-                currentDurationText.Text = $"Selected duration: {FormatEditorTime(selectedDuration)}";
-                selectionStartText.Text = $"Selection start: {FormatEditorTime(SelectionStart())}";
-                selectionEndText.Text = $"Selection end: {FormatEditorTime(SelectionEnd())}";
-                selectionHintText.Text = $"Selected: {FormatEditorTime(selectedDuration)}. Use Trim Outside to keep it, or Cut Selection to remove it.";
+                currentDurationText.Text = UiText.L("Selected_duration_0_70e51beb", FormatEditorTime(selectedDuration));
+                selectionStartText.Text = UiText.L("Selection_start_0_f6e54f61", FormatEditorTime(SelectionStart()));
+                selectionEndText.Text = UiText.L("Selection_end_0_5ad26e3b", FormatEditorTime(SelectionEnd()));
+                selectionHintText.Text = UiText.L("Selected_0_Use_Trim_Outside_to_keep_it_or_Cut__3ff1819e", FormatEditorTime(selectedDuration));
             }
             else
             {
-                currentDurationText.Text = "Selected duration: —";
-                selectionStartText.Text = "Selection start: —";
-                selectionEndText.Text = "Selection end: —";
-                selectionHintText.Text = "Drag across the waveform to select a fragment. A single click positions the yellow playhead. Minimum selection: 0.2 s.";
+                currentDurationText.Text = UiText.L("Selected_duration_6f962e85");
+                selectionStartText.Text = UiText.L("Selection_start_36396064");
+                selectionEndText.Text = UiText.L("Selection_end_6298bf34");
+                selectionHintText.Text = UiText.L("Drag_across_the_waveform_to_select_a_fragment__975ab960");
             }
 
             UpdateToolbarState();
@@ -5656,7 +5659,7 @@ public sealed partial class MainWindow : Window
         {
             if (_engine is null)
             {
-                editorStatusText.Text = "Start the audio engine to preview in headphones.";
+                editorStatusText.Text = UiText.L("Start_the_audio_engine_to_preview_in_headphone_ae63f60a");
                 return;
             }
 
@@ -5664,7 +5667,7 @@ public sealed partial class MainWindow : Window
             endSeconds = Math.Clamp(endSeconds, startSeconds, editorDuration);
             if (endSeconds - startSeconds < 0.01)
             {
-                editorStatusText.Text = "The preview range is empty.";
+                editorStatusText.Text = UiText.L("The_preview_range_is_empty_349666e8");
                 return;
             }
 
@@ -5673,7 +5676,7 @@ public sealed partial class MainWindow : Window
                 operationBusy = true;
                 UpdateToolbarState();
                 StopPreviewCore(resetPlayhead: false);
-                editorStatusText.Text = "Rendering preview...";
+                editorStatusText.Text = UiText.L("Rendering_preview_dfe992db");
 
                 previewRenderOriginSeconds = startSeconds;
                 previewReturnSeconds = returnSeconds;
@@ -5716,7 +5719,7 @@ public sealed partial class MainWindow : Window
             catch (Exception ex)
             {
                 StopPreviewCore(resetPlayhead: false);
-                editorStatusText.Text = $"Preview error: {ex.Message}";
+                editorStatusText.Text = UiText.L("Preview_error_0_90bb3993", ex.Message);
                 AppendLog($"Sound editor preview error: {ex.Message}");
             }
             finally
@@ -5736,7 +5739,7 @@ public sealed partial class MainWindow : Window
                     start,
                     editorDuration,
                     start,
-                    $"Preview started from {FormatEditorTime(start)} at SoundBoard headphones volume ({CurrentBoardMonitorVolume():P0}).");
+                    UiText.L("Preview_started_from_0_at_SoundBoard_headphone_7133a2c8", FormatEditorTime(start), CurrentBoardMonitorVolume()));
                 return;
             }
 
@@ -5745,19 +5748,19 @@ public sealed partial class MainWindow : Window
             if (nowPaused)
             {
                 previewTimer.Stop();
-                editorStatusText.Text = $"Preview paused at {FormatEditorTime(previewPositionSeconds)}.";
+                editorStatusText.Text = UiText.L("Preview_paused_at_0_80c937c4", FormatEditorTime(previewPositionSeconds));
             }
             else
             {
                 previewTimer.Start();
-                editorStatusText.Text = $"Preview resumed at {FormatEditorTime(previewPositionSeconds)}.";
+                editorStatusText.Text = UiText.L("Preview_resumed_at_0_e163d417", FormatEditorTime(previewPositionSeconds));
             }
 
             RenderWaveform();
         }
 
         void HandleStop()
-            => StopPreviewCore(resetPlayhead: true, "Preview stopped.");
+            => StopPreviewCore(resetPlayhead: true, UiText.L("Preview_stopped_b8e649eb"));
 
         previewTimer.Tick += (_, _) =>
         {
@@ -5767,7 +5770,7 @@ public sealed partial class MainWindow : Window
                 previewTimer.Stop();
                     previewPositionSeconds = ClampPlayhead(previewReturnSeconds);
                 RenderWaveform();
-                editorStatusText.Text = "Preview finished.";
+                editorStatusText.Text = UiText.L("Preview_finished_697546b8");
                 return;
             }
 
@@ -5831,7 +5834,7 @@ public sealed partial class MainWindow : Window
 
             rulerDragging = false;
             waveformRuler.ReleasePointerCaptures();
-            editorStatusText.Text = $"Preview position: {FormatEditorTime(previewPositionSeconds)}.";
+            editorStatusText.Text = UiText.L("Preview_position_0_9cd41355", FormatEditorTime(previewPositionSeconds));
             e.Handled = true;
         };
         waveformRuler.PointerCanceled += (_, _) =>
@@ -5907,17 +5910,17 @@ public sealed partial class MainWindow : Window
             {
                 StopPreviewCore(resetPlayhead: false);
                 previewPositionSeconds = ClampPlayhead(releaseSeconds);
-                editorStatusText.Text = $"Preview position: {FormatEditorTime(previewPositionSeconds)}.";
+                editorStatusText.Text = UiText.L("Preview_position_0_9cd41355", FormatEditorTime(previewPositionSeconds));
             }
             else if (pointerMode == "selection")
             {
                 ApplySelectionDrag(releaseSeconds);
-                editorStatusText.Text = $"Selected {FormatEditorTime(SelectionLength())}. The playhead position was preserved.";
+                editorStatusText.Text = UiText.L("Selected_0_The_playhead_position_was_preserved_d16e946a", FormatEditorTime(SelectionLength()));
             }
             else if (pointerMode == "playhead")
             {
                 previewPositionSeconds = ClampPlayhead(releaseSeconds);
-                editorStatusText.Text = $"Preview position: {FormatEditorTime(previewPositionSeconds)}.";
+                editorStatusText.Text = UiText.L("Preview_position_0_9cd41355", FormatEditorTime(previewPositionSeconds));
             }
 
             pointerMode = "none";
@@ -5968,7 +5971,7 @@ public sealed partial class MainWindow : Window
                 operationBusy = true;
                 UpdateToolbarState();
                 StopPreviewCore(resetPlayhead: false);
-                editorStatusText.Text = "Trimming outside the selection...";
+                editorStatusText.Text = UiText.L("Trimming_outside_the_selection_aeb98708");
                 Directory.CreateDirectory(_libraryStore.EditedSoundsDirectory);
                 var targetPath = Path.Combine(
                     _libraryStore.EditedSoundsDirectory,
@@ -5986,11 +5989,11 @@ public sealed partial class MainWindow : Window
 
                 await Task.Run(() => SoundEditProcessor.RenderToWav(request));
                 workingSourcePath = targetPath;
-                await RefreshWorkingWaveformAsync("Everything outside the selection was removed.", 0);
+                await RefreshWorkingWaveformAsync(UiText.L("Everything_outside_the_selection_was_removed_90fbb913"), 0);
             }
             catch (Exception ex)
             {
-                editorStatusText.Text = $"Trim error: {ex.Message}";
+                editorStatusText.Text = UiText.L("Trim_error_0_10967978", ex.Message);
                 AppendLog($"Sound editor trim error: {ex.Message}");
             }
             finally
@@ -6009,7 +6012,7 @@ public sealed partial class MainWindow : Window
 
             if (editorDuration - SelectionLength() < minimumSelectionSeconds - 0.001)
             {
-                editorStatusText.Text = "Cut blocked: at least 0.2 seconds must remain in the sound.";
+                editorStatusText.Text = UiText.L("Cut_blocked_at_least_0_2_seconds_must_remain_i_9297de9e");
                 return;
             }
 
@@ -6019,7 +6022,7 @@ public sealed partial class MainWindow : Window
                 operationBusy = true;
                 UpdateToolbarState();
                 StopPreviewCore(resetPlayhead: false);
-                editorStatusText.Text = "Cutting the selected fragment...";
+                editorStatusText.Text = UiText.L("Cutting_the_selected_fragment_9501d206");
                 Directory.CreateDirectory(_libraryStore.EditedSoundsDirectory);
                 var targetPath = Path.Combine(
                     _libraryStore.EditedSoundsDirectory,
@@ -6037,11 +6040,11 @@ public sealed partial class MainWindow : Window
 
                 await Task.Run(() => SoundEditProcessor.RenderCutToWav(request));
                 workingSourcePath = targetPath;
-                await RefreshWorkingWaveformAsync("The selected fragment was removed and the remaining parts were joined.", cutStart);
+                await RefreshWorkingWaveformAsync(UiText.L("The_selected_fragment_was_removed_and_the_rema_5e775dcb"), cutStart);
             }
             catch (Exception ex)
             {
-                editorStatusText.Text = $"Cut error: {ex.Message}";
+                editorStatusText.Text = UiText.L("Cut_error_0_6aecb0a4", ex.Message);
                 AppendLog($"Sound editor cut error: {ex.Message}");
             }
             finally
@@ -6056,13 +6059,13 @@ public sealed partial class MainWindow : Window
                 0,
                 editorDuration,
                 0,
-                $"Preview started from the beginning at SoundBoard headphones volume ({CurrentBoardMonitorVolume():P0}).");
+                UiText.L("Preview_started_from_the_beginning_at_SoundBoa_d590ee46", CurrentBoardMonitorVolume()));
 
         playSelectionButton.Click += async (_, _) =>
         {
             if (!HasSelection())
             {
-                editorStatusText.Text = "Select a fragment first.";
+                editorStatusText.Text = UiText.L("Select_a_fragment_first_a98aae57");
                 return;
             }
 
@@ -6070,7 +6073,7 @@ public sealed partial class MainWindow : Window
                 SelectionStart(),
                 SelectionEnd(),
                 SelectionStart(),
-                $"Preview started from the selection start at SoundBoard headphones volume ({CurrentBoardMonitorVolume():P0}).");
+                UiText.L("Preview_started_from_the_selection_start_at_So_f1f933b0", CurrentBoardMonitorVolume()));
         };
 
         stopButton.Click += (_, _) => HandleStop();
@@ -6101,11 +6104,11 @@ public sealed partial class MainWindow : Window
                 previewPositionSeconds = 0;
                 previewReturnSeconds = 0;
                 UpdateEditorState();
-                editorStatusText.Text = "All unsaved editor changes were reset.";
+                editorStatusText.Text = UiText.L("All_unsaved_editor_changes_were_reset_70d57cfa");
             }
             catch (Exception ex)
             {
-                editorStatusText.Text = $"Reset error: {ex.Message}";
+                editorStatusText.Text = UiText.L("Reset_error_0_0f47b76f", ex.Message);
                 AppendLog($"Sound editor reset error: {ex.Message}");
             }
             finally
@@ -6119,11 +6122,11 @@ public sealed partial class MainWindow : Window
 
         var dialog = new ContentDialog
         {
-            Title = "Sound Editor",
+            Title = UiText.L("Sound_Editor_8e97e2d3"),
             Content = contentViewer,
-            PrimaryButtonText = "Save File",
-            SecondaryButtonText = "Save as",
-            CloseButtonText = "Cancel",
+            PrimaryButtonText = UiText.L("Save_File_5be8dc97"),
+            SecondaryButtonText = UiText.L("Save_as_60af8a30"),
+            CloseButtonText = UiText.L("Cancel_19766ed6"),
             DefaultButton = ContentDialogButton.Primary,
             MinWidth = 940,
             MaxWidth = 940,
@@ -6194,7 +6197,7 @@ public sealed partial class MainWindow : Window
             try
             {
                 StopPreviewCore(resetPlayhead: false);
-                editorStatusText.Text = "Saving edited file...";
+                editorStatusText.Text = UiText.L("Saving_edited_file_54de30a4");
                 args.Cancel = true;
                 var renderedPath = await RenderSavedOutputAsync("save");
                 await SaveEditedSoundAsync(sound, renderedPath, saveAsCopy: false);
@@ -6202,7 +6205,7 @@ public sealed partial class MainWindow : Window
             }
             catch (Exception ex)
             {
-                editorStatusText.Text = $"Save error: {ex.Message}";
+                editorStatusText.Text = UiText.L("Save_error_0_7919e949", ex.Message);
                 AppendLog($"Sound editor save error: {ex.Message}");
                 args.Cancel = true;
             }
@@ -6218,7 +6221,7 @@ public sealed partial class MainWindow : Window
             try
             {
                 StopPreviewCore(resetPlayhead: false);
-                editorStatusText.Text = "Saving edited file as a new [edit] copy...";
+                editorStatusText.Text = UiText.L("Saving_edited_file_as_a_new_edit_copy_c134d3bf");
                 args.Cancel = true;
                 var renderedPath = await RenderSavedOutputAsync("copy");
                 await SaveEditedSoundAsync(sound, renderedPath, saveAsCopy: true);
@@ -6226,7 +6229,7 @@ public sealed partial class MainWindow : Window
             }
             catch (Exception ex)
             {
-                editorStatusText.Text = $"Save as error: {ex.Message}";
+                editorStatusText.Text = UiText.L("Save_as_error_0_d8fdc1d6", ex.Message);
                 AppendLog($"Sound editor Save as error: {ex.Message}");
                 args.Cancel = true;
             }
@@ -6472,7 +6475,7 @@ public sealed partial class MainWindow : Window
             virtualOutput = _catalog.FindRenderDevice(virtualInfo.Id);
             monitor = monitorInfo is null ? null : _catalog.FindRenderDevice(monitorInfo.Id);
             if (input is null || virtualOutput is null)
-                throw new InvalidOperationException("Selected devices are no longer available. Refresh devices and select an available microphone.");
+                throw new InvalidOperationException(UiText.L("Selected_devices_are_no_longer_available_Refre_beb32965"));
             SaveCurrentSettings();
             _engine = new Gate2UnifiedAudioEngine(input, virtualOutput, monitor, CreateEffectSettings(), ownsDevices: true, equalizer: CurrentEqualizerForEngine());
             var startedEngine = _engine;
@@ -6481,12 +6484,12 @@ public sealed partial class MainWindow : Window
                 if (!ReferenceEquals(_engine, startedEngine) || _exitRequested) return;
                 AppendLog("Audio engine error: " + error);
                 StopEngine(log: false);
-                EngineStatusTextBlock.Text = "Error — refresh devices to resume";
+                EngineStatusTextBlock.Text = UiText.L("Error_refresh_devices_to_resume_513bcc20");
             });
             _engine.Start();
             _engine.SetVirtualMicMuted(_virtualMicMuted);
             _engine.UpdateMediaBridgeVolume((float)(MediaBridgeVolumeSlider?.Value ?? _settings.MediaBridgeVirtualMicVolume));
-            EngineStatusTextBlock.Text = "Running";
+            EngineStatusTextBlock.Text = UiText.L("Running_f4ccae29");
             AppendLog($"Engine started. Input: {input.FriendlyName}");
             AppendLog($"Virtual output: {virtualOutput.FriendlyName}");
             AppendLog($"Monitor: {(monitor is null ? "disabled" : monitor.FriendlyName)}");
@@ -6507,7 +6510,7 @@ public sealed partial class MainWindow : Window
             try { _engine?.Dispose(); } catch (Exception cleanup) { StartupLog.Write("Engine rollback: " + cleanup); }
             if (_engine is null) { input?.Dispose(); virtualOutput?.Dispose(); monitor?.Dispose(); }
             _engine = null;
-            EngineStatusTextBlock.Text = "Error";
+            EngineStatusTextBlock.Text = UiText.L("Error_54a0e8c1");
             AppendLog($"Engine start error: {ex.Message}");
             RefreshAdvancedSettingsStatus();
             return false;
@@ -6531,10 +6534,10 @@ public sealed partial class MainWindow : Window
         finally
         {
             _engine = null;
-            EngineStatusTextBlock.Text = "Stopped";
+            EngineStatusTextBlock.Text = UiText.L("Stopped_1a4f630a");
             UpdateVBCableUiState();
             RefreshAdvancedSettingsStatus();
-            UpdateMediaBridgeUiState("Audio engine stopped");
+            UpdateMediaBridgeUiState(UiText.L("Audio_engine_stopped_c5ac8401"));
         }
     }
 
@@ -6565,7 +6568,7 @@ public sealed partial class MainWindow : Window
     {
         if (VirtualMicMuteStatusTextBlock is not null)
         {
-            VirtualMicMuteStatusTextBlock.Text = _virtualMicMuted ? "Muted" : "Live";
+            VirtualMicMuteStatusTextBlock.Text = _virtualMicMuted ? UiText.L("Muted_2346f214") : UiText.L("Live_b64ac05f");
             VirtualMicMuteStatusTextBlock.Foreground = new SolidColorBrush(_virtualMicMuted
                 ? Microsoft.UI.ColorHelper.FromArgb(0xFF, 0xFF, 0x4D, 0x4D)
                 : Microsoft.UI.ColorHelper.FromArgb(0xFF, 0x37, 0xD6, 0x7A));
@@ -6573,7 +6576,7 @@ public sealed partial class MainWindow : Window
 
         if (VirtualMicMuteToggleButton is not null)
         {
-            VirtualMicMuteToggleButton.Content = _virtualMicMuted ? "Unmute" : "Mute";
+            VirtualMicMuteToggleButton.Content = _virtualMicMuted ? UiText.L("Unmute_ce4ee4ef") : UiText.L("Mute_8dd6857b");
         }
 
         if (VirtualMicMutedBanner is not null)
@@ -6630,7 +6633,7 @@ public sealed partial class MainWindow : Window
         _pendingRestartReason = reason;
         _routeRestartTimer.Stop();
         _routeRestartTimer.Start();
-        EngineStatusTextBlock.Text = "Restart pending";
+        EngineStatusTextBlock.Text = UiText.L("Restart_pending_762d0599");
         RefreshAdvancedSettingsStatus();
     }
 
@@ -7058,11 +7061,11 @@ public sealed partial class MainWindow : Window
         NoiseSuppressionStrengthValueText.Text = $"{(int)Math.Round(NoiseSuppressionStrengthSlider.Value)}%";
         NoiseSuppressionStrengthValueText.Opacity = enabled ? 0.78 : 0.45;
         var active = enabled && NoiseSuppressionStrengthSlider.Value > 0 && _engine?.NoiseSuppressionAvailable == true && _engine.NoiseSuppressionError is null;
-        NoiseSuppressionStatusText.Text = !enabled ? "Шумоподавление выключено."
-            : NoiseSuppressionStrengthSlider.Value == 0 ? "Сила шумоподавления — 0%."
-            : _engine is null ? "Выбранный режим включится после запуска микрофона."
-            : !active ? "Шумоподавление недоступно: " + (_engine.NoiseSuppressionError ?? "не удалось загрузить обработчик")
-            : $"Шумоподавление включено: {GetNoiseSuppressionDisplayName(mode)}.";
+        NoiseSuppressionStatusText.Text = !enabled ? UiText.L("Text_ff337177")
+            : NoiseSuppressionStrengthSlider.Value == 0 ? UiText.L("0_ce66540d")
+            : _engine is null ? UiText.L("Text_f884719a")
+            : !active ? UiText.L("Text_669172d3") + UiText.ErrorMessage(_engine.NoiseSuppressionError ?? UiText.L("Text_fcad8a79"))
+            : UiText.L("0_63926916", GetNoiseSuppressionDisplayName(mode));
 
         if (NoiseSuppressionActiveIndicator is not null)
         {
@@ -7073,7 +7076,7 @@ public sealed partial class MainWindow : Window
 
         if (NoiseSuppressionActiveText is not null)
         {
-            NoiseSuppressionActiveText.Text = active ? "Включено" : enabled ? "Выбрано" : "Выкл.";
+            NoiseSuppressionActiveText.Text = active ? UiText.L("Text_4d1d4304") : enabled ? UiText.L("Text_9cf249e2") : UiText.L("Text_3c151fb2");
             NoiseSuppressionActiveText.Opacity = enabled ? 0.72 : 0.55;
         }
     }
@@ -7121,7 +7124,7 @@ public sealed partial class MainWindow : Window
         {
             NoiseSuppressionMode.RnNoise => "RNNoise",
             NoiseSuppressionMode.DeepFilterNet => "DeepFilterNet",
-            _ => "Off",
+            _ => UiText.L("Off_ca7981b4"),
         };
     }
 
@@ -7234,12 +7237,12 @@ public sealed partial class MainWindow : Window
         var panel = new StackPanel { Spacing = 4 };
         panel.Children.Add(new TextBlock
         {
-            Text = $"Preview · {GetEffectDisplayName(effectKey)}",
+            Text = UiText.L("Preview_0_935e5ac2", GetEffectDisplayName(effectKey)),
             FontWeight = Microsoft.UI.Text.FontWeights.SemiBold
         });
         panel.Children.Add(new TextBlock
         {
-            Text = $"Temporary value: {(int)Math.Round(value)} · applied after the current chain",
+            Text = UiText.L("Temporary_value_0_applied_after_the_current_ch_b0f18f94", (int)Math.Round(value)),
             Opacity = 0.78,
             TextWrapping = TextWrapping.Wrap
         });
@@ -7250,7 +7253,7 @@ public sealed partial class MainWindow : Window
     private void OnEffectChainDragOver(object sender, DragEventArgs e)
     {
         e.AcceptedOperation = DataPackageOperation.Copy;
-        e.DragUIOverride.Caption = "Add to processing chain";
+        e.DragUIOverride.Caption = UiText.L("Add_to_processing_chain_c0256d5a");
         e.DragUIOverride.IsCaptionVisible = true;
     }
 
@@ -7433,7 +7436,7 @@ public sealed partial class MainWindow : Window
 
         if (EffectChainSummaryText is not null)
         {
-            EffectChainSummaryText.Text = $"{_effectChainOrder.Count} active effect{(_effectChainOrder.Count == 1 ? string.Empty : "s")}";
+            EffectChainSummaryText.Text = UiText.L("0_active_effect_1_66ec0dc4", _effectChainOrder.Count, (_effectChainOrder.Count == 1 ? string.Empty : "s"));
         }
         UpdateEffectChainBypassButton();
     }
@@ -7463,9 +7466,9 @@ public sealed partial class MainWindow : Window
         row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(34) });
         row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(34) });
         row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(34) });
-        row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(164) });
-        row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star), MinWidth = 115 });
-        row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(64) });
+        row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star), MinWidth = 80 });
+        row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.4, GridUnitType.Star), MinWidth = 64 });
+        row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(50) });
         row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(38) });
         row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(32) });
 
@@ -7537,7 +7540,7 @@ public sealed partial class MainWindow : Window
             Text = GetEffectDisplayName(effectKey),
             FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
             FontSize = 12.5,
-            TextTrimming = TextTrimming.CharacterEllipsis
+            TextWrapping = TextWrapping.Wrap
         });
         titleStack.Children.Add(new TextBlock
         {
@@ -7592,7 +7595,7 @@ public sealed partial class MainWindow : Window
             VerticalAlignment = VerticalAlignment.Center,
             Style = Application.Current.Resources["VoiSee.Style.ToggleButton"] as Style
         };
-        ToolTipService.SetToolTip(enabledToggle, "Enable / bypass this effect");
+        ToolTipService.SetToolTip(enabledToggle, UiText.L("Enable_bypass_this_effect_e6acc1c4"));
         enabledToggle.Click += OnActiveEffectBypassClick;
         Grid.SetColumn(enabledToggle, 6);
         row.Children.Add(enabledToggle);
@@ -7608,7 +7611,7 @@ public sealed partial class MainWindow : Window
             VerticalAlignment = VerticalAlignment.Center,
             Style = Application.Current.Resources["VoiSee.Style.Button"] as Style
         };
-        ToolTipService.SetToolTip(deleteButton, "Remove effect");
+        ToolTipService.SetToolTip(deleteButton, UiText.L("Remove_effect_4e7556b8"));
         deleteButton.Click += OnRemoveEffectCardClick;
         Grid.SetColumn(deleteButton, 7);
         row.Children.Add(deleteButton);
@@ -7776,41 +7779,41 @@ public sealed partial class MainWindow : Window
     {
         return effectKey switch
         {
-            "VoiceGain" => "Gain",
-            "Gate" => "Threshold",
-            "Compressor" => "Intensity",
-            "Pitch" => "Pitch",
-            "Formant" => "Formant",
-            "Bass" => "Low tone",
-            "Treble" => "High tone",
-            "Distortion" => "Drive",
-            "Robot" => "Amount",
-            "Tremolo" => "Depth",
-            "Echo" => "Amount",
-            "Reverb" => "Mix",
-            "Radio" => "Amount",
-            "BitCrusher" => "Amount",
-            "Alien" => "Amount",
-            "Chorus" => "Depth",
-            "Flanger" => "Depth",
-            "Phaser" => "Depth",
-            "Vibrato" => "Depth",
-            "Doubler" => "Amount",
-            "RingMod" => "Amount",
-            "Chipmunk" => "Amount",
-            "Giant" => "Amount",
-            "Ghost" => "Amount",
-            "Stutter" => "Amount",
-            "Wobbly" => "Amount",
-            "GenderMale" => "Transformation",
-            "GenderFemale" => "Transformation",
-            "Possessed" => "Intensity",
-            "Megaphone" => "Intensity",
-            "Helicopter" => "Rotor",
-            "Cyborg" => "Intensity",
-            "BrokenRadio" => "Damage",
-            "Vocoder" => "Intensity",
-            _ => "Amount"
+            "VoiceGain" => UiText.L("Gain_4e125a3e"),
+            "Gate" => UiText.L("Threshold_0da627ad"),
+            "Compressor" => UiText.L("Intensity_a6d01dcf"),
+            "Pitch" => UiText.L("Pitch_6af11cc5"),
+            "Formant" => UiText.L("Formant_5f2de693"),
+            "Bass" => UiText.L("Low_tone_de35be70"),
+            "Treble" => UiText.L("High_tone_152749c6"),
+            "Distortion" => UiText.L("Drive_6312b4b9"),
+            "Robot" => UiText.L("Amount_49e96d7c"),
+            "Tremolo" => UiText.L("Depth_f1dbc339"),
+            "Echo" => UiText.L("Amount_49e96d7c"),
+            "Reverb" => UiText.L("Mix_dce6eb44"),
+            "Radio" => UiText.L("Amount_49e96d7c"),
+            "BitCrusher" => UiText.L("Amount_49e96d7c"),
+            "Alien" => UiText.L("Amount_49e96d7c"),
+            "Chorus" => UiText.L("Depth_f1dbc339"),
+            "Flanger" => UiText.L("Depth_f1dbc339"),
+            "Phaser" => UiText.L("Depth_f1dbc339"),
+            "Vibrato" => UiText.L("Depth_f1dbc339"),
+            "Doubler" => UiText.L("Amount_49e96d7c"),
+            "RingMod" => UiText.L("Amount_49e96d7c"),
+            "Chipmunk" => UiText.L("Amount_49e96d7c"),
+            "Giant" => UiText.L("Amount_49e96d7c"),
+            "Ghost" => UiText.L("Amount_49e96d7c"),
+            "Stutter" => UiText.L("Amount_49e96d7c"),
+            "Wobbly" => UiText.L("Amount_49e96d7c"),
+            "GenderMale" => UiText.L("Transformation_cf2a6337"),
+            "GenderFemale" => UiText.L("Transformation_cf2a6337"),
+            "Possessed" => UiText.L("Intensity_a6d01dcf"),
+            "Megaphone" => UiText.L("Intensity_a6d01dcf"),
+            "Helicopter" => UiText.L("Rotor_f214fc83"),
+            "Cyborg" => UiText.L("Intensity_a6d01dcf"),
+            "BrokenRadio" => UiText.L("Damage_0c874f58"),
+            "Vocoder" => UiText.L("Intensity_a6d01dcf"),
+            _ => UiText.L("Amount_49e96d7c")
         };
     }
 
@@ -7942,7 +7945,7 @@ public sealed partial class MainWindow : Window
             return;
         }
 
-        BypassEffectChainButton.Content = _effectChainBypassed ? "Enable Chain" : "Bypass All";
+        BypassEffectChainButton.Content = _effectChainBypassed ? UiText.L("Enable_Chain_8c3ba89a") : UiText.L("Bypass_All_17060eb6");
     }
 
     private void OnEffectChainVerticalWheel(object sender, PointerRoutedEventArgs e)
@@ -8028,7 +8031,7 @@ public sealed partial class MainWindow : Window
         var header = new Grid();
         header.Children.Add(new TextBlock
         {
-            Text = category == "Special" ? "Character" : category,
+            Text = UiText.CategoryName(category),
             FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
             FontSize = 13
         });
@@ -8042,22 +8045,9 @@ public sealed partial class MainWindow : Window
         section.Children.Add(header);
 
         var cardsGrid = new Grid { ColumnSpacing = 8, RowSpacing = 8 };
-        cardsGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-        cardsGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-
-        var rowCount = (effectKeys.Length + 1) / 2;
-        for (var rowIndex = 0; rowIndex < rowCount; rowIndex++)
-        {
-            cardsGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-        }
-
-        for (var index = 0; index < effectKeys.Length; index++)
-        {
-            var card = CreateEffectLibraryCard(effectKeys[index]);
-            Grid.SetRow(card, index / 2);
-            Grid.SetColumn(card, index % 2);
-            cardsGrid.Children.Add(card);
-        }
+        foreach (var effectKey in effectKeys) cardsGrid.Children.Add(CreateEffectLibraryCard(effectKey));
+        cardsGrid.SizeChanged += (_, _) => LayoutLocalizedEffectLibrary(cardsGrid);
+        LayoutLocalizedEffectLibrary(cardsGrid);
 
         section.Children.Add(cardsGrid);
         return section;
@@ -8147,7 +8137,7 @@ public sealed partial class MainWindow : Window
 
         var addButton = new Button
         {
-            Content = "Add",
+            Content = UiText.L("Add_9fd728c6"),
             Tag = effectKey,
             MinWidth = 46,
             Height = 30,
@@ -8167,40 +8157,40 @@ public sealed partial class MainWindow : Window
     {
         return effectKey switch
         {
-            "VoiceGain" => "Input level before effects",
-            "Gate" => "Remove signal below threshold",
-            "Compressor" => "Control peaks and dynamics",
-            "Pitch" => "Shift the pitch of your voice",
-            "Formant" => "Change vocal tone character",
-            "Bass" => "Boost or cut low frequencies",
-            "Treble" => "Boost or cut high frequencies",
-            "Tremolo" => "Rhythmic volume modulation",
-            "Echo" => "Add repeating echo",
-            "Reverb" => "Add space and ambience",
-            "Distortion" => "Add grit and harmonic edge",
-            "Robot" => "Robotic metallic character",
-            "Radio" => "Broadcast and radio character",
-            "BitCrusher" => "Lo-fi digital degradation",
-            "Alien" => "Otherworldly vocal effect",
-            "Chorus" => "Wide layered modulation",
-            "Flanger" => "Sweeping jet-like resonance",
-            "Phaser" => "Smooth moving phase notches",
-            "Vibrato" => "Periodic pitch wobble",
-            "Doubler" => "Add a short second voice layer",
-            "RingMod" => "Metallic carrier modulation",
-            "Chipmunk" => "Squeaky high cartoon voice",
-            "Giant" => "Huge low cartoon voice",
-            "Ghost" => "Wavering spectral echo",
-            "Stutter" => "Hard rhythmic voice chopping",
-            "Wobbly" => "Woozy unstable pitch wobble",
-            "GenderMale" => "Lower pitch plus shifted vocal resonances",
-            "GenderFemale" => "Raised pitch plus shifted vocal resonances",
-            "Possessed" => "Low delayed voice layer with dark modulation",
-            "Megaphone" => "Aggressive narrow-band amplified speaker",
-            "Helicopter" => "Hard rotor-like rhythmic voice chopping",
-            "Cyborg" => "Metallic carrier with digital articulation",
-            "BrokenRadio" => "Damaged radio band, dropouts and crackle",
-            "Vocoder" => "Multiband speech envelopes driving a synth carrier",
+            "VoiceGain" => UiText.L("Input_level_before_effects_93eb7327"),
+            "Gate" => UiText.L("Remove_signal_below_threshold_b167171f"),
+            "Compressor" => UiText.L("Control_peaks_and_dynamics_ea523678"),
+            "Pitch" => UiText.L("Shift_the_pitch_of_your_voice_e895a11b"),
+            "Formant" => UiText.L("Change_vocal_tone_character_7aceea51"),
+            "Bass" => UiText.L("Boost_or_cut_low_frequencies_cd6b5b2c"),
+            "Treble" => UiText.L("Boost_or_cut_high_frequencies_c307dce1"),
+            "Tremolo" => UiText.L("Rhythmic_volume_modulation_02ec20f8"),
+            "Echo" => UiText.L("Add_repeating_echo_6f61e1c1"),
+            "Reverb" => UiText.L("Add_space_and_ambience_80917e39"),
+            "Distortion" => UiText.L("Add_grit_and_harmonic_edge_493e953e"),
+            "Robot" => UiText.L("Robotic_metallic_character_8bf93e26"),
+            "Radio" => UiText.L("Broadcast_and_radio_character_5f9f873a"),
+            "BitCrusher" => UiText.L("Lo_fi_digital_degradation_8d5300b0"),
+            "Alien" => UiText.L("Otherworldly_vocal_effect_231eeca1"),
+            "Chorus" => UiText.L("Wide_layered_modulation_c3d1b638"),
+            "Flanger" => UiText.L("Sweeping_jet_like_resonance_6f8edc16"),
+            "Phaser" => UiText.L("Smooth_moving_phase_notches_19f35ed0"),
+            "Vibrato" => UiText.L("Periodic_pitch_wobble_498bd78a"),
+            "Doubler" => UiText.L("Add_a_short_second_voice_layer_2f163be8"),
+            "RingMod" => UiText.L("Metallic_carrier_modulation_f0fee01a"),
+            "Chipmunk" => UiText.L("Squeaky_high_cartoon_voice_fceff067"),
+            "Giant" => UiText.L("Huge_low_cartoon_voice_2beedba9"),
+            "Ghost" => UiText.L("Wavering_spectral_echo_94122a61"),
+            "Stutter" => UiText.L("Hard_rhythmic_voice_chopping_6eb6d91d"),
+            "Wobbly" => UiText.L("Woozy_unstable_pitch_wobble_ce9cf8de"),
+            "GenderMale" => UiText.L("Lower_pitch_plus_shifted_vocal_resonances_d7e7fadc"),
+            "GenderFemale" => UiText.L("Raised_pitch_plus_shifted_vocal_resonances_6812020c"),
+            "Possessed" => UiText.L("Low_delayed_voice_layer_with_dark_modulation_6ba78838"),
+            "Megaphone" => UiText.L("Aggressive_narrow_band_amplified_speaker_c77b86c9"),
+            "Helicopter" => UiText.L("Hard_rotor_like_rhythmic_voice_chopping_4503985e"),
+            "Cyborg" => UiText.L("Metallic_carrier_with_digital_articulation_343a5427"),
+            "BrokenRadio" => UiText.L("Damaged_radio_band_dropouts_and_crackle_e8abd8e5"),
+            "Vocoder" => UiText.L("Multiband_speech_envelopes_driving_a_synth_car_e3ccfadd"),
             _ => string.Empty
         };
     }
@@ -8418,18 +8408,7 @@ public sealed partial class MainWindow : Window
         };
     }
 
-    private static string GetEffectDisplayName(string effectKey)
-    {
-        return effectKey switch
-        {
-            "VoiceGain" => "Voice Gain", "BitCrusher" => "Bit Crusher",
-            "RingMod" => "Ring Mod",
-            "GenderMale" => "Gender Male",
-            "GenderFemale" => "Gender Female",
-            "BrokenRadio" => "Broken Radio",
-            _ => effectKey
-        };
-    }
+    private static string GetEffectDisplayName(string effectKey) => UiText.EffectName(effectKey);
 
     private void ScheduleVoiceSettingsApply()
     {
@@ -8550,7 +8529,7 @@ public sealed partial class MainWindow : Window
             }
 
             TotalTimeTextBlock.Text = "00:00";
-            TransportStatusTextBlock.Text = "Scene active — SoundBoard locked";
+            TransportStatusTextBlock.Text = UiText.L("Scene_active_SoundBoard_locked_583189ba");
             PlayPauseButton.Content = "";
             TimelineHost.Opacity = 0.28;
             return;
@@ -8569,14 +8548,14 @@ public sealed partial class MainWindow : Window
         TotalTimeTextBlock.Text = FormatTime(status.DurationSeconds);
         if (status.IsActive)
         {
-            var title = string.IsNullOrWhiteSpace(_currentSoundDisplayName) ? "sound" : _currentSoundDisplayName;
+            var title = string.IsNullOrWhiteSpace(_currentSoundDisplayName) ? UiText.L("sound_dd29442d") : _currentSoundDisplayName;
             TransportStatusTextBlock.Text = status.IsPaused
-                ? $"paused: {title}"
-                : $"playing: {title}";
+                ? UiText.L("paused_0_22bf79f6", title)
+                : UiText.L("playing_0_4f38e793", title);
         }
         else
         {
-            TransportStatusTextBlock.Text = "No sound";
+            TransportStatusTextBlock.Text = UiText.L("No_sound_0c08def0");
         }
         PlayPauseButton.Content = status.IsActive && !status.IsPaused ? "\uE769" : "\uE768";
         TimelineHost.Opacity = status.IsActive ? 1.0 : 0.45;
@@ -8645,7 +8624,7 @@ public sealed partial class MainWindow : Window
 
         if (SceneDetailsTitleTextBlock is not null)
         {
-            SceneDetailsTitleTextBlock.Text = _selectedScene?.Name ?? "Scene details";
+            SceneDetailsTitleTextBlock.Text = _selectedScene?.Name ?? UiText.L("Scene_details_56b2fb91");
         }
 
         RefreshSceneVoicePresetComboBox();
@@ -8703,7 +8682,7 @@ public sealed partial class MainWindow : Window
         _loadingSceneUi = true;
         try
         {
-            SceneBackgroundTypeComboBox.ItemsSource = new[] { "Looped Sound", "Media Source" };
+            SceneBackgroundTypeComboBox.ItemsSource = new[] { UiText.L("Looped_Sound_1f4a1636"), UiText.L("Media_Source_fdaeb638") };
             var mediaMode = _selectedScene?.UsesMediaSource == true;
             SceneBackgroundTypeComboBox.SelectedIndex = mediaMode ? 1 : 0;
             if (SceneLoopBackgroundPanel is not null)
@@ -8752,7 +8731,7 @@ public sealed partial class MainWindow : Window
             {
                 SceneMediaSourceNameTextBlock.Text = SceneMediaProfileComboBox.SelectedItem is MediaBridgeProfile selected
                     ? (string.IsNullOrWhiteSpace(selected.WindowTitleHint) ? selected.DisplayName : selected.WindowTitleHint)
-                    : "No media source selected";
+                    : UiText.L("No_media_source_selected_331a32f0");
             }
         }
         finally
@@ -8815,25 +8794,25 @@ public sealed partial class MainWindow : Window
         var normalCount = scene.SoundButtons.Count(b => !b.IsLooped);
         var hasLoop = scene.SoundButtons.Any(b => b.IsLooped);
         return string.Join(Environment.NewLine,
-            $"Voice preset: {scene.VoicePresetName ?? "none"}",
-            $"Scene buttons: {normalCount}",
-            $"Background source: {(scene.UsesMediaSource ? "Media Source" : "Looped Sound")}",
-            $"Looped sound: {(hasLoop ? "set" : "none")}",
-            $"Media profile: {scene.MediaBridgeProfileName ?? "none"}",
-            $"Capture media on scene start: {(scene.CaptureMediaBridgeOnSceneStart ? "on" : "off")}",
-            $"Autostart loop: {(scene.AutoStartLoopedSounds ? "on" : "off")}",
-            $"Looped → Virtual Mic: {scene.LoopedSoundVirtualMicVolume:P0}",
-            $"Looped → Headphones: {scene.LoopedSoundHeadphonesVolume:P0}",
-            $"Virtual Mic Master: {scene.VirtualMicMasterVolume:P0}",
-            $"SoundBoard → Virtual Mic: {scene.SoundBoardVirtualMicVolume:P0}",
-            $"SoundBoard → Headphones: {scene.SoundBoardHeadphonesVolume:P0}",
-            $"SoundBoard Delay: {scene.SoundBoardVirtualMicDelayMs:0} ms",
-            $"Updated UTC: {scene.UpdatedAtUtc:yyyy-MM-dd HH:mm:ss}");
+            UiText.L("Voice_preset_0_2c961781", scene.VoicePresetName ?? UiText.L("none_140bedbf")),
+            UiText.L("Scene_buttons_0_d868cf05", normalCount),
+            UiText.L("Background_source_0_d426a1bd", (scene.UsesMediaSource ? UiText.L("Media_Source_fdaeb638") : UiText.L("Looped_Sound_1f4a1636"))),
+            UiText.L("Looped_sound_0_5f3cf5c6", (hasLoop ? UiText.L("set_6ee0eb49") : UiText.L("none_140bedbf"))),
+            UiText.L("Media_profile_0_af7cbd7b", scene.MediaBridgeProfileName ?? UiText.L("none_140bedbf")),
+            UiText.L("Capture_media_on_scene_start_0_effc67bc", (scene.CaptureMediaBridgeOnSceneStart ? UiText.L("on_b8d31e85") : UiText.L("off_b4dc66dd"))),
+            UiText.L("Autostart_loop_0_70bdeca6", (scene.AutoStartLoopedSounds ? UiText.L("on_b8d31e85") : UiText.L("off_b4dc66dd"))),
+            UiText.L("Looped_Virtual_Mic_0_P0_ccedf7aa", scene.LoopedSoundVirtualMicVolume),
+            UiText.L("Looped_Headphones_0_P0_05d37f4e", scene.LoopedSoundHeadphonesVolume),
+            UiText.L("Virtual_Mic_Master_0_P0_0d2dbec5", scene.VirtualMicMasterVolume),
+            UiText.L("SoundBoard_Virtual_Mic_0_P0_ef866ff5", scene.SoundBoardVirtualMicVolume),
+            UiText.L("SoundBoard_Headphones_0_P0_31d4d895", scene.SoundBoardHeadphonesVolume),
+            UiText.L("SoundBoard_Delay_0_0_ms_327a39a2", scene.SoundBoardVirtualMicDelayMs),
+            UiText.L("Updated_UTC_0_yyyy_MM_dd_HH_mm_ss_99673ddf", scene.UpdatedAtUtc));
     }
 
     private async void OnCreateNewSceneClick(object sender, RoutedEventArgs e)
     {
-        var name = await ShowTextDialogAsync("Create new scene", "Scene name", "New Scene");
+        var name = await ShowTextDialogAsync(UiText.L("Create_new_scene_3549632c"), UiText.L("Scene_name_e3fe736a"), UiText.L("New_Scene_7919af28"));
         if (string.IsNullOrWhiteSpace(name))
         {
             return;
@@ -8881,7 +8860,7 @@ public sealed partial class MainWindow : Window
     private void DisableActiveScene(string logMessage)
     {
         var disabledSceneId = _activeSceneId;
-        StopSceneOwnedMediaBridge(disabledSceneId, "Scene media stopped");
+        StopSceneOwnedMediaBridge(disabledSceneId, UiText.L("Scene_media_stopped_8bae58fb"));
         _activeSceneId = null;
         UpdateSceneActiveFlags();
         RefreshSceneListBinding();
@@ -8956,7 +8935,7 @@ public sealed partial class MainWindow : Window
             return;
         }
 
-        var newName = await ShowTextDialogAsync("Rename scene", "Scene name", _selectedScene.Name);
+        var newName = await ShowTextDialogAsync(UiText.L("Rename_scene_482a488a"), UiText.L("Scene_name_e3fe736a"), _selectedScene.Name);
         if (string.IsNullOrWhiteSpace(newName))
         {
             return;
@@ -8987,10 +8966,10 @@ public sealed partial class MainWindow : Window
         var scene = _selectedScene;
         var dialog = new ContentDialog
         {
-            Title = "Delete scene",
-            Content = $"Delete scene '{scene.Name}'? The JSON file will be removed from the scenes folder.",
-            PrimaryButtonText = "Delete",
-            CloseButtonText = "Cancel",
+            Title = UiText.L("Delete_scene_21cace70"),
+            Content = UiText.L("Delete_scene_0_The_JSON_file_will_be_removed_f_47efa3d1", scene.Name),
+            PrimaryButtonText = UiText.L("Delete_e2d0a549"),
+            CloseButtonText = UiText.L("Cancel_19766ed6"),
             DefaultButton = ContentDialogButton.Close,
             XamlRoot = ((FrameworkElement)Content).XamlRoot
         };
@@ -9006,7 +8985,7 @@ public sealed partial class MainWindow : Window
             _sceneStore.DeleteScene(scene);
             if (string.Equals(_activeSceneId, scene.Id, StringComparison.OrdinalIgnoreCase))
             {
-                StopSceneOwnedMediaBridge(scene.Id, "Scene media stopped");
+                StopSceneOwnedMediaBridge(scene.Id, UiText.L("Scene_media_stopped_8bae58fb"));
                 _activeSceneId = null;
                 RestoreVoiceChangerStateBeforeScene();
             }
@@ -9117,7 +9096,7 @@ public sealed partial class MainWindow : Window
             if (!string.IsNullOrWhiteSpace(previousActiveSceneId) &&
                 !string.Equals(previousActiveSceneId, scene.Id, StringComparison.OrdinalIgnoreCase))
             {
-                StopSceneOwnedMediaBridge(previousActiveSceneId, "Previous scene media stopped");
+                StopSceneOwnedMediaBridge(previousActiveSceneId, UiText.L("Previous_scene_media_stopped_36ba930a"));
             }
 
             _activeSceneId = scene.Id;
@@ -9403,7 +9382,7 @@ public sealed partial class MainWindow : Window
 
         if (_selectedScene is null)
         {
-            LoopedSceneSoundsPanel.Children.Add(CreateLoopedSceneSoundSlot(null, "No scene selected"));
+            LoopedSceneSoundsPanel.Children.Add(CreateLoopedSceneSoundSlot(null, UiText.L("No_scene_selected_d93b56b1")));
             RefreshSceneLoopActionButtons();
             return;
         }
@@ -9482,7 +9461,7 @@ public sealed partial class MainWindow : Window
         {
             sound = PickSound(sceneButton.SoundId);
             // Looped sound has no scene-local alias. Keep the visible name synchronized with SoundBoard.
-            displayName = sound?.DisplayName ?? "Missing SoundBoard sound";
+            displayName = sound?.DisplayName ?? UiText.L("Missing_SoundBoard_sound_91258fc6");
             opacity = 1.0;
             if (_selectedScene is not null)
             {
@@ -9579,7 +9558,7 @@ public sealed partial class MainWindow : Window
                 HorizontalAlignment = HorizontalAlignment.Left,
                 VerticalAlignment = VerticalAlignment.Center
             };
-            ToolTipService.SetToolTip(playPause, "Play / pause this scene sound");
+            ToolTipService.SetToolTip(playPause, UiText.L("Play_pause_this_scene_sound_623f0192"));
             playPause.Click += OnSceneTimelinePlayPauseClick;
             Grid.SetColumn(playPause, 0);
             root.Children.Add(playPause);
@@ -9793,12 +9772,12 @@ public sealed partial class MainWindow : Window
         var hotkeyParts = new List<string>();
         if (!string.IsNullOrWhiteSpace(context.Button.SceneHotkey))
         {
-            hotkeyParts.Add($"Scene: {context.Button.SceneHotkey}");
+            hotkeyParts.Add(UiText.L("Scene_0_be799803", context.Button.SceneHotkey));
         }
 
         if (!string.IsNullOrWhiteSpace(context.Sound?.Hotkey))
         {
-            hotkeyParts.Add($"SB: {context.Sound!.Hotkey}");
+            hotkeyParts.Add(UiText.L("SB_0_02e00ec1", context.Sound!.Hotkey));
         }
 
         var hotkeyText = new TextBlock
@@ -9860,7 +9839,7 @@ public sealed partial class MainWindow : Window
 
         var categoryCombo = new ComboBox
         {
-            Header = "Category",
+            Header = UiText.L("Category_292c06f0"),
             DisplayMemberPath = "Name",
             HorizontalAlignment = HorizontalAlignment.Stretch,
             ItemsSource = _library.Categories.OrderBy(c => c.SortOrder).ThenBy(c => c.Name).ToList()
@@ -9869,8 +9848,8 @@ public sealed partial class MainWindow : Window
 
         var searchBox = new TextBox
         {
-            Header = "Search",
-            PlaceholderText = "Search sound"
+            Header = UiText.L("Search_49c266ba"),
+            PlaceholderText = UiText.L("Search_sound_6b0e13c5")
         };
 
         var soundList = new ListView
@@ -9964,7 +9943,7 @@ public sealed partial class MainWindow : Window
 
         panel.Children.Add(new TextBlock
         {
-            Text = $"SoundBoard: {context.SourceName}",
+            Text = UiText.L("SoundBoard_0_89a89693", context.SourceName),
             FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
             TextTrimming = TextTrimming.CharacterEllipsis,
             TextWrapping = TextWrapping.NoWrap
@@ -9973,8 +9952,8 @@ public sealed partial class MainWindow : Window
         panel.Children.Add(new TextBlock
         {
             Text = string.IsNullOrWhiteSpace(context.Button.SceneHotkey)
-                ? "Scene hotkey: none"
-                : $"Scene hotkey: {context.Button.SceneHotkey}",
+                ? UiText.L("Scene_hotkey_none_584c65e6")
+                : UiText.L("Scene_hotkey_0_a2d9b166", context.Button.SceneHotkey),
             FontSize = 12,
             Opacity = 0.72,
             TextTrimming = TextTrimming.CharacterEllipsis,
@@ -10027,7 +10006,7 @@ public sealed partial class MainWindow : Window
 
         var hotkey = makeAction("Hotkey", 1, 0);
         hotkey.IsEnabled = context.Sound is not null;
-        ToolTipService.SetToolTip(hotkey, string.IsNullOrWhiteSpace(context.Button.SceneHotkey) ? "Set scene hotkey" : $"Scene hotkey: {context.Button.SceneHotkey}");
+        ToolTipService.SetToolTip(hotkey, string.IsNullOrWhiteSpace(context.Button.SceneHotkey) ? UiText.L("Set_scene_hotkey_8aa37a7e") : UiText.L("Scene_hotkey_0_a2d9b166", context.Button.SceneHotkey));
         hotkey.Click += async (_, _) =>
         {
             flyout.Hide();
@@ -10060,8 +10039,8 @@ public sealed partial class MainWindow : Window
             Margin = new Thickness(0, 2, 0, 2)
         });
 
-        panel.Children.Add(CreateSceneSoundButtonVolumeRow(context.Button, "Headphones", isHeadphones: true));
-        panel.Children.Add(CreateSceneSoundButtonVolumeRow(context.Button, "Virtual Mic", isHeadphones: false));
+        panel.Children.Add(CreateSceneSoundButtonVolumeRow(context.Button, UiText.L("Headphones_86df32cf"), isHeadphones: true));
+        panel.Children.Add(CreateSceneSoundButtonVolumeRow(context.Button, UiText.L("Virtual_Mic_5eab0e3c"), isHeadphones: false));
 
         flyout.Content = panel;
         return flyout;
@@ -10206,7 +10185,7 @@ public sealed partial class MainWindow : Window
         var currentName = string.IsNullOrWhiteSpace(sceneButton.LocalName)
             ? sound?.DisplayName ?? "Scene sound"
             : sceneButton.LocalName!;
-        var name = await ShowTextDialogAsync("Rename scene button", "Button name", currentName);
+        var name = await ShowTextDialogAsync(UiText.L("Rename_scene_button_3805f071"), UiText.L("Button_name_97fa823d"), currentName);
         if (string.IsNullOrWhiteSpace(name))
         {
             return;
@@ -10218,7 +10197,7 @@ public sealed partial class MainWindow : Window
 
     private async Task ChooseAnotherSceneSoundAsync(SceneSoundButton sceneButton)
     {
-        var sound = await ShowSceneSoundPickerDialogAsync("Choose another sound");
+        var sound = await ShowSceneSoundPickerDialogAsync(UiText.L("Choose_another_sound_76dabdd8"));
         if (sound is null)
         {
             return;
@@ -10258,8 +10237,8 @@ public sealed partial class MainWindow : Window
         }
 
         var hotkey = await CaptureHotkeyDialogAsync(
-            "Scene sound hotkey",
-            "This hotkey belongs only to the selected scene button. SoundBoard hotkeys remain unchanged. Conflict priority: Transport, Scene, SoundBoard.",
+            UiText.L("Scene_sound_hotkey_84910556"),
+            UiText.L("This_hotkey_belongs_only_to_the_selected_scene_0d3502ee"),
             sceneButton.SceneHotkey);
         if (hotkey is null)
         {
@@ -10333,7 +10312,7 @@ public sealed partial class MainWindow : Window
 
         var categoryCombo = new ComboBox
         {
-            Header = "Category",
+            Header = UiText.L("Category_292c06f0"),
             DisplayMemberPath = "Name",
             HorizontalAlignment = HorizontalAlignment.Stretch,
             ItemsSource = _library.Categories.OrderBy(c => c.SortOrder).ThenBy(c => c.Name).ToList()
@@ -10342,8 +10321,8 @@ public sealed partial class MainWindow : Window
 
         var searchBox = new TextBox
         {
-            Header = "Search",
-            PlaceholderText = "Search sound"
+            Header = UiText.L("Search_49c266ba"),
+            PlaceholderText = UiText.L("Search_sound_6b0e13c5")
         };
 
         var soundList = new ListView
@@ -10383,8 +10362,8 @@ public sealed partial class MainWindow : Window
         {
             Title = title,
             Content = panel,
-            PrimaryButtonText = "Choose",
-            CloseButtonText = "Cancel",
+            PrimaryButtonText = UiText.L("Choose_c7f93783"),
+            CloseButtonText = UiText.L("Cancel_19766ed6"),
             DefaultButton = ContentDialogButton.Primary,
             IsPrimaryButtonEnabled = false,
             XamlRoot = ((FrameworkElement)Content).XamlRoot
@@ -10508,7 +10487,7 @@ public sealed partial class MainWindow : Window
         if (SceneMediaSourceNameTextBlock is not null)
         {
             SceneMediaSourceNameTextBlock.Text = profile is null
-                ? "No media source selected"
+                ? UiText.L("No_media_source_selected_331a32f0")
                 : string.IsNullOrWhiteSpace(profile.WindowTitleHint) ? profile.DisplayName : profile.WindowTitleHint;
         }
         SaveSelectedSceneEditorChange(profile is null
@@ -10588,7 +10567,7 @@ public sealed partial class MainWindow : Window
         _settings.MediaBridgeLastWindowTitle = window.WindowTitle;
         try { _settingsStore.Save(_settings); }
         catch (Exception storageError) { AppendLog("Settings were not saved: " + storageError.Message); }
-        UpdateMediaBridgeUiState("Ready");
+        UpdateMediaBridgeUiState(UiText.L("Ready_5fa7aac5"));
         await UpdateMediaBridgePreviewAsync();
         var started = await StartMediaBridgeBroadcastAsync(scene.Id);
         if (started)
@@ -10835,7 +10814,7 @@ public sealed partial class MainWindow : Window
             return;
         }
 
-        var sound = await ShowSceneSoundPickerDialogAsync("Choose looped sound");
+        var sound = await ShowSceneSoundPickerDialogAsync(UiText.L("Choose_looped_sound_e7a16c27"));
         if (sound is null)
         {
             return;
@@ -11091,7 +11070,7 @@ public sealed partial class MainWindow : Window
         var selectedIcon = NormalizeVoicePresetIcon(initialIcon);
         var nameBox = new TextBox
         {
-            PlaceholderText = "Preset name",
+            PlaceholderText = UiText.L("Preset_name_e534a666"),
             Text = initialName,
             MinWidth = 360
         };
@@ -11117,7 +11096,7 @@ public sealed partial class MainWindow : Window
                 Content = CreateVoicePresetIconTextBlock(choice.Icon, choice.UseMdl2 ? 22 : 24),
                 IsChecked = string.Equals(choice.Icon, selectedIcon, StringComparison.Ordinal)
             };
-            ToolTipService.SetToolTip(button, choice.Name);
+            ToolTipService.SetToolTip(button, UiText.IconName(choice.Name));
             button.Checked += (_, _) =>
             {
                 selectedIcon = (string)button.Tag;
@@ -11140,7 +11119,7 @@ public sealed partial class MainWindow : Window
         panel.Children.Add(nameBox);
         panel.Children.Add(new TextBlock
         {
-            Text = "Icon",
+            Text = UiText.L("Icon_a35abcd6"),
             Opacity = 0.78,
             FontWeight = Microsoft.UI.Text.FontWeights.SemiBold
         });
@@ -11160,8 +11139,8 @@ public sealed partial class MainWindow : Window
         {
             Title = title,
             Content = panel,
-            PrimaryButtonText = "OK",
-            CloseButtonText = "Cancel",
+            PrimaryButtonText = UiText.L("OK_565339bc"),
+            CloseButtonText = UiText.L("Cancel_19766ed6"),
             DefaultButton = ContentDialogButton.Primary,
             XamlRoot = ((FrameworkElement)Content).XamlRoot
         };
@@ -11236,8 +11215,8 @@ public sealed partial class MainWindow : Window
         });
         var effectCount = preset.EffectOrder?.Count ?? 0;
         var subtitle = string.IsNullOrWhiteSpace(preset.PresetHotkey)
-            ? $"{effectCount} effect{(effectCount == 1 ? string.Empty : "s")}" 
-            : $"{effectCount} effects · {preset.PresetHotkey}";
+            ? UiText.L("0_effect_1_db8c979f", effectCount, (effectCount == 1 ? string.Empty : "s"))
+            : UiText.L("0_effects_1_20828fa9", effectCount, preset.PresetHotkey);
         details.Children.Add(new TextBlock
         {
             Text = subtitle,
@@ -11271,27 +11250,27 @@ public sealed partial class MainWindow : Window
     {
         var flyout = new MenuFlyout();
 
-        var selectItem = new MenuFlyoutItem { Text = "Select" };
+        var selectItem = new MenuFlyoutItem { Text = UiText.L("Select_2a78025d") };
         selectItem.Click += (_, _) => ApplyVoicePreset(preset);
         flyout.Items.Add(selectItem);
 
-        var renameItem = new MenuFlyoutItem { Text = "Rename" };
+        var renameItem = new MenuFlyoutItem { Text = UiText.L("Rename_3064d79a") };
         renameItem.Click += async (_, _) => await RenameVoicePresetAsync(preset);
         flyout.Items.Add(renameItem);
 
-        var recreateItem = new MenuFlyoutItem { Text = "Recreate" };
+        var recreateItem = new MenuFlyoutItem { Text = UiText.L("Recreate_15efb691") };
         recreateItem.Click += (_, _) => RecreateVoicePreset(preset);
         flyout.Items.Add(recreateItem);
 
-        var hotkeyItem = new MenuFlyoutItem { Text = "Choose hotkey" };
+        var hotkeyItem = new MenuFlyoutItem { Text = UiText.L("Choose_hotkey_c208d938") };
         hotkeyItem.Click += async (_, _) => await EditVoicePresetHotkeysAsync(preset);
         flyout.Items.Add(hotkeyItem);
 
-        var copyJsonFileItem = new MenuFlyoutItem { Text = "Copy JSON file" };
+        var copyJsonFileItem = new MenuFlyoutItem { Text = UiText.L("Copy_JSON_file_f97fdd48") };
         copyJsonFileItem.Click += async (_, _) => await CopyVoicePresetJsonFileToClipboardAsync(preset);
         flyout.Items.Add(copyJsonFileItem);
 
-        var deleteItem = new MenuFlyoutItem { Text = "Delete" };
+        var deleteItem = new MenuFlyoutItem { Text = UiText.L("Delete_e2d0a549") };
         deleteItem.Click += async (_, _) => await DeleteVoicePresetAsync(preset);
         flyout.Items.Add(deleteItem);
 
@@ -11334,7 +11313,7 @@ public sealed partial class MainWindow : Window
 
     private async Task RenameVoicePresetAsync(VoicePreset preset)
     {
-        var edited = await ShowVoicePresetNameAndIconDialogAsync("Rename voice preset", preset.Name, preset.Icon);
+        var edited = await ShowVoicePresetNameAndIconDialogAsync(UiText.L("Rename_voice_preset_b3215d19"), preset.Name, preset.Icon);
         if (edited is null)
         {
             return;
@@ -11387,19 +11366,19 @@ public sealed partial class MainWindow : Window
         };
         panel.Children.Add(new TextBlock
         {
-            Text = "Click a hotkey button, then press a key or Ctrl/Alt/Shift combination. Esc cancels capture. Plain A-Z and < > { } are local-only; NumPad keys and Ctrl/Alt/Shift combinations remain global.",
+            Text = UiText.L("Click_a_hotkey_button_then_press_a_key_or_Ctrl_326f8cfb"),
             TextWrapping = TextWrapping.Wrap,
             Opacity = 0.78
         });
-        panel.Children.Add(CreateHotkeyCaptureRow("Push to talk", preset.PushToTalkHotkey, out var pushToTalkButton));
-        panel.Children.Add(CreateHotkeyCaptureRow("Preset select", preset.PresetHotkey, out var presetButton));
+        panel.Children.Add(CreateHotkeyCaptureRow(UiText.L("Push_to_talk_03fc694c"), preset.PushToTalkHotkey, out var pushToTalkButton));
+        panel.Children.Add(CreateHotkeyCaptureRow(UiText.L("Preset_select_c33b05c0"), preset.PresetHotkey, out var presetButton));
 
         var dialog = new ContentDialog
         {
-            Title = $"Hotkeys: {preset.Name}",
+            Title = UiText.L("Hotkeys_0_a6461917", preset.Name),
             Content = panel,
-            PrimaryButtonText = "Save",
-            CloseButtonText = "Cancel",
+            PrimaryButtonText = UiText.L("Save_1509f561"),
+            CloseButtonText = UiText.L("Cancel_19766ed6"),
             DefaultButton = ContentDialogButton.Primary,
             XamlRoot = ((FrameworkElement)Content).XamlRoot
         };
@@ -11429,10 +11408,10 @@ public sealed partial class MainWindow : Window
     {
         var dialog = new ContentDialog
         {
-            Title = "Delete voice preset",
-            Content = $"Delete preset '{preset.Name}'? The JSON file will be removed from the presets folder.",
-            PrimaryButtonText = "Delete",
-            CloseButtonText = "Cancel",
+            Title = UiText.L("Delete_voice_preset_fece6074"),
+            Content = UiText.L("Delete_preset_0_The_JSON_file_will_be_removed__0d5b6007", preset.Name),
+            PrimaryButtonText = UiText.L("Delete_e2d0a549"),
+            CloseButtonText = UiText.L("Cancel_19766ed6"),
             DefaultButton = ContentDialogButton.Close,
             XamlRoot = ((FrameworkElement)Content).XamlRoot
         };
@@ -11484,7 +11463,7 @@ public sealed partial class MainWindow : Window
 
         var label = new TextBlock
         {
-            Text = "New preset",
+            Text = UiText.L("New_preset_75be83ad"),
             TextAlignment = TextAlignment.Center,
             TextWrapping = TextWrapping.Wrap,
             HorizontalAlignment = HorizontalAlignment.Stretch
@@ -11517,7 +11496,7 @@ public sealed partial class MainWindow : Window
 
         var importButton = new Button
         {
-            Content = "Import",
+            Content = UiText.L("Import_2cff9baa"),
             MinWidth = 0,
             HorizontalAlignment = HorizontalAlignment.Stretch,
             VerticalAlignment = VerticalAlignment.Stretch
@@ -11527,7 +11506,7 @@ public sealed partial class MainWindow : Window
 
         var folderButton = new Button
         {
-            Content = "Folder",
+            Content = UiText.L("Folder_74ccd433"),
             MinWidth = 0,
             HorizontalAlignment = HorizontalAlignment.Stretch,
             VerticalAlignment = VerticalAlignment.Stretch
@@ -11540,7 +11519,7 @@ public sealed partial class MainWindow : Window
 
         var label = new TextBlock
         {
-            Text = "Preset tools",
+            Text = UiText.L("Preset_tools_8f97e034"),
             TextAlignment = TextAlignment.Center,
             TextWrapping = TextWrapping.Wrap,
             HorizontalAlignment = HorizontalAlignment.Stretch
@@ -11629,7 +11608,7 @@ public sealed partial class MainWindow : Window
 
     private async void OnNewVoicePresetClick(object sender, RoutedEventArgs e)
     {
-        var edited = await ShowVoicePresetNameAndIconDialogAsync("New voice preset", "New Preset", DefaultVoicePresetIcon);
+        var edited = await ShowVoicePresetNameAndIconDialogAsync(UiText.L("New_voice_preset_fddae719"), UiText.L("New_Preset_18ba9c86"), DefaultVoicePresetIcon);
         if (edited is null)
         {
             return;
@@ -11887,8 +11866,8 @@ public sealed partial class MainWindow : Window
 
     private void UpdateVoiceMonitorButton()
     {
-        if (EqualizerVoiceMonitorButton is not null) EqualizerVoiceMonitorButton.Content = _voiceMonitorEnabled ? "Слышать себя: вкл." : "Слышать себя: выкл.";
-        var text = _voiceMonitorEnabled ? "Voice Monitor: On" : "Voice Monitor: Off";
+        if (EqualizerVoiceMonitorButton is not null) EqualizerVoiceMonitorButton.Content = _voiceMonitorEnabled ? UiText.L("Text_184dd8c0") : UiText.L("Text_5d5a6cce");
+        var text = _voiceMonitorEnabled ? UiText.L("Voice_Monitor_On_d727af9c") : UiText.L("Voice_Monitor_Off_f0b11e44");
         if (VoiceMonitorButton is not null)
         {
             VoiceMonitorButton.Content = text;
@@ -11918,14 +11897,14 @@ public sealed partial class MainWindow : Window
     private void UpdateDelayLabel()
     {
         if (DelayLabel is null || SoundVirtualDelaySlider is null) return;
-        DelayLabel.Text = $"SoundBoard Delay: {(int)Math.Round(SoundVirtualDelaySlider.Value)} ms";
+        DelayLabel.Text = UiText.L("SoundBoard_Delay_0_ms_19a3a664", (int)Math.Round(SoundVirtualDelaySlider.Value));
     }
 
     private void UpdateSoundVolumeLabels()
     {
         if (SoundVirtualVolumeLabel is null || SoundMonitorVolumeLabel is null) return;
-        SoundVirtualVolumeLabel.Text = $"SoundBoard → Virtual Mic: {(int)Math.Round(SoundVirtualVolumeSlider.Value * 100)}%";
-        SoundMonitorVolumeLabel.Text = $"SoundBoard → Headphones: {(int)Math.Round(SoundMonitorVolumeSlider.Value * 100)}%";
+        SoundVirtualVolumeLabel.Text = UiText.L("SoundBoard_Virtual_Mic_0_91433000", (int)Math.Round(SoundVirtualVolumeSlider.Value * 100));
+        SoundMonitorVolumeLabel.Text = UiText.L("SoundBoard_Headphones_0_ba1b0dd3", (int)Math.Round(SoundMonitorVolumeSlider.Value * 100));
     }
 
     private void UpdateSceneVolumeLabels()
@@ -11945,46 +11924,46 @@ public sealed partial class MainWindow : Window
     private void UpdateOutputVolumeLabels()
     {
         if (VirtualOutputVolumeLabel is null || VirtualOutputVolumeSlider is null) return;
-        VirtualOutputVolumeLabel.Text = $"Virtual Mic Master: {(int)Math.Round(VirtualOutputVolumeSlider.Value * 100)}%";
+        VirtualOutputVolumeLabel.Text = UiText.L("Virtual_Mic_Master_0_69721452", (int)Math.Round(VirtualOutputVolumeSlider.Value * 100));
     }
 
     private void UpdateVoiceSettingLabels()
     {
         if (VoiceGainLabel is null) return;
-        VoiceGainLabel.Text = "Voice Gain";
-        GateThresholdLabel.Text = "Gate";
-        CompressorThresholdLabel.Text = "Compressor";
-        PitchLabel.Text = "Pitch";
-        FormantLabel.Text = "Formant";
-        BassLabel.Text = "Bass";
-        TrebleLabel.Text = "Treble";
-        DistortionLabel.Text = "Distortion";
-        RobotLabel.Text = "Robot";
-        TremoloLabel.Text = "Tremolo";
-        EchoLabel.Text = "Echo";
-        ReverbLabel.Text = "Reverb";
-        RadioLabel.Text = "Radio";
-        BitCrusherLabel.Text = "Bit Crusher";
-        AlienLabel.Text = "Alien";
-        ChorusLabel.Text = "Chorus";
-        FlangerLabel.Text = "Flanger";
-        PhaserLabel.Text = "Phaser";
-        VibratoLabel.Text = "Vibrato";
-        DoublerLabel.Text = "Doubler";
-        RingModLabel.Text = "Ring Mod";
-        ChipmunkLabel.Text = "Chipmunk";
-        GiantLabel.Text = "Giant";
-        GhostLabel.Text = "Ghost";
-        StutterLabel.Text = "Stutter";
-        WobblyLabel.Text = "Wobbly";
-        GenderMaleLabel.Text = "Gender Male";
-        GenderFemaleLabel.Text = "Gender Female";
-        PossessedLabel.Text = "Possessed";
-        MegaphoneLabel.Text = "Megaphone";
-        HelicopterLabel.Text = "Helicopter";
-        CyborgLabel.Text = "Cyborg";
-        BrokenRadioLabel.Text = "Broken Radio";
-        VocoderLabel.Text = "Vocoder";
+        VoiceGainLabel.Text = UiText.L("Voice_Gain_85e54875");
+        GateThresholdLabel.Text = UiText.L("Gate_fa77a525");
+        CompressorThresholdLabel.Text = UiText.L("Compressor_75e948e4");
+        PitchLabel.Text = UiText.L("Pitch_6af11cc5");
+        FormantLabel.Text = UiText.L("Formant_5f2de693");
+        BassLabel.Text = UiText.L("Bass_ca445e86");
+        TrebleLabel.Text = UiText.L("Treble_7891c4a9");
+        DistortionLabel.Text = UiText.L("Distortion_ab6e8c54");
+        RobotLabel.Text = UiText.L("Robot_3bf6b51b");
+        TremoloLabel.Text = UiText.L("Tremolo_fd73295b");
+        EchoLabel.Text = UiText.L("Echo_8335e4c9");
+        ReverbLabel.Text = UiText.L("Reverb_bf7d7f51");
+        RadioLabel.Text = UiText.L("Radio_2a7dfeb2");
+        BitCrusherLabel.Text = UiText.L("Bit_Crusher_6b8f0f97");
+        AlienLabel.Text = UiText.L("Alien_72e4646b");
+        ChorusLabel.Text = UiText.L("Chorus_89ae15b9");
+        FlangerLabel.Text = UiText.L("Flanger_1c35e606");
+        PhaserLabel.Text = UiText.L("Phaser_1083767b");
+        VibratoLabel.Text = UiText.L("Vibrato_d2af1e9d");
+        DoublerLabel.Text = UiText.L("Doubler_031420b5");
+        RingModLabel.Text = UiText.L("Ring_Mod_71c5faf9");
+        ChipmunkLabel.Text = UiText.L("Chipmunk_04ca704f");
+        GiantLabel.Text = UiText.L("Giant_db5bea37");
+        GhostLabel.Text = UiText.L("Ghost_df1bc498");
+        StutterLabel.Text = UiText.L("Stutter_3dd08259");
+        WobblyLabel.Text = UiText.L("Wobbly_9f8aa090");
+        GenderMaleLabel.Text = UiText.L("Gender_Male_66b5b012");
+        GenderFemaleLabel.Text = UiText.L("Gender_Female_919650a6");
+        PossessedLabel.Text = UiText.L("Possessed_ef0b496b");
+        MegaphoneLabel.Text = UiText.L("Megaphone_b9b9cdc7");
+        HelicopterLabel.Text = UiText.L("Helicopter_0fa9e71f");
+        CyborgLabel.Text = UiText.L("Cyborg_b98c9f3a");
+        BrokenRadioLabel.Text = UiText.L("Broken_Radio_ef820c0f");
+        VocoderLabel.Text = UiText.L("Vocoder_927878ea");
     }
 
     private static string FormatSigned(double value)
@@ -12010,11 +11989,11 @@ public sealed partial class MainWindow : Window
         var visibleCount = FilterSoundsForSelectedCategory().Count();
 
         CategoryInfoTextBlock.Text =
-            $"Categories: {_library.Categories.Count}\n" +
-            $"Tracks in category: {soundCount}\n" +
-            $"Visible tracks: {visibleCount}\n" +
-            $"Category uses: {categoryUsage}\n" +
-            $"Track uses: {soundUsage}";
+            UiText.L("Categories_0_7a66421f", _library.Categories.Count) +
+            UiText.L("Tracks_in_category_0_851c29bf", soundCount) +
+            UiText.L("Visible_tracks_0_fb7ccdea", visibleCount) +
+            UiText.L("Category_uses_0_da0cc866", categoryUsage) +
+            UiText.L("Track_uses_0_eb05e0ea", soundUsage);
     }
 
     private void RefreshAutostartState()
@@ -12060,7 +12039,7 @@ public sealed partial class MainWindow : Window
         {
             StartupLog.Write("Autostart update error: " + ex);
             RefreshAutostartState();
-            await ShowMessageDialogAsync("Autostart error", ex.Message);
+            await ShowMessageDialogAsync(UiText.L("Autostart_error_0bfacf75"), ex.Message);
         }
     }
 
@@ -12132,8 +12111,8 @@ public sealed partial class MainWindow : Window
         var dialog = new ContentDialog
         {
             Title = title,
-            Content = message,
-            CloseButtonText = "OK",
+            Content = UiText.ErrorMessage(message),
+            CloseButtonText = UiText.L("OK_565339bc"),
             XamlRoot = ((FrameworkElement)Content).XamlRoot
         };
         await dialog.ShowAsync();

@@ -6,7 +6,7 @@
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     mc:Ignorable="d"
-    Title="VoiSee Version 14.5.1">
+    Title="VoiSee 14.6.1">
 
     <Grid x:Name="RootGrid" RequestedTheme="Dark" Background="{ThemeResource VoiSee.AppBackgroundBrush}" SizeChanged="OnRootGridSizeChanged">
         <Grid.RowDefinitions>
@@ -21,7 +21,7 @@
             </Grid.ColumnDefinitions>
             <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center" Margin="10,0,0,0">
                 <Image Source="ms-appx:///Assets/AppIcon_24.png" Width="16" Height="16" VerticalAlignment="Center" />
-                <TextBlock x:Name="TitleBarVersionTextBlock" Text="VoiSee Version 14.5.1" FontSize="12" Foreground="{ThemeResource VoiSee.PrimaryTextBrush}" VerticalAlignment="Center" />
+                <TextBlock x:Name="TitleBarVersionTextBlock" Text="VoiSee 14.6.1" FontSize="12" Foreground="{ThemeResource VoiSee.PrimaryTextBrush}" VerticalAlignment="Center" />
             </StackPanel>
         </Grid>
 
@@ -39,12 +39,12 @@
                 </Grid.ColumnDefinitions>
                 <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
                     <Image Source="ms-appx:///Assets/AppIcon_48.png" Width="34" Height="34" VerticalAlignment="Center" />
-                    <TextBlock x:Name="MainTitle" Text="VoiSee Version 14.5.1" FontSize="28" FontWeight="SemiBold" Foreground="{ThemeResource VoiSee.PrimaryTextBrush}" VerticalAlignment="Center" />
+                    <TextBlock x:Name="MainTitle" Text="VoiSee 14.6.1" FontSize="28" FontWeight="SemiBold" Foreground="{ThemeResource VoiSee.PrimaryTextBrush}" VerticalAlignment="Center" />
                 </StackPanel>
                 <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center" HorizontalAlignment="Right">
-                    <TextBlock Text="Mic Output" Foreground="{ThemeResource VoiSee.PrimaryTextBrush}" Opacity="0.62" VerticalAlignment="Center" />
-                    <TextBlock x:Name="VirtualMicMuteStatusTextBlock" Text="Live" Foreground="{ThemeResource VoiSee.SuccessBrush}" Opacity="0.95" FontWeight="SemiBold" VerticalAlignment="Center" />
-                    <Button Style="{ThemeResource VoiSee.Style.Button.VirtualMicMute}" x:Name="VirtualMicMuteToggleButton" Content="Mute" MinWidth="92" Padding="10,4" Click="OnVirtualMicMuteToggleClick" />
+                    <TextBlock Text="{local:Localize Key=Mic_Output_6515fd5f}" Foreground="{ThemeResource VoiSee.PrimaryTextBrush}" Opacity="0.62" VerticalAlignment="Center" />
+                    <TextBlock x:Name="VirtualMicMuteStatusTextBlock" Text="{local:Localize Key=Live_b64ac05f}" Foreground="{ThemeResource VoiSee.SuccessBrush}" Opacity="0.95" FontWeight="SemiBold" VerticalAlignment="Center" />
+                    <Button Style="{ThemeResource VoiSee.Style.Button.VirtualMicMute}" x:Name="VirtualMicMuteToggleButton" Content="{local:Localize Key=Mute_8dd6857b}" MinWidth="92" Padding="10,4" Click="OnVirtualMicMuteToggleClick" />
                 </StackPanel>
             </Grid>
         </Border>
@@ -55,11 +55,11 @@
                 <RowDefinition Height="*" />
             </Grid.RowDefinitions>
             <Border x:Name="VirtualMicMutedBanner" Grid.Row="0" Background="{ThemeResource VoiSee.MuteBannerBackgroundBrush}" BorderBrush="{ThemeResource VoiSee.MuteBannerBorderBrush}" BorderThickness="1" CornerRadius="{ThemeResource VoiSee.CornerRadius.Medium}" Padding="12,8" Visibility="Collapsed">
-                <TextBlock Text="Virtual mic output is muted. You can still hear VoiSee in headphones, but Discord/OBS/games receive silence." Foreground="{ThemeResource VoiSee.PrimaryTextBrush}" FontWeight="SemiBold" TextWrapping="WrapWholeWords" />
+                <TextBlock Text="{local:Localize Key=Virtual_mic_output_is_muted_You_can_still_hear_14d300fa}" Foreground="{ThemeResource VoiSee.PrimaryTextBrush}" FontWeight="SemiBold" TextWrapping="WrapWholeWords" />
             </Border>
             <Border x:Name="MainTabHostBorder" Grid.Row="1" Padding="4">
                 <TabView x:Name="MainTabView" IsAddTabButtonVisible="False" TabWidthMode="Equal" RequestedTheme="Dark" SelectionChanged="OnMainTabViewSelectionChanged">
-                <TabViewItem Header="SoundBoard" IsClosable="False">
+                <TabViewItem Header="{local:Localize Key=SoundBoard_b5e1e6b0}" IsClosable="False">
                     <Grid x:Name="SoundBoardTabRoot" Background="Transparent" Padding="0,16,0,0" RowSpacing="4" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" AllowDrop="True" DragOver="OnSoundBoardDragOver" DragLeave="OnSoundBoardDragLeave" Drop="OnSoundBoardDrop">
                         <Grid.RowDefinitions>
                             <RowDefinition Height="Auto" />
@@ -90,15 +90,15 @@
                                             <ColumnDefinition Width="78" />
                                             <ColumnDefinition Width="78" />
                                         </Grid.ColumnDefinitions>
-                                        <Button Style="{ThemeResource VoiSee.Style.Button.SoundBoardTransport}" Grid.Row="0" Grid.Column="0" x:Name="PreviousSoundButton" Content="&#xE892;" FontFamily="Segoe MDL2 Assets" FontSize="18" MinWidth="0" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" Click="OnPreviousSoundClick" ToolTipService.ToolTip="Previous track" />
-                                        <Button Style="{ThemeResource VoiSee.Style.Button.SoundBoardTransport}" Grid.Row="0" Grid.Column="1" x:Name="NextSoundButton" Content="&#xE893;" FontFamily="Segoe MDL2 Assets" FontSize="18" MinWidth="0" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" Click="OnNextSoundClick" ToolTipService.ToolTip="Next track" />
-                                        <ToggleButton Style="{ThemeResource VoiSee.Style.ToggleButton}" Grid.Row="1" Grid.Column="0" x:Name="SoundLoopToggleButton" Content="∞" FontSize="20" MinWidth="0" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" Checked="OnSoundLoopToggleChanged" Unchecked="OnSoundLoopToggleChanged" ToolTipService.ToolTip="Loop current SoundBoard track" />
-                                        <Button Style="{ThemeResource VoiSee.Style.Button.SoundBoardTransport}" Grid.Row="1" Grid.Column="1" x:Name="StopSoundButton" Content="Stop" MinWidth="0" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" Click="OnStopSoundClick" ToolTipService.ToolTip="Stop sound" />
+                                        <Button Style="{ThemeResource VoiSee.Style.Button.SoundBoardTransport}" Grid.Row="0" Grid.Column="0" x:Name="PreviousSoundButton" Content="&#xE892;" FontFamily="Segoe MDL2 Assets" FontSize="18" MinWidth="0" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" Click="OnPreviousSoundClick" ToolTipService.ToolTip="{local:Localize Key=Previous_track_c50a886d}" />
+                                        <Button Style="{ThemeResource VoiSee.Style.Button.SoundBoardTransport}" Grid.Row="0" Grid.Column="1" x:Name="NextSoundButton" Content="&#xE893;" FontFamily="Segoe MDL2 Assets" FontSize="18" MinWidth="0" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" Click="OnNextSoundClick" ToolTipService.ToolTip="{local:Localize Key=Next_track_f930a5df}" />
+                                        <ToggleButton Style="{ThemeResource VoiSee.Style.ToggleButton}" Grid.Row="1" Grid.Column="0" x:Name="SoundLoopToggleButton" Content="∞" FontSize="20" MinWidth="0" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" Checked="OnSoundLoopToggleChanged" Unchecked="OnSoundLoopToggleChanged" ToolTipService.ToolTip="{local:Localize Key=Loop_current_SoundBoard_track_8f2c778f}" />
+                                        <Button Style="{ThemeResource VoiSee.Style.Button.SoundBoardTransport}" Grid.Row="1" Grid.Column="1" x:Name="StopSoundButton" Content="{local:Localize Key=Stop_cae7d57b}" MinWidth="0" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" Click="OnStopSoundClick" ToolTipService.ToolTip="{local:Localize Key=Stop_sound_c1374efe}" />
                                     </Grid>
                                 </Border>
 
                                 <Border Grid.Row="0" Grid.Column="1" Grid.ColumnSpan="2" Padding="2">
-                                    <TextBlock Style="{ThemeResource VoiSee.Style.Text.Secondary}" x:Name="TransportStatusTextBlock" Text="No sound" HorizontalAlignment="Center" Opacity="0.75" />
+                                    <TextBlock Style="{ThemeResource VoiSee.Style.Text.Secondary}" x:Name="TransportStatusTextBlock" Text="{local:Localize Key=No_sound_0c08def0}" HorizontalAlignment="Center" Opacity="0.75" />
                                 </Border>
 
                                 <Border Grid.Row="1" Grid.Column="1" Grid.ColumnSpan="2" Padding="0" Height="104" VerticalAlignment="Top">
@@ -112,7 +112,7 @@
                                             <RowDefinition Height="20" />
                                         </Grid.RowDefinitions>
 
-                                        <Button Style="{ThemeResource VoiSee.Style.Button.SoundBoardTransport}" Grid.Row="0" Grid.Column="0" x:Name="PlayPauseButton" Content="&#xE768;" FontFamily="Segoe MDL2 Assets" FontSize="22" MinWidth="0" Width="56" Height="48" HorizontalAlignment="Left" VerticalAlignment="Center" Click="OnPlayPauseSoundClick" ToolTipService.ToolTip="Play / Pause">
+                                        <Button Style="{ThemeResource VoiSee.Style.Button.SoundBoardTransport}" Grid.Row="0" Grid.Column="0" x:Name="PlayPauseButton" Content="&#xE768;" FontFamily="Segoe MDL2 Assets" FontSize="22" MinWidth="0" Width="56" Height="48" HorizontalAlignment="Left" VerticalAlignment="Center" Click="OnPlayPauseSoundClick" ToolTipService.ToolTip="{local:Localize Key=Play_Pause_6f97fb8c}">
                                             <Button.RenderTransform>
                                                 <TranslateTransform Y="10" />
                                             </Button.RenderTransform>
@@ -147,9 +147,9 @@
 
                                 <Border Grid.Row="0" Grid.RowSpan="2" Grid.Column="3" Padding="6">
                                     <StackPanel Spacing="6" VerticalAlignment="Top">
-                                        <TextBlock x:Name="SoundVirtualVolumeLabel" Text="SoundBoard → Virtual Mic: 100%" FontWeight="SemiBold" />
+                                        <TextBlock x:Name="SoundVirtualVolumeLabel" Text="{local:Localize Key=SoundBoard_Virtual_Mic_100_40e073b4}" FontWeight="SemiBold" />
                                         <Slider Style="{ThemeResource VoiSee.Style.Slider}" x:Name="SoundVirtualVolumeSlider" Minimum="0" Maximum="1.5" Value="1" StepFrequency="0.01" ValueChanged="OnSoundVolumeChanged" />
-                                        <TextBlock x:Name="SoundMonitorVolumeLabel" Text="SoundBoard → Headphones: 100%" FontWeight="SemiBold" />
+                                        <TextBlock x:Name="SoundMonitorVolumeLabel" Text="{local:Localize Key=SoundBoard_Headphones_100_a6674dd3}" FontWeight="SemiBold" />
                                         <Slider Style="{ThemeResource VoiSee.Style.Slider}" x:Name="SoundMonitorVolumeSlider" Minimum="0" Maximum="1.5" Value="1" StepFrequency="0.01" ValueChanged="OnSoundVolumeChanged" />
                                     </StackPanel>
                                 </Border>
@@ -180,20 +180,20 @@
                                             <ColumnDefinition Width="*" />
                                             <ColumnDefinition Width="*" />
                                         </Grid.ColumnDefinitions>
-                                        <Button Style="{ThemeResource VoiSee.Style.Button}" Grid.Column="0" Content="Create" HorizontalAlignment="Stretch" Click="OnAddCategoryClick" />
-                                        <Button Style="{ThemeResource VoiSee.Style.Button}" Grid.Column="1" Content="Rename" HorizontalAlignment="Stretch" Click="OnRenameCategoryClick" />
-                                        <Button Style="{ThemeResource VoiSee.Style.Button}" Grid.Column="2" Content="Delete" HorizontalAlignment="Stretch" Click="OnDeleteCategoryClick" />
+                                        <Button Style="{ThemeResource VoiSee.Style.Button}" Grid.Column="0" Content="{local:Localize Key=Create_4759498a}" HorizontalAlignment="Stretch" Click="OnAddCategoryClick" />
+                                        <Button Style="{ThemeResource VoiSee.Style.Button}" Grid.Column="1" Content="{local:Localize Key=Rename_3064d79a}" HorizontalAlignment="Stretch" Click="OnRenameCategoryClick" />
+                                        <Button Style="{ThemeResource VoiSee.Style.Button}" Grid.Column="2" Content="{local:Localize Key=Delete_e2d0a549}" HorizontalAlignment="Stretch" Click="OnDeleteCategoryClick" />
                                     </Grid>
                                     <ComboBox Style="{ThemeResource VoiSee.Style.ComboBox}" Grid.Row="1"
                                               x:Name="CategoryComboBox"
-                                              PlaceholderText="Choose category"
+                                              PlaceholderText="{local:Localize Key=Choose_category_1eb0412b}"
                                               DisplayMemberPath="Name"
                                               SelectionChanged="OnCategorySelectionChanged"
                                               HorizontalAlignment="Stretch" />
 
                                     <Border Grid.Row="2" Margin="0,12,0,0" Padding="10" Background="{ThemeResource VoiSee.PanelBackgroundBrush}" BorderBrush="{ThemeResource VoiSee.PanelBorderBrush}" BorderThickness="1" HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
                                         <TextBlock Style="{ThemeResource VoiSee.Style.Text.Secondary}" x:Name="CategoryInfoTextBlock"
-                                                   Text="Categories: 0&#x0a;Tracks in category: 0&#x0a;Category uses: 0"
+                                                   Text="{local:Localize Key=Categories_0_Tracks_in_category_0_Category_use_b07d57db}"
                                                    TextWrapping="Wrap"
                                                    Opacity="0.82" />
                                     </Border>
@@ -207,7 +207,7 @@
                                         <RowDefinition Height="*" />
                                     </Grid.RowDefinitions>
 
-                                    <TextBlock Grid.Row="0" Text="Sounds" FontSize="18" FontWeight="SemiBold" />
+                                    <TextBlock Grid.Row="0" Text="{local:Localize Key=Sounds_6f305c4b}" FontSize="18" FontWeight="SemiBold" />
 
                                     <Grid Grid.Row="1" ColumnSpacing="12" HorizontalAlignment="Stretch">
                                         <Grid.ColumnDefinitions>
@@ -218,14 +218,14 @@
                                         <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="8" HorizontalAlignment="Left">
                                             <TextBox Style="{ThemeResource VoiSee.Style.TextBox}" x:Name="TrackSearchTextBox"
                                                      Width="360"
-                                                     PlaceholderText="Search track"
+                                                     PlaceholderText="{local:Localize Key=Search_track_07345689}"
                                                      KeyDown="OnTrackSearchKeyDown" />
-                                            <Button Style="{ThemeResource VoiSee.Style.Button}" Content="Find" Click="OnSearchTrackClick" />
+                                            <Button Style="{ThemeResource VoiSee.Style.Button}" Content="{local:Localize Key=Find_822b2ae4}" Click="OnSearchTrackClick" />
                                         </StackPanel>
 
                                         <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right">
-                                            <Button Style="{ThemeResource VoiSee.Style.Button}" Content="Add Track" Click="OnAddSoundClick" />
-                                            <Button Style="{ThemeResource VoiSee.Style.Button}" Content="Delete Track" Click="OnDeleteSoundClick" />
+                                            <Button Style="{ThemeResource VoiSee.Style.Button}" Content="{local:Localize Key=Add_Track_c7c2e6a1}" Click="OnAddSoundClick" />
+                                            <Button Style="{ThemeResource VoiSee.Style.Button}" Content="{local:Localize Key=Delete_Track_3bf93739}" Click="OnDeleteSoundClick" />
                                         </StackPanel>
                                     </Grid>
 
@@ -271,14 +271,14 @@
                                 Background="{ThemeResource VoiSee.DropOverlayInnerBackgroundBrush}"
                                 BorderBrush="{ThemeResource VoiSee.DropOverlayInnerBorderBrush}"
                                 BorderThickness="1">
-                            <TextBlock Text="SoundBoard playback is unavailable while a scene is active"
+                            <TextBlock Text="{local:Localize Key=SoundBoard_playback_is_unavailable_while_a_sce_dabc7d53}"
                                        FontWeight="SemiBold"
                                        TextAlignment="Center" />
                         </Border>
                     </Grid>
                 </TabViewItem>
 
-                <TabViewItem x:Name="VoiceChangerTab" Header="Voice Changer" IsClosable="False">
+                <TabViewItem x:Name="VoiceChangerTab" Header="{local:Localize Key=Voice_Changer_0fab9f61}" IsClosable="False">
                     <!-- 12.3.3 buildfix 2: collection controls own their native scrolling; effect library items are generated in code. -->
                     <Grid x:Name="VoiceChangerStudioRoot" Padding="0,16,32,22" ColumnSpacing="14">
                             <Grid.ColumnDefinitions>
@@ -310,13 +310,13 @@
                                         <Grid>
                                             <StackPanel Orientation="Horizontal" Spacing="7">
                                                 <TextBlock Text="☷" FontSize="15" Opacity="0.7" />
-                                                <TextBlock Text="Presets" FontSize="17" FontWeight="SemiBold" />
+                                                <TextBlock Text="{local:Localize Key=Presets_954f93fe}" FontSize="17" FontWeight="SemiBold" />
                                             </StackPanel>
-                                            <Button Style="{ThemeResource VoiSee.Style.Button}" Content="+ New" Height="32" Padding="9,3"
+                                            <Button Style="{ThemeResource VoiSee.Style.Button}" Content="{local:Localize Key=New_af6aa8e6}" Height="32" Padding="9,3"
                                                     HorizontalAlignment="Right" Click="OnNewVoicePresetClick" />
                                         </Grid>
                                         <TextBox Style="{ThemeResource VoiSee.Style.TextBox}" Grid.Row="1"
-                                                 x:Name="VoicePresetSearchBox" PlaceholderText="Search presets..."
+                                                 x:Name="VoicePresetSearchBox" PlaceholderText="{local:Localize Key=Search_presets_7c2d7bbd}"
                                                  TextChanged="OnVoicePresetSearchTextChanged" />
                                         <ListView Grid.Row="2" x:Name="VoicePresetsListView"
                                                   Style="{ThemeResource VoiSee.Style.ListView}"
@@ -334,8 +334,8 @@
                                                 <ColumnDefinition Width="*" />
                                                 <ColumnDefinition Width="*" />
                                             </Grid.ColumnDefinitions>
-                                            <Button Style="{ThemeResource VoiSee.Style.Button}" Content="Import" Height="38" HorizontalAlignment="Stretch" Click="OnImportVoicePresetClick" />
-                                            <Button Style="{ThemeResource VoiSee.Style.Button}" Grid.Column="1" Content="Folder" Height="38" HorizontalAlignment="Stretch" Click="OnOpenVoicePresetsFolderClick" />
+                                            <Button Style="{ThemeResource VoiSee.Style.Button}" Content="{local:Localize Key=Import_2cff9baa}" Height="38" HorizontalAlignment="Stretch" Click="OnImportVoicePresetClick" />
+                                            <Button Style="{ThemeResource VoiSee.Style.Button}" Grid.Column="1" Content="{local:Localize Key=Folder_74ccd433}" Height="38" HorizontalAlignment="Stretch" Click="OnOpenVoicePresetsFolderClick" />
                                         </Grid>
                                     </Grid>
                                 </Border>
@@ -359,16 +359,16 @@
                                             <ColumnDefinition Width="Auto" />
                                         </Grid.ColumnDefinitions>
                                         <Button Style="{ThemeResource VoiSee.Style.Button}" x:Name="VoiceMonitorButton"
-                                                Content="Voice Monitor: Off" Height="36" MinWidth="156" Click="OnToggleVoiceMonitorClick" />
+                                                Content="{local:Localize Key=Voice_Monitor_Off_f0b11e44}" Height="36" MinWidth="156" Click="OnToggleVoiceMonitorClick" />
                                         <Border Grid.Column="1" Padding="8,3" HorizontalAlignment="Center" VerticalAlignment="Center"
                                                 CornerRadius="12" Background="{ThemeResource VoiSee.CardValueBackgroundBrush}">
-                                            <TextBlock x:Name="EffectChainSummaryText" Text="0 active effects" FontSize="10.5" Opacity="0.78" />
+                                            <TextBlock x:Name="EffectChainSummaryText" Text="{local:Localize Key=0_active_effects_e27fcf33}" FontSize="10.5" Opacity="0.78" />
                                         </Border>
                                         <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="6">
                                             <Button Style="{ThemeResource VoiSee.Style.Button}" x:Name="BypassEffectChainButton"
-                                                    Content="Bypass All" Height="36" MinWidth="92" Click="OnBypassEffectChainClick" />
+                                                    Content="{local:Localize Key=Bypass_All_17060eb6}" Height="36" MinWidth="92" Click="OnBypassEffectChainClick" />
                                             <Button Style="{ThemeResource VoiSee.Style.Button}" x:Name="ClearEffectChainButton"
-                                                    Content="Clear Chain" Height="36" MinWidth="92" Click="OnClearEffectChainClick" />
+                                                    Content="{local:Localize Key=Clear_Chain_a740527f}" Height="36" MinWidth="92" Click="OnClearEffectChainClick" />
                                         </StackPanel>
                                     </Grid>
 
@@ -389,8 +389,8 @@
                                                     </Grid.ColumnDefinitions>
                                                     <TextBlock Text="🎙" FontSize="22" HorizontalAlignment="Center" VerticalAlignment="Center" />
                                                     <StackPanel Grid.Column="1" Spacing="0" VerticalAlignment="Center">
-                                                        <TextBlock Text="Microphone In" FontWeight="SemiBold" FontSize="12" />
-                                                        <TextBlock Text="Physical microphone · preprocessed" FontSize="9.5" Opacity="0.54" />
+                                                        <TextBlock Text="{local:Localize Key=Microphone_In_f7bbb9fb}" FontWeight="SemiBold" FontSize="12" />
+                                                        <TextBlock Text="{local:Localize Key=Physical_microphone_preprocessed_9a5e09e1}" FontSize="9.5" Opacity="0.54" TextWrapping="Wrap" />
                                                     </StackPanel>
                                                 </Grid>
                                             </Border>
@@ -423,8 +423,8 @@
                                                     </Grid.ColumnDefinitions>
                                                     <TextBlock Text="🎧" FontSize="22" HorizontalAlignment="Center" VerticalAlignment="Center" />
                                                     <StackPanel Grid.Column="1" Spacing="0" VerticalAlignment="Center">
-                                                        <TextBlock Text="Output / Monitor" FontWeight="SemiBold" FontSize="12" />
-                                                        <TextBlock Text="Processed voice to Virtual Mic" FontSize="9.5" Opacity="0.54" />
+                                                        <TextBlock Text="{local:Localize Key=Output_Monitor_fc303ff5}" FontWeight="SemiBold" FontSize="12" />
+                                                        <TextBlock Text="{local:Localize Key=Processed_voice_to_Virtual_Mic_bfc48361}" FontSize="9.5" Opacity="0.54" />
                                                     </StackPanel>
                                                 </Grid>
                                             </Border>
@@ -449,7 +449,7 @@
                                     <Grid>
                                         <StackPanel Orientation="Horizontal" Spacing="7">
                                             <TextBlock Text="◇" FontSize="17" Opacity="0.7" />
-                                            <TextBlock Text="Effect Library" FontSize="17" FontWeight="SemiBold" />
+                                            <TextBlock Text="{local:Localize Key=Effect_Library_7161d85c}" FontSize="17" FontWeight="SemiBold" />
                                         </StackPanel>
                                         <Button Style="{ThemeResource VoiSee.Style.Button}" Content="☷" Width="34" Height="30" Padding="0" HorizontalAlignment="Right" />
                                     </Grid>
@@ -459,15 +459,15 @@
                                             <ColumnDefinition Width="146" />
                                         </Grid.ColumnDefinitions>
                                         <TextBox Style="{ThemeResource VoiSee.Style.TextBox}" x:Name="EffectLibrarySearchBox"
-                                                 PlaceholderText="Search effects..." TextChanged="OnEffectLibrarySearchTextChanged" />
+                                                 PlaceholderText="{local:Localize Key=Search_effects_e9aa1f77}" TextChanged="OnEffectLibrarySearchTextChanged" />
                                         <ComboBox Style="{ThemeResource VoiSee.Style.ComboBox}" Grid.Column="1" x:Name="EffectLibraryFilterComboBox"
                                                   HorizontalAlignment="Stretch" SelectionChanged="OnEffectLibraryFilterSelectionChanged" SelectedIndex="0">
-                                            <ComboBoxItem Content="All Categories" Tag="All" />
-                                            <ComboBoxItem Content="Utility" Tag="Utility" />
-                                            <ComboBoxItem Content="Dynamics" Tag="Dynamics" />
-                                            <ComboBoxItem Content="Tone" Tag="Tone" />
-                                            <ComboBoxItem Content="Space" Tag="Space" />
-                                            <ComboBoxItem Content="Character" Tag="Special" />
+                                            <ComboBoxItem Content="{local:Localize Key=All_Categories_fe3b58f1}" Tag="All" />
+                                            <ComboBoxItem Content="{local:Localize Key=Utility_9450d833}" Tag="Utility" />
+                                            <ComboBoxItem Content="{local:Localize Key=Dynamics_47937d13}" Tag="Dynamics" />
+                                            <ComboBoxItem Content="{local:Localize Key=Tone_c2c8b72e}" Tag="Tone" />
+                                            <ComboBoxItem Content="{local:Localize Key=Space_20eac5aa}" Tag="Space" />
+                                            <ComboBoxItem Content="{local:Localize Key=Character_1405a63e}" Tag="Special" />
                                         </ComboBox>
                                     </Grid>
                                     <Border Grid.Row="2" Padding="9,7" CornerRadius="{ThemeResource VoiSee.CornerRadius.Small}"
@@ -491,106 +491,106 @@
                                          ListView.Items. The visible library cards are created in code after
                                          InitializeComponent(), which avoids the WinUI 1.6 incremental XAML namescope issue. -->
                                     <StackPanel Grid.Row="3" x:Name="EffectLibraryCompatibilityControls" Visibility="Collapsed">
-                                        <TextBlock x:Name="VoiceGainLabel" Text="Voice Gain" />
+                                        <TextBlock x:Name="VoiceGainLabel" Text="{local:Localize Key=Voice_Gain_85e54875}" />
                                         <TextBox x:Name="VoiceGainValueBox" Text="0" MaxLength="6" TextChanged="OnVoiceValueTextChanged" />
                                         <Slider x:Name="VoiceGainSlider" Minimum="-100" Maximum="100" Value="0" StepFrequency="1" ValueChanged="OnVoiceSettingsChanged" />
-                                        <TextBlock x:Name="GateThresholdLabel" Text="Gate" />
+                                        <TextBlock x:Name="GateThresholdLabel" Text="{local:Localize Key=Gate_fa77a525}" />
                                         <TextBox x:Name="GateThresholdValueBox" Text="0" MaxLength="6" TextChanged="OnVoiceValueTextChanged" />
                                         <Slider x:Name="GateThresholdSlider" Minimum="0" Maximum="100" Value="0" StepFrequency="1" ValueChanged="OnVoiceSettingsChanged" />
-                                        <TextBlock x:Name="CompressorThresholdLabel" Text="Compressor" />
+                                        <TextBlock x:Name="CompressorThresholdLabel" Text="{local:Localize Key=Compressor_75e948e4}" />
                                         <TextBox x:Name="CompressorThresholdValueBox" Text="0" MaxLength="6" TextChanged="OnVoiceValueTextChanged" />
                                         <Slider x:Name="CompressorThresholdSlider" Minimum="0" Maximum="200" Value="0" StepFrequency="1" ValueChanged="OnVoiceSettingsChanged" />
-                                        <TextBlock x:Name="PitchLabel" Text="Pitch" />
+                                        <TextBlock x:Name="PitchLabel" Text="{local:Localize Key=Pitch_6af11cc5}" />
                                         <TextBox x:Name="PitchValueBox" Text="0" MaxLength="6" TextChanged="OnVoiceValueTextChanged" />
                                         <Slider x:Name="PitchSlider" Minimum="-100" Maximum="100" Value="0" StepFrequency="1" ValueChanged="OnVoiceSettingsChanged" />
-                                        <TextBlock x:Name="FormantLabel" Text="Formant" />
+                                        <TextBlock x:Name="FormantLabel" Text="{local:Localize Key=Formant_5f2de693}" />
                                         <TextBox x:Name="FormantValueBox" Text="0" MaxLength="6" TextChanged="OnVoiceValueTextChanged" />
                                         <Slider x:Name="FormantSlider" Minimum="-100" Maximum="100" Value="0" StepFrequency="1" ValueChanged="OnVoiceSettingsChanged" />
-                                        <TextBlock x:Name="BassLabel" Text="Bass" />
+                                        <TextBlock x:Name="BassLabel" Text="{local:Localize Key=Bass_ca445e86}" />
                                         <TextBox x:Name="BassValueBox" Text="0" MaxLength="6" TextChanged="OnVoiceValueTextChanged" />
                                         <Slider x:Name="BassSlider" Minimum="-100" Maximum="100" Value="0" StepFrequency="1" ValueChanged="OnVoiceSettingsChanged" />
-                                        <TextBlock x:Name="TrebleLabel" Text="Treble" />
+                                        <TextBlock x:Name="TrebleLabel" Text="{local:Localize Key=Treble_7891c4a9}" />
                                         <TextBox x:Name="TrebleValueBox" Text="0" MaxLength="6" TextChanged="OnVoiceValueTextChanged" />
                                         <Slider x:Name="TrebleSlider" Minimum="-100" Maximum="100" Value="0" StepFrequency="1" ValueChanged="OnVoiceSettingsChanged" />
-                                        <TextBlock x:Name="TremoloLabel" Text="Tremolo" />
+                                        <TextBlock x:Name="TremoloLabel" Text="{local:Localize Key=Tremolo_fd73295b}" />
                                         <TextBox x:Name="TremoloValueBox" Text="0" MaxLength="6" TextChanged="OnVoiceValueTextChanged" />
                                         <Slider x:Name="TremoloSlider" Minimum="0" Maximum="100" Value="0" StepFrequency="1" ValueChanged="OnVoiceSettingsChanged" />
-                                        <TextBlock x:Name="EchoLabel" Text="Echo" />
+                                        <TextBlock x:Name="EchoLabel" Text="{local:Localize Key=Echo_8335e4c9}" />
                                         <TextBox x:Name="EchoValueBox" Text="0" MaxLength="6" TextChanged="OnVoiceValueTextChanged" />
                                         <Slider x:Name="EchoSlider" Minimum="0" Maximum="100" Value="0" StepFrequency="1" ValueChanged="OnVoiceSettingsChanged" />
-                                        <TextBlock x:Name="ReverbLabel" Text="Reverb" />
+                                        <TextBlock x:Name="ReverbLabel" Text="{local:Localize Key=Reverb_bf7d7f51}" />
                                         <TextBox x:Name="ReverbValueBox" Text="0" MaxLength="6" TextChanged="OnVoiceValueTextChanged" />
                                         <Slider x:Name="ReverbSlider" Minimum="0" Maximum="100" Value="0" StepFrequency="1" ValueChanged="OnVoiceSettingsChanged" />
-                                        <TextBlock x:Name="DistortionLabel" Text="Distortion" />
+                                        <TextBlock x:Name="DistortionLabel" Text="{local:Localize Key=Distortion_ab6e8c54}" />
                                         <TextBox x:Name="DistortionValueBox" Text="0" MaxLength="6" TextChanged="OnVoiceValueTextChanged" />
                                         <Slider x:Name="DistortionSlider" Minimum="0" Maximum="100" Value="0" StepFrequency="1" ValueChanged="OnVoiceSettingsChanged" />
-                                        <TextBlock x:Name="RobotLabel" Text="Robot" />
+                                        <TextBlock x:Name="RobotLabel" Text="{local:Localize Key=Robot_3bf6b51b}" />
                                         <TextBox x:Name="RobotValueBox" Text="0" MaxLength="6" TextChanged="OnVoiceValueTextChanged" />
                                         <Slider x:Name="RobotSlider" Minimum="0" Maximum="100" Value="0" StepFrequency="1" ValueChanged="OnVoiceSettingsChanged" />
-                                        <TextBlock x:Name="RadioLabel" Text="Radio" />
+                                        <TextBlock x:Name="RadioLabel" Text="{local:Localize Key=Radio_2a7dfeb2}" />
                                         <TextBox x:Name="RadioValueBox" Text="0" MaxLength="6" TextChanged="OnVoiceValueTextChanged" />
                                         <Slider x:Name="RadioSlider" Minimum="0" Maximum="100" Value="0" StepFrequency="1" ValueChanged="OnVoiceSettingsChanged" />
-                                        <TextBlock x:Name="BitCrusherLabel" Text="Bit Crusher" />
+                                        <TextBlock x:Name="BitCrusherLabel" Text="{local:Localize Key=Bit_Crusher_6b8f0f97}" />
                                         <TextBox x:Name="BitCrusherValueBox" Text="0" MaxLength="6" TextChanged="OnVoiceValueTextChanged" />
                                         <Slider x:Name="BitCrusherSlider" Minimum="0" Maximum="100" Value="0" StepFrequency="1" ValueChanged="OnVoiceSettingsChanged" />
-                                        <TextBlock x:Name="AlienLabel" Text="Alien" />
+                                        <TextBlock x:Name="AlienLabel" Text="{local:Localize Key=Alien_72e4646b}" />
                                         <TextBox x:Name="AlienValueBox" Text="0" MaxLength="6" TextChanged="OnVoiceValueTextChanged" />
                                         <Slider x:Name="AlienSlider" Minimum="0" Maximum="100" Value="0" StepFrequency="1" ValueChanged="OnVoiceSettingsChanged" />
-                                        <TextBlock x:Name="ChorusLabel" Text="Chorus" />
+                                        <TextBlock x:Name="ChorusLabel" Text="{local:Localize Key=Chorus_89ae15b9}" />
                                         <TextBox x:Name="ChorusValueBox" Text="0" MaxLength="6" TextChanged="OnVoiceValueTextChanged" />
                                         <Slider x:Name="ChorusSlider" Minimum="0" Maximum="100" Value="0" StepFrequency="1" ValueChanged="OnVoiceSettingsChanged" />
-                                        <TextBlock x:Name="FlangerLabel" Text="Flanger" />
+                                        <TextBlock x:Name="FlangerLabel" Text="{local:Localize Key=Flanger_1c35e606}" />
                                         <TextBox x:Name="FlangerValueBox" Text="0" MaxLength="6" TextChanged="OnVoiceValueTextChanged" />
                                         <Slider x:Name="FlangerSlider" Minimum="0" Maximum="100" Value="0" StepFrequency="1" ValueChanged="OnVoiceSettingsChanged" />
-                                        <TextBlock x:Name="PhaserLabel" Text="Phaser" />
+                                        <TextBlock x:Name="PhaserLabel" Text="{local:Localize Key=Phaser_1083767b}" />
                                         <TextBox x:Name="PhaserValueBox" Text="0" MaxLength="6" TextChanged="OnVoiceValueTextChanged" />
                                         <Slider x:Name="PhaserSlider" Minimum="0" Maximum="100" Value="0" StepFrequency="1" ValueChanged="OnVoiceSettingsChanged" />
-                                        <TextBlock x:Name="VibratoLabel" Text="Vibrato" />
+                                        <TextBlock x:Name="VibratoLabel" Text="{local:Localize Key=Vibrato_d2af1e9d}" />
                                         <TextBox x:Name="VibratoValueBox" Text="0" MaxLength="6" TextChanged="OnVoiceValueTextChanged" />
                                         <Slider x:Name="VibratoSlider" Minimum="0" Maximum="100" Value="0" StepFrequency="1" ValueChanged="OnVoiceSettingsChanged" />
-                                        <TextBlock x:Name="DoublerLabel" Text="Doubler" />
+                                        <TextBlock x:Name="DoublerLabel" Text="{local:Localize Key=Doubler_031420b5}" />
                                         <TextBox x:Name="DoublerValueBox" Text="0" MaxLength="6" TextChanged="OnVoiceValueTextChanged" />
                                         <Slider x:Name="DoublerSlider" Minimum="0" Maximum="100" Value="0" StepFrequency="1" ValueChanged="OnVoiceSettingsChanged" />
-                                        <TextBlock x:Name="RingModLabel" Text="Ring Mod" />
+                                        <TextBlock x:Name="RingModLabel" Text="{local:Localize Key=Ring_Mod_71c5faf9}" />
                                         <TextBox x:Name="RingModValueBox" Text="0" MaxLength="6" TextChanged="OnVoiceValueTextChanged" />
                                         <Slider x:Name="RingModSlider" Minimum="0" Maximum="100" Value="0" StepFrequency="1" ValueChanged="OnVoiceSettingsChanged" />
-                                        <TextBlock x:Name="ChipmunkLabel" Text="Chipmunk" />
+                                        <TextBlock x:Name="ChipmunkLabel" Text="{local:Localize Key=Chipmunk_04ca704f}" />
                                         <TextBox x:Name="ChipmunkValueBox" Text="0" MaxLength="6" TextChanged="OnVoiceValueTextChanged" />
                                         <Slider x:Name="ChipmunkSlider" Minimum="0" Maximum="100" Value="0" StepFrequency="1" ValueChanged="OnVoiceSettingsChanged" />
-                                        <TextBlock x:Name="GiantLabel" Text="Giant" />
+                                        <TextBlock x:Name="GiantLabel" Text="{local:Localize Key=Giant_db5bea37}" />
                                         <TextBox x:Name="GiantValueBox" Text="0" MaxLength="6" TextChanged="OnVoiceValueTextChanged" />
                                         <Slider x:Name="GiantSlider" Minimum="0" Maximum="100" Value="0" StepFrequency="1" ValueChanged="OnVoiceSettingsChanged" />
-                                        <TextBlock x:Name="GhostLabel" Text="Ghost" />
+                                        <TextBlock x:Name="GhostLabel" Text="{local:Localize Key=Ghost_df1bc498}" />
                                         <TextBox x:Name="GhostValueBox" Text="0" MaxLength="6" TextChanged="OnVoiceValueTextChanged" />
                                         <Slider x:Name="GhostSlider" Minimum="0" Maximum="100" Value="0" StepFrequency="1" ValueChanged="OnVoiceSettingsChanged" />
-                                        <TextBlock x:Name="StutterLabel" Text="Stutter" />
+                                        <TextBlock x:Name="StutterLabel" Text="{local:Localize Key=Stutter_3dd08259}" />
                                         <TextBox x:Name="StutterValueBox" Text="0" MaxLength="6" TextChanged="OnVoiceValueTextChanged" />
                                         <Slider x:Name="StutterSlider" Minimum="0" Maximum="100" Value="0" StepFrequency="1" ValueChanged="OnVoiceSettingsChanged" />
-                                        <TextBlock x:Name="WobblyLabel" Text="Wobbly" />
+                                        <TextBlock x:Name="WobblyLabel" Text="{local:Localize Key=Wobbly_9f8aa090}" />
                                         <TextBox x:Name="WobblyValueBox" Text="0" MaxLength="6" TextChanged="OnVoiceValueTextChanged" />
                                         <Slider x:Name="WobblySlider" Minimum="0" Maximum="100" Value="0" StepFrequency="1" ValueChanged="OnVoiceSettingsChanged" />
-                                        <TextBlock x:Name="GenderMaleLabel" Text="Gender Male" />
+                                        <TextBlock x:Name="GenderMaleLabel" Text="{local:Localize Key=Gender_Male_66b5b012}" />
                                         <TextBox x:Name="GenderMaleValueBox" Text="0" MaxLength="6" TextChanged="OnVoiceValueTextChanged" />
                                         <Slider x:Name="GenderMaleSlider" Minimum="0" Maximum="100" Value="0" StepFrequency="1" ValueChanged="OnVoiceSettingsChanged" />
-                                        <TextBlock x:Name="GenderFemaleLabel" Text="Gender Female" />
+                                        <TextBlock x:Name="GenderFemaleLabel" Text="{local:Localize Key=Gender_Female_919650a6}" />
                                         <TextBox x:Name="GenderFemaleValueBox" Text="0" MaxLength="6" TextChanged="OnVoiceValueTextChanged" />
                                         <Slider x:Name="GenderFemaleSlider" Minimum="0" Maximum="100" Value="0" StepFrequency="1" ValueChanged="OnVoiceSettingsChanged" />
-                                        <TextBlock x:Name="PossessedLabel" Text="Possessed" />
+                                        <TextBlock x:Name="PossessedLabel" Text="{local:Localize Key=Possessed_ef0b496b}" />
                                         <TextBox x:Name="PossessedValueBox" Text="0" MaxLength="6" TextChanged="OnVoiceValueTextChanged" />
                                         <Slider x:Name="PossessedSlider" Minimum="0" Maximum="100" Value="0" StepFrequency="1" ValueChanged="OnVoiceSettingsChanged" />
-                                        <TextBlock x:Name="MegaphoneLabel" Text="Megaphone" />
+                                        <TextBlock x:Name="MegaphoneLabel" Text="{local:Localize Key=Megaphone_b9b9cdc7}" />
                                         <TextBox x:Name="MegaphoneValueBox" Text="0" MaxLength="6" TextChanged="OnVoiceValueTextChanged" />
                                         <Slider x:Name="MegaphoneSlider" Minimum="0" Maximum="100" Value="0" StepFrequency="1" ValueChanged="OnVoiceSettingsChanged" />
-                                        <TextBlock x:Name="HelicopterLabel" Text="Helicopter" />
+                                        <TextBlock x:Name="HelicopterLabel" Text="{local:Localize Key=Helicopter_0fa9e71f}" />
                                         <TextBox x:Name="HelicopterValueBox" Text="0" MaxLength="6" TextChanged="OnVoiceValueTextChanged" />
                                         <Slider x:Name="HelicopterSlider" Minimum="0" Maximum="100" Value="0" StepFrequency="1" ValueChanged="OnVoiceSettingsChanged" />
-                                        <TextBlock x:Name="CyborgLabel" Text="Cyborg" />
+                                        <TextBlock x:Name="CyborgLabel" Text="{local:Localize Key=Cyborg_b98c9f3a}" />
                                         <TextBox x:Name="CyborgValueBox" Text="0" MaxLength="6" TextChanged="OnVoiceValueTextChanged" />
                                         <Slider x:Name="CyborgSlider" Minimum="0" Maximum="100" Value="0" StepFrequency="1" ValueChanged="OnVoiceSettingsChanged" />
-                                        <TextBlock x:Name="BrokenRadioLabel" Text="Broken Radio" />
+                                        <TextBlock x:Name="BrokenRadioLabel" Text="{local:Localize Key=Broken_Radio_ef820c0f}" />
                                         <TextBox x:Name="BrokenRadioValueBox" Text="0" MaxLength="6" TextChanged="OnVoiceValueTextChanged" />
                                         <Slider x:Name="BrokenRadioSlider" Minimum="0" Maximum="100" Value="0" StepFrequency="1" ValueChanged="OnVoiceSettingsChanged" />
-                                        <TextBlock x:Name="VocoderLabel" Text="Vocoder" />
+                                        <TextBlock x:Name="VocoderLabel" Text="{local:Localize Key=Vocoder_927878ea}" />
                                         <TextBox x:Name="VocoderValueBox" Text="0" MaxLength="6" TextChanged="OnVoiceValueTextChanged" />
                                         <Slider x:Name="VocoderSlider" Minimum="0" Maximum="100" Value="0" StepFrequency="1" ValueChanged="OnVoiceSettingsChanged" />
                                     </StackPanel>
@@ -612,7 +612,7 @@
                     </Grid>
                 </TabViewItem>
 
-                <TabViewItem Header="Scenes" IsClosable="False">
+                <TabViewItem Header="{local:Localize Key=Scenes_160c0535}" IsClosable="False">
                     <Grid x:Name="ScenesTabRoot" Padding="0,16,48,24" RowSpacing="14">
                         <Grid.RowDefinitions>
                             <RowDefinition Height="Auto" />
@@ -620,8 +620,8 @@
                         </Grid.RowDefinitions>
 
                         <StackPanel Grid.Row="0" Spacing="4">
-                            <TextBlock Text="Scenes" FontSize="20" FontWeight="SemiBold" />
-                            <TextBlock Text="Scene editor: activate scenes, choose a voice preset, set one looped sound, and assign scene-local sound hotkeys." Opacity="0.72" TextWrapping="Wrap" />
+                            <TextBlock Text="{local:Localize Key=Scenes_160c0535}" FontSize="20" FontWeight="SemiBold" />
+                            <TextBlock Text="{local:Localize Key=Scene_editor_activate_scenes_choose_a_voice_pr_6820a7b9}" Opacity="0.72" TextWrapping="Wrap" />
                         </StackPanel>
 
                         <Grid Grid.Row="1" ColumnSpacing="18">
@@ -631,7 +631,7 @@
                             </Grid.ColumnDefinitions>
 
                             <StackPanel Grid.Column="0" Spacing="10">
-                                <TextBlock Text="Saved scenes" FontSize="18" FontWeight="SemiBold" />
+                                <TextBlock Text="{local:Localize Key=Saved_scenes_93f62b4d}" FontSize="18" FontWeight="SemiBold" />
                                 <ListView Style="{ThemeResource VoiSee.Style.ListView}" ItemContainerStyle="{ThemeResource VoiSee.Style.ListViewItem}"
                                           x:Name="ScenesListView" SelectionChanged="OnSceneSelectionChanged"
                                           Height="300"
@@ -665,11 +665,11 @@
                                         <RowDefinition Height="Auto" />
                                         <RowDefinition Height="Auto" />
                                     </Grid.RowDefinitions>
-                                    <Button Style="{ThemeResource VoiSee.Style.Button.SceneAction}" Grid.Row="0" Grid.Column="0" x:Name="SceneApplyButton" Content="Apply" HorizontalAlignment="Stretch" Click="OnApplySceneClick" />
-                                    <Button Style="{ThemeResource VoiSee.Style.Button.SceneAction}" Grid.Row="0" Grid.Column="1" x:Name="SceneDisableButton" Content="Disable" HorizontalAlignment="Stretch" Click="OnDisableScenesClick" />
-                                    <Button Style="{ThemeResource VoiSee.Style.Button.SceneAction}" Grid.Row="1" Grid.Column="0" x:Name="SceneDeleteButton" Content="Delete" HorizontalAlignment="Stretch" Click="OnDeleteSceneClick" />
-                                    <Button Style="{ThemeResource VoiSee.Style.Button.SceneAction}" Grid.Row="1" Grid.Column="1" x:Name="SceneRenameButton" Content="Rename" HorizontalAlignment="Stretch" Click="OnRenameSceneClick" />
-                                    <Button Style="{ThemeResource VoiSee.Style.Button.SceneAction}" Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="2" x:Name="SceneCreateNewButton" Content="Create New" HorizontalAlignment="Stretch" Click="OnCreateNewSceneClick" />
+                                    <Button Style="{ThemeResource VoiSee.Style.Button.SceneAction}" Grid.Row="0" Grid.Column="0" x:Name="SceneApplyButton" Content="{local:Localize Key=Apply_31e392d1}" HorizontalAlignment="Stretch" Click="OnApplySceneClick" />
+                                    <Button Style="{ThemeResource VoiSee.Style.Button.SceneAction}" Grid.Row="0" Grid.Column="1" x:Name="SceneDisableButton" Content="{local:Localize Key=Disable_b7e3e4aa}" HorizontalAlignment="Stretch" Click="OnDisableScenesClick" />
+                                    <Button Style="{ThemeResource VoiSee.Style.Button.SceneAction}" Grid.Row="1" Grid.Column="0" x:Name="SceneDeleteButton" Content="{local:Localize Key=Delete_e2d0a549}" HorizontalAlignment="Stretch" Click="OnDeleteSceneClick" />
+                                    <Button Style="{ThemeResource VoiSee.Style.Button.SceneAction}" Grid.Row="1" Grid.Column="1" x:Name="SceneRenameButton" Content="{local:Localize Key=Rename_3064d79a}" HorizontalAlignment="Stretch" Click="OnRenameSceneClick" />
+                                    <Button Style="{ThemeResource VoiSee.Style.Button.SceneAction}" Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="2" x:Name="SceneCreateNewButton" Content="{local:Localize Key=Create_New_e7b9e9c2}" HorizontalAlignment="Stretch" Click="OnCreateNewSceneClick" />
                                 </Grid>
                             </StackPanel>
 
@@ -682,9 +682,9 @@
                                         <RowDefinition Height="*" />
                                     </Grid.RowDefinitions>
 
-                                    <TextBlock x:Name="SceneDetailsTitleTextBlock" Grid.Row="0" Text="Scene details" FontSize="18" FontWeight="SemiBold" />
+                                    <TextBlock x:Name="SceneDetailsTitleTextBlock" Grid.Row="0" Text="{local:Localize Key=Scene_details_56b2fb91}" FontSize="18" FontWeight="SemiBold" />
 
-                                    <TextBlock Grid.Row="1" Text="Scene Settings" FontSize="16" FontWeight="SemiBold" />
+                                    <TextBlock Grid.Row="1" Text="{local:Localize Key=Scene_Settings_54ecd3b7}" FontSize="16" FontWeight="SemiBold" />
 
                                     <Grid Grid.Row="2" ColumnSpacing="18">
                                         <Grid.ColumnDefinitions>
@@ -698,7 +698,7 @@
                                                     <ColumnDefinition Width="Auto" />
                                                     <ColumnDefinition Width="*" />
                                                 </Grid.ColumnDefinitions>
-                                                <TextBlock Text="Background source" FontWeight="SemiBold" VerticalAlignment="Center" />
+                                                <TextBlock Text="{local:Localize Key=Background_source_c51cfd76}" FontWeight="SemiBold" VerticalAlignment="Center" />
                                                 <ComboBox Style="{ThemeResource VoiSee.Style.ComboBox}"
                                                           Grid.Column="1"
                                                           x:Name="SceneBackgroundTypeComboBox"
@@ -714,14 +714,14 @@
                                                         <ColumnDefinition Width="Auto" />
                                                         <ColumnDefinition Width="Auto" />
                                                     </Grid.ColumnDefinitions>
-                                                    <TextBlock Grid.Column="0" Text="Looped Sound" FontWeight="SemiBold" VerticalAlignment="Center" />
+                                                    <TextBlock Grid.Column="0" Text="{local:Localize Key=Looped_Sound_1f4a1636}" FontWeight="SemiBold" VerticalAlignment="Center" />
                                                     <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
-                                                        <TextBlock Text="HP" Opacity="0.72" FontSize="12" VerticalAlignment="Center" />
+                                                        <TextBlock Text="{local:Localize Key=HP_9449a7aa}" Opacity="0.72" FontSize="12" VerticalAlignment="Center" />
                                                         <Slider Style="{ThemeResource VoiSee.Style.Slider}" x:Name="SceneLoopHeadphonesVolumeSlider" Minimum="0" Maximum="1.5" Value="1" StepFrequency="0.01" Width="84" ValueChanged="OnSceneVolumeChanged" />
                                                         <TextBlock x:Name="SceneLoopHeadphonesVolumeValueBox" Text="100%" Opacity="0.72" FontSize="12" Width="36" VerticalAlignment="Center" />
                                                     </StackPanel>
                                                     <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
-                                                        <TextBlock Text="Mic" Opacity="0.72" FontSize="12" VerticalAlignment="Center" />
+                                                        <TextBlock Text="{local:Localize Key=Mic_1f0ebc69}" Opacity="0.72" FontSize="12" VerticalAlignment="Center" />
                                                         <Slider Style="{ThemeResource VoiSee.Style.Slider}" x:Name="SceneLoopVirtualMicVolumeSlider" Minimum="0" Maximum="1.5" Value="1" StepFrequency="0.01" Width="84" ValueChanged="OnSceneVolumeChanged" />
                                                         <TextBlock x:Name="SceneLoopVirtualMicVolumeValueBox" Text="100%" Opacity="0.72" FontSize="12" Width="36" VerticalAlignment="Center" />
                                                     </StackPanel>
@@ -733,24 +733,24 @@
                                                     </Grid.ColumnDefinitions>
                                                     <Grid Grid.Column="0" x:Name="LoopedSceneSoundsPanel" Height="88" />
                                                     <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="4" VerticalAlignment="Top">
-                                                        <Button Style="{ThemeResource VoiSee.Style.Button}" x:Name="SceneLoopPlayLoopButton" Content="∞" Width="42" Height="42" Click="OnSceneLoopPlayLoopClick" ToolTipService.ToolTip="Start loop" />
-                                                        <Button Style="{ThemeResource VoiSee.Style.Button}" x:Name="SceneLoopPlayOnceButton" Content="&#xE768;" FontFamily="Segoe MDL2 Assets" Width="42" Height="42" FontSize="16" Click="OnSceneLoopPlayOnceClick" ToolTipService.ToolTip="Play / pause looped sound" />
-                                                        <Button Style="{ThemeResource VoiSee.Style.Button}" x:Name="SceneLoopRemoveButton" Content="✕" Width="42" Height="42" Click="OnSceneLoopRemoveClick" ToolTipService.ToolTip="Remove sound" />
-                                                        <Button Style="{ThemeResource VoiSee.Style.Button}" x:Name="SceneLoopChooseButton" Content="⮏" Width="42" Height="42" Click="OnSceneLoopChooseClick" ToolTipService.ToolTip="Choose another sound" />
+                                                        <Button Style="{ThemeResource VoiSee.Style.Button}" x:Name="SceneLoopPlayLoopButton" Content="∞" Width="42" Height="42" Click="OnSceneLoopPlayLoopClick" ToolTipService.ToolTip="{local:Localize Key=Start_loop_ddeb75f3}" />
+                                                        <Button Style="{ThemeResource VoiSee.Style.Button}" x:Name="SceneLoopPlayOnceButton" Content="&#xE768;" FontFamily="Segoe MDL2 Assets" Width="42" Height="42" FontSize="16" Click="OnSceneLoopPlayOnceClick" ToolTipService.ToolTip="{local:Localize Key=Play_pause_looped_sound_f1afd37c}" />
+                                                        <Button Style="{ThemeResource VoiSee.Style.Button}" x:Name="SceneLoopRemoveButton" Content="✕" Width="42" Height="42" Click="OnSceneLoopRemoveClick" ToolTipService.ToolTip="{local:Localize Key=Remove_sound_55fd43d2}" />
+                                                        <Button Style="{ThemeResource VoiSee.Style.Button}" x:Name="SceneLoopChooseButton" Content="⮏" Width="42" Height="42" Click="OnSceneLoopChooseClick" ToolTipService.ToolTip="{local:Localize Key=Choose_another_sound_76dabdd8}" />
                                                     </StackPanel>
                                                 </Grid>
                                                 <CheckBox Style="{ThemeResource VoiSee.Style.CheckBox}" x:Name="SceneAutostartLoopsCheckBox"
-                                                          Content="Start looped sound when scene is enabled"
+                                                          Content="{local:Localize Key=Start_looped_sound_when_scene_is_enabled_79755373}"
                                                           Checked="OnSceneAutostartLoopsChanged"
                                                           Unchecked="OnSceneAutostartLoopsChanged" />
                                             </StackPanel>
 
                                             <StackPanel x:Name="SceneMediaBackgroundPanel" Spacing="8" Visibility="Collapsed">
-                                                <TextBlock Text="Media Source" FontWeight="SemiBold" VerticalAlignment="Center" />
+                                                <TextBlock Text="{local:Localize Key=Media_Source_fdaeb638}" FontWeight="SemiBold" VerticalAlignment="Center" />
                                                 <ComboBox Style="{ThemeResource VoiSee.Style.ComboBox}"
                                                           x:Name="SceneMediaProfileComboBox"
                                                           DisplayMemberPath="DisplayName"
-                                                          PlaceholderText="Select a profile created in Media Bridge"
+                                                          PlaceholderText="{local:Localize Key=Select_a_profile_created_in_Media_Bridge_d03ef508}"
                                                           HorizontalAlignment="Stretch"
                                                           SelectionChanged="OnSceneMediaProfileSelectionChanged" />
                                                 <Border Padding="10,8" Background="{ThemeResource VoiSee.CardValueBackgroundBrush}" BorderBrush="{ThemeResource VoiSee.CardValueBorderBrush}" BorderThickness="1" CornerRadius="{ThemeResource VoiSee.CornerRadius.Medium}">
@@ -762,36 +762,36 @@
                                                         <Button Grid.Column="0"
                                                                 Style="{ThemeResource VoiSee.Style.Button}"
                                                                 x:Name="SceneMediaLaunchSourceButton"
-                                                                Content="Launch"
+                                                                Content="{local:Localize Key=Launch_ccf56ef5}"
                                                                 MinWidth="82"
                                                                 Click="OnSceneMediaLaunchSourceClick"
-                                                                ToolTipService.ToolTip="Launch the selected application or open its browser fallback" />
+                                                                ToolTipService.ToolTip="{local:Localize Key=Launch_the_selected_application_or_open_its_br_5e4b0a21}" />
                                                         <TextBlock Grid.Column="1"
                                                                    x:Name="SceneMediaSourceNameTextBlock"
-                                                                   Text="No media source selected"
+                                                                   Text="{local:Localize Key=No_media_source_selected_331a32f0}"
                                                                    TextWrapping="Wrap"
                                                                    VerticalAlignment="Center" />
                                                     </Grid>
                                                 </Border>
                                                 <CheckBox Style="{ThemeResource VoiSee.Style.CheckBox}" x:Name="SceneCaptureMediaOnStartCheckBox"
-                                                          Content="Capture source when scene starts"
+                                                          Content="{local:Localize Key=Capture_source_when_scene_starts_b8d6c439}"
                                                           Checked="OnSceneCaptureMediaOnStartChanged"
                                                           Unchecked="OnSceneCaptureMediaOnStartChanged" />
                                             </StackPanel>
                                         </StackPanel>
 
                                         <StackPanel Grid.Column="1" Spacing="8">
-                                            <TextBlock Text="Voice settings" FontWeight="SemiBold" />
+                                            <TextBlock Text="{local:Localize Key=Voice_settings_f2647154}" FontWeight="SemiBold" />
                                             <ComboBox Style="{ThemeResource VoiSee.Style.ComboBox}" x:Name="SceneVoicePresetComboBox"
                                                       DisplayMemberPath="Name"
-                                                      PlaceholderText="Voice preset"
+                                                      PlaceholderText="{local:Localize Key=Voice_preset_d619c2ce}"
                                                       HorizontalAlignment="Stretch"
                                                       SelectionChanged="OnSceneVoicePresetSelectionChanged" />
                                             <StackPanel Orientation="Horizontal" Spacing="8">
-                                                <Button Style="{ThemeResource VoiSee.Style.Button}" x:Name="SceneVoicePresetClearButton" Content="Clear" MinWidth="78" Click="OnSceneVoicePresetClearClick" />
-                                                <Button Style="{ThemeResource VoiSee.Style.Button}" x:Name="SceneVoicePresetCreateButton" Content="Create new" MinWidth="104" Click="OnSceneVoicePresetCreateClick" />
+                                                <Button Style="{ThemeResource VoiSee.Style.Button}" x:Name="SceneVoicePresetClearButton" Content="{local:Localize Key=Clear_83b12c22}" MinWidth="78" Click="OnSceneVoicePresetClearClick" />
+                                                <Button Style="{ThemeResource VoiSee.Style.Button}" x:Name="SceneVoicePresetCreateButton" Content="{local:Localize Key=Create_new_9f3df753}" MinWidth="104" Click="OnSceneVoicePresetCreateClick" />
                                                 <Button Style="{ThemeResource VoiSee.Style.Button}" x:Name="SceneVoiceMonitorButton"
-                                                        Content="Voice Monitor: Off"
+                                                        Content="{local:Localize Key=Voice_Monitor_Off_f0b11e44}"
                                                         MinWidth="150"
                                                         Click="OnToggleVoiceMonitorClick" />
                                             </StackPanel>
@@ -807,7 +807,7 @@
                                             <Grid.ColumnDefinitions>
                                                 <ColumnDefinition Width="Auto" />
                                             </Grid.ColumnDefinitions>
-                                            <TextBlock Grid.Column="0" Text="Scene sound buttons" FontSize="16" FontWeight="SemiBold" VerticalAlignment="Center" />
+                                            <TextBlock Grid.Column="0" Text="{local:Localize Key=Scene_sound_buttons_a3c5f30e}" FontSize="16" FontWeight="SemiBold" VerticalAlignment="Center" />
                                         </Grid>
                                         <ListView x:Name="SceneSoundsListView" Grid.Row="1"
                                                   Style="{ThemeResource VoiSee.Style.ListView}"
@@ -832,7 +832,7 @@
                     </Grid>
                 </TabViewItem>
 
-                <TabViewItem x:Name="MediaBridgeTabViewItem" Header="Media Bridge" IsClosable="False">
+                <TabViewItem x:Name="MediaBridgeTabViewItem" Header="{local:Localize Key=Media_Bridge_07c2b2d2}" IsClosable="False">
                     <!-- 12.4.0 buildfix 1: Media Bridge is a fixed panel, not a scroll surface. -->
                     <Grid x:Name="MediaBridgeTabRoot" Padding="0,16,48,24" RowSpacing="14">
                         <Grid.RowDefinitions>
@@ -841,8 +841,8 @@
                         </Grid.RowDefinitions>
 
                         <StackPanel Grid.Row="0" Spacing="4">
-                            <TextBlock Text="Media Bridge" FontSize="20" FontWeight="SemiBold" />
-                            <TextBlock Text="Capture audio from one application and mix it into the virtual microphone without adding a second headphone monitor."
+                            <TextBlock Text="{local:Localize Key=Media_Bridge_07c2b2d2}" FontSize="20" FontWeight="SemiBold" />
+                            <TextBlock Text="{local:Localize Key=Capture_audio_from_one_application_and_mix_it__f438c031}"
                                        Opacity="0.72"
                                        TextWrapping="Wrap" />
                         </StackPanel>
@@ -862,7 +862,7 @@
                                 <Button Grid.Row="0"
                                         x:Name="MediaBridgeStopButton"
                                         Style="{ThemeResource VoiSee.Style.Button}"
-                                        Content="Stop Broadcast"
+                                        Content="{local:Localize Key=Stop_Broadcast_4ade9ee9}"
                                         HorizontalAlignment="Left"
                                         MinWidth="150"
                                         Visibility="Collapsed"
@@ -880,7 +880,7 @@
                                             VerticalAlignment="Stretch"
                                             HorizontalContentAlignment="Stretch"
                                             VerticalContentAlignment="Stretch"
-                                            ToolTipService.ToolTip="Select or change the capture window"
+                                            ToolTipService.ToolTip="{local:Localize Key=Select_or_change_the_capture_window_452e36a0}"
                                             Click="OnMediaBridgeSelectWindowClick">
                                         <Grid Background="{ThemeResource VoiSee.AppBackgroundBrush}">
                                             <Image x:Name="MediaBridgePreviewImage"
@@ -904,12 +904,12 @@
                                                               HorizontalAlignment="Center"
                                                               VerticalAlignment="Center" />
                                                 </Border>
-                                                <TextBlock Text="Select a window"
+                                                <TextBlock Text="{local:Localize Key=Select_a_window_51730f04}"
                                                            FontSize="18"
                                                            FontWeight="SemiBold"
                                                            HorizontalAlignment="Center" />
                                                 <TextBlock x:Name="MediaBridgeSavedProfileTextBlock"
-                                                           Text="No saved media profile"
+                                                           Text="{local:Localize Key=No_saved_media_profile_2b9931b5}"
                                                            Style="{ThemeResource VoiSee.Style.Text.Secondary}"
                                                            TextAlignment="Center"
                                                            TextWrapping="Wrap"
@@ -934,7 +934,7 @@
                                     <Button Grid.Row="0"
                                             x:Name="MediaBridgePauseButton"
                                             Style="{ThemeResource VoiSee.Style.Button}"
-                                            Content="Play"
+                                            Content="{local:Localize Key=Play_436e6101}"
                                             HorizontalAlignment="Stretch"
                                             Visibility="Collapsed"
                                             IsEnabled="False"
@@ -942,12 +942,12 @@
 
                                     <StackPanel Grid.Row="1" Spacing="5">
                                         <TextBlock x:Name="MediaBridgeSourceTitleTextBlock"
-                                                   Text="No window selected"
+                                                   Text="{local:Localize Key=No_window_selected_be668d38}"
                                                    FontSize="18"
                                                    FontWeight="SemiBold"
                                                    TextTrimming="CharacterEllipsis" />
                                         <TextBlock x:Name="MediaBridgeSourceDetailsTextBlock"
-                                                   Text="Click the preview panel to choose an application window. VoiSee will not reconnect to it automatically after restart."
+                                                   Text="{local:Localize Key=Click_the_preview_panel_to_choose_an_applicati_fe63a28d}"
                                                    Style="{ThemeResource VoiSee.Style.Text.Secondary}"
                                                    TextWrapping="Wrap" />
                                         <Grid Margin="0,6,0,0" ColumnSpacing="12">
@@ -957,7 +957,7 @@
                                             </Grid.ColumnDefinitions>
                                             <TextBlock Grid.Column="0"
                                                        x:Name="MediaBridgeStatusTextBlock"
-                                                       Text="Not selected"
+                                                       Text="{local:Localize Key=Not_selected_df12aeba}"
                                                        FontWeight="SemiBold" />
                                             <TextBlock Grid.Column="1"
                                                        x:Name="MediaBridgeDurationTextBlock"
@@ -993,7 +993,7 @@
                                                 </Grid.RowDefinitions>
 
                                                 <TextBlock Grid.Row="0"
-                                                           Text="Source"
+                                                           Text="{local:Localize Key=Source_0e570ca6}"
                                                            FontWeight="SemiBold"
                                                            HorizontalAlignment="Center" />
 
@@ -1003,7 +1003,7 @@
                                                       Margin="0,12"
                                                       HorizontalAlignment="Center"
                                                       VerticalAlignment="Center"
-                                                      ToolTipService.ToolTip="0% is silence. 100% equals 0 dBFS, the maximum digital level before clipping.">
+                                                      ToolTipService.ToolTip="{local:Localize Key=0_is_silence_100_equals_0_dBFS_the_maximum_dig_c502b875}">
                                                     <Grid.ColumnDefinitions>
                                                         <ColumnDefinition Width="12" />
                                                         <ColumnDefinition Width="38" />
@@ -1059,7 +1059,7 @@
                                                             Width="38"
                                                             Height="300"
                                                             IsHitTestVisible="False">
-                                                        <TextBlock Text="100 MAX" FontSize="9" Canvas.Left="4" Canvas.Top="-6" />
+                                                        <TextBlock Text="{local:Localize Key=100_MAX_d51e8f38}" FontSize="9" Canvas.Left="4" Canvas.Top="-6" />
                                                         <TextBlock Text="75" FontSize="10" Canvas.Left="4" Canvas.Top="68" />
                                                         <TextBlock Text="50" FontSize="10" Canvas.Left="4" Canvas.Top="143" />
                                                         <TextBlock Text="25" FontSize="10" Canvas.Left="4" Canvas.Top="218" />
@@ -1084,7 +1084,7 @@
                                                 </Grid.RowDefinitions>
 
                                                 <TextBlock Grid.Row="0"
-                                                           Text="To Mic"
+                                                           Text="{local:Localize Key=To_Mic_cdc9d1f6}"
                                                            FontWeight="SemiBold"
                                                            HorizontalAlignment="Center" />
 
@@ -1094,7 +1094,7 @@
                                                       Margin="0,12"
                                                       HorizontalAlignment="Center"
                                                       VerticalAlignment="Center"
-                                                      ToolTipService.ToolTip="0% is silence. 100% equals 0 dBFS, the maximum digital level before clipping.">
+                                                      ToolTipService.ToolTip="{local:Localize Key=0_is_silence_100_equals_0_dBFS_the_maximum_dig_c502b875}">
                                                     <Grid.ColumnDefinitions>
                                                         <ColumnDefinition Width="12" />
                                                         <ColumnDefinition Width="38" />
@@ -1150,7 +1150,7 @@
                                                             Width="38"
                                                             Height="300"
                                                             IsHitTestVisible="False">
-                                                        <TextBlock Text="100 MAX" FontSize="9" Canvas.Left="4" Canvas.Top="-6" />
+                                                        <TextBlock Text="{local:Localize Key=100_MAX_d51e8f38}" FontSize="9" Canvas.Left="4" Canvas.Top="-6" />
                                                         <TextBlock Text="75" FontSize="10" Canvas.Left="4" Canvas.Top="68" />
                                                         <TextBlock Text="50" FontSize="10" Canvas.Left="4" Canvas.Top="143" />
                                                         <TextBlock Text="25" FontSize="10" Canvas.Left="4" Canvas.Top="218" />
@@ -1169,7 +1169,7 @@
                                         </Grid>
 
                                         <StackPanel Grid.Column="1" Spacing="14">
-                                            <TextBlock Text="Broadcast settings"
+                                            <TextBlock Text="{local:Localize Key=Broadcast_settings_00f620ba}"
                                                        FontSize="16"
                                                        FontWeight="SemiBold" />
                                             <Grid ColumnSpacing="12">
@@ -1178,7 +1178,7 @@
                                                     <ColumnDefinition Width="Auto" />
                                                 </Grid.ColumnDefinitions>
                                                 <StackPanel Grid.Column="0" Spacing="6">
-                                                    <TextBlock Text="Volume in Microphone"
+                                                    <TextBlock Text="{local:Localize Key=Volume_in_Microphone_eea9a087}"
                                                                FontWeight="SemiBold" />
                                                     <Slider x:Name="MediaBridgeVolumeSlider"
                                                             Style="{ThemeResource VoiSee.Style.Slider}"
@@ -1204,7 +1204,7 @@
                     </Grid>
                 </TabViewItem>
 
-                <TabViewItem x:Name="EqualizerTab" Header="Эквалайзер" IsClosable="False">
+                <TabViewItem x:Name="EqualizerTab" Header="{local:Localize Key=Text_352978e0}" IsClosable="False">
                     <ScrollView VerticalScrollBarVisibility="Auto" HorizontalScrollMode="Disabled" ZoomMode="Disabled">
                         <StackPanel Spacing="12" Margin="0,8,24,24">
                             <TextBlock Visibility="Collapsed" x:Name="EqualizerTitle" FontSize="24" FontWeight="SemiBold" Foreground="{ThemeResource VoiSee.PrimaryTextBrush}" />
@@ -1213,7 +1213,7 @@
                                 <Grid.ColumnDefinitions><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                             <StackPanel Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
                                 <ToggleSwitch x:Name="EqualizerEnabled" Toggled="OnEqualizerEnabledChanged" />
-                                <Button Style="{ThemeResource VoiSee.Style.Button}" x:Name="EqualizerVoiceMonitorButton" Content="Слышать себя: выкл." Click="OnToggleVoiceMonitorClick" VerticalAlignment="Bottom" />
+                                <Button Style="{ThemeResource VoiSee.Style.Button}" x:Name="EqualizerVoiceMonitorButton" Content="{local:Localize Key=Text_5d5a6cce}" Click="OnToggleVoiceMonitorClick" VerticalAlignment="Bottom" />
                                 <Button x:Name="EqualizerReset" Click="OnEqualizerReset" VerticalAlignment="Bottom" />
                             </StackPanel>
                             </Grid>
@@ -1223,17 +1223,17 @@
                                         <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
                                     <Grid ColumnSpacing="4">
                                         <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition/><ColumnDefinition/><ColumnDefinition/><ColumnDefinition/><ColumnDefinition/></Grid.ColumnDefinitions>
-                                        <TextBlock Text="САМЫЕ НИЗКИЕ" FontSize="11" Opacity=".65" HorizontalAlignment="Center"/>
-                                        <TextBlock Grid.Column="1" Text="БАС" FontSize="11" Opacity=".65" HorizontalAlignment="Center"/>
-                                        <TextBlock Grid.Column="2" Text="НИЗКАЯ СЕРЕДИНА" FontSize="11" Opacity=".65" HorizontalAlignment="Center"/>
-                                        <TextBlock Grid.Column="3" Text="ГОЛОС" FontSize="11" Opacity=".65" HorizontalAlignment="Center"/>
-                                        <TextBlock Grid.Column="4" Text="ВЕРХНЯЯ СЕРЕДИНА" FontSize="11" Opacity=".65" HorizontalAlignment="Center"/>
-                                        <TextBlock Grid.Column="5" Text="ВЫСОКИЕ" FontSize="11" Opacity=".65" HorizontalAlignment="Center"/>
+                                        <TextBlock Text="{local:Localize Key=Text_b22088b7}" FontSize="11" Opacity=".65" HorizontalAlignment="Center"/>
+                                        <TextBlock Grid.Column="1" Text="{local:Localize Key=Text_e9e9e735}" FontSize="11" Opacity=".65" HorizontalAlignment="Center"/>
+                                        <TextBlock Grid.Column="2" Text="{local:Localize Key=Text_6b7059d0}" FontSize="11" Opacity=".65" HorizontalAlignment="Center"/>
+                                        <TextBlock Grid.Column="3" Text="{local:Localize Key=Text_eca1a784}" FontSize="11" Opacity=".65" HorizontalAlignment="Center"/>
+                                        <TextBlock Grid.Column="4" Text="{local:Localize Key=Text_6aa0abda}" FontSize="11" Opacity=".65" HorizontalAlignment="Center"/>
+                                        <TextBlock Grid.Column="5" Text="{local:Localize Key=Text_1015b6a9}" FontSize="11" Opacity=".65" HorizontalAlignment="Center"/>
                                     </Grid>
                                         <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6">
-                                            <Button x:Name="EqualizerUndo" Content="&#xE7A7;" FontFamily="Segoe Fluent Icons" IsEnabled="False" Click="OnEqualizerUndo" ToolTipService.ToolTip="Отменить действие (Ctrl+Z)" AutomationProperties.Name="Отменить действие"/>
-                                            <Button x:Name="EqualizerAddPoint" Content="+ Точка" Click="OnAddEqualizerPoint" ToolTipService.ToolTip="Добавить точку (до 16)"/>
-                                            <Button x:Name="EqualizerRemovePoint" Content="Удалить" Click="OnRemoveEqualizerPoint" ToolTipService.ToolTip="Удалить выбранную точку"/>
+                                            <Button x:Name="EqualizerUndo" Content="&#xE7A7;" FontFamily="Segoe Fluent Icons" IsEnabled="False" Click="OnEqualizerUndo" ToolTipService.ToolTip="{local:Localize Key=Ctrl_Z_13d8b113}" AutomationProperties.Name="{local:Localize Key=Text_b9b86803}"/>
+                                            <Button x:Name="EqualizerAddPoint" Content="{local:Localize Key=Text_1e063585}" Click="OnAddEqualizerPoint" ToolTipService.ToolTip="{local:Localize Key=16_049e4cce}"/>
+                                            <Button x:Name="EqualizerRemovePoint" Content="{local:Localize Key=Text_be99b136}" Click="OnRemoveEqualizerPoint" ToolTipService.ToolTip="{local:Localize Key=Text_3713e17c}"/>
                                         </StackPanel>
                                     </Grid>
                                     <Canvas x:Name="EqualizerPlot" Height="180" HorizontalAlignment="Stretch" Background="Transparent" ManipulationMode="None"
@@ -1243,10 +1243,10 @@
                                         <Polyline x:Name="EqualizerSelectedCurve" StrokeThickness="1" Opacity=".5" IsHitTestVisible="False"/>
                                         <Polyline x:Name="EqualizerCurve" Stroke="{ThemeResource VoiSee.PrimaryTextBrush}" StrokeThickness="2" IsHitTestVisible="False"/>
                                     </Canvas>
-                                    <TextBlock FontSize="11" Text="Тяните точку, чтобы изменить звук. Тяните края отрезка в стороны, чтобы охватить больше частот." TextWrapping="Wrap" Style="{StaticResource VoiSee.Style.Text.Secondary}"/>
+                                    <TextBlock FontSize="11" Text="{local:Localize Key=Text_a2cf8182}" TextWrapping="Wrap" Style="{StaticResource VoiSee.Style.Text.Secondary}"/>
                                     <Grid ColumnSpacing="12">
                                         <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="2*"/><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
-                                        <ToggleSwitch Grid.Column="0" x:Name="EqualizerBandEnabled" Header="Точка" OnContent="Вкл." OffContent="Выкл." Toggled="OnEqualizerBandEnabled"/>
+                                        <ToggleSwitch Grid.Column="0" x:Name="EqualizerBandEnabled" Header="{local:Localize Key=Text_bb353389}" OnContent="{local:Localize Key=Text_e27b7a6d}" OffContent="{local:Localize Key=Text_3c151fb2}" Toggled="OnEqualizerBandEnabled"/>
                                         <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Bottom">
                                             <Grid>
                                                 <TextBlock x:Name="EqualizerPreampTitle" FontSize="14" Foreground="{ThemeResource VoiSee.PrimaryTextBrush}"/>
@@ -1254,9 +1254,9 @@
                                             </Grid>
                                             <Slider x:Name="EqualizerPreamp" Minimum="-24" Maximum="12" StepFrequency="0.5" Height="32" ValueChanged="OnEqualizerPreampChanged"/>
                                         </StackPanel>
-                                        <NumberBox Grid.Column="2" x:Name="EqualizerBandFrequency" Header="Частота, Hz" Minimum="20" Maximum="20000" SmallChange="10" ValueChanged="OnEqualizerBandValueChanged"/>
-                                        <NumberBox Grid.Column="3" x:Name="EqualizerBandGain" Header="Усиление, dB" Minimum="-12" Maximum="12" SmallChange="0.5" ValueChanged="OnEqualizerBandValueChanged"/>
-                                        <NumberBox Grid.Column="4" x:Name="EqualizerBandQ" Header="Охват частот, Q" Minimum="0.2" Maximum="12" SmallChange="0.1" ValueChanged="OnEqualizerBandValueChanged"/>
+                                        <NumberBox Grid.Column="2" x:Name="EqualizerBandFrequency" Header="{local:Localize Key=Hz_0bcbfb03}" Minimum="20" Maximum="20000" SmallChange="10" ValueChanged="OnEqualizerBandValueChanged"/>
+                                        <NumberBox Grid.Column="3" x:Name="EqualizerBandGain" Header="{local:Localize Key=dB_55474d16}" Minimum="-12" Maximum="12" SmallChange="0.5" ValueChanged="OnEqualizerBandValueChanged"/>
+                                        <NumberBox Grid.Column="4" x:Name="EqualizerBandQ" Header="{local:Localize Key=Q_4dac6b88}" Minimum="0.2" Maximum="12" SmallChange="0.1" ValueChanged="OnEqualizerBandValueChanged"/>
                                     </Grid>
                                     <TextBlock FontSize="11" x:Name="EqualizerHeadroom" TextWrapping="Wrap" Style="{StaticResource VoiSee.Style.Text.Secondary}"/>
                                 </StackPanel>
@@ -1265,7 +1265,7 @@
                                     CornerRadius="12" Background="{ThemeResource VoiSee.PanelBackgroundBrush}"
                                     BorderBrush="{ThemeResource VoiSee.PanelBorderBrush}" BorderThickness="1">
                                 <StackPanel Spacing="16">
-                                    <TextBlock Text="Шум и эхо" FontSize="17" FontWeight="SemiBold" />
+                                    <TextBlock Text="{local:Localize Key=Text_d7cf33be}" FontSize="17" FontWeight="SemiBold" />
                                     <Grid ColumnSpacing="24">
                                         <Grid.ColumnDefinitions>
                                             <ColumnDefinition Width="*"/>
@@ -1274,13 +1274,13 @@
                                         </Grid.ColumnDefinitions>
                                         <Grid RowSpacing="8">
                                             <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="36"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
-                                            <TextBlock Text="Шумоподавление" FontSize="13" FontWeight="SemiBold"/>
+                                            <TextBlock Text="{local:Localize Key=Text_72bbc88e}" FontSize="13" FontWeight="SemiBold"/>
                                             <ComboBox Grid.Row="1" Style="{ThemeResource VoiSee.Style.ComboBox}"
                                                       x:Name="NoiseSuppressionModeComboBox" HorizontalAlignment="Stretch" Height="36"
                                                       SelectionChanged="OnNoiseSuppressionModeChanged">
-                                                <ComboBoxItem Content="Выкл." Tag="Off" />
-                                                <ComboBoxItem Content="Обычное" Tag="RnNoise" />
-                                                <ComboBoxItem Content="Усиленное" Tag="DeepFilterNet" />
+                                                <ComboBoxItem Content="{local:Localize Key=Text_3c151fb2}" Tag="Off" />
+                                                <ComboBoxItem Content="{local:Localize Key=Text_10fb83a9}" Tag="RnNoise" />
+                                                <ComboBoxItem Content="{local:Localize Key=Text_98196391}" Tag="DeepFilterNet" />
                                             </ComboBox>
                                             <StackPanel Grid.Row="2" Spacing="6">
                                                 <StackPanel Orientation="Horizontal" Spacing="6">
@@ -1293,29 +1293,29 @@
                                         <Grid Grid.Column="1" RowSpacing="8">
                                             <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="36"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
                                             <Grid>
-                                                <TextBlock Text="Сила шумоподавления" FontSize="13" FontWeight="SemiBold"/>
+                                                <TextBlock Text="{local:Localize Key=Text_f2083f59}" FontSize="13" FontWeight="SemiBold"/>
                                                 <TextBlock x:Name="NoiseSuppressionStrengthValueText" Text="70%" HorizontalAlignment="Right" FontSize="12" Opacity=".75"/>
                                             </Grid>
                                             <Slider Grid.Row="1" Style="{ThemeResource VoiSee.Style.Slider}" x:Name="NoiseSuppressionStrengthSlider"
                                                     Height="36" Minimum="0" Maximum="100" Value="70" StepFrequency="1"
-                                                    AutomationProperties.Name="Сила шумоподавления"
+                                                    AutomationProperties.Name="{local:Localize Key=Text_f2083f59}"
                                                     ValueChanged="OnNoiseSuppressionStrengthChanged"/>
-                                            <TextBlock Grid.Row="2" Text="Выше — меньше фонового шума. Ниже — естественнее голос." FontSize="12" Opacity=".65" TextWrapping="Wrap"/>
+                                            <TextBlock Grid.Row="2" Text="{local:Localize Key=Text_dd372ca3}" FontSize="12" Opacity=".65" TextWrapping="Wrap"/>
                                         </Grid>
                                         <Grid Grid.Column="2" RowSpacing="8">
                                             <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="36"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
-                                            <TextBlock Text="Эхоподавление" FontSize="13" FontWeight="SemiBold"/>
-                                            <ToggleSwitch Grid.Row="1" x:Name="EchoCancellationSwitch" OnContent="Вкл." OffContent="Выкл." Height="36"
-                                                          AutomationProperties.Name="Эхоподавление" Toggled="OnEchoCleanupChanged"/>
+                                            <TextBlock Text="{local:Localize Key=Text_a4584b5d}" FontSize="13" FontWeight="SemiBold"/>
+                                            <ToggleSwitch Grid.Row="1" x:Name="EchoCancellationSwitch" OnContent="{local:Localize Key=Text_e27b7a6d}" OffContent="{local:Localize Key=Text_3c151fb2}" Height="36"
+                                                          AutomationProperties.Name="{local:Localize Key=Text_a4584b5d}" Toggled="OnEchoCleanupChanged"/>
                                             <StackPanel Grid.Row="2" Spacing="6">
-                                                <TextBlock Text="Убирает звук колонок и смягчает эхо голоса в комнате." FontSize="12" Opacity=".65" TextWrapping="Wrap"/>
+                                                <TextBlock Text="{local:Localize Key=Text_50b3befe}" FontSize="12" Opacity=".65" TextWrapping="Wrap"/>
                                                 <TextBlock x:Name="EchoCleanupStatus" FontSize="12" Opacity=".65" TextWrapping="Wrap"/>
                                             </StackPanel>
                                         </Grid>
                                     </Grid>
                                 </StackPanel>
                             </Border>
-                            <Expander Header="Подробная настройка · 10 / 31 частота" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch">
+                            <Expander Header="{local:Localize Key=10_31_cd21f5a7}" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch">
                                 <StackPanel Spacing="12">
                                     <ToggleSwitch x:Name="EqualizerAdvanced" Toggled="OnEqualizerModeChanged" />
                                     <Grid x:Name="EqualizerBands" ColumnSpacing="4" RowSpacing="12" SizeChanged="OnEqualizerBandsSizeChanged" />
@@ -1326,7 +1326,7 @@
                     </ScrollView>
                 </TabViewItem>
 
-                <TabViewItem Header="Settings" IsClosable="False">
+                <TabViewItem Header="{local:Localize Key=Settings_74a883a0}" IsClosable="False">
                     <Grid>
                     <!-- 12.3.3 buildfix 2: Settings uses ScrollView; legacy x:Name is retained collapsed for incremental XAML metadata stability. -->
                     <ScrollView x:Name="SettingsScrollView"
@@ -1353,7 +1353,7 @@
                             </Grid.RowDefinitions>
 
                             <StackPanel x:Name="MainSettings" Grid.Column="0" Grid.Row="0" Spacing="18">
-                                <TextBlock Text="System &amp; Audio" FontSize="22" FontWeight="SemiBold" />
+                                <TextBlock Text="{local:Localize Key=System_Audio_10a7b02a}" FontSize="22" FontWeight="SemiBold" />
 
                                 <Border x:Name="VBCableNoticeBorder"
                                         Background="{ThemeResource VoiSee.VBCableNoticeBackgroundBrush}"
@@ -1362,26 +1362,26 @@
                                         CornerRadius="{ThemeResource VoiSee.CornerRadius.Large}"
                                         Padding="14">
                                     <StackPanel Spacing="8">
-                                        <TextBlock Text="VB-CABLE status" FontSize="18" FontWeight="SemiBold" />
+                                        <TextBlock Text="{local:Localize Key=VB_CABLE_status_c8156333}" FontSize="18" FontWeight="SemiBold" />
                                         <TextBlock x:Name="VBCableStatusTextBlock"
-                                                   Text="VB-CABLE is not installed."
+                                                   Text="{local:Localize Key=VB_CABLE_is_not_installed_63685107}"
                                                    TextWrapping="WrapWholeWords"
                                                    Opacity="0.92"
                                                    FontWeight="SemiBold" />
                                         <TextBlock Style="{ThemeResource VoiSee.Style.Text.Secondary}"
                                                    x:Name="VBCableBridgeInfoTextBlock"
-                                                   Text="Install VB-CABLE to create the virtual microphone bridge. The audio engine will stay disabled until CABLE Input is detected."
+                                                   Text="{local:Localize Key=Install_VB_CABLE_to_create_the_virtual_microph_4e5a3d23}"
                                                    TextWrapping="WrapWholeWords"
                                                    Opacity="0.72" />
                                         <StackPanel Orientation="Horizontal" Spacing="10">
                                             <Button Style="{ThemeResource VoiSee.Style.Button.SettingsAction}"
                                                     x:Name="InstallVBCableButton"
-                                                    Content="Install VB-CABLE"
+                                                    Content="{local:Localize Key=Install_VB_CABLE_d1b4a704}"
                                                     Padding="14,6"
                                                     MinHeight="32"
                                                     Click="OnInstallVBCableClick" />
                                             <Button Style="{ThemeResource VoiSee.Style.Button}"
-                                                    Content="Refresh Devices"
+                                                    Content="{local:Localize Key=Refresh_Devices_f127b1c8}"
                                                     Padding="14,6"
                                                     MinHeight="32"
                                                     Click="OnRefreshDevicesClick" />
@@ -1396,37 +1396,37 @@
                                                 <ColumnDefinition Width="*" />
                                                 <ColumnDefinition Width="Auto" />
                                             </Grid.ColumnDefinitions>
-                                            <TextBlock Text="Audio Devices" FontSize="18" FontWeight="SemiBold" VerticalAlignment="Center" />
+                                            <TextBlock Text="{local:Localize Key=Audio_Devices_90c9d8de}" FontSize="18" FontWeight="SemiBold" VerticalAlignment="Center" />
                                             <Button Grid.Column="1"
                                                     Style="{ThemeResource VoiSee.Style.Button}"
-                                                    Content="Refresh Devices"
+                                                    Content="{local:Localize Key=Refresh_Devices_f127b1c8}"
                                                     Padding="14,6"
                                                     MinHeight="32"
                                                     Click="OnRefreshDevicesClick" />
                                         </Grid>
 
                                         <StackPanel Spacing="6">
-                                            <TextBlock Text="Input Device" />
+                                            <TextBlock Text="{local:Localize Key=Input_Device_967438ab}" />
                                             <ComboBox Style="{ThemeResource VoiSee.Style.ComboBox}"
                                                       x:Name="InputDeviceComboBox"
-                                                      PlaceholderText="Choose microphone"
+                                                      PlaceholderText="{local:Localize Key=Choose_microphone_88bd74fb}"
                                                       DisplayMemberPath="FriendlyName"
                                                       HorizontalAlignment="Stretch"
                                                       SelectionChanged="OnRouteSettingChanged" />
                                         </StackPanel>
 
                                         <StackPanel Spacing="6">
-                                            <TextBlock Text="Monitor / Headphones" />
+                                            <TextBlock Text="{local:Localize Key=Monitor_Headphones_277169e2}" />
                                             <ComboBox Style="{ThemeResource VoiSee.Style.ComboBox}"
                                                       x:Name="MonitorOutputComboBox"
-                                                      PlaceholderText="Choose headphones"
+                                                      PlaceholderText="{local:Localize Key=Choose_headphones_67c6c650}"
                                                       DisplayMemberPath="FriendlyName"
                                                       HorizontalAlignment="Stretch"
                                                       SelectionChanged="OnRouteSettingChanged" />
                                         </StackPanel>
 
                                         <StackPanel Spacing="6">
-                                            <TextBlock x:Name="VirtualOutputVolumeLabel" Text="Virtual Mic Master: 100%" FontWeight="SemiBold" />
+                                            <TextBlock x:Name="VirtualOutputVolumeLabel" Text="{local:Localize Key=Virtual_Mic_Master_100_dc46fd5f}" FontWeight="SemiBold" />
                                             <Slider Style="{ThemeResource VoiSee.Style.Slider}"
                                                     x:Name="VirtualOutputVolumeSlider"
                                                     Minimum="0"
@@ -1437,7 +1437,7 @@
                                         </StackPanel>
 
                                         <StackPanel Spacing="6">
-                                            <TextBlock x:Name="DelayLabel" Text="SoundBoard Delay: 85 ms" FontWeight="SemiBold" />
+                                            <TextBlock x:Name="DelayLabel" Text="{local:Localize Key=SoundBoard_Delay_85_ms_790ad43e}" FontWeight="SemiBold" />
                                             <Slider Style="{ThemeResource VoiSee.Style.Slider}"
                                                     x:Name="SoundVirtualDelaySlider"
                                                     Minimum="0"
@@ -1445,7 +1445,7 @@
                                                     Value="85"
                                                     StepFrequency="1"
                                                     ValueChanged="OnDelayChanged" />
-                                            <TextBlock Text="SoundBoard reaches headphones immediately and the virtual microphone after this delay. Changes apply on the next playback."
+                                            <TextBlock Text="{local:Localize Key=SoundBoard_reaches_headphones_immediately_and__7ad48d8a}"
                                                        Opacity="0.7"
                                                        TextWrapping="WrapWholeWords" />
                                         </StackPanel>
@@ -1454,19 +1454,19 @@
 
                                 <Border Style="{ThemeResource VoiSee.Style.Panel.SettingsCard}">
                                     <StackPanel Spacing="10">
-                                        <TextBlock Text="Hotkeys" FontSize="18" FontWeight="SemiBold" />
+                                        <TextBlock Text="{local:Localize Key=Hotkeys_c15f1530}" FontSize="18" FontWeight="SemiBold" />
                                         <Button Style="{ThemeResource VoiSee.Style.Button}"
-                                                Content="Configure Hotkeys"
+                                                Content="{local:Localize Key=Configure_Hotkeys_02159754}"
                                                 HorizontalAlignment="Left"
                                                 Padding="14,6"
                                                 MinHeight="32"
                                                 Click="OnConfigureTransportHotkeysClick" />
                                         <TextBlock Style="{ThemeResource VoiSee.Style.Text.Secondary}"
                                                    x:Name="TransportHotkeysSummaryTextBlock"
-                                                   Text="Transport hotkeys: not configured"
+                                                   Text="{local:Localize Key=Transport_hotkeys_not_configured_a1c12cc7}"
                                                    Opacity="0.72"
                                                    TextWrapping="Wrap" />
-                                        <TextBlock Text="NumPad is supported. Conflicts follow this priority: Transport → Scene → SoundBoard → Voice Preset. Sound Editor keeps its dedicated Play/Pause and Stop behavior."
+                                        <TextBlock Text="{local:Localize Key=NumPad_is_supported_Conflicts_follow_this_prio_5445351a}"
                                                    Opacity="0.66"
                                                    TextWrapping="WrapWholeWords" />
                                     </StackPanel>
@@ -1474,13 +1474,13 @@
 
                                 <Border Style="{ThemeResource VoiSee.Style.Panel.SettingsCard}">
                                     <StackPanel Spacing="8">
-                                        <TextBlock Text="Startup" FontSize="18" FontWeight="SemiBold" />
+                                        <TextBlock Text="{local:Localize Key=Startup_65d48235}" FontSize="18" FontWeight="SemiBold" />
                                         <CheckBox Style="{ThemeResource VoiSee.Style.CheckBox}"
                                                   x:Name="StartWithWindowsCheckBox"
-                                                  Content="Start VoiSee with Windows"
+                                                  Content="{local:Localize Key=Start_VoiSee_with_Windows_148cbe02}"
                                                   Checked="OnStartWithWindowsChanged"
                                                   Unchecked="OnStartWithWindowsChanged" />
-                                        <TextBlock Text="VoiSee starts in the notification area and keeps audio hotkeys available."
+                                        <TextBlock Text="{local:Localize Key=VoiSee_starts_in_the_notification_area_and_kee_0e382ff2}"
                                                    Opacity="0.7"
                                                    TextWrapping="WrapWholeWords" />
                                     </StackPanel>
@@ -1492,9 +1492,9 @@
                                     <ComboBox x:Name="VirtualOutputComboBox"
                                               DisplayMemberPath="FriendlyName"
                                               SelectionChanged="OnRouteSettingChanged" />
-                                    <TextBlock x:Name="EngineStatusTextBlock" Text="Stopped" />
-                                    <Button x:Name="StartEngineButton" Content="Start Engine" Click="OnStartEngineClick" />
-                                    <Button x:Name="StopEngineButton" Content="Stop Engine" Click="OnStopEngineClick" />
+                                    <TextBlock x:Name="EngineStatusTextBlock" Text="{local:Localize Key=Stopped_1a4f630a}" />
+                                    <Button x:Name="StartEngineButton" Content="{local:Localize Key=Start_Engine_c442acbc}" Click="OnStartEngineClick" />
+                                    <Button x:Name="StopEngineButton" Content="{local:Localize Key=Stop_Engine_bab15227}" Click="OnStopEngineClick" />
                                 </StackPanel>
                             </StackPanel>
 
@@ -1504,13 +1504,18 @@
                                     Grid.Row="0"
                                     VerticalAlignment="Top">
                                 <StackPanel Spacing="12">
-                                    <TextBlock Text="Themes" FontSize="22" FontWeight="SemiBold" />
-                                    <TextBlock Text="VoiSee themes are native WinUI ResourceDictionary files with the .voiseetheme.xaml extension. Save a valid dictionary and live reload applies it automatically; invalid XAML leaves the last working theme active."
+                                    <ComboBox x:Name="InterfaceLanguageComboBox" Header="{local:Localize Key=Text_9089a731}" HorizontalAlignment="Stretch" SelectionChanged="OnInterfaceLanguageChanged">
+                                        <ComboBoxItem Content="Русский" Tag="ru"/>
+                                        <ComboBoxItem Content="English" Tag="en"/>
+                                    </ComboBox>
+                                    <TextBlock x:Name="LanguageRestartHint" Visibility="Collapsed" Text="{local:Localize Key=VoiSee_11337bbe}" TextWrapping="Wrap" Opacity=".7"/>
+                                    <TextBlock Text="{local:Localize Key=Themes_43ae3265}" FontSize="22" FontWeight="SemiBold" />
+                                    <TextBlock Text="{local:Localize Key=VoiSee_themes_are_native_WinUI_ResourceDiction_eb1529cc}"
                                                TextWrapping="WrapWholeWords"
                                                Opacity="0.72" />
 
                                     <StackPanel Spacing="5">
-                                        <TextBlock Text="Themes folder" Opacity="0.72" />
+                                        <TextBlock Text="{local:Localize Key=Themes_folder_fbbbad6c}" Opacity="0.72" />
                                         <TextBlock x:Name="ThemeFolderPathTextBlock"
                                                    Text="%LOCALAPPDATA%\VoiSe\themes"
                                                    FontFamily="Consolas"
@@ -1520,7 +1525,7 @@
                                     </StackPanel>
 
                                     <StackPanel Spacing="6">
-                                        <TextBlock Text="Current theme" Opacity="0.72" />
+                                        <TextBlock Text="{local:Localize Key=Current_theme_4089af3e}" Opacity="0.72" />
                                         <ComboBox Style="{ThemeResource VoiSee.Style.ComboBox}"
                                                   x:Name="ThemeComboBox"
                                                   HorizontalAlignment="Stretch"
@@ -1528,49 +1533,48 @@
                                                   DropDownOpened="OnThemeComboBoxDropDownOpened" />
                                     </StackPanel>
 
-                                    <StackPanel Orientation="Horizontal" Spacing="10">
-                                        <Button Style="{ThemeResource VoiSee.Style.Button.ThemeAction}"
-                                                Content="Create New Theme"
+                                    <Grid ColumnSpacing="8" RowSpacing="8">
+                                        <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition/></Grid.ColumnDefinitions>
+                                        <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+                                        <Button Grid.Row="0" Grid.Column="0" HorizontalAlignment="Stretch" Style="{ThemeResource VoiSee.Style.Button.ThemeAction}"
+                                                Content="{local:Localize Key=Create_New_Theme_b31d3c97}"
                                                 Padding="14,6"
                                                 MinHeight="32"
                                                 Click="OnCreateNewThemeClick" />
-                                        <Button Style="{ThemeResource VoiSee.Style.Button.ThemeAction}"
+                                        <Button Grid.Row="0" Grid.Column="1" HorizontalAlignment="Stretch" Style="{ThemeResource VoiSee.Style.Button.ThemeAction}"
                                                 x:Name="OpenThemeFileButton"
-                                                Content="Open Theme File"
+                                                Content="{local:Localize Key=Open_Theme_File_a674e277}"
                                                 Padding="14,6"
                                                 MinHeight="32"
                                                 IsEnabled="False"
                                                 Click="OnOpenThemeFileClick" />
-                                    </StackPanel>
-
-                                    <StackPanel Orientation="Horizontal" Spacing="10">
-                                        <Button Style="{ThemeResource VoiSee.Style.Button.ThemeAction}"
-                                                Content="Open Theme Folder"
+                                        <Button Grid.Row="1" Grid.Column="0" HorizontalAlignment="Stretch" Style="{ThemeResource VoiSee.Style.Button.ThemeAction}"
+                                                Content="{local:Localize Key=Open_Theme_Folder_e698a2a5}"
                                                 Padding="14,6"
                                                 MinHeight="32"
                                                 Click="OnOpenThemeFolderClick" />
-                                        <Button Style="{ThemeResource VoiSee.Style.Button.ThemeAction}"
+                                        <Button Grid.Row="1" Grid.Column="1" HorizontalAlignment="Stretch" Style="{ThemeResource VoiSee.Style.Button.ThemeAction}"
                                                 x:Name="RenameThemeButton"
-                                                Content="Rename Theme"
+                                                Content="{local:Localize Key=Rename_Theme_2859113c}"
                                                 Padding="14,6"
                                                 MinHeight="32"
                                                 IsEnabled="False"
                                                 Click="OnRenameThemeClick" />
-                                        <Button Style="{ThemeResource VoiSee.Style.Button.ThemeAction}"
+                                        <Button Grid.Row="2" Grid.Column="0" HorizontalAlignment="Stretch" Style="{ThemeResource VoiSee.Style.Button.ThemeAction}"
                                                 x:Name="DeleteThemeButton"
-                                                Content="Delete Theme"
+                                                Content="{local:Localize Key=Delete_Theme_c354887b}"
                                                 Padding="14,6"
                                                 MinHeight="32"
                                                 IsEnabled="False"
                                                 Click="OnDeleteThemeClick" />
-                                    </StackPanel>
+                                    </Grid>
 
                                     <TextBlock Style="{ThemeResource VoiSee.Style.Text.Secondary}"
                                                x:Name="ThemeStatusTextBlock"
-                                               Text="Theme: Default Dark"
+                                               Text="{local:Localize Key=Theme_Default_Dark_b5d50e27}"
                                                TextWrapping="WrapWholeWords"
                                                Opacity="0.72" />
-                                    <TextBlock Text="A new theme is an exact editable copy of Default Dark. Keep x:Key names unchanged. Colors, brushes, control states, panel geometry and gradients may be edited directly in XAML."
+                                    <TextBlock Text="{local:Localize Key=A_new_theme_is_an_exact_editable_copy_of_Defau_6cf87ebe}"
                                                TextWrapping="WrapWholeWords"
                                                Opacity="0.62" />
                                 </StackPanel>
@@ -1585,8 +1589,8 @@
                                         x:Name="AboutMePanel"
                                         VerticalAlignment="Top">
                                     <StackPanel Spacing="14">
-                                        <TextBlock Text="About me" FontSize="22" FontWeight="SemiBold" />
-                                        <TextBlock Text="Links" Opacity="0.72" />
+                                        <TextBlock Text="{local:Localize Key=About_me_1359ec88}" FontSize="22" FontWeight="SemiBold" />
+                                        <TextBlock Text="{local:Localize Key=Links_9024c197}" Opacity="0.72" />
 
                                         <StackPanel Spacing="8">
                                             <TextBlock Text="Telegram" FontWeight="SemiBold" />
@@ -1614,12 +1618,12 @@
                                 <Border Style="{ThemeResource VoiSee.Style.Panel.SettingsCard}"
                                         x:Name="AdvancedSettingsPanel">
                                     <StackPanel Spacing="8">
-                                        <TextBlock Text="Advanced Settings" FontSize="18" FontWeight="SemiBold" />
-                                        <TextBlock Text="Open manual engine controls and the full application log in one troubleshooting window."
+                                        <TextBlock Text="{local:Localize Key=Advanced_Settings_22d4f608}" FontSize="18" FontWeight="SemiBold" />
+                                        <TextBlock Text="{local:Localize Key=Open_manual_engine_controls_and_the_full_appli_dc0d4663}"
                                                    Opacity="0.7"
                                                    TextWrapping="WrapWholeWords" />
                                         <Button Style="{ThemeResource VoiSee.Style.Button.SettingsAction}"
-                                                Content="Open Advanced Settings"
+                                                Content="{local:Localize Key=Open_Advanced_Settings_b02140ad}"
                                                 HorizontalAlignment="Stretch"
                                                 Padding="16,8"
                                                 MinHeight="36"
@@ -1663,12 +1667,12 @@
                           FontFamily="Segoe MDL2 Assets"
                           FontSize="72"
                           HorizontalAlignment="Center" />
-                <TextBlock Text="Drop sound files to import"
+                <TextBlock Text="{local:Localize Key=Drop_sound_files_to_import_a87ab176}"
                            FontSize="28"
                            FontWeight="SemiBold"
                            TextAlignment="Center" />
                 <TextBlock x:Name="SoundBoardDropOverlayDescriptionTextBlock"
-                           Text="Release WAV, MP3 or OGG files to add them to the current category"
+                           Text="{local:Localize Key=Release_WAV_MP3_or_OGG_files_to_add_them_to_th_034816a5}"
                            FontSize="16"
                            Opacity="0.78"
                            TextAlignment="Center"

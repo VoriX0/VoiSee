@@ -1,4 +1,4 @@
-using System.Text;
+﻿using System.Text;
 using System.Text.Json;
 
 namespace VoiSe.App;
@@ -44,13 +44,13 @@ internal static class AtomicFile
     {
         lock (Sync)
         {
-            try { return JsonSerializer.Deserialize<T>(File.ReadAllText(path), options) ?? throw new JsonException("Empty JSON document."); }
+            try { return JsonSerializer.Deserialize<T>(File.ReadAllText(path), options) ?? throw new JsonException(UiText.L("Empty_JSON_document_92a65111")); }
             catch (JsonException)
             {
                 // Retain evidence even when there is no usable backup.
                 File.Copy(path, path + ".corrupt-" + Guid.NewGuid().ToString("N"), false);
                 var recovered = JsonSerializer.Deserialize<T>(File.ReadAllText(path + ".bak"), options)
-                    ?? throw new JsonException("Empty JSON backup.");
+                    ?? throw new JsonException(UiText.L("Empty_JSON_backup_89258282"));
                 File.Copy(path + ".bak", path, true);
                 StartupLog.Write("Recovered JSON backup: " + path);
                 return recovered;

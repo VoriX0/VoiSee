@@ -1,0 +1,36 @@
+<?xml version='1.0' encoding='utf-8'?>
+<root>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <data xml:space="preserve" name="Create a new engine for a new audio session.">
+    <value>Create a new engine for a new audio session.</value>
+  </data>
+  <data xml:space="preserve" name="Audio startup failed.">
+    <value>Audio startup failed.</value>
+  </data>
+  <data xml:space="preserve" name="Media capture was stopped before activation completed.">
+    <value>Media capture was stopped before activation completed.</value>
+  </data>
+  <data xml:space="preserve" name="Process capture is already running.">
+    <value>Process capture is already running.</value>
+  </data>
+  <data xml:space="preserve" name="WebRTC initialization failed.">
+    <value>WebRTC initialization failed.</value>
+  </data>
+  <data xml:space="preserve" name="WebRTC configuration failed.">
+    <value>WebRTC configuration failed.</value>
+  </data>
+  <data xml:space="preserve" name="Устройство воспроизведения недоступно. Проверьте настройки звука Windows.">
+    <value>Playback device unavailable. Check Windows sound settings.</value>
+  </data>
+  <data xml:space="preserve" name="В настройках звука Windows выберите колонки или наушники устройством воспроизведения по умолчанию.">
+    <value>Select speakers or headphones as the default playback device in Windows sound settings.</value>
+  </data>
+  <data xml:space="preserve" name="Захват звука устройства остановлен. Обновите список устройств.">
+    <value>Playback device capture stopped. Refresh the device list.</value>
+  </data>
+</root>

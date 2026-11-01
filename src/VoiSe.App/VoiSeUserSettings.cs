@@ -7,6 +7,7 @@ using VoiSe.Audio;
 public sealed class VoiSeUserSettings
 {
     public int SchemaVersion { get; set; } = 12;
+    public string InterfaceLanguage { get; set; } = "ru";
     // Global microphone correction, outside device and voice profiles.
     public EqualizerSettings Equalizer { get; set; } = new();
     public bool EqualizerAdvancedMode { get; set; }

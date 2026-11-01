@@ -1,4 +1,4 @@
-using System.Diagnostics;
+﻿using System.Diagnostics;
 using System.IO.Pipes;
 using System.Text;
 using System.Text.Json;
@@ -53,7 +53,7 @@ internal sealed class AudioEngineClient : IDisposable
         ObjectDisposedException.ThrowIf(_disposed, this);
         if (_started)
         {
-            throw new InvalidOperationException("The isolated Audio Host is already running.");
+            throw new InvalidOperationException(UiText.L("The_isolated_Audio_Host_is_already_running_9f21f4b2"));
         }
 
         var hostPath = ResolveAudioHostPath();
@@ -265,8 +265,8 @@ internal sealed class AudioEngineClient : IDisposable
         CancellationToken cancellationToken)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
-        var writer = _writer ?? throw new InvalidOperationException("Audio Host pipe is not connected.");
-        var reader = _reader ?? throw new InvalidOperationException("Audio Host pipe is not connected.");
+        var writer = _writer ?? throw new InvalidOperationException(UiText.L("Audio_Host_pipe_is_not_connected_a0659d8a"));
+        var reader = _reader ?? throw new InvalidOperationException(UiText.L("Audio_Host_pipe_is_not_connected_a0659d8a"));
 
         await _requestLock.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
@@ -277,19 +277,19 @@ internal sealed class AudioEngineClient : IDisposable
             var line = await reader.ReadLineAsync(cancellationToken).ConfigureAwait(false);
             if (line is null)
             {
-                throw new EndOfStreamException("VoiSe.AudioHost.exe closed the control pipe.");
+                throw new EndOfStreamException(UiText.L("VoiSe_AudioHost_exe_closed_the_control_pipe_b95065ab"));
             }
 
             var response = JsonSerializer.Deserialize<AudioEngineResponseEnvelope>(line, AudioEngineJson.Options)
-                ?? throw new InvalidDataException("Audio Host returned an empty response.");
+                ?? throw new InvalidDataException(UiText.L("Audio_Host_returned_an_empty_response_2c80bef2"));
             if (response.RequestId != request.RequestId && response.RequestId != Guid.Empty)
             {
-                throw new InvalidDataException("Audio Host response ID did not match the request.");
+                throw new InvalidDataException(UiText.L("Audio_Host_response_ID_did_not_match_the_reque_cd2e8b46"));
             }
 
             if (!response.Success)
             {
-                throw new InvalidOperationException(response.Error ?? "Audio Host command failed.");
+                throw new InvalidOperationException(response.Error ?? UiText.L("Audio_Host_command_failed_6ce574f9"));
             }
 
             if (typeof(TResult) == typeof(object))
@@ -319,7 +319,7 @@ internal sealed class AudioEngineClient : IDisposable
         }
 
         throw new FileNotFoundException(
-            "VoiSe.AudioHost.exe was not found. Rebuild the complete VoiSee project so the AudioHost folder is copied next to VoiSe.App.exe.",
+            UiText.L("VoiSe_AudioHost_exe_was_not_found_Rebuild_the__e89cc491"),
             path);
     }
 

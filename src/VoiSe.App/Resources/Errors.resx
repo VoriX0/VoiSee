@@ -1,0 +1,36 @@
+<?xml version='1.0' encoding='utf-8'?>
+<root>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <data xml:space="preserve" name="Create a new engine for a new audio session.">
+    <value>Для новой аудиосессии перезапустите обработку звука.</value>
+  </data>
+  <data xml:space="preserve" name="Audio startup failed.">
+    <value>Не удалось запустить обработку звука.</value>
+  </data>
+  <data xml:space="preserve" name="Media capture was stopped before activation completed.">
+    <value>Захват звука остановлен до завершения запуска.</value>
+  </data>
+  <data xml:space="preserve" name="Process capture is already running.">
+    <value>Захват звука приложения уже запущен.</value>
+  </data>
+  <data xml:space="preserve" name="WebRTC initialization failed.">
+    <value>Не удалось запустить эхоподавление WebRTC.</value>
+  </data>
+  <data xml:space="preserve" name="WebRTC configuration failed.">
+    <value>Не удалось настроить эхоподавление WebRTC.</value>
+  </data>
+  <data xml:space="preserve" name="Устройство воспроизведения недоступно. Проверьте настройки звука Windows.">
+    <value>Устройство воспроизведения недоступно. Проверьте настройки звука Windows.</value>
+  </data>
+  <data xml:space="preserve" name="В настройках звука Windows выберите колонки или наушники устройством воспроизведения по умолчанию.">
+    <value>В настройках звука Windows выберите колонки или наушники устройством воспроизведения по умолчанию.</value>
+  </data>
+  <data xml:space="preserve" name="Захват звука устройства остановлен. Обновите список устройств.">
+    <value>Захват звука устройства остановлен. Обновите список устройств.</value>
+  </data>
+</root>

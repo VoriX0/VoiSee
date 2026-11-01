@@ -2,7 +2,7 @@
 ; Build with Inno Setup 6 using scripts\build-installer.ps1
 
 #define MyAppName "VoiSee"
-#define MyAppVersion "14.5.1"
+#define MyAppVersion "14.6.1"
 #define MyAppPublisher "VoriX"
 #define MyAppURL "https://github.com/VoriX0/VoiSe"
 #define MyAppExeName "VoiSe.App.exe"
@@ -41,12 +41,29 @@ DisableWelcomePage=no
 DisableReadyPage=no
 
 [Languages]
+Name: "russian"; MessagesFile: "compiler:Languages\Russian.isl"
 Name: "english"; MessagesFile: "compiler:Default.isl"
 
+[CustomMessages]
+russian.DesktopShortcut=Создать ярлык на рабочем столе
+english.DesktopShortcut=Create a desktop shortcut
+russian.Shortcuts=Ярлыки:
+english.Shortcuts=Additional shortcuts:
+russian.InstallBridge=Установить виртуальный микрофон VB-CABLE
+english.InstallBridge=Install VB-CABLE virtual microphone bridge
+russian.BridgeGroup=Виртуальный микрофон:
+english.BridgeGroup=Virtual microphone bridge:
+russian.InstallCable=Установить VB-CABLE
+english.InstallCable=Install VB-CABLE
+russian.StartingCable=Запуск установщика VB-CABLE…
+english.StartingCable=Starting VB-CABLE installer...
+russian.LaunchApp=Запустить VoiSee
+english.LaunchApp=Launch VoiSee
+
 [Tasks]
-Name: "desktopicon"; Description: "Create a desktop shortcut"; GroupDescription: "Additional shortcuts:"
+Name: "desktopicon"; Description: "{cm:DesktopShortcut}"; GroupDescription: "{cm:Shortcuts}"
 #ifdef VBCABLE_BUNDLED
-Name: "installvbcable"; Description: "Install VB-CABLE virtual microphone bridge"; GroupDescription: "Virtual microphone bridge:"
+Name: "installvbcable"; Description: "{cm:InstallBridge}"; GroupDescription: "{cm:BridgeGroup}"
 #endif
 
 [Files]
@@ -58,9 +75,9 @@ Name: "{autodesktop}\VoiSee"; Filename: "{app}\{#MyAppExeName}"; WorkingDir: "{a
 
 [Run]
 #ifdef VBCABLE_BUNDLED
-Filename: "{code:GetVBCableInstaller}"; WorkingDir: "{code:GetVBCableInstallerDir}"; Description: "Install VB-CABLE"; StatusMsg: "Starting VB-CABLE installer..."; Flags: shellexec waituntilterminated; Verb: runas; Tasks: installvbcable; Check: VBCableInstallerExists
+Filename: "{code:GetVBCableInstaller}"; WorkingDir: "{code:GetVBCableInstallerDir}"; Description: "{cm:InstallCable}"; StatusMsg: "{cm:StartingCable}"; Flags: shellexec waituntilterminated; Verb: runas; Tasks: installvbcable; Check: VBCableInstallerExists
 #endif
-Filename: "{app}\{#MyAppExeName}"; Description: "Launch VoiSee"; Flags: nowait postinstall skipifsilent; Check: ShouldLaunchVoiSeePostInstall
+Filename: "{app}\{#MyAppExeName}"; Description: "{cm:LaunchApp}"; Flags: nowait postinstall skipifsilent; Check: ShouldLaunchVoiSeePostInstall
 
 [UninstallRun]
 Filename: "{cmd}"; Parameters: "/C reg.exe delete HKCU\Software\Microsoft\Windows\CurrentVersion\Run /v VoiSee /f"; Flags: runhidden; RunOnceId: "RemoveVoiSeeAutostart"

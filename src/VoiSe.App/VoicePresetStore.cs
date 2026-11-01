@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -76,12 +76,12 @@ public sealed class VoicePresetStore
     {
         if (string.IsNullOrWhiteSpace(sourcePath) || !File.Exists(sourcePath))
         {
-            throw new FileNotFoundException("Preset JSON file not found.", sourcePath);
+            throw new FileNotFoundException(UiText.L("Preset_JSON_file_not_found_490b00cf"), sourcePath);
         }
 
         var json = File.ReadAllText(sourcePath);
         var preset = JsonSerializer.Deserialize<VoicePreset>(json, JsonOptions)
-            ?? throw new InvalidDataException("Selected JSON is not a VoiSe voice preset.");
+            ?? throw new InvalidDataException(UiText.L("Selected_JSON_is_not_a_VoiSe_voice_preset_6358c054"));
 
         if (string.IsNullOrWhiteSpace(preset.Name))
         {

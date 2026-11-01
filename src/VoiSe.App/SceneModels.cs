@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text.Json.Serialization;
@@ -57,7 +57,7 @@ public sealed class VoiSeScene
     public bool IsActive { get; set; }
 
     [JsonIgnore]
-    public string ActiveBadge => IsActive ? "ACTIVE" : string.Empty;
+    public string ActiveBadge => IsActive ? UiText.L("ACTIVE_630c2f1c") : string.Empty;
 
     [JsonIgnore]
     public double ActiveOpacity => IsActive ? 1.0 : 0.0;
@@ -73,18 +73,18 @@ public sealed class VoiSeScene
             var parts = new List<string>();
             if (!string.IsNullOrWhiteSpace(VoicePresetName))
             {
-                parts.Add($"Voice: {VoicePresetName}");
+                parts.Add(UiText.L("Voice_0_92ac47f7", VoicePresetName));
             }
 
             var normalCount = SoundButtons.Count(b => !b.IsLooped);
             var loop = SoundButtons.FirstOrDefault(b => b.IsLooped);
-            parts.Add($"Sounds: {normalCount}");
+            parts.Add(UiText.L("Sounds_0_70b10c7a", normalCount));
             parts.Add(UsesMediaSource
-                ? $"Media: {MediaBridgeProfileName ?? "none"}"
-                : loop is null ? "Loop: none" : "Loop: set");
+                ? UiText.L("Media_0_d1e35800", MediaBridgeProfileName ?? UiText.L("none_140bedbf"))
+                : loop is null ? UiText.L("Loop_none_64af57be") : UiText.L("Loop_set_c53039a0"));
             if (IsActive)
             {
-                parts.Insert(0, "ACTIVE");
+                parts.Insert(0, UiText.L("ACTIVE_630c2f1c"));
             }
 
             return string.Join(" · ", parts);

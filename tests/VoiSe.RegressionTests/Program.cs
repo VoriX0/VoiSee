@@ -20,6 +20,38 @@ string Wave(string name, int seconds, int rate = 48000)
     return path;
 }
 var shortWave = Wave("short", 4);
+Test("localization uses Russian by default and keeps effect IDs and user data stable", () =>
+{
+    Check(new VoiSeUserSettings().InterfaceLanguage == "ru", "New profile language is not Russian");
+    UiText.Initialize(null); Check(UiText.LanguageCode == "ru" && UiText.EffectName("Pitch") == "Высота голоса", "Russian fallback failed");
+    UiText.Initialize("en"); Check(UiText.EffectName("Pitch") == "Pitch" && UiText.CategoryName("Special") == "Character", "English resources missing");
+    var settings = new VoiSeUserSettings { InterfaceLanguage = "en", InputDeviceId = "original-endpoint", InputDeviceName = "My English microphone", ActiveVoiceEffectOrder = new() { "Pitch", "Gate" } };
+    var json = JsonSerializer.Serialize(settings); UiText.Initialize("ru");
+    var restored = JsonSerializer.Deserialize<VoiSeUserSettings>(json)!;
+    Check(restored.InterfaceLanguage == "en" && restored.InputDeviceId == "original-endpoint" && restored.InputDeviceName == "My English microphone" && restored.ActiveVoiceEffectOrder.SequenceEqual(new[] { "Pitch", "Gate" }), "Language changed persisted identities");
+    var sound = new SoundBoardSound { Name = "My English Track", OriginalFileName = "English.wav" };
+    Check(sound.DisplayName == "My English Track", "User sound name translated");
+    Check(UiText.ErrorMessage("custom error from driver") == "custom error from driver", "Unknown diagnostic was rewritten");
+    var scene = new VoiSeScene { Name = "My English Scene", VoicePresetName = "My English Preset" };
+    Check(scene.SceneListSubtitle.Contains("Голос: My English Preset") && scene.Name == "My English Scene", "Scene UI was not localized independently of user names");
+    UiText.Initialize("unknown"); Check(UiText.LanguageCode == "ru", "Unsupported saved language did not fall back safely");
+});
+Test("both interface resource catalogs are complete and format safely", () =>
+{
+    var manager = new System.Resources.ResourceManager("VoiSe.App.Resources.Interface", typeof(UiText).Assembly);
+    var russian = manager.GetResourceSet(System.Globalization.CultureInfo.GetCultureInfo("ru"), true, true)!;
+    var english = manager.GetResourceSet(System.Globalization.CultureInfo.GetCultureInfo("en"), true, false)!;
+    var ru = russian.Cast<System.Collections.DictionaryEntry>().ToDictionary(e => (string)e.Key, e => (string)e.Value!);
+    var en = english.Cast<System.Collections.DictionaryEntry>().ToDictionary(e => (string)e.Key, e => (string)e.Value!);
+    Check(ru.Count > 600 && ru.Keys.Order().SequenceEqual(en.Keys.Order()), "Catalog keys differ or resource set is incomplete");
+    foreach (var catalog in new[] { ru, en }) foreach (var item in catalog)
+    {
+        Check(!string.IsNullOrWhiteSpace(item.Value), "Empty resource: " + item.Key);
+        if (System.Text.RegularExpressions.Regex.IsMatch(item.Value, @"\{\d"))
+            _ = string.Format(System.Globalization.CultureInfo.InvariantCulture, item.Value, Enumerable.Repeat<object>(1.0, 20).ToArray());
+    }
+    Console.WriteLine("LOCALIZED_INTERFACE_RESOURCES=" + ru.Count);
+});
 Test("equalizer undo groups gestures, isolates snapshots and ignores unchanged settings", () =>
 {
     var settings = new EqualizerSettings(); var history = new EqualizerEditHistory(settings, 2);

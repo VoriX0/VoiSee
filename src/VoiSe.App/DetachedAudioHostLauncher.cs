@@ -1,4 +1,4 @@
-using System.ComponentModel;
+﻿using System.ComponentModel;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Text;
@@ -22,7 +22,7 @@ internal static class DetachedAudioHostLauncher
         ArgumentException.ThrowIfNullOrWhiteSpace(executablePath);
 
         using var explorer = FindExplorerForCurrentSession()
-            ?? throw new InvalidOperationException("Windows Explorer is not running in the current user session.");
+            ?? throw new InvalidOperationException(UiText.L("Windows_Explorer_is_not_running_in_the_current_b0a2523f"));
 
         var parentHandle = OpenProcess(
             ProcessCreateProcess | ProcessQueryLimitedInformation,
@@ -31,7 +31,7 @@ internal static class DetachedAudioHostLauncher
         if (parentHandle == IntPtr.Zero)
         {
             throw new Win32Exception(Marshal.GetLastWin32Error(),
-                "Could not open Windows Explorer as the Audio Host parent process.");
+                UiText.L("Could_not_open_Windows_Explorer_as_the_Audio_H_ec904e4a"));
         }
 
         IntPtr attributeList = IntPtr.Zero;
@@ -45,7 +45,7 @@ internal static class DetachedAudioHostLauncher
             if (!InitializeProcThreadAttributeList(attributeList, 1, 0, ref attributeListSize))
             {
                 throw new Win32Exception(Marshal.GetLastWin32Error(),
-                    "Could not initialize the Audio Host process attribute list.");
+                    UiText.L("Could_not_initialize_the_Audio_Host_process_at_434acbfe"));
             }
 
             parentHandleValue = Marshal.AllocHGlobal(IntPtr.Size);
@@ -61,7 +61,7 @@ internal static class DetachedAudioHostLauncher
                     IntPtr.Zero))
             {
                 throw new Win32Exception(Marshal.GetLastWin32Error(),
-                    "Could not assign Windows Explorer as the Audio Host parent process.");
+                    UiText.L("Could_not_assign_Windows_Explorer_as_the_Audio_22ff8587"));
             }
 
             var startupInfo = new StartupInfoEx
@@ -95,7 +95,7 @@ internal static class DetachedAudioHostLauncher
             if (!created)
             {
                 throw new Win32Exception(Marshal.GetLastWin32Error(),
-                    "Could not start VoiSe.AudioHost.exe.");
+                    UiText.L("Could_not_start_VoiSe_AudioHost_exe_6df17e9e"));
             }
 
             try

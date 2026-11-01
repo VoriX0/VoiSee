@@ -1,4 +1,4 @@
-using Microsoft.UI.Xaml;
+﻿using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Markup;
 using Microsoft.UI.Xaml.Media;
 using System;
@@ -92,7 +92,7 @@ public sealed class ThemeManager
     {
         if (string.IsNullOrWhiteSpace(sourcePath) || !File.Exists(sourcePath))
         {
-            throw new FileNotFoundException("Theme file was not found.", sourcePath);
+            throw new FileNotFoundException(UiText.L("Theme_file_was_not_found_64023f6d"), sourcePath);
         }
 
         EnsureThemesDirectory();
@@ -132,12 +132,12 @@ public sealed class ThemeManager
 
         if (!File.Exists(themePath))
         {
-            throw new FileNotFoundException("The selected XAML theme file was not found.", themePath);
+            throw new FileNotFoundException(UiText.L("The_selected_XAML_theme_file_was_not_found_9258e3c7"), themePath);
         }
 
         if (!themePath.EndsWith(ThemeExtension, StringComparison.OrdinalIgnoreCase))
         {
-            throw new InvalidDataException($"VoiSee themes must use the {ThemeExtension} extension.");
+            throw new InvalidDataException(UiText.L("VoiSee_themes_must_use_the_0_extension_95d956c5", ThemeExtension));
         }
 
         var xaml = ReadAllTextWithRetry(themePath);
@@ -148,12 +148,12 @@ public sealed class ThemeManager
         }
         catch (Exception ex)
         {
-            throw new InvalidDataException($"The theme is not valid WinUI XAML: {ex.Message}", ex);
+            throw new InvalidDataException(UiText.L("The_theme_is_not_valid_WinUI_XAML_0_e5691ea4", ex.Message), ex);
         }
 
         if (parsed is not ResourceDictionary dictionary)
         {
-            throw new InvalidDataException("The root object of a VoiSee theme must be ResourceDictionary.");
+            throw new InvalidDataException(UiText.L("The_root_object_of_a_VoiSee_theme_must_be_Reso_e0bd892b"));
         }
 
         ValidateSemanticContract(dictionary);
@@ -226,7 +226,7 @@ public sealed class ThemeManager
         var templatePath = Path.Combine(AppContext.BaseDirectory, "Themes", "UserThemeTemplate.voiseetheme.template");
         if (!File.Exists(templatePath))
         {
-            throw new FileNotFoundException("The built-in editable copy of Default Dark was not found.", templatePath);
+            throw new FileNotFoundException(UiText.L("The_built_in_editable_copy_of_Default_Dark_was_5b1673e7"), templatePath);
         }
 
         var template = File.ReadAllText(templatePath, Encoding.UTF8);
@@ -241,14 +241,14 @@ public sealed class ThemeManager
 
         if (missing.Length > 0)
         {
-            throw new InvalidDataException("The XAML theme is missing required resources: " + string.Join(", ", missing));
+            throw new InvalidDataException(UiText.L("The_XAML_theme_is_missing_required_resources_826b4dcb") + string.Join(", ", missing));
         }
 
         foreach (var key in RequiredSemanticKeys)
         {
             if (!TryLookupResource(dictionary, key, out var value) || value is not Brush)
             {
-                throw new InvalidDataException($"Theme resource '{key}' must be a Brush.");
+                throw new InvalidDataException(UiText.L("Theme_resource_0_must_be_a_Brush_793a9ac8", key));
             }
         }
     }
@@ -344,7 +344,7 @@ public sealed class ThemeManager
             }
         }
 
-        throw new IOException("The theme file is temporarily locked and could not be read.", lastError);
+        throw new IOException(UiText.L("The_theme_file_is_temporarily_locked_and_could_faf335d1"), lastError);
     }
 }
 
