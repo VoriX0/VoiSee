@@ -250,7 +250,7 @@ public sealed partial class MainWindow : Window
         };
         _discordCableSessionIsolationTimer.Tick += OnDiscordCableSessionIsolationTimerTick;
 
-        AppendLog("VoiSee Version 14.4.2 UI started.");
+        AppendLog("VoiSee Version 14.4.3 UI started.");
         AppendLog($"Settings path: {_settingsStore.SettingsPath}");
 
         var isolationResult = _discordCableSessionIsolationService.Enable();
@@ -6655,8 +6655,8 @@ public sealed partial class MainWindow : Window
 
         return new EffectSettings
         {
-            EchoCancellationEnabled = EchoCancellationSwitch.IsChecked == true,
-            RoomEchoReductionEnabled = EchoCancellationSwitch.IsChecked == true,
+            EchoCancellationEnabled = EchoCancellationSwitch.IsOn,
+            RoomEchoReductionEnabled = EchoCancellationSwitch.IsOn,
             EchoReferenceDeviceId = null, // Follow the Windows playback device automatically.
             NoiseSuppressionMode = GetSelectedNoiseSuppressionMode(),
             NoiseSuppressionStrength = (float)Clamp((NoiseSuppressionStrengthSlider?.Value ?? 70.0) / 100.0, 0.0, 1.0),
@@ -12320,8 +12320,8 @@ public sealed partial class MainWindow : Window
         _settings.SoundBoardVirtualMicDelayMs = SoundVirtualDelaySlider?.Value ?? 85.0;
         _settings.MediaBridgeVirtualMicVolume = MediaBridgeVolumeSlider?.Value ?? 1.0;
         var noiseMode = GetSelectedNoiseSuppressionMode();
-        _settings.EchoCancellationEnabled = EchoCancellationSwitch.IsChecked == true;
-        _settings.RoomEchoReductionEnabled = EchoCancellationSwitch.IsChecked == true;
+        _settings.EchoCancellationEnabled = EchoCancellationSwitch.IsOn;
+        _settings.RoomEchoReductionEnabled = EchoCancellationSwitch.IsOn;
         _settings.EchoReferenceDeviceId = null;
         _settings.NoiseSuppressionMode = noiseMode.ToString();
         _settings.NoiseSuppressionEnabled = noiseMode != NoiseSuppressionMode.Off;

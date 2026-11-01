@@ -55,6 +55,8 @@ public sealed partial class MainWindow
     {
         var handle = new Thumb { Width = 24, Height = 24, MinWidth = 0, MinHeight = 0, Template = _eqWidthTemplate, ManipulationMode = ManipulationModes.None };
         AutomationProperties.SetName(handle, "Ширина настройки: тяните в сторону от точки, чтобы охватить больше частот");
+        handle.DragStarted += (_, _) => _equalizerHistory?.BeginGesture();
+        handle.DragCompleted += (_, _) => EndEqualizerGesture();
         handle.DragDelta += (_, e) =>
         {
             ChangeEqualizerWidth(Canvas.GetLeft(handle) + 12 + e.HorizontalChange);
@@ -66,15 +68,14 @@ public sealed partial class MainWindow
         foreach (var node in _eqNodes) EqualizerPlot.Children.Remove(node);
         _eqNodes.Clear();
         var loading = _equalizerLoading; _equalizerLoading = true;
-        EqualizerBandSelector.Items.Clear();
         for (var i = 0; i < _settings.Equalizer.ParametricBands.Length; i++)
         {
             var index = i;
-            EqualizerBandSelector.Items.Add(new ComboBoxItem { Content = $"Точка {i + 1}" });
             var node = new Thumb { Width = 28, Height = 28, MinWidth = 0, MinHeight = 0, Template = _eqPointTemplate,
                 Background = new SolidColorBrush(EqColor(i)), ManipulationMode = ManipulationModes.None, IsTabStop = true };
             AutomationProperties.SetName(node, $"Точка {i + 1}. Стрелки: частота и усиление. Колесо: ширина");
-            node.DragStarted += (_, _) => SelectEqualizerBand(index);
+            node.DragStarted += (_, _) => { SelectEqualizerBand(index); _equalizerHistory?.BeginGesture(); };
+            node.DragCompleted += (_, _) => EndEqualizerGesture();
             node.DragDelta += (_, e) =>
             {
                 MoveEqualizerPoint(index, Canvas.GetLeft(node) + 14 + e.HorizontalChange, Canvas.GetTop(node) + 14 + e.VerticalChange);
@@ -84,7 +85,7 @@ public sealed partial class MainWindow
                 SelectEqualizerBand(index);
                 var band = _settings.Equalizer.ParametricBands[index];
                 band.Q = Math.Clamp(band.Q * Math.Pow(1.12, -e.GetCurrentPoint(EqualizerPlot).Properties.MouseWheelDelta / 120.0), .2, 12);
-                ParametricBandEdited(); e.Handled = true;
+                ParametricBandEdited($"wheel-{index}"); e.Handled = true;
             };
             node.KeyDown += (_, e) =>
             {
@@ -97,7 +98,7 @@ public sealed partial class MainWindow
                     case VirtualKey.Down: band.GainDb = Math.Max(-12, band.GainDb - .5); break;
                     default: return;
                 }
-                SelectEqualizerBand(index); ParametricBandEdited(); e.Handled = true;
+                SelectEqualizerBand(index); ParametricBandEdited($"key-{index}-{e.Key}"); e.Handled = true;
             };
             node.GotFocus += (_, _) => SelectEqualizerBand(index);
             node.DoubleTapped += (_, e) => { _settings.Equalizer.ParametricBands[index].GainDb = 0; SelectEqualizerBand(index); ParametricBandEdited(); e.Handled = true; };
@@ -168,11 +169,11 @@ public sealed partial class MainWindow
     private void SelectEqualizerBand(int index, bool render = true)
     {
         _selectedEqBand = Math.Clamp(index, 0, _settings.Equalizer.ParametricBands.Length - 1);
+        _equalizerHistory?.SelectBand(_selectedEqBand, _settings.Equalizer);
         var band = _settings.Equalizer.ParametricBands[_selectedEqBand];
         EqualizerAddPoint.IsEnabled = _settings.Equalizer.ParametricBands.Length < EqualizerSettings.MaxParametricBands;
         EqualizerRemovePoint.IsEnabled = _settings.Equalizer.ParametricBands.Length > 1;
         var loading = _equalizerLoading; _equalizerLoading = true;
-        EqualizerBandSelector.SelectedIndex = _selectedEqBand;
         EqualizerBandEnabled.IsOn = band.Enabled;
         EqualizerBandFrequency.Value = Math.Round(band.Frequency, 1);
         EqualizerBandGain.Value = Math.Round(band.GainDb, 1);
@@ -181,16 +182,12 @@ public sealed partial class MainWindow
         _equalizerLoading = loading;
         if (render) RenderEqualizerCurve();
     }
-    private void ParametricBandEdited()
+    private void ParametricBandEdited(string? historyKey = null)
     {
         SelectEqualizerBand(_selectedEqBand, render: false);
         PositionEqualizerPoint(_selectedEqBand);
         PositionEqualizerWidth();
-        QueueEqualizerChange();
-    }
-    private void OnEqualizerBandSelected(object sender, SelectionChangedEventArgs e)
-    {
-        if (!_equalizerLoading && EqualizerBandSelector.SelectedIndex >= 0) SelectEqualizerBand(EqualizerBandSelector.SelectedIndex);
+        QueueEqualizerChange(historyKey: historyKey);
     }
     private void OnEqualizerBandValueChanged(NumberBox sender, NumberBoxValueChangedEventArgs e)
     {
@@ -199,7 +196,7 @@ public sealed partial class MainWindow
         if (sender == EqualizerBandFrequency) band.Frequency = Math.Clamp(e.NewValue, 20, 20000);
         else if (sender == EqualizerBandGain) band.GainDb = Math.Clamp(e.NewValue, -12, 12);
         else band.Q = Math.Clamp(e.NewValue, .2, 12);
-        ParametricBandEdited();
+        ParametricBandEdited($"number-{_selectedEqBand}-{sender.Name}");
     }
     private void OnEqualizerBandEnabled(object sender, RoutedEventArgs e)
     {

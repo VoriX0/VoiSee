@@ -20,6 +20,51 @@ string Wave(string name, int seconds, int rate = 48000)
     return path;
 }
 var shortWave = Wave("short", 4);
+Test("equalizer undo groups gestures, isolates snapshots and ignores unchanged settings", () =>
+{
+    var settings = new EqualizerSettings(); var history = new EqualizerEditHistory(settings, 2);
+    history.Record(settings, 2); Check(history.Count == 0, "No-op recorded");
+    history.BeginGesture();
+    for (var i = 1; i <= 100; i++) { settings.ParametricBands[2].GainDb = i / 10.0; history.Record(settings, 2); }
+    history.EndGesture(); Check(history.Count == 1, "Drag split into intermediate steps");
+    var restored = history.Undo()!; Check(restored.Settings.ParametricBands[2].GainDb == 0 && history.Count == 0, "Drag did not restore origin");
+    settings = restored.Settings; settings.GainsDb[0] = 3; history.Record(settings, 2);
+    Check(history.Undo()!.Settings.GainsDb[0] == 0, "Restored model mutated retained history");
+    settings = new EqualizerSettings(); history = new EqualizerEditHistory(settings, 2);
+    history.BeginGesture(); settings.PreampDb = 3; history.Record(settings, 2); settings.PreampDb = 0; history.Record(settings, 2); history.EndGesture();
+    Check(history.Count == 0, "Returning a drag to its origin retained a no-op");
+});
+Test("equalizer undo restores structural edits and reset with bounded history", () =>
+{
+    var settings = new EqualizerSettings(); var history = new EqualizerEditHistory(settings, 2);
+    settings.ParametricBands[2].Q = 3; history.Record(settings, 2);
+    settings.AddPoint(2000, 4); history.Record(settings, 5);
+    settings.RemovePoint(2); history.Record(settings, 2);
+    settings = new EqualizerSettings(); history.Record(settings, 2);
+    settings = history.Undo()!.Settings;
+    Check(settings.ParametricBands.Length == 5 && settings.ParametricBands[^1].Frequency == 2000, "Reset lost deleted-point state");
+    settings = history.Undo()!.Settings;
+    Check(settings.ParametricBands.Length == 6 && settings.ParametricBands[2].Q == 3, "Deleted point not restored");
+    Check(history.Undo()!.Settings.ParametricBands.Length == 5, "Added point not removed");
+    Check(history.Undo()!.Settings.ParametricBands[2].Q == 1 && history.Undo() is null, "Prior width edit lost");
+    settings = new EqualizerSettings(); history = new EqualizerEditHistory(settings, 2);
+    for (var i = 0; i < 150; i++) { settings.Enabled = !settings.Enabled; history.Record(settings, 2); }
+    Check(history.Count == EqualizerEditHistory.Capacity, "History exceeded memory bound");
+    for (var i = 0; i < EqualizerEditHistory.Capacity; i++) Check(history.Undo() is not null, "History missing entries");
+    Check(history.Undo() is null, "History retained entries over capacity");
+});
+Test("equalizer undo merges repeated keys but separates gestures and parameters", () =>
+{
+    var settings = new EqualizerSettings(); var history = new EqualizerEditHistory(settings, 2);
+    settings.PreampDb = -1; history.Record(settings, 2, "preamp"); settings.PreampDb = -2; history.Record(settings, 2, "preamp");
+    Check(history.Count == 1, "Repeated key edits split");
+    settings.ParametricBands[2].Q = 2; history.Record(settings, 2, "width"); Check(history.Count == 2, "Different control merged");
+    history.BeginGesture(); settings.PreampDb = -3; history.Record(settings, 2, "preamp"); history.EndGesture();
+    history.BeginGesture(); settings.PreampDb = -4; history.Record(settings, 2, "preamp"); history.EndGesture();
+    Check(history.Count == 4 && history.Undo()!.Settings.PreampDb == -3 && history.Undo()!.Settings.PreampDb == -2, "Separate drags merged");
+    settings = history.Undo()!.Settings; settings.PreampDb = -5; history.Record(settings, 2, "preamp");
+    Check(history.Undo()!.Settings.PreampDb == -2, "Edit after undo merged into earlier action");
+});
 Test("ring wraps and drops oldest", () =>
 {
     var q = new FloatSampleQueue(4); var b = new float[5];

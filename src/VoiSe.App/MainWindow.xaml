@@ -6,7 +6,7 @@
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     mc:Ignorable="d"
-    Title="VoiSee Version 14.4.2">
+    Title="VoiSee Version 14.4.3">
 
     <Grid x:Name="RootGrid" RequestedTheme="Dark" Background="{ThemeResource VoiSee.AppBackgroundBrush}" SizeChanged="OnRootGridSizeChanged">
         <Grid.RowDefinitions>
@@ -21,7 +21,7 @@
             </Grid.ColumnDefinitions>
             <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center" Margin="10,0,0,0">
                 <Image Source="ms-appx:///Assets/AppIcon_24.png" Width="16" Height="16" VerticalAlignment="Center" />
-                <TextBlock x:Name="TitleBarVersionTextBlock" Text="VoiSee Version 14.4.2" FontSize="12" Foreground="{ThemeResource VoiSee.PrimaryTextBrush}" VerticalAlignment="Center" />
+                <TextBlock x:Name="TitleBarVersionTextBlock" Text="VoiSee Version 14.4.3" FontSize="12" Foreground="{ThemeResource VoiSee.PrimaryTextBrush}" VerticalAlignment="Center" />
             </StackPanel>
         </Grid>
 
@@ -39,7 +39,7 @@
                 </Grid.ColumnDefinitions>
                 <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
                     <Image Source="ms-appx:///Assets/AppIcon_48.png" Width="34" Height="34" VerticalAlignment="Center" />
-                    <TextBlock x:Name="MainTitle" Text="VoiSee Version 14.4.2" FontSize="28" FontWeight="SemiBold" Foreground="{ThemeResource VoiSee.PrimaryTextBrush}" VerticalAlignment="Center" />
+                    <TextBlock x:Name="MainTitle" Text="VoiSee Version 14.4.3" FontSize="28" FontWeight="SemiBold" Foreground="{ThemeResource VoiSee.PrimaryTextBrush}" VerticalAlignment="Center" />
                 </StackPanel>
                 <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center" HorizontalAlignment="Right">
                     <TextBlock Text="Mic Output" Foreground="{ThemeResource VoiSee.PrimaryTextBrush}" Opacity="0.62" VerticalAlignment="Center" />
@@ -1221,6 +1221,7 @@
                                         <TextBlock Grid.Column="5" Text="ВЫСОКИЕ" FontSize="11" Opacity=".65" HorizontalAlignment="Center"/>
                                     </Grid>
                                         <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6">
+                                            <Button x:Name="EqualizerUndo" Content="&#xE7A7;" FontFamily="Segoe Fluent Icons" IsEnabled="False" Click="OnEqualizerUndo" ToolTipService.ToolTip="Отменить действие (Ctrl+Z)" AutomationProperties.Name="Отменить действие"/>
                                             <Button x:Name="EqualizerAddPoint" Content="+ Точка" Click="OnAddEqualizerPoint" ToolTipService.ToolTip="Добавить точку (до 16)"/>
                                             <Button x:Name="EqualizerRemovePoint" Content="Удалить" Click="OnRemoveEqualizerPoint" ToolTipService.ToolTip="Удалить выбранную точку"/>
                                         </StackPanel>
@@ -1234,21 +1235,18 @@
                                     </Canvas>
                                     <TextBlock FontSize="11" Text="Тяните точку, чтобы изменить звук. Тяните края отрезка в стороны, чтобы охватить больше частот." TextWrapping="Wrap" Style="{StaticResource VoiSee.Style.Text.Secondary}"/>
                                     <Grid ColumnSpacing="12">
-                                        <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/><ColumnDefinition Width="2*"/><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
-                                        <ComboBox x:Name="EqualizerBandSelector" Header="Точка" HorizontalAlignment="Stretch" SelectionChanged="OnEqualizerBandSelected">
-
-                                        </ComboBox>
-                                        <ToggleSwitch Grid.Column="1" x:Name="EqualizerBandEnabled" Header="Точка" OnContent="Вкл." OffContent="Выкл." Toggled="OnEqualizerBandEnabled"/>
-                                        <StackPanel Grid.Column="2" Spacing="2" VerticalAlignment="Bottom">
+                                        <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="2*"/><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                                        <ToggleSwitch Grid.Column="0" x:Name="EqualizerBandEnabled" Header="Точка" OnContent="Вкл." OffContent="Выкл." Toggled="OnEqualizerBandEnabled"/>
+                                        <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Bottom">
                                             <Grid>
                                                 <TextBlock x:Name="EqualizerPreampTitle" FontSize="14" Foreground="{ThemeResource VoiSee.PrimaryTextBrush}"/>
                                                 <TextBlock x:Name="EqualizerPreampValue" FontSize="11" HorizontalAlignment="Right" VerticalAlignment="Center" Foreground="{ThemeResource VoiSee.PrimaryTextBrush}"/>
                                             </Grid>
                                             <Slider x:Name="EqualizerPreamp" Minimum="-24" Maximum="12" StepFrequency="0.5" Height="32" ValueChanged="OnEqualizerPreampChanged"/>
                                         </StackPanel>
-                                        <NumberBox Grid.Column="3" x:Name="EqualizerBandFrequency" Header="Частота, Hz" Minimum="20" Maximum="20000" SmallChange="10" ValueChanged="OnEqualizerBandValueChanged"/>
-                                        <NumberBox Grid.Column="4" x:Name="EqualizerBandGain" Header="Усиление, dB" Minimum="-12" Maximum="12" SmallChange="0.5" ValueChanged="OnEqualizerBandValueChanged"/>
-                                        <NumberBox Grid.Column="5" x:Name="EqualizerBandQ" Header="Охват частот, Q" Minimum="0.2" Maximum="12" SmallChange="0.1" ValueChanged="OnEqualizerBandValueChanged"/>
+                                        <NumberBox Grid.Column="2" x:Name="EqualizerBandFrequency" Header="Частота, Hz" Minimum="20" Maximum="20000" SmallChange="10" ValueChanged="OnEqualizerBandValueChanged"/>
+                                        <NumberBox Grid.Column="3" x:Name="EqualizerBandGain" Header="Усиление, dB" Minimum="-12" Maximum="12" SmallChange="0.5" ValueChanged="OnEqualizerBandValueChanged"/>
+                                        <NumberBox Grid.Column="4" x:Name="EqualizerBandQ" Header="Охват частот, Q" Minimum="0.2" Maximum="12" SmallChange="0.1" ValueChanged="OnEqualizerBandValueChanged"/>
                                     </Grid>
                                     <TextBlock FontSize="11" x:Name="EqualizerHeadroom" TextWrapping="Wrap" Style="{StaticResource VoiSee.Style.Text.Secondary}"/>
                                 </StackPanel>
@@ -1296,9 +1294,9 @@
                                         </Grid>
                                         <Grid Grid.Column="2" RowSpacing="8">
                                             <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="36"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
-                                            <TextBlock Text="Эхо" FontSize="13" FontWeight="SemiBold"/>
-                                            <CheckBox Grid.Row="1" x:Name="EchoCancellationSwitch" Content="Эхоподавление" Height="36"
-                                                      Checked="OnEchoCleanupChanged" Unchecked="OnEchoCleanupChanged"/>
+                                            <TextBlock Text="Эхоподавление" FontSize="13" FontWeight="SemiBold"/>
+                                            <ToggleSwitch Grid.Row="1" x:Name="EchoCancellationSwitch" OnContent="Вкл." OffContent="Выкл." Height="36"
+                                                          AutomationProperties.Name="Эхоподавление" Toggled="OnEchoCleanupChanged"/>
                                             <StackPanel Grid.Row="2" Spacing="6">
                                                 <TextBlock Text="Убирает звук колонок и смягчает эхо голоса в комнате." FontSize="12" Opacity=".65" TextWrapping="Wrap"/>
                                                 <TextBlock x:Name="EchoCleanupStatus" FontSize="12" Opacity=".65" TextWrapping="Wrap"/>

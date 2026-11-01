@@ -54,11 +54,17 @@ public sealed partial class MainWindow
         _equalizerLoading = false;
         RebuildEqualizerBands();
         RenderEqualizerCurve();
+        InitializeEqualizerUndo();
     }
 
     private static string Db(double value) => value.ToString("+0.0;-0.0;0.0", CultureInfo.CurrentCulture) + " dB";
-    private void QueueEqualizerChange(bool audio = true)
+    private void QueueEqualizerChange(bool audio = true, string? historyKey = null, bool recordHistory = true)
     {
+        if (audio && recordHistory && !_equalizerLoading)
+        {
+            _equalizerHistory?.Record(_settings.Equalizer, _selectedEqBand, historyKey);
+            UpdateEqualizerUndoButton();
+        }
         // Throttle audio updates while dragging, debounce slower disk writes.
         if (audio && !_equalizerApplyTimer.IsEnabled) _equalizerApplyTimer.Start();
         _equalizerSaveTimer.Stop(); _equalizerSaveTimer.Start();
@@ -81,12 +87,12 @@ public sealed partial class MainWindow
         if (_equalizerLoading) return;
         _settings.Equalizer.PreampDb = e.NewValue;
         EqualizerPreampValue.Text = Db(e.NewValue);
-        QueueEqualizerChange();
+        QueueEqualizerChange(historyKey: "preamp");
     }
     private void OnEqualizerReset(object sender, RoutedEventArgs e)
     {
+        if (_equalizerLoading) return;
         _settings.Equalizer = new EqualizerSettings { Enabled = EqualizerEnabled.IsOn };
-        EqualizerPreamp.Value = 0;
         SyncEqualizerEditors();
         RebuildEqualizerBands();
         QueueEqualizerChange();
@@ -94,6 +100,7 @@ public sealed partial class MainWindow
     private void SyncEqualizerEditors()
     {
         _equalizerLoading = true;
+        EqualizerEnabled.IsOn = _settings.Equalizer.Enabled;
         EqualizerPreamp.Value = _settings.Equalizer.PreampDb;
         EqualizerPreampValue.Text = Db(EqualizerPreamp.Value);
         RebuildParametricPoints();
@@ -117,6 +124,7 @@ public sealed partial class MainWindow
                 HorizontalAlignment = HorizontalAlignment.Stretch };
             var slider = new Slider { Orientation = Orientation.Vertical, Minimum = -12, Maximum = 12,
                 StepFrequency = .5, Value = _settings.Equalizer.GainsDb[index], Height = 180, HorizontalAlignment = HorizontalAlignment.Center };
+            TrackEqualizerSliderGesture(slider);
             AutomationProperties.SetName(slider, label);
             AutomationProperties.SetName(value, label + " dB");
             slider.DoubleTapped += (_, _) => slider.Value = 0;
@@ -131,7 +139,7 @@ public sealed partial class MainWindow
                 if (_equalizerLoading) return;
                 if (advanced) _settings.Equalizer.GainsDb[index] = e.NewValue;
                 else _settings.Equalizer.SetBasicGain(basicIndex, e.NewValue);
-                QueueEqualizerChange();
+                QueueEqualizerChange(historyKey: $"graphic-{index}");
             };
             var panel = new StackPanel { Spacing = 8, Padding = new Thickness(2, 8, 2, 8) };
             panel.Children.Add(new TextBlock { Text = label, HorizontalAlignment = HorizontalAlignment.Center, FontSize = 12 });

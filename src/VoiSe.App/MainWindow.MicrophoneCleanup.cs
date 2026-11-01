@@ -1,4 +1,4 @@
-using Microsoft.UI.Xaml;
+﻿using Microsoft.UI.Xaml;
 
 namespace VoiSe.App;
 
@@ -8,7 +8,7 @@ public sealed partial class MainWindow
     private void InitializeMicrophoneCleanup()
     {
         // Keep echo enabled when either of the two legacy options was selected.
-        EchoCancellationSwitch.IsChecked = _settings.EchoCancellationEnabled || _settings.RoomEchoReductionEnabled;
+        EchoCancellationSwitch.IsOn = _settings.EchoCancellationEnabled || _settings.RoomEchoReductionEnabled;
         _cleanupLoading = false;
     }
     private void OnEchoCleanupChanged(object sender, RoutedEventArgs e) => ApplyMicrophoneCleanupChange();
@@ -20,7 +20,7 @@ public sealed partial class MainWindow
     }
     private void UpdateMicrophoneCleanupStatus()
     {
-        if (EchoCancellationSwitch.IsChecked != true)
+        if (!EchoCancellationSwitch.IsOn)
         { EchoCleanupStatus.Text = "Эхоподавление выключено."; return; }
         if (_engine is null)
         { EchoCleanupStatus.Text = "Включится после запуска микрофона."; return; }
