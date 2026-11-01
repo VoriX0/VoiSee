@@ -74,13 +74,6 @@ public sealed partial class MainWindow : Window
     private readonly Dictionary<string, Slider> _activeEffectSliders = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, TextBox> _activeEffectTextBoxes = new(StringComparer.OrdinalIgnoreCase);
     private bool _syncingEffectCardControls;
-    private bool _effectPointerDragActive;
-    private bool _effectPointerDragFromChain;
-    private string? _effectPointerDragKey;
-    private Border? _effectPointerDragVisual;
-    private uint _effectPointerDragPointerId;
-    private double _effectPointerDragOffsetX;
-    private double _effectPointerDragOffsetY;
     private readonly HashSet<string> _bypassedEffectKeys = new(StringComparer.OrdinalIgnoreCase);
     private bool _effectChainBypassed;
     private string _effectLibraryFilter = "All";
@@ -193,6 +186,7 @@ public sealed partial class MainWindow : Window
         InitializeComponent();
         InitializeEqualizer();
         InitializeMicrophoneCleanup();
+        InitializeEffectDrag();
         BuildEffectLibraryList();
 
         if (ThemeFolderPathTextBlock is not null)
@@ -250,7 +244,7 @@ public sealed partial class MainWindow : Window
         };
         _discordCableSessionIsolationTimer.Tick += OnDiscordCableSessionIsolationTimerTick;
 
-        AppendLog("VoiSee Version 14.4.3 UI started.");
+        AppendLog("VoiSee Version 14.5.1 UI started.");
         AppendLog($"Settings path: {_settingsStore.SettingsPath}");
 
         var isolationResult = _discordCableSessionIsolationService.Enable();
@@ -633,6 +627,7 @@ public sealed partial class MainWindow : Window
 
     private void OnMainTabViewSelectionChanged(object sender, SelectionChangedEventArgs e)
     {
+        if (!ReferenceEquals(MainTabView.SelectedItem, VoiceChangerTab)) EndEffectPointerDrag();
         ReapplyThemeAfterVisualTreeChange();
     }
 
@@ -1024,6 +1019,7 @@ public sealed partial class MainWindow : Window
 
     private void OnActivated(object sender, WindowActivatedEventArgs args)
     {
+        if (args.WindowActivationState == WindowActivationState.Deactivated) EndEffectPointerDrag();
         if (_loadedOnce)
         {
             return;
@@ -4290,6 +4286,7 @@ public sealed partial class MainWindow : Window
 
     private void OnRootGridSizeChanged(object sender, SizeChangedEventArgs e)
     {
+        if (_effectPointerDragActive) EndEffectPointerDrag();
         if (EqualizerPlot is not null) EqualizerPlot.Height = Math.Clamp(e.NewSize.Height - 380, 180, 360);
         UpdateSoundBoardDropOverlaySize();
     }
@@ -7250,242 +7247,6 @@ public sealed partial class MainWindow : Window
         EffectPreviewHost.Visibility = Visibility.Visible;
     }
 
-    private void OnEffectLibraryGripPointerPressed(object sender, PointerRoutedEventArgs e)
-    {
-        if (sender is not FrameworkElement { Tag: string effectKey } grip)
-        {
-            return;
-        }
-
-        StartEffectPointerDrag(grip, effectKey, fromChain: false, e);
-    }
-
-    private void OnEffectChainGripPointerPressed(object sender, PointerRoutedEventArgs e)
-    {
-        if (sender is not FrameworkElement { Tag: string effectKey } grip)
-        {
-            return;
-        }
-
-        StartEffectPointerDrag(grip, effectKey, fromChain: true, e);
-    }
-
-    private void StartEffectPointerDrag(UIElement grip, string effectKey, bool fromChain, PointerRoutedEventArgs e)
-    {
-        if (EffectDragOverlay is null || _effectPointerDragActive)
-        {
-            return;
-        }
-
-        _effectPointerDragActive = true;
-        _effectPointerDragFromChain = fromChain;
-        _effectPointerDragKey = effectKey;
-        _effectPointerDragPointerId = e.Pointer.PointerId;
-
-        var sourceCard = FindVisualAncestor<Border>(grip);
-        var width = Clamp(sourceCard?.ActualWidth ?? 460.0, 300.0, 520.0);
-        var value = fromChain
-            ? GetActiveEffectValue(effectKey)
-            : GetLibraryEffectValue(effectKey);
-
-        _effectPointerDragVisual = CreateEffectDragVisual(effectKey, value, width);
-        EffectDragOverlay.Children.Add(_effectPointerDragVisual);
-        Canvas.SetZIndex(_effectPointerDragVisual, 1000);
-
-        _effectPointerDragOffsetX = Math.Min(34.0, width * 0.18);
-        _effectPointerDragOffsetY = 24.0;
-        UpdateEffectDragVisualPosition(e);
-        grip.CapturePointer(e.Pointer);
-        e.Handled = true;
-    }
-
-    private Border CreateEffectDragVisual(string effectKey, double value, double width)
-    {
-        var card = new Border
-        {
-            Width = width,
-            MinHeight = 86,
-            Padding = new Thickness(12, 10, 12, 10),
-            CornerRadius = new CornerRadius(7),
-            Background = Application.Current.Resources["VoiSee.PanelBackgroundBrush"] as Brush,
-            BorderBrush = Application.Current.Resources["VoiSee.PanelBorderBrush"] as Brush,
-            BorderThickness = new Thickness(1.0),
-            Opacity = 0.76,
-            IsHitTestVisible = false
-        };
-
-        var stack = new StackPanel { Spacing = 8 };
-        var header = new Grid { ColumnSpacing = 8 };
-        header.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-        header.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-        header.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-        header.Children.Add(new TextBlock { Text = "⋮⋮", Opacity = 0.72, FontSize = 18, VerticalAlignment = VerticalAlignment.Center });
-        var title = new TextBlock
-        {
-            Text = GetEffectDisplayName(effectKey),
-            FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
-            VerticalAlignment = VerticalAlignment.Center
-        };
-        Grid.SetColumn(title, 1);
-        header.Children.Add(title);
-        var valueText = new TextBlock
-        {
-            Text = ((int)Math.Round(value)).ToString(),
-            Opacity = 0.8,
-            VerticalAlignment = VerticalAlignment.Center
-        };
-        Grid.SetColumn(valueText, 2);
-        header.Children.Add(valueText);
-        stack.Children.Add(header);
-
-        var range = GetEffectUiRange(effectKey);
-        var progress = new ProgressBar
-        {
-            Minimum = range.Minimum,
-            Maximum = range.Maximum,
-            Value = Clamp(value, range.Minimum, range.Maximum),
-            Height = 5,
-            IsIndeterminate = false
-        };
-        stack.Children.Add(progress);
-        card.Child = stack;
-        return card;
-    }
-
-    private void OnEffectDragPointerMoved(object sender, PointerRoutedEventArgs e)
-    {
-        if (!_effectPointerDragActive || e.Pointer.PointerId != _effectPointerDragPointerId)
-        {
-            return;
-        }
-
-        UpdateEffectDragVisualPosition(e);
-        e.Handled = true;
-    }
-
-    private void UpdateEffectDragVisualPosition(PointerRoutedEventArgs e)
-    {
-        if (EffectDragOverlay is null || _effectPointerDragVisual is null)
-        {
-            return;
-        }
-
-        var position = e.GetCurrentPoint(EffectDragOverlay).Position;
-        Canvas.SetLeft(_effectPointerDragVisual, position.X - _effectPointerDragOffsetX);
-        Canvas.SetTop(_effectPointerDragVisual, position.Y - _effectPointerDragOffsetY);
-    }
-
-    private void OnEffectDragPointerReleased(object sender, PointerRoutedEventArgs e)
-    {
-        if (!_effectPointerDragActive || e.Pointer.PointerId != _effectPointerDragPointerId)
-        {
-            return;
-        }
-
-        try
-        {
-            if (ProcessingChainSurface is not null && IsPointerInside(e, ProcessingChainSurface) && !string.IsNullOrWhiteSpace(_effectPointerDragKey))
-            {
-                var insertionIndex = GetEffectInsertionIndex(e);
-                if (_effectPointerDragFromChain)
-                {
-                    MoveEffectWithinProcessingChain(_effectPointerDragKey!, insertionIndex);
-                }
-                else
-                {
-                    AddEffectToProcessingChain(_effectPointerDragKey!, insertionIndex);
-                }
-            }
-        }
-        finally
-        {
-            if (sender is UIElement grip)
-            {
-                grip.ReleasePointerCapture(e.Pointer);
-            }
-            EndEffectPointerDrag();
-        }
-
-        e.Handled = true;
-    }
-
-    private void OnEffectDragPointerCanceled(object sender, PointerRoutedEventArgs e)
-    {
-        if (sender is UIElement grip)
-        {
-            grip.ReleasePointerCapture(e.Pointer);
-        }
-        EndEffectPointerDrag();
-        e.Handled = true;
-    }
-
-    private void EndEffectPointerDrag()
-    {
-        if (_effectPointerDragVisual is not null && EffectDragOverlay is not null)
-        {
-            EffectDragOverlay.Children.Remove(_effectPointerDragVisual);
-        }
-
-        _effectPointerDragActive = false;
-        _effectPointerDragFromChain = false;
-        _effectPointerDragKey = null;
-        _effectPointerDragVisual = null;
-        _effectPointerDragPointerId = 0;
-    }
-
-    private static bool IsPointerInside(PointerRoutedEventArgs e, FrameworkElement element)
-    {
-        var point = e.GetCurrentPoint(element).Position;
-        return point.X >= 0 && point.Y >= 0 && point.X <= element.ActualWidth && point.Y <= element.ActualHeight;
-    }
-
-    private int GetEffectInsertionIndex(PointerRoutedEventArgs e)
-    {
-        if (EffectChainCardsPanel is null || EffectChainCardsPanel.Children.Count == 0)
-        {
-            return 0;
-        }
-
-        var point = e.GetCurrentPoint(EffectChainCardsPanel).Position;
-        for (var index = 0; index < EffectChainCardsPanel.Children.Count; index++)
-        {
-            if (EffectChainCardsPanel.Children[index] is not FrameworkElement child)
-            {
-                continue;
-            }
-
-            try
-            {
-                var top = child.TransformToVisual(EffectChainCardsPanel)
-                    .TransformPoint(new Windows.Foundation.Point(0, 0)).Y;
-                if (point.Y < top + child.ActualHeight / 2.0)
-                {
-                    return index;
-                }
-            }
-            catch
-            {
-                // If the visual is being rebuilt, append at the end.
-            }
-        }
-
-        return EffectChainCardsPanel.Children.Count;
-    }
-
-    private static T? FindVisualAncestor<T>(DependencyObject? start) where T : DependencyObject
-    {
-        var current = start;
-        while (current is not null)
-        {
-            if (current is T match)
-            {
-                return match;
-            }
-            current = VisualTreeHelper.GetParent(current);
-        }
-        return null;
-    }
-
     private void OnEffectChainDragOver(object sender, DragEventArgs e)
     {
         e.AcceptedOperation = DataPackageOperation.Copy;
@@ -7601,6 +7362,7 @@ public sealed partial class MainWindow : Window
 
     private void RebuildEffectChainCards()
     {
+        EndEffectPointerDrag();
         if (EffectChainCardsPanel is null)
         {
             return;
@@ -7723,11 +7485,12 @@ public sealed partial class MainWindow : Window
             HorizontalAlignment = HorizontalAlignment.Center,
             VerticalAlignment = VerticalAlignment.Center
         });
-        ToolTipService.SetToolTip(grip, "Drag to reorder");
+        ToolTipService.SetToolTip(grip, EffectDragText("ChainGrip"));
         grip.PointerPressed += OnEffectChainGripPointerPressed;
         grip.PointerMoved += OnEffectDragPointerMoved;
         grip.PointerReleased += OnEffectDragPointerReleased;
         grip.PointerCanceled += OnEffectDragPointerCanceled;
+        grip.PointerCaptureLost += OnEffectDragPointerCaptureLost;
         row.Children.Add(grip);
 
         var numberHost = new Border
@@ -8116,8 +7879,15 @@ public sealed partial class MainWindow : Window
             return;
         }
 
-        _effectChainOrder.RemoveAll(key => string.Equals(key, effectKey, StringComparison.OrdinalIgnoreCase));
+        RemoveEffectFromProcessingChain(effectKey);
+    }
+
+    private void RemoveEffectFromProcessingChain(string effectKey)
+    {
+        if (_effectChainOrder.RemoveAll(key => string.Equals(key, effectKey, StringComparison.OrdinalIgnoreCase)) == 0) return;
         _activeEffectValues.Remove(effectKey);
+        _bypassedEffectKeys.Remove(effectKey);
+        if (string.Equals(_previewEffectKey, effectKey, StringComparison.OrdinalIgnoreCase)) ClearEffectPreview(restoreValue: true);
         RebuildEffectChainCards();
         _lastAppliedVoicePresetName = null;
         ScheduleVoiceSettingsApply();
@@ -8329,11 +8099,12 @@ public sealed partial class MainWindow : Window
             HorizontalAlignment = HorizontalAlignment.Center,
             VerticalAlignment = VerticalAlignment.Center
         });
-        ToolTipService.SetToolTip(grip, "Drag to processing chain");
+        ToolTipService.SetToolTip(grip, EffectDragText("LibraryGrip"));
         grip.PointerPressed += OnEffectLibraryGripPointerPressed;
         grip.PointerMoved += OnEffectDragPointerMoved;
         grip.PointerReleased += OnEffectDragPointerReleased;
         grip.PointerCanceled += OnEffectDragPointerCanceled;
+        grip.PointerCaptureLost += OnEffectDragPointerCaptureLost;
         row.Children.Add(grip);
 
         var iconHost = new Border

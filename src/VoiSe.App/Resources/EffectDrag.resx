@@ -1,0 +1,24 @@
+<?xml version='1.0' encoding='utf-8'?>
+<root>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <data xml:space="preserve" name="Instructions">
+    <value>Перетащите эффект в цепочку или нажмите «Добавить». Чтобы убрать эффект, верните его за ручку ⋮⋮ вправо, в библиотеку.</value>
+  </data>
+  <data xml:space="preserve" name="ReturnTitle">
+    <value>Убрать из цепочки</value>
+  </data>
+  <data xml:space="preserve" name="ReturnDescription">
+    <value>Отпустите карточку здесь. Эффект останется доступен в библиотеке.</value>
+  </data>
+  <data xml:space="preserve" name="ChainGrip">
+    <value>Тяните за ручку для перестановки. Перенесите вправо в библиотеку, чтобы убрать эффект.</value>
+  </data>
+  <data xml:space="preserve" name="LibraryGrip">
+    <value>Перетащите в цепочку для добавления эффекта.</value>
+  </data>
+</root>

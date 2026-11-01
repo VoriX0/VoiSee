@@ -6,7 +6,7 @@
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     mc:Ignorable="d"
-    Title="VoiSee Version 14.4.3">
+    Title="VoiSee Version 14.5.1">
 
     <Grid x:Name="RootGrid" RequestedTheme="Dark" Background="{ThemeResource VoiSee.AppBackgroundBrush}" SizeChanged="OnRootGridSizeChanged">
         <Grid.RowDefinitions>
@@ -21,7 +21,7 @@
             </Grid.ColumnDefinitions>
             <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center" Margin="10,0,0,0">
                 <Image Source="ms-appx:///Assets/AppIcon_24.png" Width="16" Height="16" VerticalAlignment="Center" />
-                <TextBlock x:Name="TitleBarVersionTextBlock" Text="VoiSee Version 14.4.3" FontSize="12" Foreground="{ThemeResource VoiSee.PrimaryTextBrush}" VerticalAlignment="Center" />
+                <TextBlock x:Name="TitleBarVersionTextBlock" Text="VoiSee Version 14.5.1" FontSize="12" Foreground="{ThemeResource VoiSee.PrimaryTextBrush}" VerticalAlignment="Center" />
             </StackPanel>
         </Grid>
 
@@ -39,7 +39,7 @@
                 </Grid.ColumnDefinitions>
                 <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
                     <Image Source="ms-appx:///Assets/AppIcon_48.png" Width="34" Height="34" VerticalAlignment="Center" />
-                    <TextBlock x:Name="MainTitle" Text="VoiSee Version 14.4.3" FontSize="28" FontWeight="SemiBold" Foreground="{ThemeResource VoiSee.PrimaryTextBrush}" VerticalAlignment="Center" />
+                    <TextBlock x:Name="MainTitle" Text="VoiSee Version 14.5.1" FontSize="28" FontWeight="SemiBold" Foreground="{ThemeResource VoiSee.PrimaryTextBrush}" VerticalAlignment="Center" />
                 </StackPanel>
                 <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center" HorizontalAlignment="Right">
                     <TextBlock Text="Mic Output" Foreground="{ThemeResource VoiSee.PrimaryTextBrush}" Opacity="0.62" VerticalAlignment="Center" />
@@ -278,7 +278,7 @@
                     </Grid>
                 </TabViewItem>
 
-                <TabViewItem Header="Voice Changer" IsClosable="False">
+                <TabViewItem x:Name="VoiceChangerTab" Header="Voice Changer" IsClosable="False">
                     <!-- 12.3.3 buildfix 2: collection controls own their native scrolling; effect library items are generated in code. -->
                     <Grid x:Name="VoiceChangerStudioRoot" Padding="0,16,32,22" ColumnSpacing="14">
                             <Grid.ColumnDefinitions>
@@ -472,7 +472,7 @@
                                     </Grid>
                                     <Border Grid.Row="2" Padding="9,7" CornerRadius="{ThemeResource VoiSee.CornerRadius.Small}"
                                             Background="{ThemeResource VoiSee.CardValueBackgroundBrush}" BorderBrush="{ThemeResource VoiSee.PanelBorderBrush}" BorderThickness="1">
-                                        <TextBlock Text="ⓘ  Drag an effect to the chain or click Add. Tune it in the active chain card."
+                                        <TextBlock x:Name="EffectLibraryDragInstructions"
                                                    FontSize="9.5" Opacity="0.76" TextWrapping="Wrap" />
                                     </Border>
                                     <ListView Grid.Row="3" x:Name="EffectLibraryListView"
@@ -593,7 +593,17 @@
                                         <TextBlock x:Name="VocoderLabel" Text="Vocoder" />
                                         <TextBox x:Name="VocoderValueBox" Text="0" MaxLength="6" TextChanged="OnVoiceValueTextChanged" />
                                         <Slider x:Name="VocoderSlider" Minimum="0" Maximum="100" Value="0" StepFrequency="1" ValueChanged="OnVoiceSettingsChanged" />
-                                    </StackPanel></Grid>
+                                    </StackPanel>
+                                    <Border x:Name="EffectLibraryReturnHint" Grid.RowSpan="4" Visibility="Collapsed" IsHitTestVisible="False"
+                                            Padding="24" CornerRadius="8" BorderThickness="2"
+                                            Background="{ThemeResource VoiSee.PanelBackgroundBrush}" BorderBrush="{ThemeResource VoiSee.PrimaryTextBrush}">
+                                        <StackPanel Spacing="12" VerticalAlignment="Center" HorizontalAlignment="Center">
+                                            <FontIcon Glyph="&#xE8BB;" FontFamily="Segoe Fluent Icons" FontSize="30" HorizontalAlignment="Center"/>
+                                            <TextBlock x:Name="EffectLibraryReturnTitle" FontSize="18" FontWeight="SemiBold" TextAlignment="Center" TextWrapping="Wrap"/>
+                                            <TextBlock x:Name="EffectLibraryReturnDescription" FontSize="13" Opacity=".7" TextAlignment="Center" TextWrapping="Wrap"/>
+                                        </StackPanel>
+                                    </Border>
+                                </Grid>
                             </Border>
 
                             <Canvas x:Name="EffectDragOverlay" Grid.ColumnSpan="3"
