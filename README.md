@@ -1,6 +1,20 @@
-# VoiSee 14.1.1
+# VoiSee
 
-Memory, storage and audio-session foundations based on 12.5.1. See [14.1.1 release notes](docs/RELEASE_NOTES_14_1_1.md) and the [series specification](docs/SPEC_14_DRAFT.md).
+Приложение для обработки микрофона, изменения голоса, воспроизведения звуков и передачи звука приложений в виртуальный микрофон. Серия 14 основана на рабочей 12.5.1 и включает эквалайзер, шумоподавление, эхоподавление и русский/английский интерфейс.
+
+## Установщики и сборка
+
+Место распространения установщиков — [GitHub Releases](https://github.com/VoriX0/VoiSe/releases). К релизу соответствующего тега `v<версия>` прикрепляется `VoiSee-Setup-<версия>-x64.exe` и контрольная сумма SHA-256. Установщики не добавляются в исходники Git. До публикации релиза установщик доступен локально после сборки.
+
+Запуск без установщика: `dotnet run --project .\src\VoiSe.App\VoiSe.App.csproj -c Release`.
+
+Сборка установщика (нужен Inno Setup 6): `.\scripts\build-installer.ps1`. Результат: `artifacts\installer\<версия>`. Для повторной сборки той же версии используется `-Force`; вывод других версий сохраняется.
+
+## Границы аудиосессии
+
+`AudioSessionController` владеет единственной сессией и выполняет её запуск, остановку и восстановление после ошибки на потоке диспетчера. Ошибки старых сессий отбрасываются по поколению; нативные callbacks не ожидают UI. `AudioDeviceService` перечисляет устройства и передаёт владение открытыми endpoints движку только после успешного создания. `AudioDeviceSelectionPolicy` содержит проверяемые без устройств правила выбора по ID. Части `MainWindow.AudioSession` и `MainWindow.Devices` связывают эти компоненты с интерфейсом.
+
+Проверки: `dotnet run --project .\tests\VoiSe.RegressionTests -c Release`. Они покрывают жизненный цикл, выбор устройств, хранение, аудиобуферы и DSP. Проверки на физических устройствах, сквозной задержки и длительных утечек выполняются отдельно.
 
 > **12.4.0 buildfix 1:** keeps the validated Per-Monitor V2 DPI fix, fixes SoundBoard right-click without rebuilding/resetting the native ListView, and removes the Media Bridge scroll container entirely.
 

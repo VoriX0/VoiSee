@@ -8,6 +8,7 @@
   <ItemGroup>
     <ProjectReference Include="../../src/VoiSe.Audio/VoiSe.Audio.csproj" />
     <Compile Include="../../src/VoiSe.App/AtomicFile.cs" Link="AtomicFile.cs" />
+    <Compile Include="../../src/VoiSe.App/AudioSessionController.cs" Link="AudioSessionController.cs" />
     <Compile Include="../../src/VoiSe.App/EqualizerEditHistory.cs" Link="EqualizerEditHistory.cs" />
     <Compile Include="../../src/VoiSe.App/UiText.cs" Link="UiText.cs" />
     <Compile Include="../../src/VoiSe.App/VoiSeUserSettings.cs" Link="VoiSeUserSettings.cs" />

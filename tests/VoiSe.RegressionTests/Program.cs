@@ -9,6 +9,7 @@ Directory.CreateDirectory(root);
 var results = new List<string>();
 void Check(bool condition, string message) { if (!condition) throw new Exception(message); }
 void Test(string name, Action test) { test(); results.Add(name); Console.WriteLine("PASS " + name); }
+SessionRegressionTests.Run(Test);
 var format = WaveFormat.CreateIeeeFloatWaveFormat(48000, 2);
 string Wave(string name, int seconds, int rate = 48000)
 {

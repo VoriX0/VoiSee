@@ -3,7 +3,7 @@
 
 #define MyAppName "VoiSee"
 #ifndef MyAppVersion
-#define MyAppVersion "14.7.1"
+#define MyAppVersion "14.8.1"
 #endif
 #define MyAppPublisher "VoriX"
 #define MyAppURL "https://github.com/VoriX0/VoiSe"

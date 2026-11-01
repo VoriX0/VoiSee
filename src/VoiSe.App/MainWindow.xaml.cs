@@ -7,7 +7,6 @@ using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Xaml.Media.Imaging;
 using XamlLine = Microsoft.UI.Xaml.Shapes.Line;
 using XamlRectangle = Microsoft.UI.Xaml.Shapes.Rectangle;
-using NAudio.CoreAudioApi;
 using NAudio.Wave;
 using System;
 using System.Collections.Generic;
@@ -29,7 +28,7 @@ namespace VoiSe.App;
 
 public sealed partial class MainWindow : Window
 {
-    private readonly AudioDeviceCatalog _catalog = new();
+    private readonly AudioDeviceService _devices = new();
     private readonly DiscordCableSessionIsolationService _discordCableSessionIsolationService = new();
     private readonly DispatcherTimer _discordCableSessionIsolationTimer;
     private string? _lastDiscordCableSessionIsolationError;
@@ -54,7 +53,8 @@ public sealed partial class MainWindow : Window
     private bool _syncingVoiceControls;
     private readonly StringBuilder _logBuffer = new();
     private readonly DispatcherTimer _voiceSettingsApplyTimer;
-    private Gate2UnifiedAudioEngine? _engine;
+    private readonly AudioSessionController<Gate2UnifiedAudioEngine> _audioSession;
+    private Gate2UnifiedAudioEngine? _engine => _audioSession.Current;
     private string? _soundFilePath;
     private SoundBoardSound? _selectedSound;
     private bool _loadingLibrary;
@@ -169,12 +169,16 @@ public sealed partial class MainWindow : Window
     private DateTimeOffset? _mediaBridgeStartedAt;
     private bool _mediaBridgeStarting;
     private bool _mediaBridgePreviewUpdating;
+    private long _lastStatusRefresh;
     private int _mediaBridgePreviewTick;
     private string? _sceneOwnedMediaBridgeSceneId;
 
     public MainWindow()
     {
         StartupLog.Write("MainWindow constructor started.");
+        _audioSession = new(action => DispatcherQueue.TryEnqueue(() => action()),
+            error => StartupLog.Write("Audio session cleanup: " + error));
+        _audioSession.Faulted += OnAudioSessionFaulted;
         _settings = _settingsStore.Load();
         UiText.Initialize(_settings.InterfaceLanguage);
         _settings.MediaBridgeProfiles ??= new List<MediaBridgeProfile>();
@@ -246,7 +250,7 @@ public sealed partial class MainWindow : Window
         };
         _discordCableSessionIsolationTimer.Tick += OnDiscordCableSessionIsolationTimerTick;
 
-        AppendLog("VoiSee Version 14.7.1 UI started.");
+        AppendLog("VoiSee Version 14.8.1 UI started.");
         AppendLog($"Settings path: {_settingsStore.SettingsPath}");
 
         var isolationResult = _discordCableSessionIsolationService.Enable();
@@ -1085,24 +1089,7 @@ public sealed partial class MainWindow : Window
         }
     }
 
-    private static bool IsLikelyVBCableDevice(AudioDeviceInfo? device)
-    {
-        if (device is null || string.IsNullOrWhiteSpace(device.FriendlyName))
-        {
-            return false;
-        }
-
-        var name = device.FriendlyName;
-        return name.Contains("CABLE Input", StringComparison.OrdinalIgnoreCase)
-            || name.Contains("VB-CABLE", StringComparison.OrdinalIgnoreCase)
-            || name.Contains("VB Audio", StringComparison.OrdinalIgnoreCase)
-            || name.Contains("VB-Audio", StringComparison.OrdinalIgnoreCase);
-    }
-
-    private static AudioDeviceInfo? FindDetectedVBCableRenderDevice(IEnumerable<AudioDeviceInfo> renderDevices)
-    {
-        return renderDevices.FirstOrDefault(IsLikelyVBCableDevice);
-    }
+    private static bool IsLikelyVBCableDevice(AudioDeviceInfo? device) => AudioDeviceSelectionPolicy.IsVirtualCable(device);
 
     private bool IsVBCableReady()
     {
@@ -1623,9 +1610,13 @@ public sealed partial class MainWindow : Window
             return;
         }
 
-        if (!_windowHiddenToTray && ReferenceEquals(MainTabView.SelectedItem, EqualizerTab))
-        { UpdateNoiseSuppressionUi(); UpdateMicrophoneCleanupStatus(); }
-        if (_advancedRouteStatusTextBlock is not null) RefreshAdvancedSettingsStatus();
+        if (!_windowHiddenToTray && Stopwatch.GetElapsedTime(_lastStatusRefresh).TotalMilliseconds >= 500)
+        {
+            _lastStatusRefresh = Stopwatch.GetTimestamp();
+            if (ReferenceEquals(MainTabView.SelectedItem, EqualizerTab))
+            { UpdateNoiseSuppressionUi(); UpdateMicrophoneCleanupStatus(); }
+            if (_advancedRouteStatusTextBlock is not null) RefreshAdvancedSettingsStatus();
+        }
         if (_windowHiddenToTray || !ReferenceEquals(MainTabView.SelectedItem, MediaBridgeTabViewItem)) return;
 
         var engine = _engine;
@@ -3868,124 +3859,9 @@ public sealed partial class MainWindow : Window
             UnhookWindowsHookEx(_keyboardHookHandle);
             _keyboardHookHandle = IntPtr.Zero;
         }
-        _catalog.Dispose();
+        _audioSession.Dispose();
+        _devices.Dispose();
         _discordCableSessionIsolationService.Dispose();
-    }
-
-    private void OnRefreshDevicesClick(object sender, RoutedEventArgs e)
-    {
-        try
-        {
-            RefreshDevices();
-        }
-        catch (Exception ex)
-        {
-            StartupLog.Write("RefreshDevices button error: " + ex);
-            AppendLog($"Device refresh error: {ex.Message}");
-        }
-    }
-
-    private void RefreshDevices(bool saveAfterRefresh = true)
-    {
-        var wasRunning = _engine is not null;
-        var oldInput = (InputDeviceComboBox.SelectedItem as AudioDeviceInfo)?.Id;
-        var oldMonitor = (MonitorOutputComboBox.SelectedItem as AudioDeviceInfo)?.Id;
-        var oldVirtual = (VirtualOutputComboBox.SelectedItem as AudioDeviceInfo)?.Id;
-        _refreshingDevices = true;
-        try
-        {
-            AppendLog("Refreshing audio devices...");
-            var captureDevices = _catalog.ListCaptureDevices();
-            var renderDevices = _catalog.ListRenderDevices();
-            ApplyDeviceLists(captureDevices, renderDevices, saveAfterRefresh);
-            if (saveAfterRefresh)
-            {
-                if (oldInput is not null && !captureDevices.Any(d => d.Id == oldInput)) InputDeviceComboBox.SelectedItem = null;
-                if (oldMonitor is not null && !renderDevices.Any(d => d.Id == oldMonitor)) MonitorOutputComboBox.SelectedItem = null;
-                SaveCurrentSettings();
-            }
-            if (wasRunning && (oldInput != (InputDeviceComboBox.SelectedItem as AudioDeviceInfo)?.Id
-                || oldMonitor != (MonitorOutputComboBox.SelectedItem as AudioDeviceInfo)?.Id
-                || oldVirtual != (VirtualOutputComboBox.SelectedItem as AudioDeviceInfo)?.Id))
-            {
-                StopEngine(log: true);
-                if (InputDeviceComboBox.SelectedItem is not null && VirtualOutputComboBox.SelectedItem is not null)
-                    StartEngine(logAlreadyRunning: false);
-                else AppendLog("Selected audio device was disconnected. Select an available device to resume.");
-            }
-        }
-        finally
-        {
-            _refreshingDevices = false;
-        }
-    }
-
-    private void ApplyDeviceLists(IReadOnlyList<AudioDeviceInfo> captureDevices, IReadOnlyList<AudioDeviceInfo> renderDevices, bool saveAfterRefresh)
-    {
-        var oldInputId = (InputDeviceComboBox.SelectedItem as AudioDeviceInfo)?.Id ?? _settings.InputDeviceId;
-        var oldVirtualId = (VirtualOutputComboBox.SelectedItem as AudioDeviceInfo)?.Id ?? _settings.VirtualOutputDeviceId;
-        var oldMonitorId = (MonitorOutputComboBox.SelectedItem as AudioDeviceInfo)?.Id ?? _settings.MonitorOutputDeviceId;
-
-        InputDeviceComboBox.ItemsSource = captureDevices;
-        VirtualOutputComboBox.ItemsSource = renderDevices;
-        MonitorOutputComboBox.ItemsSource = renderDevices;
-
-        var selectedInput = PickById(captureDevices, oldInputId)
-            ?? PickByExactName(captureDevices, _settings.InputDeviceName)
-            ?? PickByName(captureDevices, _settings.InputDeviceName)
-            ?? PickByName(captureDevices, "Fifine")
-            ?? captureDevices.FirstOrDefault();
-
-        var detectedVBCable = FindDetectedVBCableRenderDevice(renderDevices);
-
-        var selectedVirtual = PickById(renderDevices, oldVirtualId)
-            ?? PickByExactName(renderDevices, _settings.VirtualOutputDeviceName)
-            ?? PickByName(renderDevices, _settings.VirtualOutputDeviceName)
-            ?? PickByName(renderDevices, "CABLE Input")
-            ?? detectedVBCable;
-
-        if (!IsLikelyVBCableDevice(selectedVirtual))
-        {
-            selectedVirtual = detectedVBCable;
-        }
-
-        var selectedMonitor = PickById(renderDevices, oldMonitorId)
-            ?? PickByExactName(renderDevices, _settings.MonitorOutputDeviceName)
-            ?? PickByName(renderDevices, _settings.MonitorOutputDeviceName)
-            ?? PickByName(renderDevices, "Realtek")
-            ?? renderDevices.FirstOrDefault();
-
-        InputDeviceComboBox.SelectedItem = selectedInput;
-        VirtualOutputComboBox.SelectedItem = selectedVirtual;
-        MonitorOutputComboBox.SelectedItem = selectedMonitor;
-
-        AppendLog($"Devices refreshed: {captureDevices.Count} capture, {renderDevices.Count} render.");
-        AppendLog($"Selected input: {selectedInput?.FriendlyName ?? "none"}");
-        AppendLog($"Selected virtual output: {selectedVirtual?.FriendlyName ?? "none"}");
-        AppendLog($"Selected monitor: {selectedMonitor?.FriendlyName ?? "none"}");
-        UpdateVBCableUiState();
-
-        if (saveAfterRefresh && !_loadingSettings)
-        {
-            SaveCurrentSettings();
-        }
-    }
-
-    private static AudioDeviceInfo? PickByExactName(IReadOnlyList<AudioDeviceInfo> devices, string? text)
-    {
-        if (string.IsNullOrWhiteSpace(text)) return null;
-        return devices.FirstOrDefault(d => string.Equals(d.FriendlyName, text, StringComparison.OrdinalIgnoreCase));
-    }
-
-    private static AudioDeviceInfo? PickByName(IReadOnlyList<AudioDeviceInfo> devices, string? text)
-    {
-        if (string.IsNullOrWhiteSpace(text)) return null;
-        return devices.FirstOrDefault(d => d.FriendlyName.Contains(text, StringComparison.OrdinalIgnoreCase));
-    }
-
-    private static AudioDeviceInfo? PickById(IReadOnlyList<AudioDeviceInfo> devices, string? id)
-    {
-        return id is null ? null : devices.FirstOrDefault(d => d.Id == id);
     }
 
     private void LoadSoundBoardLibraryIntoUi()
@@ -6428,117 +6304,6 @@ public sealed partial class MainWindow : Window
 
     private void OnSoundContextDeleteClick(object sender, RoutedEventArgs e) => DeleteSelectedSound();
 
-    private void OnStartEngineClick(object sender, RoutedEventArgs e)
-    {
-        _manualStopRequested = false;
-        StartEngine(logAlreadyRunning: true);
-    }
-
-    private void OnStopEngineClick(object sender, RoutedEventArgs e)
-    {
-        _manualStopRequested = true;
-        StopEngine(log: true);
-    }
-
-    private bool StartEngine(bool logAlreadyRunning)
-    {
-        if (_engine is not null)
-        {
-            if (logAlreadyRunning) AppendLog("Engine is already running.");
-            return true;
-        }
-
-        var inputInfo = InputDeviceComboBox.SelectedItem as AudioDeviceInfo;
-        var virtualInfo = VirtualOutputComboBox.SelectedItem as AudioDeviceInfo;
-        var monitorInfo = MonitorOutputComboBox.SelectedItem as AudioDeviceInfo;
-
-        if (inputInfo is null)
-        {
-            AppendLog("Select an input microphone first.");
-            UpdateVBCableUiState();
-            return false;
-        }
-
-        if (virtualInfo is null || !IsLikelyVBCableDevice(virtualInfo))
-        {
-            AppendLog("VB-CABLE was not detected. Install VB-CABLE before starting the engine.");
-            UpdateVBCableUiState();
-            return false;
-        }
-
-        MMDevice? input = null, virtualOutput = null, monitor = null;
-        try
-        {
-            input = _catalog.FindCaptureDevice(inputInfo.Id);
-            virtualOutput = _catalog.FindRenderDevice(virtualInfo.Id);
-            monitor = monitorInfo is null ? null : _catalog.FindRenderDevice(monitorInfo.Id);
-            if (input is null || virtualOutput is null)
-                throw new InvalidOperationException(UiText.L("Selected_devices_are_no_longer_available_Refre_beb32965"));
-            SaveCurrentSettings();
-            _engine = new Gate2UnifiedAudioEngine(input, virtualOutput, monitor, CreateEffectSettings(), ownsDevices: true, equalizer: CurrentEqualizerForEngine());
-            var startedEngine = _engine;
-            _engine.Faulted += error => DispatcherQueue.TryEnqueue(() =>
-            {
-                if (!ReferenceEquals(_engine, startedEngine) || _exitRequested) return;
-                AppendLog("Audio engine error: " + error);
-                StopEngine(log: false);
-                EngineStatusTextBlock.Text = UiText.L("Error_refresh_devices_to_resume_513bcc20");
-            });
-            _engine.Start();
-            _engine.SetVirtualMicMuted(_virtualMicMuted);
-            _engine.UpdateMediaBridgeVolume((float)(MediaBridgeVolumeSlider?.Value ?? _settings.MediaBridgeVirtualMicVolume));
-            EngineStatusTextBlock.Text = UiText.L("Running_f4ccae29");
-            AppendLog($"Engine started. Input: {input.FriendlyName}");
-            AppendLog($"Virtual output: {virtualOutput.FriendlyName}");
-            AppendLog($"Monitor: {(monitor is null ? "disabled" : monitor.FriendlyName)}");
-            AppendLog($"Voice monitor route: {(_engine.VoiceMonitorRouteEnabled ? "connected" : "hard disconnected")}");
-            var noiseMode = GetSelectedNoiseSuppressionMode();
-            if (noiseMode != NoiseSuppressionMode.Off)
-            {
-                AppendLog(_engine.NoiseSuppressionAvailable
-                    ? $"Noise suppression: {_engine.ActiveNoiseSuppressionName} active at {(int)Math.Round(NoiseSuppressionStrengthSlider?.Value ?? 70.0)}%."
-                    : $"Noise suppression unavailable: {_engine.NoiseSuppressionError ?? $"{_engine.ActiveNoiseSuppressionName} could not be initialized"}.");
-            }
-            // On-demand playback: never decode the whole library on engine start.
-            RefreshAdvancedSettingsStatus();
-            return true;
-        }
-        catch (Exception ex)
-        {
-            try { _engine?.Dispose(); } catch (Exception cleanup) { StartupLog.Write("Engine rollback: " + cleanup); }
-            if (_engine is null) { input?.Dispose(); virtualOutput?.Dispose(); monitor?.Dispose(); }
-            _engine = null;
-            EngineStatusTextBlock.Text = UiText.L("Error_54a0e8c1");
-            AppendLog($"Engine start error: {ex.Message}");
-            RefreshAdvancedSettingsStatus();
-            return false;
-        }
-    }
-
-    private void StopEngine(bool log)
-    {
-        if (_engine is null) return;
-
-        try
-        {
-            _engine.Dispose();
-            _mediaBridgeStartedAt = null;
-            if (log) AppendLog("Engine stopped.");
-        }
-        catch (Exception ex)
-        {
-            AppendLog($"Engine stop error: {ex.Message}");
-        }
-        finally
-        {
-            _engine = null;
-            EngineStatusTextBlock.Text = UiText.L("Stopped_1a4f630a");
-            UpdateVBCableUiState();
-            RefreshAdvancedSettingsStatus();
-            UpdateMediaBridgeUiState(UiText.L("Audio_engine_stopped_c5ac8401"));
-        }
-    }
-
     private void OnVirtualMicMuteToggleClick(object sender, RoutedEventArgs e)
     {
         ToggleVirtualMicMute("UI");
@@ -6609,30 +6374,6 @@ public sealed partial class MainWindow : Window
                 DispatcherQueue.TryEnqueue(() => AppendLog($"Virtual mic mute cue error: {ex.Message}"));
             }
         });
-    }
-
-    private void RestartEngine(string reason)
-    {
-        if (_engine is null || _manualStopRequested) return;
-        AppendLog($"Engine auto-restart: {reason}.");
-        StopEngine(log: false);
-        StartEngine(logAlreadyRunning: false);
-    }
-
-    private void OnRouteRestartTimerTick(object? sender, object e)
-    {
-        _routeRestartTimer.Stop();
-        RestartEngine(_pendingRestartReason);
-    }
-
-    private void ScheduleEngineRestart(string reason)
-    {
-        if (_engine is null || _refreshingDevices || _loadingSettings) return;
-        _pendingRestartReason = reason;
-        _routeRestartTimer.Stop();
-        _routeRestartTimer.Start();
-        EngineStatusTextBlock.Text = UiText.L("Restart_pending_762d0599");
-        RefreshAdvancedSettingsStatus();
     }
 
     private void ApplyLiveSettings(string reason)
@@ -8498,8 +8239,11 @@ public sealed partial class MainWindow : Window
         { _lastSoundPlaybackError = playbackError; AppendLog("Sound decoder error: " + playbackError); }
         if (playbackError is null) _lastSoundPlaybackError = null;
         if (_windowHiddenToTray) return;
-        UpdateTimeline();
-        UpdateSceneTimelines();
+        if (MainTabView.SelectedItem is TabViewItem tab)
+        {
+            if (ReferenceEquals(tab.Content, SoundBoardTabRoot)) UpdateTimeline();
+            else if (ReferenceEquals(tab.Content, ScenesTabRoot)) UpdateSceneTimelines();
+        }
     }
 
     private void UpdateTimeline()

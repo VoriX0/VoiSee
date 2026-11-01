@@ -5,7 +5,7 @@ using NAudio.Wave.SampleProviders;
 
 namespace VoiSe.Audio;
 
-public sealed class Gate2UnifiedAudioEngine : IDisposable
+public sealed class Gate2UnifiedAudioEngine : IAudioSession
 {
     private readonly MMDevice _inputDevice;
     private readonly MMDevice _virtualOutputDevice;
