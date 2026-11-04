@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../../src/VoiSe.Audio/VoiSe.Audio.csproj" />
+    <Content Include="../../src/VoiSe.Audio/runtimes/win-x64/native/deep_filter_ladspa.dll" Link="deep_filter_ladspa.dll" CopyToOutputDirectory="PreserveNewest" Condition="Exists('../../src/VoiSe.Audio/runtimes/win-x64/native/deep_filter_ladspa.dll')" />
+  </ItemGroup>
+</Project>

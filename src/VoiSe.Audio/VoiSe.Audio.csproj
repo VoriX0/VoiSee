@@ -6,6 +6,7 @@
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
   <ItemGroup>
+    <ProjectReference Include="..\VoiSe.Core\VoiSe.Core.csproj" />
     <Content Include="runtimes\win-x64\native\webrtc-apm.dll" Link="webrtc-apm.dll" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
     <PackageReference Include="NAudio.Core" Version="2.3.0" />
     <PackageReference Include="NAudio.Wasapi" Version="2.3.0" />

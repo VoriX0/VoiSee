@@ -36,6 +36,7 @@ public sealed class VoicePresetStore
         EnsureDefaultPresetWhenEmpty();
 
         var presets = new List<VoicePreset>();
+        var ids = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         foreach (var file in Directory.EnumerateFiles(PresetsDirectory, "*.json").OrderBy(Path.GetFileName, StringComparer.CurrentCultureIgnoreCase))
         {
             try
@@ -49,8 +50,10 @@ public sealed class VoicePresetStore
                 preset.Icon = string.IsNullOrWhiteSpace(preset.Icon) ? "\uE720" : preset.Icon;
                 preset.Sliders ??= new Dictionary<string, double>();
                 preset.EffectOrder ??= new List<string>();
+                if (string.IsNullOrWhiteSpace(preset.Id) || !ids.Add(preset.Id)) preset.Id = SceneVoiceState.LegacyPresetId(file);
+                ids.Add(preset.Id);
                 preset.FilePath = file;
-                presets.Add(preset);
+                presets.Add(VoicePresetSnapshot.Copy(preset));
             }
             catch
             {
@@ -65,10 +68,11 @@ public sealed class VoicePresetStore
 
     public string SavePreset(VoicePreset preset)
     {
+        if (string.IsNullOrWhiteSpace(preset.Id)) preset.Id = string.IsNullOrWhiteSpace(preset.FilePath) ? Guid.NewGuid().ToString("N") : SceneVoiceState.LegacyPresetId(preset.FilePath);
         Directory.CreateDirectory(PresetsDirectory);
         var path = GetAvailablePresetPath(preset.Name);
         preset.FilePath = path;
-        AtomicFile.WriteAllText(path, JsonSerializer.Serialize(preset, JsonOptions));
+        AtomicFile.WriteAllText(path, JsonSerializer.Serialize(VoicePresetSnapshot.Copy(preset), JsonOptions));
         return path;
     }
 
@@ -88,24 +92,26 @@ public sealed class VoicePresetStore
             preset.Name = Path.GetFileNameWithoutExtension(sourcePath);
         }
 
+        if (string.IsNullOrWhiteSpace(preset.Id) || LoadPresets().Any(p => p.Id == preset.Id)) preset.Id = Guid.NewGuid().ToString("N");
         preset.SchemaVersion = Math.Max(1, preset.SchemaVersion);
         preset.Icon = string.IsNullOrWhiteSpace(preset.Icon) ? "\uE720" : preset.Icon;
         preset.Sliders ??= new Dictionary<string, double>();
         preset.EffectOrder ??= new List<string>();
         preset.FilePath = GetAvailablePresetPath(preset.Name);
-        AtomicFile.WriteAllText(preset.FilePath, JsonSerializer.Serialize(preset, JsonOptions));
+        AtomicFile.WriteAllText(preset.FilePath, JsonSerializer.Serialize(VoicePresetSnapshot.Copy(preset), JsonOptions));
         return preset.FilePath;
     }
 
     public string OverwritePreset(VoicePreset preset)
     {
+        if (string.IsNullOrWhiteSpace(preset.Id)) preset.Id = string.IsNullOrWhiteSpace(preset.FilePath) ? Guid.NewGuid().ToString("N") : SceneVoiceState.LegacyPresetId(preset.FilePath);
         Directory.CreateDirectory(PresetsDirectory);
         var path = !string.IsNullOrWhiteSpace(preset.FilePath)
             ? preset.FilePath!
             : Path.Combine(PresetsDirectory, MakeSafeFileName(preset.Name) + ".json");
 
         preset.FilePath = path;
-        AtomicFile.WriteAllText(path, JsonSerializer.Serialize(preset, JsonOptions));
+        AtomicFile.WriteAllText(path, JsonSerializer.Serialize(VoicePresetSnapshot.Copy(preset), JsonOptions));
         return path;
     }
 
@@ -113,16 +119,13 @@ public sealed class VoicePresetStore
     {
         Directory.CreateDirectory(PresetsDirectory);
         var oldPath = preset.FilePath;
+        var previousName = preset.Name;
+        if (string.IsNullOrWhiteSpace(preset.Id)) preset.Id = oldPath is null ? Guid.NewGuid().ToString("N") : SceneVoiceState.LegacyPresetId(oldPath);
         preset.Name = newName.Trim();
         var newPath = GetAvailablePresetPath(preset.Name, oldPath);
-
-        if (!string.IsNullOrWhiteSpace(oldPath) && File.Exists(oldPath) && !string.Equals(oldPath, newPath, StringComparison.OrdinalIgnoreCase))
-        {
-            File.Move(oldPath, newPath);
-        }
-
+        try { AtomicFile.RenameContent(oldPath, newPath, JsonSerializer.Serialize(VoicePresetSnapshot.Copy(preset), JsonOptions)); }
+        catch { preset.Name = previousName; throw; }
         preset.FilePath = newPath;
-        AtomicFile.WriteAllText(newPath, JsonSerializer.Serialize(preset, JsonOptions));
         return newPath;
     }
 

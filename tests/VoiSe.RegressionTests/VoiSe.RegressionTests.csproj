@@ -9,6 +9,15 @@
     <ProjectReference Include="../../src/VoiSe.Audio/VoiSe.Audio.csproj" />
     <Compile Include="../../src/VoiSe.App/AtomicFile.cs" Link="AtomicFile.cs" />
     <Compile Include="../../src/VoiSe.App/AudioSessionController.cs" Link="AudioSessionController.cs" />
+    <Compile Include="../../src/VoiSe.App/BackgroundOperationScope.cs" Link="BackgroundOperationScope.cs" />
+    <Compile Include="../../src/VoiSe.App/PersistenceCoordinator.cs" Link="PersistenceCoordinator.cs" />
+    <Compile Include="../../src/VoiSe.App/VoicePresetModels.cs" Link="VoicePresetModels.cs" />
+    <Compile Include="../../src/VoiSe.App/VoicePresetStore.cs" Link="VoicePresetStore.cs" />
+    <Compile Include="../../src/VoiSe.App/VoiceChainState.cs" Link="VoiceChainState.cs" />
+    <Compile Include="../../src/VoiSe.App/AudioResumePlan.cs" Link="AudioResumePlan.cs" />
+    <Compile Include="../../src/VoiSe.App/VoicePresetSnapshot.cs" Link="VoicePresetSnapshot.cs" />
+    <Compile Include="../../src/VoiSe.App/SceneVoiceState.cs" Link="SceneVoiceState.cs" />
+    <Compile Include="../../src/VoiSe.App/SceneStore.cs" Link="SceneStore.cs" />
     <Compile Include="../../src/VoiSe.App/EqualizerEditHistory.cs" Link="EqualizerEditHistory.cs" />
     <Compile Include="../../src/VoiSe.App/UiText.cs" Link="UiText.cs" />
     <Compile Include="../../src/VoiSe.App/VoiSeUserSettings.cs" Link="VoiSeUserSettings.cs" />

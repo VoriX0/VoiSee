@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -41,6 +41,7 @@ public sealed class SceneStore
                 scene.SchemaVersion = Math.Max(1, scene.SchemaVersion);
                 scene.Icon = string.IsNullOrWhiteSpace(scene.Icon) ? "🎬" : scene.Icon;
                 scene.VoiceSliders ??= new Dictionary<string, double>();
+        scene.VoiceEffectOrder ??= new List<string>();
                 scene.OneShotSoundIds ??= new List<string>();
                 scene.SoundButtons ??= new List<SceneSoundButton>();
                 MigrateLegacySceneSounds(scene);
@@ -88,17 +89,14 @@ public sealed class SceneStore
     {
         Directory.CreateDirectory(ScenesDirectory);
         var oldPath = scene.FilePath;
+        var previousName = scene.Name;
+        var previousUpdated = scene.UpdatedAtUtc;
         scene.Name = string.IsNullOrWhiteSpace(newName) ? scene.Name : newName.Trim();
         scene.UpdatedAtUtc = DateTime.UtcNow;
         var newPath = GetAvailableScenePath(scene.Name, oldPath);
-
-        if (!string.IsNullOrWhiteSpace(oldPath) && File.Exists(oldPath) && !string.Equals(oldPath, newPath, StringComparison.OrdinalIgnoreCase))
-        {
-            File.Move(oldPath, newPath);
-        }
-
+        try { AtomicFile.RenameContent(oldPath, newPath, JsonSerializer.Serialize(scene, JsonOptions)); }
+        catch { scene.Name = previousName; scene.UpdatedAtUtc = previousUpdated; throw; }
         scene.FilePath = newPath;
-        AtomicFile.WriteAllText(newPath, JsonSerializer.Serialize(scene, JsonOptions));
         return newPath;
     }
 
@@ -112,10 +110,11 @@ public sealed class SceneStore
 
     private static void PrepareSceneForSave(VoiSeScene scene)
     {
-        scene.SchemaVersion = Math.Max(9, scene.SchemaVersion);
+        scene.SchemaVersion = Math.Max(10, scene.SchemaVersion);
         scene.Id = string.IsNullOrWhiteSpace(scene.Id) ? Guid.NewGuid().ToString("N") : scene.Id;
         scene.Icon = string.IsNullOrWhiteSpace(scene.Icon) ? "🎬" : scene.Icon;
         scene.VoiceSliders ??= new Dictionary<string, double>();
+        scene.VoiceEffectOrder ??= new List<string>();
         scene.OneShotSoundIds ??= new List<string>();
         scene.SoundButtons ??= new List<SceneSoundButton>();
         MigrateLegacySceneSounds(scene);

@@ -69,13 +69,14 @@ public sealed partial class MainWindow : Window
     private Slider? _previewEffectSlider;
     private string? _previewEffectKey;
     private double _previewEffectValue;
-    private readonly Dictionary<string, double> _activeEffectValues = new(StringComparer.OrdinalIgnoreCase);
-    private readonly List<string> _effectChainOrder = new();
+    private readonly VoiceChainState _voiceState = new();
+    private Dictionary<string, double> _activeEffectValues => _voiceState.Values;
+    private List<string> _effectChainOrder => _voiceState.Order;
     private readonly Dictionary<string, Slider> _activeEffectSliders = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, TextBox> _activeEffectTextBoxes = new(StringComparer.OrdinalIgnoreCase);
     private bool _syncingEffectCardControls;
-    private readonly HashSet<string> _bypassedEffectKeys = new(StringComparer.OrdinalIgnoreCase);
-    private bool _effectChainBypassed;
+    private HashSet<string> _bypassedEffectKeys => _voiceState.BypassedEffects;
+    private bool _effectChainBypassed { get => _voiceState.Bypassed; set => _voiceState.Bypassed = value; }
     private string _effectLibraryFilter = "All";
     private string _voicePresetSearchText = string.Empty;
     private string? _pendingEffectChainAttentionKey;
@@ -130,20 +131,14 @@ public sealed partial class MainWindow : Window
     private const string MuteOnCueRelativePath = "Assets\\Audio\\mute_on.wav";
     private const string MuteOffCueRelativePath = "Assets\\Audio\\mute_off.wav";
     private const string SoundEditorPreviewPlaybackKey = "__voisee_sound_editor_preview";
-    private static readonly string[] KnownVoiceEffectKeys =
-    {
-        "VoiceGain", "Gate", "Compressor", "Pitch", "Formant", "Bass", "Treble",
-        "Distortion", "Robot", "Tremolo", "Echo", "Reverb", "Radio", "BitCrusher", "Alien",
-        "Chorus", "Flanger", "Phaser", "Vibrato", "Doubler", "RingMod",
-        "Chipmunk", "Giant", "Ghost", "Stutter", "Wobbly",
-        "GenderMale", "GenderFemale", "Possessed", "Megaphone", "Helicopter", "Cyborg", "BrokenRadio", "Vocoder"
-    };
+    private static readonly IReadOnlyList<string> KnownVoiceEffectKeys = VoiceEffectCatalog.Ids;
     private bool _suppressSoundBoardTimelineForEditorPreview;
     private bool _soundEditorActive;
     private Action? _soundEditorPlayPauseAction;
     private Action? _soundEditorStopAction;
     private readonly Dictionary<string, SceneTimelineBinding> _sceneTimelineBindings = new(StringComparer.OrdinalIgnoreCase);
-    private readonly Dictionary<string, double> _soundDurationSecondsCache = new(StringComparer.OrdinalIgnoreCase);
+    private readonly AudioMetadataCache _soundDurationSecondsCache = new();
+    private readonly System.Threading.CancellationTokenSource _windowLifetime = new();
     private bool _loadingSceneUi;
     private bool _soundBoardLoopEnabled;
     private string? _lastSoundBoardDropSignature;
@@ -189,6 +184,8 @@ public sealed partial class MainWindow : Window
         _themeManager = new ThemeManager(_settingsStore.DataDirectory);
         _library = _libraryStore.Load();
         InitializeComponent();
+        _persistence.Changed += UpdatePersistenceStatus;
+        _settingsSaveTimer.Tick += OnSettingsSaveTimerTick;
         InitializeLanguageSelection();
         InitializeEqualizer();
         InitializeMicrophoneCleanup();
@@ -223,6 +220,7 @@ public sealed partial class MainWindow : Window
             Interval = TimeSpan.FromMilliseconds(450)
         };
         _routeRestartTimer.Tick += OnRouteRestartTimerTick;
+        InitializeDeviceLifecycle();
 
         _voiceSettingsApplyTimer = new DispatcherTimer
         {
@@ -250,7 +248,7 @@ public sealed partial class MainWindow : Window
         };
         _discordCableSessionIsolationTimer.Tick += OnDiscordCableSessionIsolationTimerTick;
 
-        AppendLog("VoiSee Version 14.8.1 UI started.");
+        AppendLog("VoiSee Version 14.9.1 UI started.");
         AppendLog($"Settings path: {_settingsStore.SettingsPath}");
 
         var isolationResult = _discordCableSessionIsolationService.Enable();
@@ -339,7 +337,7 @@ public sealed partial class MainWindow : Window
             if (migration.ActiveThemeWasLegacyCss)
             {
                 _settings.ThemeFilePath = null;
-                try { _settingsStore.Save(_settings); }
+                try { ScheduleSettingsSave(); }
         catch (Exception storageError) { AppendLog("Settings were not saved: " + storageError.Message); }
             }
 
@@ -445,7 +443,7 @@ public sealed partial class MainWindow : Window
             if (!string.IsNullOrWhiteSpace(_settings.ThemeFilePath) && !File.Exists(_settings.ThemeFilePath))
             {
                 _settings.ThemeFilePath = null;
-                try { _settingsStore.Save(_settings); }
+                try { ScheduleSettingsSave(); }
         catch (Exception storageError) { AppendLog("Settings were not saved: " + storageError.Message); }
                 PopulateThemeComboBox();
                 WatchActiveThemeFile();
@@ -474,7 +472,7 @@ public sealed partial class MainWindow : Window
             // active dictionary, so the previous working theme is still visible.
             _activeTheme = previousTheme;
             _settings.ThemeFilePath = previousTheme.SourcePath;
-            try { _settingsStore.Save(_settings); }
+            try { ScheduleSettingsSave(); }
         catch (Exception storageError) { AppendLog("Settings were not saved: " + storageError.Message); }
             SelectThemeComboItem(previousTheme.SourcePath);
             WatchActiveThemeFile();
@@ -657,7 +655,7 @@ public sealed partial class MainWindow : Window
         UpdateThemeControls();
 
         _settings.ThemeFilePath = item.IsDefault ? null : item.FilePath;
-        try { _settingsStore.Save(_settings); }
+        try { ScheduleSettingsSave(); }
         catch (Exception storageError) { AppendLog("Settings were not saved: " + storageError.Message); }
         ApplyThemeFromSettings();
         WatchActiveThemeFile();
@@ -669,7 +667,7 @@ public sealed partial class MainWindow : Window
         {
             var path = _themeManager.CreateNewThemeFile();
             _settings.ThemeFilePath = path;
-            try { _settingsStore.Save(_settings); }
+            try { ScheduleSettingsSave(); }
         catch (Exception storageError) { AppendLog("Settings were not saved: " + storageError.Message); }
             PopulateThemeComboBox();
             ApplyThemeFromSettings();
@@ -821,7 +819,7 @@ public sealed partial class MainWindow : Window
             if (wasActive)
             {
                 _settings.ThemeFilePath = newPath;
-                try { _settingsStore.Save(_settings); }
+                try { ScheduleSettingsSave(); }
         catch (Exception storageError) { AppendLog("Settings were not saved: " + storageError.Message); }
             }
 
@@ -914,7 +912,7 @@ public sealed partial class MainWindow : Window
             if (wasActive)
             {
                 _settings.ThemeFilePath = null;
-                try { _settingsStore.Save(_settings); }
+                try { ScheduleSettingsSave(); }
         catch (Exception storageError) { AppendLog("Settings were not saved: " + storageError.Message); }
                 _themeFileWatcher?.Dispose();
                 _themeFileWatcher = null;
@@ -949,7 +947,7 @@ public sealed partial class MainWindow : Window
 
             var path = _themeManager.ImportTheme(file.Path);
             _settings.ThemeFilePath = path;
-            try { _settingsStore.Save(_settings); }
+            try { ScheduleSettingsSave(); }
         catch (Exception storageError) { AppendLog("Settings were not saved: " + storageError.Message); }
             PopulateThemeComboBox();
             ApplyThemeFromSettings();
@@ -995,7 +993,7 @@ public sealed partial class MainWindow : Window
     private void OnResetThemeClick(object sender, RoutedEventArgs e)
     {
         _settings.ThemeFilePath = null;
-        try { _settingsStore.Save(_settings); }
+        try { ScheduleSettingsSave(); }
         catch (Exception storageError) { AppendLog("Settings were not saved: " + storageError.Message); }
         PopulateThemeComboBox();
         ApplyThemeFromSettings();
@@ -1263,35 +1261,25 @@ public sealed partial class MainWindow : Window
             && Directory.EnumerateFiles(setupDir, "*.sys", SearchOption.AllDirectories).Any();
     }
 
-    private void WarmSoundCacheInBackground(IEnumerable<string>? paths = null)
+    private System.Threading.CancellationTokenSource? _warmCacheCancellation;
+    private async void WarmSoundCacheInBackground(IEnumerable<string>? paths = null)
     {
         var engine = _engine;
-        if (engine is null || paths is null) return;
-
-        var soundPaths = paths
-            .Where(path => !string.IsNullOrWhiteSpace(path) && File.Exists(path))
-            .Distinct(StringComparer.OrdinalIgnoreCase)
-            .ToList();
-
-        if (soundPaths.Count == 0)
+        if (engine is null || paths is null || _exitRequested) return;
+        _warmCacheCancellation?.Cancel();
+        using var cancellation = System.Threading.CancellationTokenSource.CreateLinkedTokenSource(_windowLifetime.Token);
+        _warmCacheCancellation = cancellation;
+        try
         {
-            return;
-        }
-
-        _ = Task.Run(() =>
-        {
-            foreach (var path in soundPaths)
+            foreach (var path in paths.Where(File.Exists).Distinct(StringComparer.OrdinalIgnoreCase).Take(8))
             {
-                try
-                {
-                    engine.PreloadSoundAsync(path).GetAwaiter().GetResult();
-                }
-                catch
-                {
-                    // Best-effort warmup only. Playback reports real errors.
-                }
+                if (_exitRequested || !ReferenceEquals(_engine, engine)) break;
+                await engine.PreloadSoundAsync(path, cancellation.Token);
             }
-        });
+        }
+        catch (OperationCanceledException) { }
+        catch (Exception error) { if (!_exitRequested) StartupLog.Write("Cache warmup: " + error); }
+        finally { if (ReferenceEquals(_warmCacheCancellation, cancellation)) _warmCacheCancellation = null; }
     }
 
     private void ApplyStoredScalarSettingsToControls()
@@ -1399,7 +1387,7 @@ public sealed partial class MainWindow : Window
         _settings.MediaBridgeLastWindowTitle = selected.WindowTitle;
         var profile = UpsertMediaBridgeProfile(selected);
         _settings.MediaBridgeLastProfileId = profile.Id;
-        try { _settingsStore.Save(_settings); }
+        try { ScheduleSettingsSave(); }
         catch (Exception storageError) { AppendLog("Settings were not saved: " + storageError.Message); }
         UpdateMediaBridgeSavedProfileText();
         RefreshSceneMediaProfileComboBox();
@@ -1595,7 +1583,7 @@ public sealed partial class MainWindow : Window
         if (!_loadingSettings)
         {
             _settings.MediaBridgeVirtualMicVolume = e.NewValue;
-            try { _settingsStore.Save(_settings); }
+            try { ScheduleSettingsSave(); }
         catch (Exception storageError) { AppendLog("Settings were not saved: " + storageError.Message); }
         }
     }
@@ -1675,7 +1663,7 @@ public sealed partial class MainWindow : Window
         try
         {
             var png = await Task.Run(() => _windowCaptureService.CapturePreviewPngAsync(selected));
-            if (png is null || _mediaBridgeWindow?.Handle != selected.Handle)
+            if (_exitRequested || png is null || _mediaBridgeWindow?.Handle != selected.Handle)
             {
                 return;
             }
@@ -1691,7 +1679,7 @@ public sealed partial class MainWindow : Window
             randomAccessStream.Seek(0);
             var bitmap = new BitmapImage();
             await bitmap.SetSourceAsync(randomAccessStream);
-            if (_mediaBridgeWindow?.Handle == selected.Handle)
+            if (!_exitRequested && _mediaBridgeWindow?.Handle == selected.Handle)
             {
                 MediaBridgePreviewImage.Source = bitmap;
                 MediaBridgePreviewPlaceholder.Visibility = Visibility.Collapsed;
@@ -3132,7 +3120,7 @@ public sealed partial class MainWindow : Window
         _settings.DisableSceneHotkey = NormalizeOptionalHotkey(GetHotkeyButtonValue(disableSceneButton));
         _settings.VirtualMicMuteHotkey = NormalizeOptionalHotkey(GetHotkeyButtonValue(virtualMicMuteButton));
         _settings.MediaBridgePauseHotkey = NormalizeOptionalHotkey(GetHotkeyButtonValue(mediaBridgePauseButton));
-        try { _settingsStore.Save(_settings); }
+        try { ScheduleSettingsSave(); }
         catch (Exception storageError) { AppendLog("Settings were not saved: " + storageError.Message); }
         UpdateTransportHotkeySummary();
         AppendLog("Hotkeys updated.");
@@ -3716,6 +3704,7 @@ public sealed partial class MainWindow : Window
                 _windowHandle, iconPath,
                 () => DispatcherQueue.TryEnqueue(RestoreAndActivate),
                 () => DispatcherQueue.TryEnqueue(RequestExit));
+            _trayIconService.PowerModeChanged += OnPowerModeChanged;
         }
         catch (Exception ex)
         {
@@ -3833,10 +3822,13 @@ public sealed partial class MainWindow : Window
     private void OnClosed(object sender, WindowEventArgs args)
     {
         _exitRequested = true;
+        _windowLifetime.Cancel();
+        DisposeDeviceLifecycle();
         _equalizerApplyTimer.Stop();
         _equalizerSaveTimer.Stop();
         _manualStopRequested = true;
         SaveCurrentSettings();
+        FlushPendingSettings();
         StopEngine(log: false);
         _routeRestartTimer.Stop();
         _voiceSettingsApplyTimer.Stop();
@@ -4773,7 +4765,9 @@ public sealed partial class MainWindow : Window
 
     private async void OnSoundContextEditClick(object sender, RoutedEventArgs e)
     {
-        await ShowSoundEditorDialogAsync();
+        try { await ShowSoundEditorDialogAsync(); }
+        catch (OperationCanceledException) when (_exitRequested) { }
+        catch (Exception error) { if (!_exitRequested) await ShowMessageDialogAsync(UiText.L("Error_54a0e8c1"), error.Message); }
     }
 
 
@@ -4793,6 +4787,7 @@ public sealed partial class MainWindow : Window
             return;
         }
 
+        await using var editorOperations = new BackgroundOperationScope(_windowLifetime.Token);
         var originalSourcePath = sound.FilePath;
         var workingSourcePath = originalSourcePath;
         var originalDuration = SoundEditProcessor.GetDurationSeconds(originalSourcePath);
@@ -4803,7 +4798,7 @@ public sealed partial class MainWindow : Window
         }
 
         var editorDuration = originalDuration;
-        var waveformPeaks = await Task.Run(() => BuildSoundEditorWaveform(workingSourcePath));
+        var waveformPeaks = await editorOperations.Run(token => BuildSoundEditorWaveform(workingSourcePath, cancellationToken: token));
         const double minimumSelectionSeconds = 0.2;
         const double pointerDragThresholdPixels = 4.0;
 
@@ -5533,7 +5528,8 @@ public sealed partial class MainWindow : Window
 
         async Task StartPreviewAsync(double startSeconds, double endSeconds, double returnSeconds, string statusText)
         {
-            if (_engine is null)
+            var previewEngine = _engine;
+            if (previewEngine is null)
             {
                 editorStatusText.Text = UiText.L("Start_the_audio_engine_to_preview_in_headphone_ae63f60a");
                 return;
@@ -5579,14 +5575,15 @@ public sealed partial class MainWindow : Window
                     EffectTimelineDurationSeconds = editorDuration
                 };
 
-                await Task.Run(() => SoundEditProcessor.RenderToWav(request));
-                _engine.PlaySound(
+                await editorOperations.Run(token => SoundEditProcessor.RenderToWav(request, token));
+                await previewEngine.PlaySoundAsync(
                     previewPath,
                     virtualVolume: 0.0f,
                     monitorVolume: CurrentBoardMonitorVolume(),
                     virtualDelayMs: 0,
                     loop: false,
-                    playbackKey: SoundEditorPreviewPlaybackKey);
+                    playbackKey: SoundEditorPreviewPlaybackKey, cancellationToken: editorOperations.Token);
+                editorOperations.Token.ThrowIfCancellationRequested();
 
                 previewTimer.Start();
                 RenderWaveform();
@@ -5826,7 +5823,7 @@ public sealed partial class MainWindow : Window
         async Task RefreshWorkingWaveformAsync(string statusText, double nextPlayhead)
         {
             editorDuration = SoundEditProcessor.GetDurationSeconds(workingSourcePath);
-            waveformPeaks = await Task.Run(() => BuildSoundEditorWaveform(workingSourcePath));
+            waveformPeaks = await editorOperations.Run(token => BuildSoundEditorWaveform(workingSourcePath, cancellationToken: token));
             selectionStartSeconds = null;
             selectionEndSeconds = null;
             previewPositionSeconds = ClampPlayhead(nextPlayhead);
@@ -5863,7 +5860,7 @@ public sealed partial class MainWindow : Window
                     GainDb = 0
                 };
 
-                await Task.Run(() => SoundEditProcessor.RenderToWav(request));
+                await editorOperations.Run(token => SoundEditProcessor.RenderToWav(request, token));
                 workingSourcePath = targetPath;
                 await RefreshWorkingWaveformAsync(UiText.L("Everything_outside_the_selection_was_removed_90fbb913"), 0);
             }
@@ -5914,7 +5911,7 @@ public sealed partial class MainWindow : Window
                     GainDb = 0
                 };
 
-                await Task.Run(() => SoundEditProcessor.RenderCutToWav(request));
+                await editorOperations.Run(token => SoundEditProcessor.RenderCutToWav(request, token));
                 workingSourcePath = targetPath;
                 await RefreshWorkingWaveformAsync(UiText.L("The_selected_fragment_was_removed_and_the_rema_5e775dcb"), cutStart);
             }
@@ -5969,7 +5966,7 @@ public sealed partial class MainWindow : Window
                 StopPreviewCore(resetPlayhead: false);
                 workingSourcePath = originalSourcePath;
                 editorDuration = originalDuration;
-                waveformPeaks = await Task.Run(() => BuildSoundEditorWaveform(workingSourcePath));
+                waveformPeaks = await editorOperations.Run(token => BuildSoundEditorWaveform(workingSourcePath, cancellationToken: token));
                 selectionStartSeconds = null;
                 selectionEndSeconds = null;
                 gainSlider.Value = 0;
@@ -6063,7 +6060,7 @@ public sealed partial class MainWindow : Window
                 EffectTimelineOffsetSeconds = 0,
                 EffectTimelineDurationSeconds = editorDuration
             };
-            await Task.Run(() => SoundEditProcessor.RenderToWav(request));
+            await editorOperations.Run(token => SoundEditProcessor.RenderToWav(request, token));
             return renderedPath;
         }
 
@@ -6136,6 +6133,7 @@ public sealed partial class MainWindow : Window
         finally
         {
             StopPreviewCore(resetPlayhead: false);
+            await editorOperations.DisposeAsync();
             activeEditorDialog = null;
             _soundEditorPlayPauseAction = null;
             _soundEditorStopAction = null;
@@ -6165,62 +6163,11 @@ public sealed partial class MainWindow : Window
             : $"Sound editor finished: {sound.DisplayName}.");
     }
 
-    private static float[] BuildSoundEditorWaveform(string filePath, int requestedPeaks = 900)
+    private static float[] BuildSoundEditorWaveform(string filePath, int requestedPeaks = 900, System.Threading.CancellationToken cancellationToken = default)
     {
-        if (string.IsNullOrWhiteSpace(filePath) || !File.Exists(filePath))
-        {
-            return new[] { 0.05f };
-        }
-
-        try
-        {
-            using var reader = AudioSourceReader.Open(filePath);
-
-            var sampleProvider = reader.ToSampleProvider();
-            var channels = Math.Max(1, sampleProvider.WaveFormat.Channels);
-            var totalFrames = Math.Max(1L, (long)Math.Round(reader.TotalTime.TotalSeconds * sampleProvider.WaveFormat.SampleRate));
-            var framesPerBucket = Math.Max(256, (int)Math.Ceiling(totalFrames / (double)Math.Max(64, requestedPeaks)));
-            var sourceBuffer = new float[Math.Max(4096, sampleProvider.WaveFormat.SampleRate / 2 * channels)];
-            var peaks = new List<float>(requestedPeaks);
-            var currentPeak = 0f;
-            var framesInBucket = 0;
-
-            int read;
-            while ((read = sampleProvider.Read(sourceBuffer, 0, sourceBuffer.Length)) > 0)
-            {
-                for (var sampleIndex = 0; sampleIndex < read; sampleIndex += channels)
-                {
-                    var framePeak = 0f;
-                    for (var channel = 0; channel < channels && sampleIndex + channel < read; channel++)
-                    {
-                        framePeak = Math.Max(framePeak, Math.Abs(sourceBuffer[sampleIndex + channel]));
-                    }
-
-                    currentPeak = Math.Max(currentPeak, framePeak);
-                    framesInBucket++;
-
-                    if (framesInBucket >= framesPerBucket)
-                    {
-                        peaks.Add(currentPeak);
-                        currentPeak = 0f;
-                        framesInBucket = 0;
-                    }
-                }
-            }
-
-            if (framesInBucket > 0 || peaks.Count == 0)
-            {
-                peaks.Add(currentPeak);
-            }
-
-            return peaks.Count == 0
-                ? new[] { 0.0f }
-                : peaks.Select(peak => Math.Clamp(peak, 0.0f, 1.0f)).ToArray();
-        }
-        catch
-        {
-            return new[] { 0.05f };
-        }
+        try { return AudioWaveform.Read(filePath, requestedPeaks, cancellationToken); }
+        catch (OperationCanceledException) { throw; }
+        catch { return new[] { 0.05f }; }
     }
 
     private static float[] NormalizeWaveformPeaks(IReadOnlyList<float> peaks)
@@ -6348,7 +6295,7 @@ public sealed partial class MainWindow : Window
         }
     }
 
-    private void PlayVirtualMicMuteCue(bool muted)
+    private async void PlayVirtualMicMuteCue(bool muted)
     {
         var engine = _engine;
         if (engine is null)
@@ -6363,17 +6310,9 @@ public sealed partial class MainWindow : Window
             return;
         }
 
-        _ = Task.Run(() =>
-        {
-            try
-            {
-                engine.PlaySound(cuePath, 0.0f, 0.45f, 0, loop: false, playbackKey: "__voisee_virtual_mic_mute_cue");
-            }
-            catch (Exception ex)
-            {
-                DispatcherQueue.TryEnqueue(() => AppendLog($"Virtual mic mute cue error: {ex.Message}"));
-            }
-        });
+        try { await engine.PlaySoundAsync(cuePath, 0.0f, 0.45f, 0, loop: false, playbackKey: "__voisee_virtual_mic_mute_cue", cancellationToken: _windowLifetime.Token); }
+        catch (OperationCanceledException) { }
+        catch (Exception ex) { if (!_exitRequested) AppendLog($"Virtual mic mute cue error: {ex.Message}"); }
     }
 
     private void ApplyLiveSettings(string reason)
@@ -6626,11 +6565,13 @@ public sealed partial class MainWindow : Window
             // Decoding/resampling can be expensive and used to freeze the pointer/UI for
             // ~0.5-1s on larger files. Keep the UI thread free; the transport is thread-safe
             // and SoundFileLoader caches the decoded PCM for future starts.
-            _ = Task.Run(() => engine.PlaySound(soundPath, virtualRouteVolume, monitorRouteVolume, delayMs, loop, playbackKey))
+            _ = engine.PlaySoundAsync(soundPath, virtualRouteVolume, monitorRouteVolume, delayMs, loop, playbackKey, _windowLifetime.Token)
                 .ContinueWith(task =>
                 {
+                    if (task.IsCanceled || _exitRequested || !ReferenceEquals(_engine, engine)) return;
                     DispatcherQueue.TryEnqueue(() =>
                     {
+                        if (_exitRequested || !ReferenceEquals(_engine, engine)) return;
                         if (task.Exception is not null)
                         {
                             AppendLog($"Sound playback error: {task.Exception.GetBaseException().Message}");
@@ -6743,7 +6684,8 @@ public sealed partial class MainWindow : Window
 
         try
         {
-            _sceneStore.OverwriteScene(_selectedScene);
+            var savedScene = _selectedScene;
+            if (!_persistence.Save("scene:" + savedScene.Id, () => _sceneStore.OverwriteScene(savedScene))) return;
         }
         catch (Exception ex)
         {
@@ -8078,21 +8020,15 @@ public sealed partial class MainWindow : Window
             _activeEffectValues[effectKey] = value;
         }
 
+        _bypassedEffectKeys.UnionWith((_settings.ActiveVoiceBypassedEffects ?? new()).Where(id => _effectChainOrder.Contains(id)));
+        _effectChainBypassed = _settings.ActiveVoiceChainBypassed;
         RebuildEffectChainCards();
     }
 
     private static (double Minimum, double Maximum, double DefaultValue) GetEffectUiRange(string effectKey)
     {
-        return effectKey switch
-        {
-            "Gate" => (0, 100, 0),
-            "Compressor" => (0, 200, 0),
-            "Robot" or "Echo" or "Radio" or "Alien" or "Distortion" or "Tremolo" or "Reverb" or "BitCrusher"
-                or "Chorus" or "Flanger" or "Phaser" or "Vibrato" or "Doubler" or "RingMod"
-                or "Chipmunk" or "Giant" or "Ghost" or "Stutter" or "Wobbly"
-                or "GenderMale" or "GenderFemale" or "Possessed" or "Megaphone" or "Helicopter" or "Cyborg" or "BrokenRadio" or "Vocoder" => (0, 100, 0),
-            _ => (-100, 100, 0)
-        };
+        var effect = VoiceEffectCatalog.Get(effectKey);
+        return (effect.Minimum, effect.Maximum, effect.DefaultValue);
     }
 
     private static double ToLegacyEffectValue(string effectKey, double uiValue)
@@ -8332,6 +8268,12 @@ public sealed partial class MainWindow : Window
         {
             var selectedId = _selectedScene?.Id;
             _scenes = _sceneStore.LoadScenes();
+            foreach (var scene in _scenes)
+            {
+                if (scene.HasVoiceSnapshot) continue;
+                SceneVoiceState.Migrate(scene, _voicePresets);
+                _persistence.Save("scene:" + scene.Id, () => _sceneStore.OverwriteScene(scene));
+            }
             UpdateSceneActiveFlags();
             if (ScenesListView is not null)
             {
@@ -8404,9 +8346,7 @@ public sealed partial class MainWindow : Window
             var selectedName = _selectedScene?.VoicePresetName;
             var presets = _voicePresets.ToList();
             SceneVoicePresetComboBox.ItemsSource = presets;
-            SceneVoicePresetComboBox.SelectedItem = string.IsNullOrWhiteSpace(selectedName)
-                ? null
-                : presets.FirstOrDefault(p => string.Equals(p.Name, selectedName, StringComparison.CurrentCultureIgnoreCase));
+            SceneVoicePresetComboBox.SelectedItem = _selectedScene is null ? null : SceneVoiceState.FindPreset(_selectedScene, presets);
         }
         finally
         {
@@ -8563,8 +8503,7 @@ public sealed partial class MainWindow : Window
         try
         {
             var scene = CaptureCurrentScene(name.Trim());
-            scene.VoicePresetName = null;
-            scene.VoiceSliders.Clear();
+            SceneVoiceState.Clear(scene);
             scene.SoundCategoryId = null;
             scene.SoundCategoryName = null;
             scene.BackgroundSoundId = null;
@@ -8782,7 +8721,12 @@ public sealed partial class MainWindow : Window
         {
             Name = name,
             VoicePresetName = _lastAppliedVoicePresetName,
+            VoicePresetId = _voicePresets.FirstOrDefault(p => p.Name == _lastAppliedVoicePresetName)?.Id,
             VoiceSliders = CaptureCurrentVoicePreset(name).Sliders,
+            VoiceEffectOrder = _effectChainOrder.ToList(),
+            VoiceBypassedEffects = _bypassedEffectKeys.ToList(),
+            VoiceChainBypassed = _effectChainBypassed,
+            HasVoiceSnapshot = true,
             VoiceMonitorEnabled = false,
             SoundCategoryId = category?.Id,
             SoundCategoryName = category?.Name,
@@ -8812,9 +8756,8 @@ public sealed partial class MainWindow : Window
             SoundVirtualVolumeSlider.Value = Clamp(scene.SoundBoardVirtualMicVolume, 0, 1.5);
             SoundMonitorVolumeSlider.Value = Clamp(scene.SoundBoardHeadphonesVolume, 0, 1.5);
             SoundVirtualDelaySlider.Value = Clamp(scene.SoundBoardVirtualMicDelayMs, 0, 300);
-            var scenePreset = string.IsNullOrWhiteSpace(scene.VoicePresetName)
-                ? null
-                : _voicePresets.FirstOrDefault(p => string.Equals(p.Name, scene.VoicePresetName, StringComparison.CurrentCultureIgnoreCase));
+            SceneVoiceState.Migrate(scene, _voicePresets);
+            var scenePreset = SceneVoiceState.Resolve(scene, _voicePresets);
             if (scenePreset is not null)
             {
                 ApplyVoicePreset(scenePreset);
@@ -9046,23 +8989,8 @@ public sealed partial class MainWindow : Window
             return 0;
         }
 
-        if (_soundDurationSecondsCache.TryGetValue(sound.FilePath, out var cached))
-        {
-            return cached;
-        }
-
-        try
-        {
-            using var reader = AudioSourceReader.Open(sound.FilePath);
-            var seconds = Math.Max(0, reader.TotalTime.TotalSeconds);
-            _soundDurationSecondsCache[sound.FilePath] = seconds;
-            return seconds;
-        }
-        catch
-        {
-            _soundDurationSecondsCache[sound.FilePath] = 0;
-            return 0;
-        }
+        try { return _soundDurationSecondsCache.GetDuration(sound.FilePath); }
+        catch { return 0; }
     }
 
     private void SelectSceneById(string sceneId)
@@ -9856,7 +9784,8 @@ public sealed partial class MainWindow : Window
         try
         {
             _selectedScene.UpdatedAtUtc = DateTime.UtcNow;
-            _sceneStore.OverwriteScene(_selectedScene);
+            var savedScene = _selectedScene;
+            if (!_persistence.Save("scene:" + savedScene.Id, () => _sceneStore.OverwriteScene(savedScene))) return;
             _engine?.UpdateSoundVolumes(
                 (float)button.VirtualMicVolume,
                 (float)button.HeadphonesVolume,
@@ -10126,7 +10055,8 @@ public sealed partial class MainWindow : Window
         {
             EnforceSingleLoopedSceneSound(_selectedScene);
             NormalizeSceneButtonSortOrder(_selectedScene);
-            _sceneStore.OverwriteScene(_selectedScene);
+            var savedScene = _selectedScene;
+            if (!_persistence.Save("scene:" + savedScene.Id, () => _sceneStore.OverwriteScene(savedScene))) return;
             RefreshSceneListBinding();
             RebuildSceneSoundButtons();
             AppendLog(logMessage);
@@ -10307,7 +10237,7 @@ public sealed partial class MainWindow : Window
         _settings.MediaBridgeLastProfileId = profile.Id;
         _settings.MediaBridgeLastProcessName = window.ProcessName;
         _settings.MediaBridgeLastWindowTitle = window.WindowTitle;
-        try { _settingsStore.Save(_settings); }
+        try { ScheduleSettingsSave(); }
         catch (Exception storageError) { AppendLog("Settings were not saved: " + storageError.Message); }
         UpdateMediaBridgeUiState(UiText.L("Ready_5fa7aac5"));
         await UpdateMediaBridgePreviewAsync();
@@ -10491,8 +10421,7 @@ public sealed partial class MainWindow : Window
             return;
         }
 
-        _selectedScene.VoicePresetName = preset.Name;
-        _selectedScene.VoiceSliders = preset.Sliders?.ToDictionary(kvp => kvp.Key, kvp => kvp.Value) ?? new Dictionary<string, double>();
+        SceneVoiceState.Capture(_selectedScene, preset);
         SaveSelectedSceneEditorChange($"Scene voice preset selected: {preset.Name}");
     }
 
@@ -10624,8 +10553,7 @@ public sealed partial class MainWindow : Window
             return;
         }
 
-        _selectedScene.VoicePresetName = null;
-        _selectedScene.VoiceSliders.Clear();
+        SceneVoiceState.Clear(_selectedScene);
         RefreshSceneVoicePresetComboBox();
         SaveSelectedSceneEditorChange("Scene voice preset cleared.");
     }
@@ -11086,6 +11014,7 @@ public sealed partial class MainWindow : Window
         try
         {
             var recreated = CaptureCurrentVoicePreset(preset.Name);
+            recreated.Id = preset.Id;
             recreated.Icon = NormalizeVoicePresetIcon(preset.Icon);
             recreated.PushToTalkHotkey = preset.PushToTalkHotkey;
             recreated.PresetHotkey = preset.PresetHotkey;
@@ -11376,17 +11305,7 @@ public sealed partial class MainWindow : Window
         }
     }
 
-    private VoicePreset CaptureCurrentVoicePreset(string name)
-    {
-        return new VoicePreset
-        {
-            SchemaVersion = 2,
-            Name = name,
-            Icon = DefaultVoicePresetIcon,
-            EffectOrder = _effectChainOrder.ToList(),
-            Sliders = new Dictionary<string, double>(_activeEffectValues, StringComparer.OrdinalIgnoreCase)
-        };
-    }
+    private VoicePreset CaptureCurrentVoicePreset(string name) => _voiceState.Capture(name, DefaultVoicePresetIcon);
 
     private void ApplyVoicePreset(VoicePreset preset)
     {
@@ -11409,43 +11328,7 @@ public sealed partial class MainWindow : Window
 
     private void LoadEffectChainFromPreset(VoicePreset preset)
     {
-        _effectChainOrder.Clear();
-        _activeEffectValues.Clear();
-        _bypassedEffectKeys.Clear();
-        _effectChainBypassed = false;
-
-        if (preset.SchemaVersion >= 2)
-        {
-            foreach (var effectKey in preset.EffectOrder ?? new List<string>())
-            {
-                if (!KnownVoiceEffectKeys.Contains(effectKey, StringComparer.OrdinalIgnoreCase)
-                    || _effectChainOrder.Contains(effectKey, StringComparer.OrdinalIgnoreCase))
-                {
-                    continue;
-                }
-
-                var range = GetEffectUiRange(effectKey);
-                var value = preset.Sliders.TryGetValue(effectKey, out var storedValue)
-                    ? Clamp(storedValue, range.Minimum, range.Maximum)
-                    : range.DefaultValue;
-                _effectChainOrder.Add(effectKey);
-                _activeEffectValues[effectKey] = value;
-            }
-        }
-        else
-        {
-            foreach (var effectKey in KnownVoiceEffectKeys)
-            {
-                if (!preset.Sliders.TryGetValue(effectKey, out var legacyValue) || !IsLegacyEffectActive(effectKey, legacyValue))
-                {
-                    continue;
-                }
-
-                _effectChainOrder.Add(effectKey);
-                _activeEffectValues[effectKey] = FromLegacyEffectValue(effectKey, legacyValue);
-            }
-        }
-
+        _voiceState.Restore(preset);
         RebuildEffectChainCards();
     }
 
@@ -11748,7 +11631,7 @@ public sealed partial class MainWindow : Window
         try
         {
             _updatingAutostartUi = true;
-            StartWithWindowsCheckBox.IsChecked = _autostartService.RefreshAndRepairIfRegistered();
+            StartWithWindowsCheckBox.IsChecked = _autostartService.IsEnabled();
         }
         catch (Exception ex)
         {
@@ -11819,6 +11702,8 @@ public sealed partial class MainWindow : Window
         _settings.NoiseSuppressionEnabled = noiseMode != NoiseSuppressionMode.Off;
         _settings.NoiseSuppressionStrength = NoiseSuppressionStrengthSlider?.Value ?? 70.0;
         _settings.ActiveVoiceEffectOrder = _effectChainOrder.ToList();
+        _settings.ActiveVoiceBypassedEffects = _bypassedEffectKeys.ToList();
+        _settings.ActiveVoiceChainBypassed = _effectChainBypassed;
         _settings.ActiveVoiceEffectValues = new Dictionary<string, double>(_activeEffectValues, StringComparer.OrdinalIgnoreCase);
 
         _settings.VoiceGain = ToLegacyEffectValue("VoiceGain", GetActiveEffectValue("VoiceGain"));
@@ -11842,7 +11727,7 @@ public sealed partial class MainWindow : Window
         _settings.GateThresholdDb = MapCentered(_settings.VoiceGate, -45, -70, -20);
         _settings.CompressorThresholdDb = MapCentered(_settings.VoiceCompressor, -24, -60, -6);
 
-        try { _settingsStore.Save(_settings); }
+        try { ScheduleSettingsSave(); }
         catch (Exception storageError) { AppendLog("Settings were not saved: " + storageError.Message); }
     }
 

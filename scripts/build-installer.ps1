@@ -116,12 +116,13 @@ Write-Host "Publishing VoiSee $Version (self-contained $Runtime)..."
 $restoreSource = @()
 if ($PackageSource) { $restoreSource = @('--source', $PackageSource) }
 & dotnet publish $Project -c $Configuration -r $Runtime --self-contained true `
+    -m:1 `
     -p:WindowsPackageType=None -p:PublishSingleFile=false -p:UseSharedCompilation=false `
     -p:StopRunningVoiSeeBeforeDebugBuild=false -o $PublishDir @restoreSource
 if ($LASTEXITCODE -ne 0) { throw "Publish failed ($LASTEXITCODE)." }
 $bundled = Prepare-DriverBundle
 # Retain development symbols in bin/obj, not in the user installation.
-foreach ($name in @('VoiSe.App.pdb','VoiSe.Audio.pdb')) {
+foreach ($name in @('VoiSe.App.pdb','VoiSe.Audio.pdb','VoiSe.Core.pdb')) {
     $symbols = Join-Path $PublishDir $name
     if (Test-Path -LiteralPath $symbols) { Remove-Item -LiteralPath $symbols -Force }
 }
@@ -151,6 +152,7 @@ if (Test-Path -LiteralPath $setupPath) {
     $manifest.Installer = $installer.Name
     $manifest.Bytes = $installer.Length
     $manifest.SHA256 = (Get-FileHash -LiteralPath $setupPath -Algorithm SHA256).Hash
+    ($manifest.SHA256.ToLowerInvariant() + ' *' + $installer.Name) | Set-Content -LiteralPath (Join-Path $InstallerDir 'SHA256SUMS.txt') -Encoding ascii
 }
 $manifest | ConvertTo-Json | Set-Content -LiteralPath (Join-Path $InstallerDir 'build-manifest.json') -Encoding UTF8
 Write-Host "Application: $([Math]::Round($bytes / 1MB, 2)) MiB, $($files.Count) files."

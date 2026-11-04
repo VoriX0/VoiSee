@@ -72,6 +72,8 @@ public sealed class VoiSeUserSettings
 
     // VoiSee 12.2 ordered effect-card chain. Empty means a clean microphone path.
     public List<string> ActiveVoiceEffectOrder { get; set; } = new();
+    public List<string> ActiveVoiceBypassedEffects { get; set; } = new();
+    public bool ActiveVoiceChainBypassed { get; set; }
     public Dictionary<string, double> ActiveVoiceEffectValues { get; set; } = new();
 
 

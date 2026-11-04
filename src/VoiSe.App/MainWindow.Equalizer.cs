@@ -48,7 +48,7 @@ public sealed partial class MainWindow
         _equalizerSaveTimer.Tick += (_, _) =>
         {
             _equalizerSaveTimer.Stop();
-            try { _settingsStore.Save(_settings); }
+            try { ScheduleSettingsSave(); }
             catch (Exception ex) { StartupLog.Write("Equalizer settings save failed: " + ex); }
         };
         _equalizerLoading = false;

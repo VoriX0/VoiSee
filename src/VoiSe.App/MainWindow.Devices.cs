@@ -10,7 +10,11 @@ public sealed partial class MainWindow
     {
         try
         {
+            var resume = _audioSession.State == AudioSessionState.Faulted && !_manualStopRequested
+                ? AudioResumePlan.Capture(SelectedAudioDevices(), running: true) : null;
             RefreshDevices();
+            if (resume is not null && resume.Matches(SelectedAudioDevices()) && _engine is null)
+                StartEngine(logAlreadyRunning: false);
         }
         catch (Exception ex)
         {
