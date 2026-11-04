@@ -1,199 +1,202 @@
+<div align="center">
+
+<img src="src/VoiSe.App/Assets/AppIcon_256.png" width="112" alt="Логотип VoiSee" />
+
 # VoiSee
 
-Приложение для обработки микрофона, изменения голоса, воспроизведения звуков и передачи звука приложений в виртуальный микрофон. Серия 14 основана на рабочей 12.5.1 и включает эквалайзер, шумоподавление, эхоподавление и русский/английский интерфейс.
+**Голос, звуки и музыка — в одном виртуальном микрофоне.**
 
-## Установщики и сборка
+Обработка микрофона, изменение голоса, SoundBoard и звук приложений для игр и общения на Windows.
 
-Место распространения установщиков — [GitHub Releases](https://github.com/VoriX0/VoiSe/releases). К релизу соответствующего тега `v<версия>` прикрепляется `VoiSee-Setup-<версия>-x64.exe` и контрольная сумма SHA-256. Установщики не добавляются в исходники Git. До публикации релиза установщик доступен локально после сборки.
+![Windows](https://img.shields.io/badge/Windows-10%20%2F%2011-0078D4?style=flat-square)
+![WinUI](https://img.shields.io/badge/Интерфейс-WinUI%203-a78bfa?style=flat-square)
+![Languages](https://img.shields.io/badge/Языки-Русский%20%2F%20English-ec4899?style=flat-square)
 
-Запуск без установщика: `dotnet run --project .\src\VoiSe.App\VoiSe.App.csproj -c Release`.
+### [Скачать для Windows x64](https://github.com/VoriX0/VoiSee/releases/latest)
 
-Сборка установщика (нужен Inno Setup 6): `.\scripts\build-installer.ps1`. Результат: `artifacts\installer\<версия>`. Для повторной сборки той же версии используется `-Force`; вывод других версий сохраняется.
+[Все версии](https://github.com/VoriX0/VoiSee/releases) · [Возможности](#возможности) · [Быстрый старт](#быстрый-старт) · [Сборка](#сборка-из-исходников) · [Сообщить о проблеме](https://github.com/VoriX0/VoiSee/issues)
 
-## Границы аудиосессии
+</div>
 
-`AudioSessionController` владеет единственной сессией и выполняет её запуск, остановку и восстановление после ошибки на потоке диспетчера. Ошибки старых сессий отбрасываются по поколению; нативные callbacks не ожидают UI. `AudioDeviceService` перечисляет устройства и передаёт владение открытыми endpoints движку только после успешного создания. `AudioDeviceSelectionPolicy` содержит проверяемые без устройств правила выбора по ID. Части `MainWindow.AudioSession` и `MainWindow.Devices` связывают эти компоненты с интерфейсом.
+---
 
-Проверки: `dotnet run --project .\tests\VoiSe.RegressionTests -c Release`. Они покрывают жизненный цикл, выбор устройств, хранение, аудиобуферы и DSP. Проверки на физических устройствах, сквозной задержки и длительных утечек выполняются отдельно.
+## Как выглядит VoiSee
 
-> **12.4.0 buildfix 1:** keeps the validated Per-Monitor V2 DPI fix, fixes SoundBoard right-click without rebuilding/resetting the native ListView, and removes the Media Bridge scroll container entirely.
+Интерактивный эквалайзер: меняйте звучание прямо на графике и настраивайте шум и эхо рядом с ним.
 
-## VoiSee 12.4.0 — SoundBoard context menu + Media Bridge scroll cleanup
+[![Эквалайзер VoiSee с интерактивными точками](docs/images/equalizer.png)](docs/images/equalizer.png)
 
-- Right-clicking a SoundBoard track again selects that track and opens the existing context menu at the pointer position.
-- Media Bridge no longer scrolls and no longer shows scroll bars.
-- The 125% Windows scaling fix remains enabled through `PerMonitorV2` DPI awareness.
+<table>
+<tr>
+<td width="50%" align="center"><strong>Изменение голоса</strong><br/><a href="docs/images/voice-changer.png"><img src="docs/images/voice-changer.png" alt="Цепочка эффектов и библиотека пресетов" /></a></td>
+<td width="50%" align="center"><strong>Звуковая панель</strong><br/><a href="docs/images/soundboard.png"><img src="docs/images/soundboard.png" alt="SoundBoard с категориями и горячими клавишами" /></a></td>
+</tr>
+</table>
 
-The Voice Changer keeps the approved three-column Modular Rack design.
+*Скриншоты сделаны в VoiSee с демонстрационным профилем. Категории, звуки и пресеты создаёт пользователь.*
 
-- **Left:** Noise Suppression above a searchable, independently scrollable Presets browser.
-- **Center:** the primary **vertical Processing Chain**, from Microphone In to Output / Monitor.
-- **Right:** an independently scrollable, categorized Effect Library with search, category filter, drag handles and `Add` buttons.
-- Active effect cards are compact horizontal rack rows with order number, drag grip, icon/name, parameter slider, numeric value, bypass and delete controls.
-- Insertion `+` nodes live directly on the vertical signal path. Drag/reorder insertion is calculated on the **Y axis**, matching the visual chain.
-- Presets, processing chain and effect library each own mouse-wheel scrolling instead of sharing the old tab-wide scroll route.
-- The working VoiSee 12.2.2 ordered DSP-chain and preset schema 2 contract are retained.
-- Noise suppression remains global and outside the preset effect chain.
+## Возможности
 
-See `docs/GATE12_3_0_VOICE_CHANGER_REFINEMENT.md` and `docs/design/VOICE_CHANGER_MODULAR_RACK_REFERENCE.png`.
+| Раздел | Что можно сделать |
+|---|---|
+| **Эквалайзер** | Настроить голос на частотном графике, добавить свои точки, изменить частоту, усиление и ширину фильтра. |
+| **Шум и эхо** | Выбрать RNNoise или DeepFilterNet, отрегулировать силу шумоподавления и включить эхоподавление. |
+| **Изменение голоса** | Собрать цепочку из 34 эффектов, менять их порядок, отключать отдельные карточки и сохранять пресеты. |
+| **Звуковая панель** | Импортировать WAV, MP3 и OGG, распределять звуки по категориям и запускать их горячими клавишами. |
+| **Редактор звуков** | Выделять фрагменты на волне, обрезать, вырезать, менять громкость, нормализовать и добавлять плавное начало и окончание. |
+| **Сцены** | Объединить голос, звуковые кнопки и фон в один сохраняемый сценарий. |
+| **Звук приложений** | Передать звук выбранного приложения в виртуальный микрофон через Media Bridge. |
+| **Настройки** | Выбрать микрофон и наушники, настроить автозапуск, язык, горячие клавиши и собственную тему оформления. |
 
-## VoiSee 12.1.0 — Dual noise suppression
+### Эквалайзер и очистка микрофона
 
-- Keeps the validated RNNoise microphone cleanup introduced in VoiSee 12.0.0.
-- Adds **DeepFilterNet** as a second real-time 48 kHz noise-suppression engine.
-- Replaces separate cleanup cards with one compact engine selector and one Strength slider.
-- Splits the Voice Changer page into three clear sections: **Noise suppression**, **Effects**, and **Presets**.
-- Keeps noise suppression global and independent from voice-effect presets.
-- Processes only physical microphone audio; SoundBoard, scene sounds, and Media Bridge audio remain untouched.
-- Removes the experimental Low-frequency cleanup from VoiSee 12.0.1.
-- Keeps the validated Discord screen-share isolation introduced in VoiSee 11.3.0.
+- **Управление мышью:** тяните центральную точку по частоте и усилению, боковые точки — чтобы изменить ширину фильтра.
+- **Свои фильтры:** добавляйте и удаляйте точки; задавайте параметры числами. Доступны пиковый фильтр, низкая и высокая полки, срез низких и высоких частот.
+- **Два способа настройки:** интерактивная кривая и графические полосы — 10 в обычном режиме, 31 в расширенном.
+- **Отмена действий:** кнопка возврата и `Ctrl+Z` отменяют изменения эквалайзера.
+- **Громкость и мониторинг:** регулируйте предусиление и отдельно включайте прослушивание собственного голоса.
+- **Общий профиль:** коррекция сохраняется для пользователя при смене микрофона. Пресеты и сцены не перезаписывают её.
+- **Шумоподавление:** RNNoise и DeepFilterNet обрабатывают микрофон; SoundBoard и Media Bridge проходят отдельно. DeepFilterNet требует больше ресурсов, чем RNNoise.
+- **Эхоподавление:** один переключатель для подавления звука колонок и ослабления комнатных отражений. Обработка выполняется на CPU, без обязательной NVIDIA RTX. Опорный звук берётся с устройства воспроизведения Windows.
 
-Available cleanup modes:
+### Изменение голоса
 
-- `Off` — no neural noise suppression;
-- `RNNoise` — lightweight low-latency cleanup;
-- `DeepFilterNet` — full-band neural speech enhancement with higher CPU use and latency.
+В центре — цепочка обработки, справа — библиотека эффектов, слева — пресеты. Карточки можно переставлять, отключать и удалять кнопкой или перетаскиванием обратно в библиотеку.
 
-The first Windows build downloads the official DeepFilterNet 0.5.6 x64 LADSPA library through `scripts\fetch-deepfilternet.ps1` and places it in the application output. The installer build includes the downloaded library automatically.
+Пресеты сохраняют порядок, значения и отключённые эффекты. Их можно переименовать, назначить им иконки и горячие клавиши, импортировать и экспортировать в JSON. **Push-to-Talk пресета** применяет голос на время удержания клавиши и возвращает прежнюю цепочку после отпускания.
 
-License texts are copied as ordinary files instead of Windows PRI resources. This also removes the `PRI249 ... Invalid qualifier: NET-MIT` warning caused by the previous license filename/resource treatment.
+<details>
+<summary><strong>Все 34 эффекта</strong></summary>
 
-## VoiSee 11.3.0 — Discord screen-share voice isolation
+| Группа | Эффекты |
+|---|---|
+| Уровень и динамика | Усиление голоса, шумовой порог, компрессор |
+| Тон | Высота голоса, форманты, низкие и высокие частоты |
+| Пространство и модуляция | Эхо, реверберация, тремоло, хорус, флэнжер, фэйзер, вибрато, удвоение |
+| Характер голоса | Искажение, робот, радио, биткрашер, пришелец, кольцевая модуляция, бурундук, гигант, призрак, заикание, колебание, мужской и женский тембр, одержимый, мегафон, вертолёт, киборг, сломанное радио, вокодер |
 
-- Restores the Settings and Advanced Settings interface to the VoiSee 11.2.5 layout.
-- Permanently enables the validated protection against duplicated processed voice in Discord screen sharing.
-- Automatically mutes only Discord render sessions attached to the normal VB-CABLE `CABLE Input` endpoint.
-- Does not mute VoiSee on `CABLE Input`, Discord on physical headphones, or the `CABLE Output` microphone endpoint.
-- Re-applies the protection when Discord recreates its screen-share audio session.
-- Keeps the original hard Voice Monitor route disconnect and the full-width SoundBoard category buttons from 11.2.5.
-- Removes the temporary WASAPI report, route switches, snapshot controls, and public isolation checkbox used in 11.2.8–11.2.9.
+</details>
 
-VoiSee is a WinUI 3 application for real-time voice processing, SoundBoard playback into a virtual microphone, scenes, presets, global hotkeys, themes, and non-destructive sound editing.
+### SoundBoard и редактор
 
-The screen-share protection is internal and always active while VoiSee is running. When VoiSee exits, it restores the original mute state of Discord sessions that it changed.
+Импортируйте файлы кнопкой или перетащите их из Проводника. Для звуков доступны категории, поиск, сортировка, переименование, перемещение и копирование между категориями, открытие файла в Проводнике и назначение горячих клавиш.
 
-## VoiSee 11.0.0 — Media Bridge Core
+У звуков раздельные громкости **в виртуальный микрофон** и **в наушники**. Можно включить повтор, поставить воспроизведение на паузу, перемотать или перейти к соседнему треку. Дополнительная задержка SoundBoard применяется к его виртуальному выходу, отдельно от голоса.
 
-VoiSee 11 introduces **Media Bridge**: select an application window, preview it, and mix that process audio into the virtual microphone without adding a duplicate headphone monitor. The first core stage includes one selected source, Start/Pause/Resume/Stop, source duration and level, a dedicated virtual-mic volume, saved descriptive profile data, and a global Pause/Resume hotkey. Media Bridge does not reconnect automatically after VoiSee restarts.
+Встроенный редактор открывается из контекстного меню трека:
 
-Media Bridge is provider-independent: Yandex Music is the first target scenario, while the same process-capture route can be used with other desktop media applications and browsers. The SoundBoard toolbar remains limited to `Add Track` and `Delete Track`; sound editing stays in the track context menu.
+- выделение фрагмента непосредственно на звуковой волне;
+- обрезка всего за пределами выделения или вырезание выделенного участка;
+- усиление, нормализация, fade in / fade out и искажение;
+- прослушивание через наушники без отправки превью в виртуальный микрофон;
+- сохранение в текущий трек или создание отдельной редактированной копии.
 
-## VoiSee 11.2 — Scene Media Backgrounds
+Длинные звуки воспроизводятся потоком. Для редактирования действует ограничение полного декодирования в память: слишком большой файл не загружается целиком без ограничений.
 
-Scenes can now choose either `Looped Sound` or `Media Source` as their background. A Media Source uses a profile created when a window is selected on the Media Bridge tab. The scene editor only selects the profile, launches its application from the source card, and optionally starts capture when the scene is applied. Volume, Pause, Stop, meters, and all audio processing remain exclusively on the Media Bridge tab. Scene-owned capture stops with the scene; a Media Bridge broadcast that was already running manually is never replaced or stopped by scene deactivation.
+### Сцены
 
-Known service profiles provide browser fallback for Yandex Music, Spotify, and YouTube. VoiSee stores descriptive profile data, never a PID or HWND.
+Сцена хранит снимок голосовой цепочки, звуковые кнопки, громкости, горячие клавиши и выбранный фон. Сохранённое звучание не зависит от последующего переименования, изменения или удаления исходного пресета.
 
-## Sound Editor highlights
+Фоном может быть зацикленный файл или профиль Media Bridge. Для кнопок сцены доступны собственные названия, горячие клавиши и громкости. Сцену можно активировать, отключить и отдельно управлять её звуками; после отключения восстанавливается предыдущая голосовая цепочка.
 
-- Centered timeline editor opened from the SoundBoard track context menu.
-- Drag directly across the waveform to select a fragment.
-- `Trim Outside` keeps the selection and removes everything outside it.
-- `Cut Selection` removes the selected fragment and joins the remaining audio.
-- Minimum selection and remaining sound length: 0.2 seconds.
-- Preview uses the current `SoundBoard → Headphones` volume and never routes to the virtual microphone.
-- External SoundBoard/Scene sounds and normal global hotkeys are isolated while the editor is open.
-- Live waveform feedback for volume gain, normalize, fade in, fade out, and distortion.
-- `Save File` updates the current library item.
-- `Save as` creates unique names such as `[edit]`, `[edit 2]`, and `[edit 3]`.
-- The editor owns mouse-wheel scrolling while open; the SoundBoard behind it does not scroll.
+### Media Bridge — звук приложений
 
-## SoundBoard file and category tools (VoiSee 10.2)
+Выберите окно приложения, посмотрите превью и передайте его звук в виртуальный микрофон. Доступны запуск, пауза, продолжение, остановка, отдельная громкость, индикаторы уровня и горячая клавиша паузы.
 
-Right-click a SoundBoard track to use the new library actions:
+Профили источников можно использовать в сценах. Для Яндекс Музыки, Spotify и YouTube предусмотрены сценарии запуска приложения или браузера.
 
-- `Show in File Explorer` opens Explorer and selects the actual managed audio file.
-- `Transfer to Category` contains separate `Move...` and `Copy...` actions.
-- Move preserves the track ID, hotkey, usage statistics and scene references.
-- Copy creates an independent physical file, a new ID, no hotkey, and a unique
-  name such as `[copy]`, `[copy 2]`, and `[copy 3]`.
+Выбранное окно определяет **процесс-источник**: захватывается звук процесса, а не гарантированно одной вкладки браузера. Media Bridge не добавляет вторую копию звука в наушники и не возобновляет захват автоматически после перезапуска VoiSee.
 
-After a successful operation VoiSee opens the target category and selects the
-resulting track.
+### Работа в фоне и оформление
 
-The experimental internal track-to-category drag gesture was removed. Category
-Move and Copy remain available through the reliable SoundBoard context menu.
+- Закрытие окна сворачивает VoiSee в трей; звук и горячие клавиши продолжают работать. Для завершения выберите **«Выйти»** в меню трея.
+- Повторный запуск открывает существующее окно вместо создания второго аудиодвижка.
+- Автозапуск Windows открывает приложение в трее. Запуск другой копии программы не переписывает существующую регистрацию автозагрузки.
+- Списки устройств обновляются по уведомлениям Windows и кнопкой Refresh. После сна восстановление допускается только для прежнего доступного маршрута.
+- Мониторинг голоса и прослушивание SoundBoard независимы. Отключение виртуального выхода не отключает прослушивание в наушниках.
+- Есть защита от повторного попадания обработанного голоса в звук трансляции Discord через обычный VB-CABLE.
+- Русский и английский интерфейс; смена языка применяется после полного перезапуска.
+- Пользовательские темы `*.voiseetheme.xaml`, создание шаблона, импорт, экспорт и применение изменений после сохранения файла. Примеры — в [sample-themes](sample-themes).
 
-Dragging WAV, MP3 or OGG files from Explorer shows a large centered import panel
-covering approximately 75% of the VoiSee window.
+## Быстрый старт
 
-## Windows integration (VoiSee 10.3)
+1. Скачайте установщик `.exe` из [последнего релиза](https://github.com/VoriX0/VoiSee/releases/latest). Файл `SHA256SUMS.txt` рядом с ним содержит контрольную сумму.
+2. Установите VoiSee и виртуальный кабель **VB-CABLE**, если он ещё не установлен. Комплект драйвера включён в установщик; его установка — отдельный дополнительный шаг.
+3. В настройках VoiSee выберите физический микрофон и устройство прослушивания. Виртуальный выход VB-CABLE определяется автоматически.
+4. В Discord, игре или другом приложении общения выберите вход **CABLE Output (VB-Audio Virtual Cable)**.
+5. Настройте эквалайзер, очистку и эффекты. Кнопку **«Слышать себя»** включайте, когда нужен мониторинг голоса.
 
-- Closing the main window hides VoiSee in the notification area without stopping
-  the audio engine, active scenes, looped sounds, or global hotkeys.
-- The tray menu contains `Open VoiSee` and `Exit VoiSee`; a single left click on
-  the tray icon restores the existing window.
-- Only one process may own the audio engine. A second launch signals the existing
-  instance and exits.
-- `Start VoiSee with Windows` creates a per-user startup entry and launches
-  `VoiSe.App.exe --background` hidden in the notification area.
-- `Exit VoiSee` performs the real cleanup and process shutdown.
+```mermaid
+flowchart LR
+    MIC[Микрофон] --> FX[Шум и эхо → EQ → эффекты]
+    FX --> MIX[VoiSee]
+    SB[SoundBoard и сцены] --> MIX
+    MB[Media Bridge] --> MIX
+    MIX --> CABLE[CABLE Input → CABLE Output]
+    CABLE --> CHAT[Игра или приложение общения]
+```
 
+**CABLE Input** — устройство, в которое VoiSee отправляет звук. **CABLE Output** — виртуальный микрофон, который выбирается в приложении общения.
 
-## Settings redesign (VoiSee 10.4)
+## Требования и данные
 
-- The first column is a focused `System & Audio` area with VB-CABLE status,
-  input and monitor devices, SoundBoard delay, hotkeys, and autostart. The VB-CABLE
-  output route is detected automatically and is no longer exposed as a user setting.
-- The Advanced Settings card now sits under `About me` and opens a wide centered
-  troubleshooting dialog with separate scrolling areas.
-- The log viewer supports Clear, Copy, Export, and automatic scrolling.
-- The Themes column documents native `.voiseetheme.xaml` ResourceDictionary files,
-  shows the actual themes folder, and places its actions in two compact rows.
-- The About column now links Telegram to `https://t.me/VoriXdev`.
-- Settings keeps three columns on wide windows and stacks them vertically when space
-  is limited, preventing horizontal clipping.
+**Windows x64, Windows 10 версии 2004 или новее / Windows 11.** Для захвата звука процессов в Media Bridge нужна Windows со сборкой **20348 или новее**; обычная Windows 10 22H2 ниже этого порога. Для Media Bridge используйте Windows 11.
 
-## Build
+Установщик включает .NET и WinUI: отдельно устанавливать их для запуска этой поставки не требуется. Для передачи микса в другие приложения используется [VB-CABLE](https://vb-audio.com/Cable/).
+
+Настройки и библиотека хранятся в `%LOCALAPPDATA%\VoiSe`: звуки, отредактированные файлы, пресеты, сцены и темы. При обычном удалении приложения пользовательские данные сохраняются. Для резервной копии полностью завершите VoiSee через трей и скопируйте эту папку.
+
+Память кеша и фоновые загрузки ограничиваются автоматически. При ошибке записи приложение показывает несохранённые изменения и позволяет повторить сохранение. Потребление ресурсов и задержка зависят от устройства, драйвера и включённых обработчиков; одинаковые цифры для всех ПК не обещаются.
+
+## Сборка из исходников
+
+Нужны Windows, .NET SDK из [global.json](global.json) и компоненты сборки Windows/WinUI. Для установщика дополнительно нужен **Inno Setup 6**.
 
 ```powershell
-Set-ExecutionPolicy -Scope Process Bypass
+git clone https://github.com/VoriX0/VoiSee.git
+cd VoiSee
+dotnet run --project .\src\VoiSe.App\VoiSe.App.csproj -c Release
+```
+
+Сборка установщика:
+
+```powershell
 .\scripts\build-installer.ps1
 ```
 
-Expected installer:
+Результат: `artifacts\installer\<версия>\VoiSee-Setup-<версия>-x64.exe` и `SHA256SUMS.txt`. Для повторной сборки той же версии добавьте `-Force`; для ZIP-поставки — `-Portable`. Сборки и пользовательские данные не добавляются в Git.
 
-```text
-artifacts\installer\14.1.1\VoiSee-Setup-14.1.1-x64.exe
+Первой сборке нужен доступ к NuGet и загрузке нативного DeepFilterNet. Установщик после сборки содержит эти компоненты.
+
+<details>
+<summary><strong>Архитектура и проверки для разработчиков</strong></summary>
+
+| Модуль | Ответственность |
+|---|---|
+| `VoiSe.Core` | Общая атомарная запись без зависимостей от UI и аудиодрайверов |
+| `VoiSe.Audio` | WASAPI, DSP, каталог эффектов, транспорт звуков, потоковое чтение, ограниченные кеши и уведомления устройств |
+| `VoiSe.App` | WinUI, контроллер аудиосессии, состояние цепочки, снимки сцен, хранение, отмена фоновых задач и интеграция с Windows |
+
+Регрессионные проверки:
+
+```powershell
+dotnet run --project .\tests\VoiSe.RegressionTests -c Release
 ```
 
-Portable build:
+Профиль компонентов и десятиминутная нагрузочная проверка:
 
-```text
-artifacts\installer\14.1.1\VoiSee-Portable-14.1.1-x64.zip
+```powershell
+dotnet run --project .\tests\VoiSe.PerformanceTests -c Release -- --seconds 10 --soak-minutes 10
 ```
 
-## Native XAML themes (VoiSee 10.1)
+Продолжительность задаётся `--soak-minutes` — до 480 минут. Отчёт JSON сохраняется в `artifacts\performance`. Стенд использует синтетическое аудио и не открывает микрофон, выходы Windows или приложения общения. Его результаты не заменяют замер полной программы с устройствами и проверку задержки до собеседника.
 
-VoiSee themes are native WinUI `ResourceDictionary` files with the extension:
+На физических устройствах отдельно проверяются отключение USB/Bluetooth, сон и пробуждение, смена устройств, длительная работа с игрой и сквозная задержка. Не считать успешную сборку подтверждением этих сценариев.
 
-```text
-*.voiseetheme.xaml
-```
+Сторонние лицензии и сведения об аудиообработчиках — в [ThirdPartyLicenses](src/VoiSe.App/ThirdPartyLicenses).
 
-The application loads them directly into `Application.Resources.MergedDictionaries`.
-There is no CSS parser or CSS-to-XAML conversion layer. **Settings → Themes →
-Create New Theme** now creates a structured, commented catalogue of resources
-that are actually connected to VoiSee: global palette and radii, buttons,
-sliders, inputs, lists, and named VoiSee panels/actions. Save the file to see
-live changes, or start with:
+</details>
 
-```text
-sample-themes\Neon_Cyan.voiseetheme.xaml
-sample-themes\Cosmic_Nebula.voiseetheme.xaml
-sample-themes\Inferno.voiseetheme.xaml
-sample-themes\Pastel_Dream.voiseetheme.xaml
-```
+---
 
-Old `.voiseetheme.css` files from the user themes folder are archived once into
-`themes\Legacy CSS` and are not loaded at runtime.
-
-
-## 12.3.0 buildfix 4
-
-Voice Changer wheel routing now uses three exact grid-column zones spanning the full tab-content height, and effect-chain rebuilds animate all cards displaced by insertion/reorder. See `docs/GATE12_3_0_BUILDFIX4_COLUMN_WHEEL_ZONES_AND_CHAIN_FLIP.md`.
-
-
-## 12.3.3 — Collection-native scrolling
-
-Scrolling no longer depends on the legacy global `WH_MOUSE_LL` coordinate router. Normal XAML `ScrollViewer` controls own wheel input directly. Voice Changer uses three full-column native scroll surfaces, Media Bridge has a tab-level native scroller, and modal/editor scrollers no longer stack manual wheel routing on top of WinUI behavior. SoundBoard keeps only its local overlay-to-list forwarding because the drag/click overlay is intentionally a sibling above the visual list. See `docs/GATE12_3_1_NATIVE_SCROLLING_REWORK.md`.
+**Разработка:** [VoriX0](https://github.com/VoriX0) · **Новости:** [VoriXdev в Telegram](https://t.me/VoriXdev) · **Ошибки и предложения:** [GitHub Issues](https://github.com/VoriX0/VoiSee/issues)

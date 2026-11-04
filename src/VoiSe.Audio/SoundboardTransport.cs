@@ -1,4 +1,4 @@
-using NAudio.Wave;
+﻿using NAudio.Wave;
 
 namespace VoiSe.Audio;
 
@@ -10,7 +10,9 @@ public sealed class SoundboardTransport : IDisposable
     private readonly bool _monitorEnabled;
     private float[] _scratch = Array.Empty<float>();
     private long _generation, _nextRequest;
-    private readonly Dictionary<string, long> _pending = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, LoadRequest> _pending = new(StringComparer.OrdinalIgnoreCase);
+    private readonly SemaphoreSlim _loadSlots = new(2, 2);
+    private sealed record LoadRequest(long Id, long Generation, string Key, CancellationTokenSource Cancellation);
     private bool _disposed;
     public string? LastError { get; private set; }
     private readonly List<ActiveSound> _overlays = new();
@@ -59,18 +61,65 @@ public sealed class SoundboardTransport : IDisposable
         }
     }
 
-    public void Play(string filePath, float virtualVolume, float monitorVolume, int virtualDelayMs, bool loop = false, string? playbackKey = null)
+    private LoadRequest RegisterLoad(string? playbackKey, CancellationToken cancellationToken)
     {
-        long generation, request;
-        var requestKey = playbackKey ?? "__primary";
         lock (_sync)
         {
             ObjectDisposedException.ThrowIf(_disposed, this);
-            generation = _generation; request = ++_nextRequest; _pending[requestKey] = request;
+            cancellationToken.ThrowIfCancellationRequested();
+            var key = playbackKey ?? "__primary";
+            if (_pending.TryGetValue(key, out var previous)) previous.Cancellation.Cancel();
+            else if (_pending.Count >= 64) throw new InvalidOperationException("Too many pending sounds (64).");
+            var request = new LoadRequest(++_nextRequest, _generation, key, CancellationTokenSource.CreateLinkedTokenSource(cancellationToken));
+            _pending[key] = request;
+            return request;
         }
+    }
+
+    public void Play(string filePath, float virtualVolume, float monitorVolume, int virtualDelayMs, bool loop = false, string? playbackKey = null)
+    {
+        var request = RegisterLoad(playbackKey, CancellationToken.None);
+        var admitted = false;
+        try
+        {
+            _loadSlots.Wait(request.Cancellation.Token); admitted = true;
+            LoadAndCommit(request, filePath, virtualVolume, monitorVolume, virtualDelayMs, loop, playbackKey);
+        }
+        finally { if (admitted) _loadSlots.Release(); FinishLoad(request); }
+    }
+
+    public Task PlayAsync(string filePath, float virtualVolume, float monitorVolume, int virtualDelayMs,
+        bool loop = false, string? playbackKey = null, CancellationToken cancellationToken = default)
+    {
+        // Register before scheduling: Stop must invalidate a command even before its worker starts.
+        var request = RegisterLoad(playbackKey, cancellationToken);
+        return RunLoadAsync(request, filePath, virtualVolume, monitorVolume, virtualDelayMs, loop, playbackKey);
+    }
+
+    private async Task RunLoadAsync(LoadRequest request, string filePath, float virtualVolume, float monitorVolume, int virtualDelayMs, bool loop, string? playbackKey)
+    {
+        var admitted = false;
+        try
+        {
+            await _loadSlots.WaitAsync(request.Cancellation.Token).ConfigureAwait(false); admitted = true;
+            await Task.Run(() => LoadAndCommit(request, filePath, virtualVolume, monitorVolume, virtualDelayMs, loop, playbackKey), request.Cancellation.Token).ConfigureAwait(false);
+        }
+        finally { if (admitted) _loadSlots.Release(); FinishLoad(request); }
+    }
+
+    private void FinishLoad(LoadRequest request)
+    {
+        lock (_sync)
+            if (_pending.TryGetValue(request.Key, out var current) && ReferenceEquals(current, request)) _pending.Remove(request.Key);
+        request.Cancellation.Dispose();
+    }
+
+    private void LoadAndCommit(LoadRequest request, string filePath, float virtualVolume, float monitorVolume, int virtualDelayMs, bool loop, string? playbackKey)
+    {
+        request.Cancellation.Token.ThrowIfCancellationRequested();
         var sampleCount = SoundFileLoader.GetSampleCount(filePath, _format);
         var data = sampleCount * sizeof(float) <= SoundFileLoader.ShortClipBytes
-            ? SoundFileLoader.LoadToFormat(filePath, _format) : null;
+            ? SoundFileLoader.LoadToFormat(filePath, _format, request.Cancellation.Token) : null;
         var delaySamples = Math.Max(0, (int)Math.Round(_format.SampleRate * (virtualDelayMs / 1000.0)) * _format.Channels);
         var sound = new ActiveSound(
             data, data?.LongLength ?? sampleCount, filePath, _format, _monitorEnabled,
@@ -84,9 +133,10 @@ public sealed class SoundboardTransport : IDisposable
 
         lock (_sync)
         {
-            if (_disposed || generation != _generation || !_pending.TryGetValue(requestKey, out var current) || current != request)
-            { sound.Dispose(); return; }
-            _pending.Remove(requestKey);
+            if (_disposed || request.Cancellation.IsCancellationRequested || request.Generation != _generation
+                || !_pending.TryGetValue(request.Key, out var current) || !ReferenceEquals(current, request))
+            { sound.Dispose(); throw new OperationCanceledException(request.Cancellation.Token); }
+            _pending.Remove(request.Key);
             RemoveFinishedOverlays();
             if (!loop && _overlays.Count >= 32 && !FindByKey(playbackKey ?? "").Any()) { sound.Dispose(); throw new InvalidOperationException("Too many simultaneous sounds (32)."); }
             if (loop)
@@ -126,7 +176,10 @@ public sealed class SoundboardTransport : IDisposable
         {
             if (string.IsNullOrWhiteSpace(playbackKey))
             {
-                _generation++; _pending.Clear();
+                _generation++;
+                var pendingRequests = _pending.Values.ToArray();
+                _pending.Clear();
+                foreach (var pendingRequest in pendingRequests) pendingRequest.Cancellation.Cancel();
                 _primary?.Dispose();
                 _primary = null;
                 foreach (var active in _overlays) active.Dispose();
@@ -134,7 +187,7 @@ public sealed class SoundboardTransport : IDisposable
                 return;
             }
 
-            _pending.Remove(playbackKey);
+            if (_pending.Remove(playbackKey, out var request)) request.Cancellation.Cancel();
             RemoveByKey(playbackKey);
         }
     }

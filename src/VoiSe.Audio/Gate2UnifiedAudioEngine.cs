@@ -1,4 +1,4 @@
-using System.Diagnostics;
+﻿using System.Diagnostics;
 using NAudio.CoreAudioApi;
 using NAudio.Wave;
 using NAudio.Wave.SampleProviders;
@@ -48,6 +48,8 @@ public sealed class Gate2UnifiedAudioEngine : IAudioSession
     private bool _voiceMonitorRouteEnabled;
     private volatile bool _disposed, _running;
     private bool _started;
+    private bool _shutdownComplete;
+    private readonly CancellationTokenSource _sessionCancellation = new();
     private readonly bool _ownsDevices;
     private readonly object _lifecycle = new();
     private readonly object _processing = new();
@@ -323,9 +325,19 @@ public sealed class Gate2UnifiedAudioEngine : IAudioSession
         _soundboard.Play(filePath, virtualVolume, monitorVolume, virtualDelayMs, loop, playbackKey);
     }
 
-    public Task PreloadSoundAsync(string filePath)
+    public Task PlaySoundAsync(string filePath, float virtualVolume, float monitorVolume, int virtualDelayMs,
+        bool loop = false, string? playbackKey = null, CancellationToken cancellationToken = default) =>
+        _soundboard.PlayAsync(filePath, virtualVolume, monitorVolume, virtualDelayMs, loop, playbackKey, cancellationToken);
+
+    public async Task PreloadSoundAsync(string filePath, CancellationToken cancellationToken = default)
     {
-        return _disposed ? Task.CompletedTask : SoundFileLoader.PreloadToFormatAsync(filePath, _mixFormat);
+        CancellationTokenSource linked;
+        lock (_lifecycle)
+        {
+            if (_disposed || !_running) return;
+            linked = CancellationTokenSource.CreateLinkedTokenSource(_sessionCancellation.Token, cancellationToken);
+        }
+        using (linked) await SoundFileLoader.PreloadToFormatAsync(filePath, _mixFormat, linked.Token).ConfigureAwait(false);
     }
 
     public void StopSound(string? playbackKey = null)
@@ -419,7 +431,9 @@ public sealed class Gate2UnifiedAudioEngine : IAudioSession
     {
         lock (_lifecycle)
         {
+            if (_shutdownComplete) return;
             _running = false;
+            _sessionCancellation.Cancel();
             Cleanup(StopMediaBridge);
             Cleanup(() => _soundboard.Stop());
             Cleanup(() => _capture?.StopRecording());
@@ -498,14 +512,16 @@ public sealed class Gate2UnifiedAudioEngine : IAudioSession
             if (_disposed) return;
             _disposed = true;
             Stop();
+            // Native capture disposal may wait for callbacks. Never wait while holding
+            // the DSP lock a final callback needs in order to observe _disposed.
+            Cleanup(() => _capture?.Dispose());
+            Cleanup(() => _echoReferenceCapture?.Dispose());
+            Cleanup(() => _virtualOutput?.Dispose());
+            Cleanup(() => _monitorOutput?.Dispose());
             lock (_processing)
             {
-                Cleanup(() => _capture?.Dispose());
-                Cleanup(() => _echoReferenceCapture?.Dispose());
                 Cleanup(() => _echoCanceller?.Dispose());
                 Cleanup(() => _echoReferenceDevice?.Dispose());
-                Cleanup(() => _virtualOutput?.Dispose());
-                Cleanup(() => _monitorOutput?.Dispose());
                 Cleanup(() => _rnNoiseSuppressor?.Dispose());
                 Cleanup(() => _deepFilterNetSuppressor?.Dispose());
                 Cleanup(_soundboard.Dispose);
@@ -515,6 +531,8 @@ public sealed class Gate2UnifiedAudioEngine : IAudioSession
                     Cleanup(() => _monitorDevice?.Dispose());
                 }
             }
+            _shutdownComplete = true;
+            _sessionCancellation.Dispose();
         }
     }
 }

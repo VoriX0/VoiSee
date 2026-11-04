@@ -14,23 +14,6 @@ internal sealed class AutostartService
 
     public string ExpectedCommand => $"\"{ExecutablePath}\" --background";
 
-    public bool RefreshAndRepairIfRegistered()
-    {
-        using var key = Registry.CurrentUser.OpenSubKey(RunKeyPath, writable: true);
-        var current = key?.GetValue(ValueName) as string;
-        if (string.IsNullOrWhiteSpace(current))
-        {
-            return false;
-        }
-
-        if (!string.Equals(current.Trim(), ExpectedCommand, StringComparison.OrdinalIgnoreCase))
-        {
-            key!.SetValue(ValueName, ExpectedCommand, RegistryValueKind.String);
-        }
-
-        return true;
-    }
-
     public bool IsEnabled()
     {
         using var key = Registry.CurrentUser.OpenSubKey(RunKeyPath, writable: false);

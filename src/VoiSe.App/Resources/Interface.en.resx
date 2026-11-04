@@ -1,4 +1,4 @@
-<?xml version='1.0' encoding='utf-8'?>
+﻿<?xml version='1.0' encoding='utf-8'?>
 <root>
   <resheader name="resmimetype">
     <value>text/microsoft-resx</value>
@@ -2157,4 +2157,6 @@ WASAPI targets: {0}/{1} ms; mic drops: {2}</value>
   <data xml:space="preserve" name="Preview_started_from_the_selection_start_at_So_f1f933b0">
     <value>Preview started from the selection start at SoundBoard headphones volume ({0:P0}).</value>
   </data>
+  <data name="UnsavedChanges" xml:space="preserve"><value>Some changes could not be saved</value></data>
+  <data name="RetrySave" xml:space="preserve"><value>Retry saving</value></data>
 </root>

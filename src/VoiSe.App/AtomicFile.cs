@@ -26,18 +26,18 @@ internal static class AtomicFile
     }
     private static void Commit(string path, Action<string> write)
     {
+        lock (Sync) VoiSe.Core.AtomicFileTransaction.Write(path, write);
+    }
+
+    public static void RenameContent(string? oldPath, string newPath, string content)
+    {
         lock (Sync)
         {
-            path = Path.GetFullPath(path);
-            Directory.CreateDirectory(Path.GetDirectoryName(path)!);
-            var temp = path + "." + Guid.NewGuid().ToString("N") + ".tmp";
-            try
-            {
-                write(temp);
-                if (File.Exists(path)) File.Replace(temp, path, path + ".bak");
-                else File.Move(temp, path);
-            }
-            finally { if (File.Exists(temp)) File.Delete(temp); }
+            if (string.Equals(oldPath, newPath, StringComparison.OrdinalIgnoreCase)) { WriteAllText(newPath, content); return; }
+            if (File.Exists(newPath)) throw new IOException("The destination already exists.");
+            WriteAllText(newPath, content);
+            try { if (!string.IsNullOrWhiteSpace(oldPath) && File.Exists(oldPath)) File.Delete(oldPath); }
+            catch { File.Delete(newPath); throw; }
         }
     }
     public static T? ReadJson<T>(string path, JsonSerializerOptions options)

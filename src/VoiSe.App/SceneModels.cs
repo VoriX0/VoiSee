@@ -7,12 +7,17 @@ namespace VoiSe.App;
 
 public sealed class VoiSeScene
 {
-    public int SchemaVersion { get; set; } = 9;
+    public int SchemaVersion { get; set; } = 10;
     public string Id { get; set; } = Guid.NewGuid().ToString("N");
     public string Name { get; set; } = "Scene";
     public string Icon { get; set; } = "🎬";
 
     public string? VoicePresetName { get; set; }
+    public string? VoicePresetId { get; set; }
+    public List<string> VoiceEffectOrder { get; set; } = new();
+    public List<string> VoiceBypassedEffects { get; set; } = new();
+    public bool VoiceChainBypassed { get; set; }
+    public bool HasVoiceSnapshot { get; set; }
     public Dictionary<string, double> VoiceSliders { get; set; } = new();
     public bool VoiceMonitorEnabled { get; set; }
 

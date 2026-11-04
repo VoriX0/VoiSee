@@ -57,7 +57,7 @@ public static class SoundEditProcessor
         }
     }
 
-    public static SoundEditResult RenderToWav(SoundEditRequest request)
+    public static SoundEditResult RenderToWav(SoundEditRequest request, CancellationToken cancellationToken = default)
     {
         if (!File.Exists(request.SourcePath))
         {
@@ -70,7 +70,7 @@ public static class SoundEditProcessor
             Math.Clamp(request.SampleRate, 8_000, 192_000),
             Math.Clamp(request.Channels, 1, 2));
 
-        var source = SoundFileLoader.LoadToFormat(request.SourcePath, format);
+        var source = SoundFileLoader.LoadToFormat(request.SourcePath, format, cancellationToken);
         var channels = format.Channels;
         var sampleRate = format.SampleRate;
         var totalFrames = source.Length / channels;
@@ -102,6 +102,7 @@ public static class SoundEditProcessor
             var sourcePeak = 0.0f;
             for (var i = 0; i < source.Length; i++)
             {
+                if ((i & 4095) == 0) cancellationToken.ThrowIfCancellationRequested();
                 sourcePeak = Math.Max(sourcePeak, Math.Abs(source[i]));
             }
 
@@ -120,25 +121,13 @@ public static class SoundEditProcessor
             request.FadeOutSeconds,
             request.DistortionAmount,
             request.EffectTimelineOffsetSeconds,
-            request.EffectTimelineDurationSeconds <= 0 ? totalSeconds : request.EffectTimelineDurationSeconds);
+            request.EffectTimelineDurationSeconds <= 0 ? totalSeconds : request.EffectTimelineDurationSeconds, cancellationToken);
 
-        var tempPath = request.TargetPath + ".tmp";
-        if (File.Exists(tempPath))
+        VoiSe.Core.AtomicFileTransaction.Write(request.TargetPath, tempPath =>
         {
-            File.Delete(tempPath);
-        }
-
-        using (var writer = new WaveFileWriter(tempPath, format))
-        {
-            WriteRange(writer, edited, 0, edited.Length, 1.0f, channels);
-        }
-
-        if (File.Exists(request.TargetPath))
-        {
-            File.Delete(request.TargetPath);
-        }
-
-        File.Move(tempPath, request.TargetPath);
+            using var writer = new WaveFileWriter(tempPath, format);
+            WriteRange(writer, edited, 0, edited.Length, 1.0f, channels, cancellationToken);
+        }, cancellationToken);
         SoundFileLoader.Invalidate(request.TargetPath);
 
         return new SoundEditResult
@@ -149,7 +138,7 @@ public static class SoundEditProcessor
         };
     }
 
-    public static SoundEditResult RenderCutToWav(SoundCutRequest request)
+    public static SoundEditResult RenderCutToWav(SoundCutRequest request, CancellationToken cancellationToken = default)
     {
         if (!File.Exists(request.SourcePath))
         {
@@ -162,7 +151,7 @@ public static class SoundEditProcessor
             Math.Clamp(request.SampleRate, 8_000, 192_000),
             Math.Clamp(request.Channels, 1, 2));
 
-        var source = SoundFileLoader.LoadToFormat(request.SourcePath, format);
+        var source = SoundFileLoader.LoadToFormat(request.SourcePath, format, cancellationToken);
         var channels = format.Channels;
         var sampleRate = format.SampleRate;
         var totalFrames = source.Length / channels;
@@ -187,24 +176,12 @@ public static class SoundEditProcessor
         }
 
         var gain = DbToLinear(request.GainDb);
-        var tempPath = request.TargetPath + ".tmp";
-        if (File.Exists(tempPath))
+        VoiSe.Core.AtomicFileTransaction.Write(request.TargetPath, tempPath =>
         {
-            File.Delete(tempPath);
-        }
-
-        using (var writer = new WaveFileWriter(tempPath, format))
-        {
-            WriteRange(writer, source, 0, beforeSampleCount, gain, channels);
-            WriteRange(writer, source, afterStartSample, afterSampleCount, gain, channels);
-        }
-
-        if (File.Exists(request.TargetPath))
-        {
-            File.Delete(request.TargetPath);
-        }
-
-        File.Move(tempPath, request.TargetPath);
+            using var writer = new WaveFileWriter(tempPath, format);
+            WriteRange(writer, source, 0, beforeSampleCount, gain, channels, cancellationToken);
+            WriteRange(writer, source, afterStartSample, afterSampleCount, gain, channels, cancellationToken);
+        }, cancellationToken);
         SoundFileLoader.Invalidate(request.TargetPath);
 
         return new SoundEditResult
@@ -225,7 +202,7 @@ public static class SoundEditProcessor
         double fadeOutSeconds,
         double distortionAmount,
         double timelineOffsetSeconds,
-        double timelineDurationSeconds)
+        double timelineDurationSeconds, CancellationToken cancellationToken)
     {
         if (samples.Length == 0)
         {
@@ -245,6 +222,7 @@ public static class SoundEditProcessor
 
         for (var frame = 0; frame < frameCount; frame++)
         {
+            if ((frame & 4095) == 0) cancellationToken.ThrowIfCancellationRequested();
             var timelineFrame = offsetFrames + frame;
             var envelope = 1.0;
             if (fadeInFrames > 0 && timelineFrame < fadeInFrames)
@@ -281,7 +259,7 @@ public static class SoundEditProcessor
         int startSample,
         int sampleCount,
         float gain,
-        int channels)
+        int channels, CancellationToken cancellationToken)
     {
         if (sampleCount <= 0)
         {
@@ -295,6 +273,7 @@ public static class SoundEditProcessor
 
         while (remaining > 0)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             var count = Math.Min(buffer.Length, remaining);
             for (var i = 0; i < count; i++)
             {

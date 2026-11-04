@@ -18,6 +18,7 @@ internal sealed class TrayIconService : IDisposable
     private IntPtr _icon;
     private bool _added, _subclassInstalled, _disposed;
     internal bool IsAvailable => _added && !_disposed;
+    public event Action<bool>? PowerModeChanged;
 
     public TrayIconService(IntPtr window, string iconPath, Action openWindow, Action exitApplication)
     {
@@ -62,6 +63,11 @@ internal sealed class TrayIconService : IDisposable
     {
         try
         {
+            if (!_disposed && message == 0x218 && (wParam.ToUInt64() is 4 or 18)) // WM_POWERBROADCAST
+            {
+                PowerModeChanged?.Invoke(wParam.ToUInt64() == 4);
+                return new IntPtr(1);
+            }
             if (message == 0x82) Dispose(); // WM_NCDESTROY: never leave a managed callback on a destroyed HWND.
             else if (!_disposed && message == _taskbarCreated)
             {
@@ -112,6 +118,7 @@ internal sealed class TrayIconService : IDisposable
     {
         if (_disposed) return;
         _disposed = true;
+        PowerModeChanged = null;
         if (_added) { var data = IconData(); ShellNotifyIcon(2, ref data); _added = false; }
         if (_subclassInstalled) { RemoveWindowSubclass(_window, _callback, SubclassId); _subclassInstalled = false; }
         if (_icon != IntPtr.Zero) { DestroyIcon(_icon); _icon = IntPtr.Zero; }
